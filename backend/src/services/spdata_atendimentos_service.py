@@ -26,7 +26,10 @@ from src.settings.extensions import db
 from src.utils.normalizar import normalizar_cpf
 
 
-UNIDADE_PADRAO_SPDATA = 340
+# 340 - Natus
+# 350 - Centro AMI
+
+UNIDADE_PADRAO_SPDATA = 350
 
 STATUS_VALIDOS = {
     "em-atendimento",
