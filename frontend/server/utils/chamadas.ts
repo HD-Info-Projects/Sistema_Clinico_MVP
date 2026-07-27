@@ -15,6 +15,21 @@ type Chamado = {
 type CriarChamadoPayload = Pick<Chamado, 'pacienteId' | 'pacienteNome' | 'localAtendimento' | 'medicoResponsavel'>
 
 const chamados: Chamado[] = []
+const MAX_CHAMADOS = 100
+
+export function chamadoPublico(chamado: Chamado | null) {
+  if (!chamado) return null
+
+  return {
+    id: chamado.id,
+    pacienteId: 0,
+    pacienteNome: chamado.pacienteNome,
+    dataChamada: chamado.dataChamada,
+    status: chamado.status,
+    localAtendimento: chamado.localAtendimento,
+    medicoResponsavel: ''
+  }
+}
 
 export function getChamadoAtivo() {
   return chamados.find(chamado => chamado.status === 'chamando') ?? null
@@ -58,6 +73,9 @@ export function criarChamado(data: CriarChamadoPayload) {
   }
 
   chamados.push(chamado)
+  if (chamados.length > MAX_CHAMADOS) {
+    chamados.splice(0, chamados.length - MAX_CHAMADOS)
+  }
   broadcastSse({ type: 'chamado:novo', data: chamado })
 
   return chamado

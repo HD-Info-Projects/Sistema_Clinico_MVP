@@ -1,4 +1,5 @@
 export default defineEventHandler(async (event) => {
+  await requireRole(event, ['medico', 'recepcao'])
   const id = Number(getRouterParam(event, 'id'))
   const body = await readBody<{ status?: string }>(event)
 

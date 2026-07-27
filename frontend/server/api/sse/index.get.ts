@@ -1,6 +1,3 @@
-import { getCookie } from 'h3'
-import { jwtDecode } from 'jwt-decode'
-
 const POLL_INTERVAL_MS = 10000
 const KEEP_ALIVE_MS = 15000
 
@@ -10,23 +7,14 @@ function hojeISO() {
   return data.toISOString().slice(0, 10)
 }
 
-function getTokenRole(token?: string | null) {
-  if (!token) return null
-
-  try {
-    return jwtDecode<{ role?: string }>(token).role ?? null
-  } catch {
-    return null
-  }
-}
-
 export default defineEventHandler(async (event) => {
   const { req, res } = event.node
   const query = getQuery(event)
-  const token = getCookie(event, 'auth_token')
+  const token = requireAuthToken(event)
+  const authUser = await getAuthenticatedUser(event)
   const config = useRuntimeConfig()
   const dataParam = Array.isArray(query.data) ? query.data[0] : query.data
-  const pollAgenda = Boolean(dataParam) && getTokenRole(token) === 'medico'
+  const pollAgenda = Boolean(dataParam) && authUser.role === 'medico'
   const data = String(dataParam || hojeISO())
 
   res.writeHead(200, {
@@ -100,7 +88,7 @@ export default defineEventHandler(async (event) => {
       clearInterval(keepAlive)
       res.end()
     }
-  })
+  }, 'internal')
 
   req.on('close', () => {
     closed = true

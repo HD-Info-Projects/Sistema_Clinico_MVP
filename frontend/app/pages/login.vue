@@ -38,9 +38,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
 
   const result = await auth.login(payload.data)
 
-  if (result.success) {
-    navigateTo('/')
-  } else {
+  if (!result.success) {
     errorMsg.value = result.message || 'Erro ao realizar login'
   }
 

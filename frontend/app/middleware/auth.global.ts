@@ -7,9 +7,12 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (to.path === '/painel-chamada') return
   if (to.path === '/login') return
 
+  if (import.meta.server) return
+
   // Garantir que os dados do usuário estejam carregados
-  if (import.meta.client && auth.isLoggedIn && !auth.user) {
-    await auth.fetchUser()
+  if (!auth.user) {
+    const authenticated = await auth.fetchUser()
+    if (!authenticated) return navigateTo('/login')
   }
 
   // Redirecionar para login se não estiver logado
@@ -27,7 +30,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   // Se tem múltiplas clínicas mas nenhuma selecionada, forçar seleção
   if (auth.clinicas.length > 1 && !auth.activeClinicaId) {
-    navigateTo(auth.isRecepcao ? '/recepcao' : '/dashboard')
+    return navigateTo('/selecionar-clinica')
   }
 
   // Role-based routing

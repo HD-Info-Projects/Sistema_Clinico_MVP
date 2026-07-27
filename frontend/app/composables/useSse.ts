@@ -1,6 +1,7 @@
 type SseHandler = (data: unknown) => void
 type SseConnectOptions = {
   data?: string
+  public?: boolean
 }
 
 let eventSource: EventSource | null = null
@@ -22,7 +23,8 @@ function buildUrl(options?: SseConnectOptions) {
   if (options?.data) params.set('data', options.data)
 
   const qs = params.toString()
-  return `/api/sse${qs ? `?${qs}` : ''}`
+  const path = options?.public ? '/api/sse/tv' : '/api/sse'
+  return `${path}${qs ? `?${qs}` : ''}`
 }
 
 function clearReconnectTimer() {
@@ -98,7 +100,6 @@ export function useSse() {
       handlers.set(event, new Set())
     }
     handlers.get(event)!.add(handler)
-    connectShared()
   }
 
   function off(event: string, handler: SseHandler) {

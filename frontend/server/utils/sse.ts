@@ -1,19 +1,47 @@
-const sseClients: Set<{ write: (data: string) => void, close: () => void }> = new Set()
+type SseClient = { write: (data: string) => void, close: () => void }
+type SseChannel = 'internal' | 'tv'
 
-export function addSseClient(client: { write: (data: string) => void, close: () => void }) {
-  sseClients.add(client)
+const sseClients: Record<SseChannel, Set<SseClient>> = {
+  internal: new Set(),
+  tv: new Set()
+}
+
+function publicEventData(type: string, data: unknown) {
+  if (!type.startsWith('chamado:') || !data || typeof data !== 'object') return data
+
+  const chamado = data as Record<string, unknown>
+  return {
+    id: chamado.id,
+    pacienteId: 0,
+    pacienteNome: chamado.pacienteNome,
+    dataChamada: chamado.dataChamada,
+    status: chamado.status,
+    localAtendimento: chamado.localAtendimento,
+    medicoResponsavel: ''
+  }
+}
+
+function sendTo(channel: SseChannel, event: { type: string, data: unknown }) {
+  const message = `event: ${event.type}\ndata: ${JSON.stringify(event.data)}\n\n`
+  for (const client of [...sseClients[channel]]) {
+    try {
+      client.write(message)
+    } catch {
+      sseClients[channel].delete(client)
+    }
+  }
+}
+
+export function addSseClient(client: SseClient, channel: SseChannel = 'internal') {
+  sseClients[channel].add(client)
   return () => {
-    sseClients.delete(client)
+    sseClients[channel].delete(client)
   }
 }
 
 export function broadcastSse(event: { type: string, data: unknown }) {
-  const message = `event: ${event.type}\ndata: ${JSON.stringify(event.data)}\n\n`
-  for (const client of [...sseClients]) {
-    try {
-      client.write(message)
-    } catch {
-      sseClients.delete(client)
-    }
+  sendTo('internal', event)
+  if (event.type.startsWith('chamado:')) {
+    sendTo('tv', { ...event, data: publicEventData(event.type, event.data) })
   }
 }

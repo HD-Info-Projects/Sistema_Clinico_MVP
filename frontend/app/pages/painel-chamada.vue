@@ -140,7 +140,7 @@ async function falarChamado(pacienteNome: string, localAtendimento: string) {
 onMounted(async () => {
   audioAtivo.value = await testarAudioPermitido()
 
-  chamadosStore.init()
+  chamadosStore.init({ public: true })
 
   const sse = useSse()
   sse.on('chamado:novo', (data: unknown) => {
@@ -149,6 +149,7 @@ onMounted(async () => {
       void falarChamado(chamado.pacienteNome, chamado.localAtendimento ?? 'sala de atendimento')
     }
   })
+  sse.connect({ public: true })
 })
 
 onBeforeUnmount(() => {

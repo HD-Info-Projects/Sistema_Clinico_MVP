@@ -6,14 +6,9 @@ export const useAuthStore = defineStore('auth', () => {
   const authCookieMaxAgeSeconds = Number(config.public.authCookieMaxAgeSeconds) || 60 * 60 * 24 * 7
   const user = ref<AuthUser | null>(null)
   const clinicas = ref<Clinica[]>([])
+  const sessionChecked = ref(false)
 
-  const _token = useCookie('auth_token', {
-    maxAge: authCookieMaxAgeSeconds,
-    sameSite: 'lax'
-  })
-  const token = computed(() => _token.value)
-
-  const isLoggedIn = computed(() => !!_token.value)
+  const isLoggedIn = computed(() => !!user.value)
 
   const _activeClinicaCookie = useCookie('active_clinica_id', {
     maxAge: authCookieMaxAgeSeconds
@@ -30,19 +25,37 @@ export const useAuthStore = defineStore('auth', () => {
     return clinicas.value.find(c => c.id === activeClinicaId.value) ?? null
   })
 
+  watch(clinicas, (lista) => {
+    if (activeClinicaId.value && !lista.some(c => c.id === activeClinicaId.value)) {
+      activeClinicaId.value = null
+    }
+  })
+
   const isMedico = computed(() => user.value?.role === 'medico')
   const isRecepcao = computed(() => user.value?.role === 'recepcao')
 
+  function limparRascunhosClinicosLocais() {
+    if (!import.meta.client) return
+
+    for (const storage of [sessionStorage, localStorage]) {
+      for (const key of Object.keys(storage)) {
+        if (key.startsWith('medsystem:atendimento-draft:')) {
+          storage.removeItem(key)
+        }
+      }
+    }
+  }
+
   async function login(credentials: Record<string, unknown>) {
     try {
-      const response = await $fetch<{ token: string, user: AuthUser, clinicas: Clinica[] }>('/api/auth/login', {
+      const response = await $fetch<{ user: AuthUser, clinicas: Clinica[] }>('/api/auth/login', {
         method: 'POST',
         body: credentials
       })
 
-      _token.value = response.token
       user.value = response.user
       clinicas.value = response.clinicas
+      sessionChecked.value = true
 
       if (response.clinicas.length > 1) {
         activeClinicaId.value = null
@@ -73,39 +86,53 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  function logout() {
+  async function logout() {
     if (import.meta.client) useSse().disconnect()
+    limparRascunhosClinicosLocais()
 
-    _token.value = null
+    try {
+      await $fetch('/api/auth/logout', { method: 'POST' })
+    } catch {
+      // A limpeza local ainda deve ocorrer se o servidor já encerrou a sessão.
+    }
+
     user.value = null
     clinicas.value = []
     activeClinicaId.value = null
+    sessionChecked.value = true
     navigateTo('/login')
   }
 
   async function fetchUser() {
-    if (_token.value && !user.value) {
-      try {
-        const response = await $fetch<{ user: AuthUser, clinicas: Clinica[] }>('/api/auth/me')
-        user.value = response.user
-        clinicas.value = response.clinicas
-        if (response.clinicas.length === 1) {
-          activeClinicaId.value = response.clinicas[0]!.id
-        }
-      } catch {
-        logout()
+    if (user.value) return true
+
+    try {
+      const response = await $fetch<{ user: AuthUser, clinicas: Clinica[] }>('/api/auth/me')
+      user.value = response.user
+      clinicas.value = response.clinicas
+      if (response.clinicas.length === 1) {
+        activeClinicaId.value = response.clinicas[0]!.id
       }
+      sessionChecked.value = true
+      return true
+    } catch {
+      user.value = null
+      clinicas.value = []
+      activeClinicaId.value = null
+      sessionChecked.value = true
+      return false
     }
   }
 
   function setActiveClinica(id: number) {
+    if (!clinicas.value.some(c => c.id === id)) return
     activeClinicaId.value = id
   }
 
   return {
     user,
-    token,
     clinicas,
+    sessionChecked,
     activeClinicaId,
     activeClinica,
     isLoggedIn,

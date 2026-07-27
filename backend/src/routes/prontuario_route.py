@@ -3,7 +3,7 @@ import re
 from datetime import date, datetime, time, timedelta
 
 from flask import Blueprint, current_app, request, jsonify
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import get_jwt_identity, jwt_required
 from sqlalchemy import or_, select
 from sqlalchemy.orm import selectinload
 
@@ -19,6 +19,8 @@ from src.models.prescricao_model import Prescricao
 from src.models.solicitacao_exame_model import SolicitacaoExame
 from src.models.evolucoes_medicas_model import EvolucaoMedica
 from src.models.model_mydsystem.med_spdata_atendimentos_model import MedSpdataAtendimento
+from src.models.model_mydsystem.med_spdata_agenda_model import MedSpdataAgenda
+from src.services.spdata_atendimentos_service import get_crm_medico_usuario
 from src.utils.normalizar import normalizar_cpf
 
 
@@ -95,6 +97,94 @@ def _normalizar_texto_linhas(texto):
     linhas = [linha.strip() for linha in str(texto).splitlines()]
     texto = "\n".join(linha for linha in linhas if linha)
     return texto or None
+
+
+def _referencia_autorizada_paciente(
+    usuario_id,
+    paciente_id=None,
+    cpf=None,
+    nome=None,
+    spdata_atendimento_id=None,
+):
+    crm_medico = get_crm_medico_usuario(usuario_id)
+    cpf = _cpf_valido(cpf)
+    nome = _texto_ou_none(nome)
+
+    filtros_spdata = []
+    if spdata_atendimento_id:
+        filtros_spdata.append(or_(
+            MedSpdataAtendimento.id == spdata_atendimento_id,
+            MedSpdataAtendimento.spdata_atendimento_id == spdata_atendimento_id,
+        ))
+    if paciente_id:
+        filtros_spdata.append(MedSpdataAtendimento.id_paciente_spdata == paciente_id)
+    if cpf:
+        filtros_spdata.append(MedSpdataAtendimento.cpf == cpf)
+
+    if filtros_spdata:
+        registro = db.session.execute(
+            select(MedSpdataAtendimento)
+            .where(
+                MedSpdataAtendimento.crm_medico == crm_medico,
+                or_(*filtros_spdata),
+            )
+            .order_by(MedSpdataAtendimento.data_hora_entrada.desc())
+        ).scalars().first()
+        if registro:
+            return {
+                "cpf": _cpf_valido(registro.cpf) or cpf,
+                "nome": _texto_ou_none(registro.paciente) or nome,
+            }
+
+    filtros_agenda = []
+    if paciente_id:
+        filtros_agenda.append(MedSpdataAgenda.id_paciente_spdata == paciente_id)
+    if cpf:
+        filtros_agenda.append(MedSpdataAgenda.cpf == cpf)
+
+    if filtros_agenda:
+        agenda = db.session.execute(
+            select(MedSpdataAgenda)
+            .where(
+                or_(
+                    MedSpdataAgenda.crm_atend == crm_medico,
+                    MedSpdataAgenda.crm == crm_medico,
+                ),
+                or_(*filtros_agenda),
+            )
+            .order_by(MedSpdataAgenda.data_agenda.desc())
+        ).scalars().first()
+        if agenda:
+            return {
+                "cpf": _cpf_valido(agenda.cpf) or cpf,
+                "nome": _texto_ou_none(agenda.paciente) or nome,
+            }
+
+    filtros_local = []
+    if spdata_atendimento_id:
+        filtros_local.append(Atendimento.spdata_atendimento_id == spdata_atendimento_id)
+    if paciente_id:
+        filtros_local.append(Atendimento.spdata_paciente_id == paciente_id)
+    if cpf:
+        filtros_local.append(Atendimento.paciente_cpf == cpf)
+
+    if filtros_local:
+        atendimento = db.session.execute(
+            select(Atendimento)
+            .join(EvolucaoMedica, EvolucaoMedica.atendimento_id == Atendimento.id)
+            .where(
+                EvolucaoMedica.medico_id == usuario_id,
+                or_(*filtros_local),
+            )
+            .order_by(Atendimento.data_atendimento.desc())
+        ).scalars().first()
+        if atendimento:
+            return {
+                "cpf": _cpf_valido(atendimento.paciente_cpf) or cpf,
+                "nome": _texto_ou_none(atendimento.paciente_nome) or nome,
+            }
+
+    raise PermissionError("Paciente não encontrado")
 
 
 def _decode_rtf_hex(valor):
@@ -226,24 +316,14 @@ def _rtf_para_texto(valor):
     return _normalizar_texto_linhas("".join(resultado))
 
 
-def _referencia_paciente_biodata(paciente_id):
-    cpf = _cpf_valido(request.args.get("cpf"))
-    nome = _texto_ou_none(request.args.get("nome"))
-
-    if cpf and nome:
-        return cpf, nome
-
-    registro = db.session.execute(
-        select(MedSpdataAtendimento).where(
-            MedSpdataAtendimento.id_paciente_spdata == paciente_id
-        ).order_by(MedSpdataAtendimento.data_hora_entrada.desc())
-    ).scalars().first()
-
-    if registro:
-        cpf = cpf or _cpf_valido(registro.cpf)
-        nome = nome or _texto_ou_none(registro.paciente)
-
-    return cpf, nome
+def _referencia_paciente_biodata(paciente_id, usuario_id):
+    referencia = _referencia_autorizada_paciente(
+        usuario_id,
+        paciente_id=paciente_id,
+        cpf=request.args.get("cpf"),
+        nome=request.args.get("nome"),
+    )
+    return referencia["cpf"], referencia["nome"]
 
 
 def _executar_historico_biodata(where_clause, params, limit, offset):
@@ -301,8 +381,8 @@ def _executar_historico_biodata(where_clause, params, limit, offset):
     return items[:limit], len(items) > limit
 
 
-def _historico_biodata(paciente_id, limit=10, offset=0):
-    cpf, nome = _referencia_paciente_biodata(paciente_id)
+def _historico_biodata(paciente_id, usuario_id, limit=10, offset=0):
+    cpf, nome = _referencia_paciente_biodata(paciente_id, usuario_id)
     historico = []
     has_more = False
 
@@ -450,12 +530,20 @@ def historico_paciente_local(paciente_id):
     # Busca no banco LOCAL os atendimentos finalizados deste paciente,
     # incluindo dados completos de anamnese, CIDs, medicamentos e exames.
     try:
+        usuario_id = int(get_jwt_identity())
         spdata_atendimento_id = (
             request.args.get("spdataAtendimentoId", type=int)
             or request.args.get("spdata_atendimento_id", type=int)
         )
-        cpf = _cpf_valido(request.args.get("cpf"))
-        nome = _texto_ou_none(request.args.get("nome"))
+        referencia = _referencia_autorizada_paciente(
+            usuario_id,
+            paciente_id=paciente_id,
+            cpf=request.args.get("cpf"),
+            nome=request.args.get("nome"),
+            spdata_atendimento_id=spdata_atendimento_id,
+        )
+        cpf = referencia["cpf"]
+        nome = referencia["nome"]
         data = request.args.get("data")
         data_ref = None
 
@@ -539,6 +627,8 @@ def historico_paciente_local(paciente_id):
 
         return jsonify(result), 200
 
+    except PermissionError:
+        return jsonify({"error": "Paciente não encontrado"}), 404
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -548,14 +638,17 @@ def historico_paciente_local(paciente_id):
 @roles_required("medico")
 def historico_paciente(id:int):
     try:
+        usuario_id = int(get_jwt_identity())
         limit = request.args.get("limit", default=10, type=int)
         offset = request.args.get("offset", default=0, type=int)
 
         limit = min(max(limit or 10, 1), 50)
         offset = max(offset or 0, 0)
 
-        return jsonify(_historico_biodata(id, limit, offset)), 200
-            
+        return jsonify(_historico_biodata(id, usuario_id, limit, offset)), 200
+
+    except PermissionError:
+        return jsonify({"error": "Paciente não encontrado"}), 404
     except Exception as e:
         current_app.logger.exception("Erro ao buscar histórico do paciente no BioData")
         return jsonify({"error": str(e)}), 500

@@ -1,0 +1,94 @@
+import type { H3Event } from 'h3'
+import { createError, deleteCookie, getCookie, setCookie } from 'h3'
+import { getClinica } from './clinicas'
+
+export const AUTH_COOKIE_NAME = 'auth_token'
+
+type BackendAuthUser = {
+  id: number
+  email: string
+  nome_completo: string
+  role: 'medico' | 'recepcao' | 'admin'
+  crm?: string | null
+  especialidade?: string | null
+}
+
+function authCookieMaxAgeSeconds() {
+  const config = useRuntimeConfig()
+  const maxAge = Number(config.public.authCookieMaxAgeSeconds) || 60 * 60 * 24 * 7
+  return maxAge
+}
+
+function authCookieOptions(maxAge = authCookieMaxAgeSeconds()) {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict' as const,
+    path: '/',
+    maxAge
+  }
+}
+
+export function setAuthTokenCookie(event: H3Event, token: string) {
+  setCookie(event, AUTH_COOKIE_NAME, token, authCookieOptions())
+}
+
+export function clearAuthTokenCookie(event: H3Event) {
+  deleteCookie(event, AUTH_COOKIE_NAME, authCookieOptions(0))
+}
+
+export function requireAuthToken(event: H3Event) {
+  const token = getCookie(event, AUTH_COOKIE_NAME)
+
+  if (!token) {
+    throw createError({ statusCode: 401, statusMessage: 'Não autorizado' })
+  }
+
+  return token
+}
+
+export function buildAuthPayload(raw: BackendAuthUser) {
+  const clinicaIds = raw.role === 'recepcao' ? [1] : [1, 2]
+  const clinicas = clinicaIds
+    .map(id => getClinica(id))
+    .filter(Boolean)
+
+  return {
+    user: {
+      id: raw.id,
+      nome: raw.nome_completo,
+      email: raw.email,
+      role: raw.role,
+      crm: raw.crm ?? undefined,
+      especialidades: raw.especialidade ? [raw.especialidade] : [],
+      clinicaIds
+    },
+    clinicas
+  }
+}
+
+export async function getAuthenticatedUser(event: H3Event) {
+  const token = requireAuthToken(event)
+  const config = useRuntimeConfig()
+
+  try {
+    return await $fetch<BackendAuthUser>(`${config.flaskBaseUrl}/login/me`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
+  } catch {
+    clearAuthTokenCookie(event)
+    throw createError({ statusCode: 401, statusMessage: 'Não autorizado' })
+  }
+}
+
+export async function requireRole(event: H3Event, roles: BackendAuthUser['role'][]) {
+  const user = await getAuthenticatedUser(event)
+
+  if (!roles.includes(user.role)) {
+    throw createError({ statusCode: 403, statusMessage: 'Acesso negado' })
+  }
+
+  return user
+}

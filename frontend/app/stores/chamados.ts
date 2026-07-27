@@ -5,6 +5,7 @@ export const useChamadosStore = defineStore('chamados', () => {
   const chamados = ref<Chamado[]>([])
   const loading = ref(true)
   let sse: ReturnType<typeof useSse> | null = null
+  let sseHandlersRegistrados = false
 
   const ultimoChamado = computed(() =>
     chamados.value.find(c => c.status === 'chamando') ?? null
@@ -30,15 +31,22 @@ export const useChamadosStore = defineStore('chamados', () => {
     }
   }
 
-  async function init() {
+  async function init(options?: { public?: boolean }) {
     sse = useSse()
     await fetchChamados()
+
+    if (sseHandlersRegistrados) {
+      sse.connect({ public: options?.public })
+      return
+    }
+
     sse.on('chamado:novo', (data: unknown) => {
       const chamado = data as Chamado
       const existingActive = chamados.value.findIndex(c => c.status === 'chamando')
       if (existingActive >= 0) {
         const active = chamados.value[existingActive]!
-        if (active.id === chamado.id || active.pacienteId === chamado.pacienteId) {
+        const mesmoPaciente = Boolean(active.pacienteId && chamado.pacienteId && active.pacienteId === chamado.pacienteId)
+        if (active.id === chamado.id || mesmoPaciente) {
           chamados.value[existingActive] = chamado
           return
         }
@@ -52,7 +60,8 @@ export const useChamadosStore = defineStore('chamados', () => {
       const idx = chamados.value.findIndex(c => c.id === chamado.id)
       if (idx >= 0) chamados.value[idx] = chamado
     })
-    sse.connect()
+    sseHandlersRegistrados = true
+    sse.connect({ public: options?.public })
   }
 
   async function chamarPaciente(pacienteId: number, pacienteNome: string, localAtendimento: string, medicoResponsavel: string) {

@@ -445,13 +445,18 @@ let restaurandoDraft = false
 let draftDesativado = false
 
 const DRAFT_TTL_MS = 7 * 24 * 60 * 60 * 1000
+const DRAFT_STORAGE_PREFIX = 'medsystem:atendimento-draft:'
 
 const draftKey = computed(() => {
   const ag = agendamento.value
   if (!ag) return null
 
-  return `medsystem:atendimento-draft:${ag.id}:${ag.paciente.id}`
+  return `${DRAFT_STORAGE_PREFIX}${ag.id}:${ag.paciente.id}`
 })
+
+function draftStorage() {
+  return sessionStorage
+}
 
 const draftSalvoHorario = computed(() => {
   if (!draftSalvoEm.value) return ''
@@ -508,13 +513,15 @@ function salvarDraftAgora() {
   if (!draft) return
 
   if (!draftTemConteudo(draft)) {
+    draftStorage().removeItem(draftKey.value)
     localStorage.removeItem(draftKey.value)
     draftSalvoEm.value = null
     draftRestaurado.value = false
     return
   }
 
-  localStorage.setItem(draftKey.value, JSON.stringify(draft))
+  draftStorage().setItem(draftKey.value, JSON.stringify(draft))
+  localStorage.removeItem(draftKey.value)
   draftSalvoEm.value = draft.savedAt
 }
 
@@ -530,7 +537,9 @@ function salvarDraftComDebounce() {
 function restaurarDraft() {
   if (!import.meta.client || !draftKey.value) return
 
-  const raw = localStorage.getItem(draftKey.value)
+  localStorage.removeItem(draftKey.value)
+
+  const raw = draftStorage().getItem(draftKey.value)
   if (!raw) return
 
   try {
@@ -538,7 +547,7 @@ function restaurarDraft() {
     const savedAt = new Date(draft.savedAt).getTime()
 
     if (!savedAt || Date.now() - savedAt > DRAFT_TTL_MS) {
-      localStorage.removeItem(draftKey.value)
+      draftStorage().removeItem(draftKey.value)
       return
     }
 
@@ -572,7 +581,7 @@ function restaurarDraft() {
       icon: 'i-lucide-save'
     })
   } catch {
-    localStorage.removeItem(draftKey.value)
+    draftStorage().removeItem(draftKey.value)
   } finally {
     setTimeout(() => {
       restaurandoDraft = false
@@ -584,6 +593,7 @@ function limparDraft() {
   if (!import.meta.client || !draftKey.value) return
 
   draftDesativado = true
+  draftStorage().removeItem(draftKey.value)
   localStorage.removeItem(draftKey.value)
   draftSalvoEm.value = null
   draftRestaurado.value = false
@@ -1213,18 +1223,18 @@ async function finalizarConsulta() {
                   class="space-y-2"
                 >
                   <div
-                    v-for="(exame, i) in examesSelecionados"
+                    v-for="(exameItem, i) in examesSelecionados"
                     :key="i"
                     class="flex items-center justify-between p-3 rounded-lg border border-muted"
                   >
-                    <span class="text-sm">{{ exame.nome }}</span>
+                    <span class="text-sm">{{ exameItem.nome }}</span>
                     <div class="flex gap-3 items-center">
                       <UButton
                         variant="link"
-                        :icon="exameTemOrientacao(exame) ? 'i-lucide-message-square-warning' : 'i-lucide-plus'"
-                        @click="adicionarOrientacao(exame)"
+                        :icon="exameTemOrientacao(exameItem) ? 'i-lucide-message-square-warning' : 'i-lucide-plus'"
+                        @click="adicionarOrientacao(exameItem)"
                       >
-                        {{ exameTemOrientacao(exame) ? 'Editar Orientação' : 'Adicionar Orientação' }}
+                        {{ exameTemOrientacao(exameItem) ? 'Editar Orientação' : 'Adicionar Orientação' }}
                       </UButton>
                       <UButton
                         icon="i-lucide-x"

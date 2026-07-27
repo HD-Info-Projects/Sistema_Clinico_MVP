@@ -5,10 +5,12 @@ from flask import (
     jsonify
 )
 
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import get_jwt_identity, jwt_required
+from sqlalchemy.orm import joinedload
 from src.security.decorators import roles_required
 
 from src.controllers.login_controller import LoginController
+from src.models.usuario_model import Usuario
 
 from src.settings.extensions import db, limiter
 from src.services.medicos_spdata_service import (
@@ -61,6 +63,35 @@ def login():
     except Exception:
         current_app.logger.exception("Erro inesperado no login")
         return jsonify({"error": "Erro interno ao realizar login"}), 500
+
+
+@login_bp.route("/me", methods=["GET"])
+@jwt_required()
+def me():
+    try:
+        usuario_id = int(get_jwt_identity())
+        usuario = (
+            db.session.query(Usuario)
+            .options(joinedload(Usuario.medico))
+            .filter(Usuario.id == usuario_id)
+            .first()
+        )
+
+        if not usuario:
+            return jsonify({"error": "Não autorizado"}), 401
+
+        return jsonify({
+            "id": usuario.id,
+            "email": usuario.email,
+            "nome_completo": usuario.nome_completo,
+            "role": usuario.role,
+            "crm": usuario.medico.crm_atendimento_spdata if usuario.medico else None,
+            "especialidade": usuario.medico.especialidade if usuario.medico else None,
+        }), 200
+
+    except Exception:
+        current_app.logger.exception("Erro ao carregar usuário autenticado")
+        return jsonify({"error": "Erro interno ao carregar sessão"}), 500
 
 
 @login_bp.route("/register", methods=["POST"])
