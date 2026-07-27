@@ -22,7 +22,7 @@ function authCookieMaxAgeSeconds() {
 function authCookieOptions(maxAge = authCookieMaxAgeSeconds()) {
   return {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: process.env.NUXT_AUTH_COOKIE_SECURE === 'true',
     sameSite: 'strict' as const,
     path: '/',
     maxAge

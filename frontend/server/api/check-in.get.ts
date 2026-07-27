@@ -13,9 +13,12 @@ export default defineEventHandler(async (event) => {
     const qs = params.toString()
     return await flaskFetch(event, `/check_in/${qs ? `?${qs}` : ''}`)
   } catch (error) {
+    const fetchError = error as { status?: number, statusCode?: number, response?: { status?: number } }
+    const status = fetchError.response?.status || fetchError.statusCode || fetchError.status || 502
+
     throw createError({
-      statusCode: 502,
-      statusMessage: 'Falha ao conectar com o backend Flask',
+      statusCode: status,
+      message: status === 401 ? 'Não autorizado' : status === 403 ? 'Acesso negado' : 'Falha ao conectar com o backend Flask',
       data: String(error)
     })
   }
