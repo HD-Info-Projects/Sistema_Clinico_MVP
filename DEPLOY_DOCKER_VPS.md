@@ -4,9 +4,10 @@ Este guia mostra como subir o Sistema Clinico MVP em uma VPS usando Docker Compo
 
 ## Arquitetura
 
-O deploy usa quatro containers:
+O deploy usa cinco containers:
 
-- `frontend`: aplicacao Nuxt exposta para acesso publico.
+- `caddy`: proxy reverso publico com HTTPS automatico.
+- `frontend`: aplicacao Nuxt acessivel publicamente apenas pelo Caddy.
 - `backend`: API Flask rodando com Gunicorn, acessivel apenas pela rede interna Docker.
 - `mysql`: banco MySQL persistido em volume Docker.
 - `redis`: cache Redis persistido em volume Docker.
@@ -16,6 +17,7 @@ O Firebird/SPDATA fica fora do Docker e deve estar acessivel pela VPS via rede.
 ## Arquivos adicionados
 
 - `docker-compose.yml`: orquestra todos os servicos.
+- `Caddyfile`: configura o proxy reverso HTTPS para o frontend.
 - `.env.example`: modelo das variaveis de producao.
 - `backend/Dockerfile`: imagem do Flask/Gunicorn.
 - `backend/.dockerignore`: evita copiar arquivos locais para a imagem.
@@ -30,7 +32,8 @@ Observacao: o container `backend` executa `flask db upgrade` automaticamente ant
 2. Nao versione arquivos `.env`.
 3. Troque senhas que ja tenham sido compartilhadas ou commitadas.
 4. Confirme que a VPS consegue acessar o servidor Firebird/SPDATA.
-5. Confirme que a porta `80` da VPS esta liberada.
+5. Confirme que as portas `80` e `443` da VPS estao liberadas.
+6. Aponte o dominio/subdominio para o IP publico da VPS antes de subir o Caddy.
 
 Importante: existe um arquivo local chamado `VPS - Acesso.md` com credenciais. Remova esse arquivo do repositorio e troque a senha da VPS antes de usar em producao.
 
@@ -88,8 +91,9 @@ nano .env
 Preencha as variaveis:
 
 ```env
-FRONTEND_PORT=80
+APP_DOMAIN=sistema.seudominio.com.br
 NUXT_ENABLE_MOCK_AUTH=false
+NUXT_AUTH_COOKIE_SECURE=true
 TZ=America/Sao_Paulo
 GUNICORN_WORKERS=3
 GUNICORN_TIMEOUT=120
@@ -115,11 +119,15 @@ Observacoes:
 - `MYSQL_DATABASE`, `MYSQL_USER` e `MYSQL_PASSWORD` sao usados pelo Flask via `SQLALCHEMY_DATABASE_URI`.
 - `NUXT_FLASK_BASE_URL` ja e definido no `docker-compose.yml` como `http://backend:5000`.
 - `NUXT_ENABLE_MOCK_AUTH=false` impede login mockado em producao.
+- `NUXT_AUTH_COOKIE_SECURE=true` faz o cookie de autenticacao funcionar apenas em HTTPS.
+- `APP_DOMAIN` deve ser somente o dominio/subdominio, sem `http://` ou `https://`.
 - `TZ=America/Sao_Paulo` mantem backend, frontend e MySQL no fuso esperado.
 - `GUNICORN_WORKERS` e `GUNICORN_TIMEOUT` controlam o Gunicorn do backend sem rebuild da imagem.
 - `FIREBIRD_HOST` nao pode ser `localhost`, porque dentro do container `localhost` aponta para o proprio container.
 
 ## Subir a aplicacao
+
+Antes de subir, confirme que o DNS do dominio ja aponta para a VPS e que as portas `80` e `443` estao liberadas.
 
 Na raiz do projeto, execute:
 
@@ -135,7 +143,7 @@ Confira se os containers subiram:
 docker compose ps
 ```
 
-Os servicos `mysql`, `redis`, `backend` e `frontend` devem aparecer como `healthy` apos alguns segundos.
+O servico `caddy` deve aparecer como `Up`. Os servicos `mysql`, `redis`, `backend` e `frontend` devem aparecer como `healthy` apos alguns segundos.
 
 Se o backend nao ficar `healthy`, verifique os logs. Uma falha de migration impede o Gunicorn de iniciar.
 
@@ -144,18 +152,21 @@ Veja os logs se precisar diagnosticar:
 ```bash
 docker compose logs -f backend
 docker compose logs -f frontend
+docker compose logs -f caddy
 docker compose logs -f mysql
 ```
 
 Depois disso, acesse:
 
 ```text
-http://IP_DA_VPS
+https://APP_DOMAIN
 ```
 
-´´´text
-http://200.9.22.89
-´´´
+Exemplo:
+
+```text
+https://sistema.seudominio.com.br
+```
 
 ## Liberar firewall
 
@@ -164,11 +175,13 @@ Se estiver usando `ufw`:
 ```bash
 ufw allow OpenSSH
 ufw allow 80/tcp
+ufw allow 443/tcp
+ufw allow 443/udp
 ufw enable
 ufw status
 ```
 
-O backend, MySQL e Redis nao precisam ser expostos publicamente.
+O frontend, backend, MySQL e Redis nao precisam ser expostos publicamente. O acesso publico fica apenas no Caddy.
 
 ## Atualizar o deploy
 
@@ -200,6 +213,7 @@ docker compose up -d
 Reiniciar apenas um servico:
 
 ```bash
+docker compose restart caddy
 docker compose restart backend
 docker compose restart frontend
 ```
@@ -230,6 +244,12 @@ Ver logs do backend:
 
 ```bash
 docker compose logs --tail=200 backend
+```
+
+Ver logs do Caddy e emissao do certificado HTTPS:
+
+```bash
+docker compose logs --tail=200 caddy
 ```
 
 Verificar a revisao atual das migrations, se o backend estiver rodando:
@@ -266,17 +286,18 @@ Se o build do frontend falhar por falta de memoria, confirme que o `frontend/Doc
 
 ## Observacoes sobre dominio e HTTPS
 
-Este Compose expoe o frontend em HTTP na porta `80`.
+Este Compose expoe apenas o Caddy nas portas `80` e `443`. O Caddy gera e renova automaticamente o certificado HTTPS do dominio definido em `APP_DOMAIN` e encaminha as requisicoes para o container `frontend:3000`.
 
-Para dominio com HTTPS, o ideal e adicionar um proxy reverso como Caddy ou Nginx na frente do frontend. Nesse caso, o Caddy/Nginx escutaria as portas `80` e `443`, e encaminharia para o container `frontend:3000`.
+Antes de subir o deploy, o DNS do dominio precisa apontar para o IP publico da VPS. Se o DNS ainda nao estiver propagado, o Caddy nao conseguira emitir o certificado.
 
 ## Checklist final
 
 - `.env` criado na VPS com senhas fortes.
+- `APP_DOMAIN` apontando para o dominio real, sem `http://` ou `https://`.
 - Senha da VPS rotacionada caso tenha sido compartilhada.
 - `VPS - Acesso.md` removido do repositorio.
 - Firebird/SPDATA acessivel a partir da VPS.
-- Porta `80` liberada.
+- Portas `80` e `443` liberadas.
 - `docker compose up -d --build` executado com sucesso.
 - Backend ficou `healthy`, indicando que as migrations automaticas passaram e a API iniciou.
-- Aplicacao acessivel pelo navegador.
+- Aplicacao acessivel pelo navegador em HTTPS.
