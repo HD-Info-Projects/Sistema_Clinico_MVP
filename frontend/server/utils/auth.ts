@@ -48,7 +48,7 @@ export function requireAuthToken(event: H3Event) {
 }
 
 export function buildAuthPayload(raw: BackendAuthUser) {
-  const clinicaIds = raw.role === 'recepcao' ? [1] : [1, 2]
+  const clinicaIds = [1]
   const clinicas = clinicaIds
     .map(id => getClinica(id))
     .filter(Boolean)
