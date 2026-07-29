@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { AgendamentoComPaciente, ExameSelecionado, Paciente, PadraoOrientacaoExame } from '~/types'
+import { useTextTransform } from '~/composables/useTextTransform'
 
 const props = defineProps<{
   paciente?: Paciente
@@ -20,6 +21,7 @@ const padroesOrientacoesStore = usePadroesOrientacoesStore()
 const paciente = computed(() => props.paciente ?? props.agendamento?.paciente ?? agendamentosStore.emAtendimento?.paciente ?? null)
 const orientacaoTexto = ref('')
 const padraoOrientacaoSelected = ref<{ label: string, value: PadraoOrientacaoExame }>()
+const { transformUpperCase, transformLowerCase, transformCapitalize } = useTextTransform()
 
 onMounted(() => {
   padroesOrientacoesStore.fetchAll()
@@ -108,7 +110,7 @@ function salvar() {
           />
         </div>
 
-        <div class="space-y-1 flex flex-col grow min-h-[28rem]">
+        <div class="space-y-1 flex flex-col grow min-h-112">
           <label class="text-sm font-medium">Texto da orientação</label>
           <UEditor
             v-model="orientacaoTexto"
@@ -214,8 +216,37 @@ function salvar() {
                   size="xs"
                   color="neutral"
                   variant="ghost"
+                  :class="{ 'bg-primary/10 text-primary': editor?.isActive('redo') }"
                   @click="void editor?.chain().focus().redo().run()"
                 />
+                <USeparator
+                  orientation="vertical"
+                  class="h-6"
+                />
+                <UButton
+                  size="xs"
+                  color="neutral"
+                  variant="ghost"
+                  @click="transformUpperCase(editor)"
+                >
+                  <span class="font-semibold text-[10px]">AA</span>
+                </UButton>
+                <UButton
+                  size="xs"
+                  color="neutral"
+                  variant="ghost"
+                  @click="transformLowerCase(editor)"
+                >
+                  <span class="text-[10px]">aa</span>
+                </UButton>
+                <UButton
+                  size="xs"
+                  color="neutral"
+                  variant="ghost"
+                  @click="transformCapitalize(editor)"
+                >
+                  <span class="text-[10px]">Aa</span>
+                </UButton>
               </div>
             </template>
           </UEditor>

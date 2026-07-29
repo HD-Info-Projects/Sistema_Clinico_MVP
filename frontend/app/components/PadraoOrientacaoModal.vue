@@ -8,6 +8,7 @@ const props = defineProps<{
 const open = defineModel<boolean>('open', { default: false })
 
 const padroesOrientacoesStore = usePadroesOrientacoesStore()
+const { transformUpperCase, transformLowerCase, transformCapitalize } = useTextTransform()
 
 const nome = ref('')
 const conteudo = ref('')
@@ -181,8 +182,37 @@ async function salvar() {
                   size="xs"
                   color="neutral"
                   variant="ghost"
+                  :class="{ 'bg-primary/10 text-primary': editor?.isActive('redo') }"
                   @click="void editor?.chain().focus().redo().run()"
                 />
+                <USeparator
+                  orientation="vertical"
+                  class="h-6"
+                />
+                <UButton
+                  size="xs"
+                  color="neutral"
+                  variant="ghost"
+                  @click="transformUpperCase(editor)"
+                >
+                  <span class="font-semibold text-[10px]">AA</span>
+                </UButton>
+                <UButton
+                  size="xs"
+                  color="neutral"
+                  variant="ghost"
+                  @click="transformLowerCase(editor)"
+                >
+                  <span class="text-[10px]">aa</span>
+                </UButton>
+                <UButton
+                  size="xs"
+                  color="neutral"
+                  variant="ghost"
+                  @click="transformCapitalize(editor)"
+                >
+                  <span class="text-[10px]">Aa</span>
+                </UButton>
               </div>
             </template>
           </UEditor>

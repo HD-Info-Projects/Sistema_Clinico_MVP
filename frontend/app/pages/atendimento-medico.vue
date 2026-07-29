@@ -11,6 +11,7 @@ import type {
 import { usePdfMake } from '~/utils/pdf'
 import { buildSolicitacaoExames, buildReceita, buildAtestadoComparecimento } from '~/utils/pdf-documents'
 import { gerarHtmlGuiaTiss, imprimirGuiaTiss } from '~/utils/guia-tiss'
+import { useTextTransform } from '~/composables/useTextTransform'
 
 const auth = useAuthStore()
 const agendamentosStore = useAgendamentosStore()
@@ -19,6 +20,7 @@ const padroesAnamneseStore = usePadroesAnamneseStore()
 const padroesOrientacoesStore = usePadroesOrientacoesStore()
 const cronometro = useCronometroStore()
 const toast = useToast()
+const { transformUpperCase, transformLowerCase, transformCapitalize } = useTextTransform()
 onMounted(() => {
   padroesStore.fetchAll()
   padroesAnamneseStore.fetchAll()
@@ -939,6 +941,34 @@ async function finalizarConsulta() {
                     :class="{ 'bg-primary/10 text-primary': editor?.isActive('redo') }"
                     @click="void editor?.chain().focus().redo().run()"
                   />
+                  <USeparator
+                    orientation="vertical"
+                    class="h-6"
+                  />
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    @click="transformUpperCase(editor)"
+                  >
+                    <span class="font-semibold text-[10px]">AA</span>
+                  </UButton>
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    @click="transformLowerCase(editor)"
+                  >
+                    <span class="text-[10px]">aa</span>
+                  </UButton>
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    @click="transformCapitalize(editor)"
+                  >
+                    <span class="text-[10px]">Aa</span>
+                  </UButton>
                 </div>
               </template>
             </UEditor>
@@ -1312,19 +1342,19 @@ async function finalizarConsulta() {
                 @click="void (showProcedimentoModal = true)"
               />
               <UButton
-                icon="i-lucide-file-text"
-                label="Gerar Receita (PDF)"
-                color="quaternary"
-                class="w-full p-3 text-lg font-bold"
-                :disabled="!receitaTexto.trim()"
-                @click="void (tabAtiva = '1')"
-              />
-              <UButton
                 icon="i-lucide-flask-conical"
                 label="Gerar Exames (PDF)"
                 color="warning"
                 class="w-full p-3 text-lg font-bold"
                 :disabled="!examesSelecionados.length"
+                @click="void (tabAtiva = '1')"
+              />
+              <UButton
+                icon="i-lucide-file-text"
+                label="Gerar Receita (PDF)"
+                color="quaternary"
+                class="w-full p-3 text-lg font-bold"
+                :disabled="!receitaTexto.trim()"
                 @click="void (tabAtiva = '2')"
               />
             </div>
