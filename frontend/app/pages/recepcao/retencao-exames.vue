@@ -108,7 +108,7 @@ async function carregarRetencao() {
     examesRetencao.value = response.items
   } catch {
     examesRetencao.value = []
-    errorMsg.value = 'Erro ao carregar retenção de exames'
+    errorMsg.value = 'Erro ao carregar conversão de exames'
   } finally {
     loading.value = false
   }
@@ -429,14 +429,9 @@ onMounted(() => {
 
 <template>
   <div>
-    <UHeader title="Retenção de Exames">
+    <UHeader title="Conversão de Exames">
       <template #right>
         <div class="flex items-center gap-2">
-          <UBadge
-            label="Dados SPDATA"
-            color="success"
-            variant="soft"
-          />
           <UColorModeButton />
         </div>
       </template>
@@ -707,7 +702,7 @@ onMounted(() => {
         <template #title>
           <div class="flex items-center justify-between">
             <p class="text-lg font-medium">
-              Exames para Retenção
+              Exames para Conversão
             </p>
             <div class="flex items-center gap-2">
               <UInput
@@ -737,7 +732,7 @@ onMounted(() => {
           v-else-if="!pacientesVisiveis.length"
           class="py-4 text-sm text-muted"
         >
-          Nenhum exame encontrado para retenção.
+          Nenhum exame encontrado para conversão.
         </p>
 
         <UTable

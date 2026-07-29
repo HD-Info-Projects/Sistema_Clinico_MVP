@@ -6,7 +6,7 @@ const navItems = [
   { label: 'Agenda', icon: 'i-lucide-calendar', to: '/recepcao/agenda' },
   // { label: 'Cadastro', icon: 'i-lucide-user-plus', to: '/recepcao/cadastro' },
   { label: 'No-show', icon: 'i-lucide-user-x', to: '/recepcao/noshow' },
-  { label: 'Retenção de Exames', icon: 'i-lucide-flask-conical', to: '/recepcao/retencao-exames' }
+  { label: 'Conversão de Exames', icon: 'i-lucide-flask-conical', to: '/recepcao/retencao-exames' }
 ]
 </script>
 
