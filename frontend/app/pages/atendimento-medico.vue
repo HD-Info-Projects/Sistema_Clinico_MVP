@@ -9,7 +9,7 @@ import type {
   PadraoReceita
 } from '~/types'
 import { usePdfMake } from '~/utils/pdf'
-import { buildSolicitacaoExames, buildReceita, buildAtestadoComparecimento } from '~/utils/pdf-documents'
+import { buildSolicitacaoExames, buildReceita, buildReceitaEspecial, buildAtestadoComparecimento } from '~/utils/pdf-documents'
 import { gerarHtmlGuiaTiss, imprimirGuiaTiss } from '~/utils/guia-tiss'
 import { useTextTransform } from '~/composables/useTextTransform'
 
@@ -575,13 +575,6 @@ function restaurarDraft() {
     buscaTermoExame.value = draft.buscaTermoExame || ''
     draftSalvoEm.value = draft.savedAt
     draftRestaurado.value = true
-
-    toast.add({
-      title: 'Rascunho recuperado',
-      description: 'Os dados digitados anteriormente foram restaurados neste atendimento.',
-      color: 'success',
-      icon: 'i-lucide-save'
-    })
   } catch {
     draftStorage().removeItem(draftKey.value)
   } finally {
@@ -648,6 +641,21 @@ async function gerarReceitaPdf() {
   if (!receitaTexto.value.trim()) return
   const pdfMake = await usePdfMake()
   const doc = await buildReceita({
+    paciente: agendamento.value?.paciente.nome ?? 'Paciente',
+    data: new Date().toLocaleDateString('pt-BR'),
+    medicamentos: [],
+    texto: receitaTexto.value,
+    medico: auth.user?.nome,
+    crm: auth.user?.crm,
+    especialidade: auth.user?.especialidades?.join(', ')
+  })
+  pdfMake.createPdf(doc).open()
+}
+
+async function gerarReceitaEspecialPdf() {
+  if (!receitaTexto.value.trim()) return
+  const pdfMake = await usePdfMake()
+  const doc = await buildReceitaEspecial({
     paciente: agendamento.value?.paciente.nome ?? 'Paciente',
     data: new Date().toLocaleDateString('pt-BR'),
     medicamentos: [],
@@ -1151,14 +1159,24 @@ async function finalizarConsulta() {
                 :ui="{ base: 'h-full min-h-0' }"
               />
 
-              <UButton
-                icon="i-lucide-file-text"
-                label="Gerar Receita (PDF)"
-                color="primary"
-                class="w-full shrink-0"
-                :disabled="!receitaTexto.trim()"
-                @click="gerarReceitaPdf"
-              />
+              <div class="grid grid-cols-2 gap-3 w-full">
+                <UButton
+                  icon="i-lucide-file-text"
+                  label="Gerar Receita (PDF)"
+                  color="primary"
+                  class="w-full shrink-0"
+                  :disabled="!receitaTexto.trim()"
+                  @click="gerarReceitaPdf"
+                />
+                <UButton
+                  icon="lucide:file-warning"
+                  label="Gerar Receita Especial"
+                  color="warning"
+                  class="w-full shrink-0"
+                  :disabled="!receitaTexto.trim()"
+                  @click="gerarReceitaEspecialPdf"
+                />
+              </div>
             </div>
           </UCard>
         </div>

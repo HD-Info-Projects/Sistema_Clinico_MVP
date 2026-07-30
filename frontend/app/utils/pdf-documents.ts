@@ -146,6 +146,79 @@ export async function buildReceita(params: {
   }
 }
 
+export async function buildReceitaEspecial(params: {
+  paciente: string
+  data: string
+  medicamentos: ItemMedicamento[]
+  texto?: string
+  medico?: string
+  crm?: string
+  especialidade?: string
+}) {
+  const medicamentosContent = params.texto
+    ? [{ text: params.texto, margin: [0, 0, 0, 10] }]
+    : params.medicamentos.map(m => ({
+        columns: [
+          { text: `\u2022 ${m.nome} — ${m.dosagem}`, bold: true, width: '40%' as const },
+          { text: m.detalhes, width: '60%' as const }
+        ],
+        margin: [0, 0, 0, 12] as [number, number, number, number]
+      }))
+
+  return {
+    pageSize: 'A4',
+    pageMargins: [60, 40, 60, 340],
+    content: [
+      ...(await hospitalHeader()),
+      { text: `DATA: ${params.data}`, margin: [0, 0, 0, 0], alignment: 'right' },
+      documentTitle('RECEITA DE CONTROLE ESPECIAL'),
+      { text: `PACIENTE: ${params.paciente.toUpperCase()}`, bold: true, decoration: 'underline', margin: [0, 0, 0, 5] },
+      ...medicamentosContent
+    ],
+    footer: function (_currentPage: number, _pageCount: number) {
+      return {
+        margin: [60, 0, 60, 0],
+        stack: [
+          signatureBlock(params.medico, params.crm, params.especialidade),
+          { text: '\n' },
+          {
+            table: {
+              widths: ['50%', '50%'],
+              body: [[
+                {
+                  stack: [
+                    { text: 'IDENTIFICAÇÃO DO COMPRADOR', bold: true, fontSize: 9, alignment: 'center', margin: [0, 0, 0, 6] },
+                    { text: 'Nome: _______________________________________________', fontSize: 8, margin: [0, 0, 0, 3] },
+                    { text: 'Identidade: _____________________________', fontSize: 8, margin: [0, 0, 0, 3] },
+                    { text: 'Org. Emissor: ___________________________', fontSize: 8, margin: [0, 0, 0, 3] },
+                    { text: 'Endereço: ______________________________________________', fontSize: 8, margin: [0, 0, 0, 3] },
+                    { text: 'Cidade: _________________________________', fontSize: 8, margin: [0, 0, 0, 3] },
+                    { text: 'UF: ______________________', fontSize: 8, margin: [0, 0, 0, 3] },
+                    { text: 'Telefone: _______________________________', fontSize: 8, margin: [0, 0, 0, 3] }
+                  ],
+                  border: [true, true, true, true]
+                },
+                {
+                  stack: [
+                    { text: 'IDENTIFICAÇÃO DO FORNECEDOR', bold: true, fontSize: 9, alignment: 'center', margin: [0, 0, 0, 6] },
+                    { text: '\n\n\n' },
+                    { text: 'Assinatura do Farmacêutico:', fontSize: 8, alignment: 'center', margin: [0, 0, 0, 2] },
+                    { text: '____________________________________________', fontSize: 8, alignment: 'center', margin: [0, 0, 0, 14] },
+                    { text: 'Data: ________ / ________ / ________', fontSize: 8, alignment: 'center', margin: [0, 0, 0, 3] }
+                  ],
+                  border: [true, true, true, true]
+                }
+              ]]
+            },
+            margin: [0, 0, 0, 0]
+          }
+        ]
+      }
+    },
+    defaultStyle
+  }
+}
+
 export async function buildAtestadoComparecimento(params: {
   paciente: string
   data: string
