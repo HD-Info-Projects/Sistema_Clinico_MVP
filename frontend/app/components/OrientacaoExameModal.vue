@@ -72,7 +72,7 @@ function salvar() {
     </template>
 
     <template #body>
-      <div class="h-full overflow-y-auto p-6 space-y-6">
+      <div class="h-full overflow-y-auto p-6 space-y-6 flex flex-col">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <UFormField label="Paciente">
             <UInput

@@ -1,13 +1,12 @@
 <script setup lang="ts">
-import type { EditorView, EditorProps } from '@tiptap/pm/view'
 import { TextSelection } from '@tiptap/pm/state'
 import { defu } from 'defu'
+import type { EditorProps } from '@tiptap/pm/view'
 import { useTextTransform } from '~/composables/useTextTransform'
 
 const props = defineProps<{
   modelValue?: string
   placeholder?: string
-  editorProps?: EditorProps
   ui?: { root?: string, content?: string, base?: string }
   class?: string
 }>()
@@ -18,31 +17,65 @@ const emit = defineEmits<{
 
 const { transformUpperCase, transformLowerCase, transformCapitalize } = useTextTransform()
 
-const defaultEditorProps: EditorProps = {
+const mergedUi = computed(() => defu(props.ui ?? {}, { base: 'min-h-full' }))
+
+const editorRef = ref<{ editor: import('@tiptap/core').Editor | undefined }>()
+let cleanupListener: (() => void) | undefined
+
+const editorProps: EditorProps = {
   handleDOMEvents: {
-    mousedown: (view: EditorView, event: MouseEvent) => {
-      if ((event.target as HTMLElement) === view.dom) {
-        const { state } = view
-        const end = state.doc.content.size
-        view.dispatch(state.tr.setSelection(TextSelection.near(state.doc.resolve(end), -1)))
-        view.focus()
-        return true
+    mousedown: (view, event) => {
+      const end = view.state.doc.content.size
+      if (end > 1) {
+        const coords = view.coordsAtPos(end - 1)
+        if (coords && event.clientY > coords.bottom) {
+          view.dispatch(
+            view.state.tr.setSelection(TextSelection.create(view.state.doc, end, end))
+          )
+          view.focus()
+        }
       }
       return false
     }
   }
 }
 
-const mergedEditorProps = computed<EditorProps>(() => defu(props.editorProps ?? {}, defaultEditorProps))
-const mergedUi = computed(() => defu(props.ui ?? {}, { base: 'min-h-full' }))
+watch(() => editorRef.value?.editor, (editor) => {
+  cleanupListener?.()
+  if (!editor) return
+
+  nextTick(() => {
+    const view = editor.view
+    const editorDom = view.dom
+    const wrapper = editorDom.parentElement
+    if (!wrapper) return
+
+    const handleMouseDown = (event: MouseEvent) => {
+      const target = event.target as Node
+      if (editorDom === target || editorDom.contains(target)) return
+      const { state } = view
+      const end = state.doc.content.size
+      view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, end, end)))
+      view.focus()
+    }
+
+    wrapper.addEventListener('mousedown', handleMouseDown)
+    cleanupListener = () => wrapper.removeEventListener('mousedown', handleMouseDown)
+  })
+})
+
+onUnmounted(() => {
+  cleanupListener?.()
+})
 </script>
 
 <template>
   <UEditor
+    ref="editorRef"
     :model-value="modelValue"
     :placeholder="placeholder"
     :ui="mergedUi"
-    :editor-props="mergedEditorProps"
+    :editor-props="editorProps"
     :class="props.class"
     v-bind="$attrs"
     @update:model-value="emit('update:modelValue', $event)"

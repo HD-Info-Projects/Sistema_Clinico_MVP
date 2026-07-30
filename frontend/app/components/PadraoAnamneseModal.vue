@@ -65,7 +65,7 @@ async function salvar() {
     </template>
 
     <template #body>
-      <div class="h-full overflow-y-auto p-6 space-y-6">
+      <div class="h-full overflow-y-auto p-6 space-y-6 flex flex-col">
         <div class="space-y-1 flex flex-col">
           <label class="text-sm font-medium">Nome do modelo</label>
           <UInput
