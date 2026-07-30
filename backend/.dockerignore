@@ -1,13 +1,56 @@
-.venv
-__pycache__
+# Versionamento e metadados locais
+.git
+.gitignore
+.dockerignore
+Dockerfile
+
+# Ambientes locais Python
+.venv/
+venv/
+env/
+ENV/
+__pypackages__/
+
+# Caches e artefatos Python/testes
+__pycache__/
+**/__pycache__/
 *.pyc
 *.pyo
-.pytest_cache
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
 .coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Build/packaging
+dist/
+build/
+*.egg-info/
+pip-wheel-metadata/
+
+# Configuracoes e dados locais
 .env
 .env.*
-instance
-dist
-build
-*.egg-info
-tests
+instance/
+tests/
+logs/
+*.log
+*.sqlite
+*.sqlite3
+*.db
+
+# Temporarios e arquivos de editor/SO
+.cache/
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup
+.DS_Store
+.idea/
+.vscode/

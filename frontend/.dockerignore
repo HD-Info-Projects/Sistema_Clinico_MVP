@@ -1,11 +1,46 @@
-node_modules
-.output
-.nuxt
-.nitro
-.data
-.cache
-dist
+# Versionamento e metadados locais
+.git
+.gitignore
+.dockerignore
+Dockerfile
+
+# Dependencias e artefatos Nuxt/Node
+node_modules/
+**/node_modules/
+.output/
+**/.output/
+.nuxt/
+**/.nuxt/
+.nitro/
+**/.nitro/
+.data/
+dist/
+coverage/
+
+# Artefato local criado por execucao incorreta de dev server
+--host/
+
+# Caches e logs
+.cache/
+**/.cache/
+.pnpm-store/
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+*.log
+
+# Configuracoes locais e segredos
 .env
 .env.*
-logs
-*.log
+
+# Temporarios e arquivos de editor/SO
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup
+.DS_Store
+.idea/
+.vscode/
