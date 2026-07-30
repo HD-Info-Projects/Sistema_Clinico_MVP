@@ -342,16 +342,16 @@ const colunas = [
 
 function corStatus(status: string) {
   switch (status) {
-    case 'nao-confirmado': return 'error'
-    case 'faltou': return 'secondary'
+    case 'nao-confirmado': return 'quinary'
+    case 'faltou': return 'error'
     default: return 'neutral'
   }
 }
 
 function rotuloStatus(status: string) {
   switch (status) {
-    case 'nao-confirmado': return 'Faltou'
-    case 'faltou': return 'Desistente'
+    case 'nao-confirmado': return 'Desistente'
+    case 'faltou': return 'Faltou'
     default: return status
   }
 }
@@ -490,13 +490,13 @@ onMounted(() => {
         />
         <CardNoShow
           titulo="Desistentes"
-          :valor="totalFaltou"
+          :valor="totalNaoConfirmado"
           cor="quinary"
           icone="lucide:user-round-x"
         />
         <CardNoShow
           titulo="Faltou"
-          :valor="totalNaoConfirmado"
+          :valor="totalFaltou"
           cor="error"
           icone="i-lucide-calendar-x"
         />

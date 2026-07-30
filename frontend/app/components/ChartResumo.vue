@@ -16,7 +16,7 @@ const props = defineProps<{
 const colors = ref({
   warning: '#f59e0b',
   primary: '#737373',
-  info: '#0ea5e9',
+  secondary: '#5f7198',
   success: '#22c55e',
   error: '#ef4444'
 })
@@ -26,7 +26,7 @@ onMounted(() => {
   colors.value = {
     warning: getComputedStyle(el).getPropertyValue('--color-warning-500').trim() || '#f59e0b',
     primary: getComputedStyle(el).getPropertyValue('--color-primary-500').trim() || '#737373',
-    info: getComputedStyle(el).getPropertyValue('--color-info-500').trim() || '#0ea5e9',
+    secondary: getComputedStyle(el).getPropertyValue('--color-secondary-500').trim() || '#5f7198',
     success: getComputedStyle(el).getPropertyValue('--color-success-500').trim() || '#22c55e',
     error: getComputedStyle(el).getPropertyValue('--color-error-500').trim() || '#ef4444'
   }
@@ -36,12 +36,12 @@ const data = computed(() => {
   const hasAgendados = typeof props.agendados === 'number'
   const labels = ['Em espera', 'Em Atendimento', 'Atendidos', 'Faltas']
   const values = [props.fila, props.emAtendimento, props.atendidos, props.faltas]
-  const backgroundColor = [colors.value.primary, colors.value.info, colors.value.success, colors.value.error]
+  const backgroundColor = [colors.value.primary, colors.value.warning, colors.value.success, colors.value.error]
 
   if (hasAgendados) {
     labels.unshift('Agendados')
     values.unshift(props.agendados ?? 0)
-    backgroundColor.unshift(colors.value.warning)
+    backgroundColor.unshift(colors.value.secondary)
   }
 
   return {

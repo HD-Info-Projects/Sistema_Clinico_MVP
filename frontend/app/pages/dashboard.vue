@@ -50,9 +50,9 @@ function corPrioridade(prioridade: string) {
 
 function corStatus(status: string) {
   switch (status) {
-    case 'agendado': return 'tertiary'
-    case 'em-espera': return 'secondary'
-    case 'em-atendimento': return 'info'
+    case 'agendado': return 'secondary'
+    case 'em-espera': return 'primary'
+    case 'em-atendimento': return 'warning'
     case 'atendido': return 'success'
     case 'faltou': return 'error'
     default: return 'neutral'
@@ -151,7 +151,7 @@ function statusLabel(status: AgendamentoStatus) {
 
 function statusColor(status: AgendamentoStatus) {
   switch (status) {
-    case 'em-atendimento': return 'info'
+    case 'em-atendimento': return 'warning'
     case 'atendido': return 'success'
     default: return 'success'
   }

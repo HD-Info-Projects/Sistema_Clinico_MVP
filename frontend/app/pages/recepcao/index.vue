@@ -147,9 +147,9 @@ function formatarData(iso: string) {
 
 function corStatus(s: string) {
   switch (s) {
-    case 'agendado': return 'warning'
+    case 'agendado': return 'secondary'
     case 'em-espera': return 'primary'
-    case 'em-atendimento': return 'info'
+    case 'em-atendimento': return 'warning'
     case 'atendido': return 'success'
     case 'faltou': return 'error'
     default: return 'neutral'

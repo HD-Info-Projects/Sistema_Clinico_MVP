@@ -102,9 +102,9 @@ function contatoPrincipal(atendimento: AgendamentoComPaciente) {
 
 function corStatus(s: string) {
   switch (s) {
-    case 'agendado': return 'warning'
+    case 'agendado': return 'secondary'
     case 'em-espera': return 'primary'
-    case 'em-atendimento': return 'info'
+    case 'em-atendimento': return 'warning'
     case 'atendido': return 'success'
     case 'faltou': return 'error'
     default: return 'neutral'
@@ -130,9 +130,9 @@ const colunas = [
 ]
 
 const statuses: { id: string, name: string, color: string }[] = [
-  { id: 'agendado', name: 'Agendado', color: 'warning' },
+  { id: 'agendado', name: 'Agendado', color: 'secondary' },
   { id: 'em-espera', name: 'Em espera', color: 'primary' },
-  { id: 'em-atendimento', name: 'Em atendimento', color: 'info' },
+  { id: 'em-atendimento', name: 'Em atendimento', color: 'warning' },
   { id: 'atendido', name: 'Atendido', color: 'success' },
   { id: 'faltou', name: 'Falta', color: 'error' }
 ]
@@ -211,7 +211,7 @@ const statuses: { id: string, name: string, color: string }[] = [
         />
         <UBadge
           :label="`${resumo.emAtendimento} em atendimento`"
-          color="info"
+          color="warning"
           variant="subtle"
         />
         <UBadge
