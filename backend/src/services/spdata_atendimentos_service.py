@@ -190,6 +190,88 @@ def row_para_dict(row, nomes_colunas):
     }
 
 
+def _chunks(valores, tamanho=500):
+    for inicio in range(0, len(valores), tamanho):
+        yield valores[inicio:inicio + tamanho]
+
+
+def formatar_alergia_spdata(agente, observacao):
+    agente = normalizar_texto(agente, 120)
+    observacao = normalizar_texto(observacao, 180)
+
+    if agente and observacao and agente.casefold() != observacao.casefold():
+        return f"{agente} ({observacao})"
+
+    return agente or observacao or "Alergia informada"
+
+
+def buscar_alergias_pacientes_spdata(paciente_ids):
+    ids = []
+    vistos = set()
+    for valor in paciente_ids or []:
+        paciente_id = normalizar_int(valor)
+        if paciente_id is None or paciente_id in vistos:
+            continue
+
+        ids.append(paciente_id)
+        vistos.add(paciente_id)
+
+    if not ids:
+        return {}
+
+    alergias_por_paciente = {paciente_id: [] for paciente_id in ids}
+    chaves_por_paciente = {paciente_id: set() for paciente_id in ids}
+
+    with ConnectionDBFireBird() as connection:
+        cursor = connection.cursor()
+        try:
+            for grupo in _chunks(ids):
+                placeholders = ", ".join("?" for _ in grupo)
+                sql = f"""
+                    SELECT
+                        a.ID_TBPRINC AS ID_PACIENTE_SPDATA,
+                        agente.NOME AS AGENTE,
+                        a.OBSERVACAO AS OBSERVACAO
+                    FROM PRALERGIAPACIENTE a
+                    LEFT JOIN TBCBARAAGENTE agente
+                        ON agente.ID = a.ID_TBCBARAAGENTE
+                    WHERE UPPER(a.COM_ALERGIA) = 'T'
+                      AND a.ID_TBPRINC IN ({placeholders})
+                    ORDER BY a.ID_TBPRINC, a.ID DESC;
+                """
+                cursor.execute(sql, grupo)
+                nomes_colunas = [desc[0].strip().upper() for desc in cursor.description]
+
+                for row in cursor.fetchall():
+                    item = row_para_dict(row, nomes_colunas)
+                    paciente_id = normalizar_int(item.get("ID_PACIENTE_SPDATA"))
+                    if paciente_id is None:
+                        continue
+
+                    alergia = formatar_alergia_spdata(
+                        item.get("AGENTE"),
+                        item.get("OBSERVACAO"),
+                    )
+                    chave = alergia.casefold()
+                    if chave in chaves_por_paciente.setdefault(paciente_id, set()):
+                        continue
+
+                    alergias_por_paciente.setdefault(paciente_id, []).append(alergia)
+                    chaves_por_paciente[paciente_id].add(chave)
+        finally:
+            cursor.close()
+
+    return alergias_por_paciente
+
+
+def alergias_para_frontend(alergias_por_paciente, paciente_id):
+    paciente_id = normalizar_int(paciente_id)
+    if paciente_id is None or not alergias_por_paciente:
+        return []
+
+    return list(alergias_por_paciente.get(paciente_id, []))
+
+
 def get_crm_medico_usuario(usuario_id):
     medico = db.session.execute(
         select(Medico).where(
@@ -590,7 +672,7 @@ def spdata_agenda_id_do_atendimento(spdata):
     )
 
 
-def agenda_para_frontend(spdata, atendimento=None, convenios_por_codigo=None):
+def agenda_para_frontend(spdata, atendimento=None, convenios_por_codigo=None, alergias_por_paciente=None):
     status = normalizar_status(atendimento.status) if atendimento else "em-espera"
     data_atendimento = data_iso(spdata.data_atendimento)
     horario = hora_hhmm(spdata.hora_entrada)
@@ -618,7 +700,7 @@ def agenda_para_frontend(spdata, atendimento=None, convenios_por_codigo=None):
             "sexo": sexo_para_frontend(spdata.sexo),
             "dataNascimento": data_iso(spdata.data_nascimento) or "1900-01-01",
             "tipoSanguineo": "",
-            "alergias": [],
+            "alergias": alergias_para_frontend(alergias_por_paciente, paciente_id),
             "medicamentosEmUso": [],
             "convenio": convenio_para_frontend(spdata, convenios_por_codigo),
             "idConvenioSpdata": id_convenio_spdata,
@@ -631,10 +713,10 @@ def agenda_para_frontend(spdata, atendimento=None, convenios_por_codigo=None):
     }
 
 
-def agenda_spdata_para_frontend(agenda, spdata_ref, atendimento=None, convenios_por_codigo=None):
+def agenda_spdata_para_frontend(agenda, spdata_ref, atendimento=None, convenios_por_codigo=None, alergias_por_paciente=None):
     status = normalizar_status(atendimento.status) if atendimento else status_agenda_spdata(agenda)
     id_convenio_spdata = normalizar_int(agenda.id_convenio_spdata)
-    paciente_id = agenda.id_paciente_spdata or agenda.id
+    paciente_id = agenda.id_paciente_spdata or spdata_ref.id_paciente_spdata or agenda.id
     telefone = agenda.celular or agenda.telefone or ""
 
     if id_convenio_spdata is not None and convenios_por_codigo:
@@ -665,7 +747,7 @@ def agenda_spdata_para_frontend(agenda, spdata_ref, atendimento=None, convenios_
             "sexo": "masculino",
             "dataNascimento": data_iso(agenda.data_nascimento) or "1900-01-01",
             "tipoSanguineo": "",
-            "alergias": [],
+            "alergias": alergias_para_frontend(alergias_por_paciente, paciente_id),
             "medicamentosEmUso": [],
             "convenio": convenio,
             "idConvenioSpdata": id_convenio_spdata,
@@ -716,9 +798,12 @@ def listar_atendimentos_medsystem_para_frontend(crm_medico, data_ini=None, data_
     convenios_por_codigo = buscar_convenios_locais(
         spdata.id_convenio_spdata for spdata, _ in registros
     )
+    alergias_por_paciente = buscar_alergias_pacientes_spdata(
+        spdata.id_paciente_spdata for spdata, _ in registros
+    )
 
     return [
-        agenda_para_frontend(spdata, atendimento, convenios_por_codigo)
+        agenda_para_frontend(spdata, atendimento, convenios_por_codigo, alergias_por_paciente)
         for spdata, atendimento in registros
     ]
 
@@ -769,12 +854,16 @@ def listar_agenda_medica(usuario_id, data_ini, data_fim, status=None, search=Non
         agenda.id_convenio_spdata
         for agenda, _ in agendas_por_id.values()
     )
+    alergias_agenda = buscar_alergias_pacientes_spdata(
+        agenda.id_paciente_spdata
+        for agenda, _ in agendas_por_id.values()
+    )
 
     items = []
     agendas_encontradas = []
     for agenda, atendimento in agendas_por_id.values():
         spdata_ref = buscar_spdata_atendimento_para_agenda(agenda, atendimento)
-        items.append(agenda_spdata_para_frontend(agenda, spdata_ref, atendimento, convenios_por_codigo))
+        items.append(agenda_spdata_para_frontend(agenda, spdata_ref, atendimento, convenios_por_codigo, alergias_agenda))
         agendas_encontradas.append(agenda)
 
     chaves_agenda = {
@@ -802,6 +891,9 @@ def listar_agenda_medica(usuario_id, data_ini, data_fim, status=None, search=Non
     convenios_atendimento = buscar_convenios_locais(
         spdata.id_convenio_spdata for spdata, _ in registros
     )
+    alergias_atendimento = buscar_alergias_pacientes_spdata(
+        spdata.id_paciente_spdata for spdata, _ in registros
+    )
 
     for spdata, atendimento in registros:
         registro = normalizar_texto(spdata.cod_atendimento, 50)
@@ -818,7 +910,7 @@ def listar_agenda_medica(usuario_id, data_ini, data_fim, status=None, search=Non
         if any(atendimento_matches_agenda(spdata, agenda) for agenda in agendas_encontradas):
             continue
 
-        items.append(agenda_para_frontend(spdata, atendimento, convenios_atendimento))
+        items.append(agenda_para_frontend(spdata, atendimento, convenios_atendimento, alergias_atendimento))
 
     db.session.commit()
 
@@ -1180,6 +1272,7 @@ def atualizar_status_agenda(med_spdata_atendimento_id, status, usuario_id=None, 
 
     db.session.commit()
     convenios_por_codigo = buscar_convenios_locais([spdata.id_convenio_spdata])
+    alergias_por_paciente = buscar_alergias_pacientes_spdata([spdata.id_paciente_spdata])
 
     spdata_agenda_id = spdata_agenda_id_do_atendimento(spdata)
     if spdata_agenda_id is not None:
@@ -1189,6 +1282,6 @@ def atualizar_status_agenda(med_spdata_atendimento_id, status, usuario_id=None, 
             )
         ).scalars().first()
         if agenda:
-            return agenda_spdata_para_frontend(agenda, spdata, atendimento, convenios_por_codigo)
+            return agenda_spdata_para_frontend(agenda, spdata, atendimento, convenios_por_codigo, alergias_por_paciente)
 
-    return agenda_para_frontend(spdata, atendimento, convenios_por_codigo)
+    return agenda_para_frontend(spdata, atendimento, convenios_por_codigo, alergias_por_paciente)

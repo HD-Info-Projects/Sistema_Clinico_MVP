@@ -15,6 +15,7 @@ const { sanitizeHtml } = useSanitize()
 const expandedContent = ref<Record<string, boolean>>({})
 
 const pacienteAtual = computed(() => props.agendamento?.paciente ?? props.paciente ?? null)
+const alergiasPacienteAtual = computed(() => pacienteAtual.value?.alergias ?? [])
 
 function toggleContent(id: string) {
   expandedContent.value[id] = !expandedContent.value[id]
@@ -476,6 +477,39 @@ function montarExames(exames?: HistoricoLocalRecord['exames']): string {
         ref="historicoScrollRef"
         class="overflow-y-none max-h-[calc(100vh-8rem)]"
       >
+        <div
+          v-if="pacienteAtual"
+          class="mb-3 rounded-lg border border-error/30 bg-error/5 p-3"
+        >
+          <div class="mb-2 flex items-center gap-2">
+            <UIcon
+              name="i-lucide-shield-alert"
+              class="text-error"
+            />
+            <p class="text-xs font-bold uppercase tracking-wider text-error">
+              Alergias
+            </p>
+          </div>
+
+          <div class="flex flex-wrap gap-1">
+            <template v-if="alergiasPacienteAtual.length">
+              <UBadge
+                v-for="(alergia, i) in alergiasPacienteAtual"
+                :key="i"
+                :label="alergia"
+                color="error"
+                variant="subtle"
+              />
+            </template>
+            <UBadge
+              v-else
+              label="Nenhuma"
+              color="success"
+              variant="subtle"
+            />
+          </div>
+        </div>
+
         <div
           v-if="isLoadingHistorico"
           class="flex justify-center py-8"
