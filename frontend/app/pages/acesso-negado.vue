@@ -4,6 +4,7 @@ definePageMeta({ layout: false })
 const auth = useAuthStore()
 
 const destinoPrincipal = computed(() => {
+  if (['admin', 'dpo', 'ti'].includes(auth.user?.role || '')) return '/lgpd/auditoria'
   if (auth.user?.role === 'recepcao') return '/recepcao'
   return '/dashboard'
 })

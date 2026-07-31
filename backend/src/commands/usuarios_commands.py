@@ -123,3 +123,39 @@ def registrar_admin_command(nome_completo, documento, email, senha, atualizar):
     click.echo(f"  nome: {usuario.nome_completo}")
     click.echo(f"  email: {usuario.email}")
     click.echo(f"  role: {usuario.role}")
+
+
+@click.command("registrar-dpo")
+@click.option("--nome-completo", prompt=True, help="Nome completo do usuário DPO.")
+@click.option("--documento", prompt=True, help="CPF/CNPJ do usuário DPO.")
+@click.option("--email", prompt=True, help="E-mail usado no login.")
+@click.option(
+    "--senha",
+    prompt=True,
+    hide_input=True,
+    confirmation_prompt=True,
+    help="Senha inicial do usuário DPO.",
+)
+@click.option(
+    "--atualizar",
+    is_flag=True,
+    help="Atualiza o usuário existente pelo e-mail, se ele já existir.",
+)
+@with_appcontext
+def registrar_dpo_command(nome_completo, documento, email, senha, atualizar):
+    """Cria um usuário local com role dpo para auditoria LGPD."""
+
+    usuario, acao = _registrar_usuario_local(
+        nome_completo,
+        documento,
+        email,
+        senha,
+        "dpo",
+        atualizar,
+    )
+
+    click.secho("Usuário DPO registrado com sucesso.", fg="green")
+    click.echo(f"  usuario_id: {usuario.id} ({acao})")
+    click.echo(f"  nome: {usuario.nome_completo}")
+    click.echo(f"  email: {usuario.email}")
+    click.echo(f"  role: {usuario.role}")

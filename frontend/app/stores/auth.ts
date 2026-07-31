@@ -69,7 +69,9 @@ export const useAuthStore = defineStore('auth', () => {
         if (primeira) {
           activeClinicaId.value = primeira.id
         }
-        if (response.user.role === 'recepcao') {
+        if (['admin', 'dpo', 'ti'].includes(response.user.role)) {
+          navigateTo('/lgpd/auditoria')
+        } else if (response.user.role === 'recepcao') {
           navigateTo('/recepcao')
         } else {
           navigateTo('/')

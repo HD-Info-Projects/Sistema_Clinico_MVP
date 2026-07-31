@@ -10,7 +10,7 @@ from src.commands.convenios_commands import (
 )
 from src.commands.especialidades_commands import importar_especialidades_spdata_command
 from src.commands.medicos_commands import registrar_medico_spdata_command
-from src.commands.usuarios_commands import registrar_admin_command, registrar_recepcao_command
+from src.commands.usuarios_commands import registrar_admin_command, registrar_dpo_command, registrar_recepcao_command
 
 def create_app():
     app = Flask(__name__)
@@ -53,6 +53,7 @@ def create_app():
     app.cli.add_command(importar_especialidades_spdata_command)
     app.cli.add_command(registrar_medico_spdata_command)
     app.cli.add_command(registrar_admin_command)
+    app.cli.add_command(registrar_dpo_command)
     app.cli.add_command(registrar_recepcao_command)
 
     # Importações de Models:
