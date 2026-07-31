@@ -1,9 +1,11 @@
 from datetime import date, datetime
 
 from flask import Blueprint, current_app, jsonify, request
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import get_jwt_identity, jwt_required
 
+from src.models.auditoria_model import AcaoAuditoria
 from src.security.decorators import roles_required
+from src.services.auditoria_service import registrar_auditoria
 from src.services.no_show_service import listar_no_show
 from src.settings.extensions import db
 
@@ -36,7 +38,7 @@ def index():
         page = parse_int("page", 1)
         page_size = parse_int("pageSize", 20, maximo=500)
 
-        return jsonify(listar_no_show(
+        resultado = listar_no_show(
             data_ini,
             data_fim,
             medico=request.args.get("medico"),
@@ -46,7 +48,14 @@ def index():
             q=request.args.get("q"),
             page=page,
             page_size=page_size,
-        )), 200
+        )
+        registrar_auditoria(
+            AcaoAuditoria.VISUALIZOU_NO_SHOW,
+            entidade="no_show",
+            usuario_id=int(get_jwt_identity()),
+            descricao=f"Listagem de no-show. data_ini={data_ini} data_fim={data_fim} page={page} page_size={page_size}",
+        )
+        return jsonify(resultado), 200
 
     except ValueError as e:
         return jsonify({"error": str(e)}), 400

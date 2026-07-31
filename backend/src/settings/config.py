@@ -17,6 +17,13 @@ class Config:
     RATELIMIT_STORAGE_URI = os.getenv('RATELIMIT_STORAGE_URI', 'memory://')
     LOGIN_RATE_LIMIT_IP = os.getenv('LOGIN_RATE_LIMIT_IP', '10 per minute')
     LOGIN_RATE_LIMIT_EMAIL = os.getenv('LOGIN_RATE_LIMIT_EMAIL', '5 per minute')
+    CORS_ORIGINS = [
+        origin.strip()
+        for origin in os.getenv('CORS_ORIGINS', '').split(',')
+        if origin.strip()
+    ]
+    SECURITY_HSTS_ENABLED = os.getenv('SECURITY_HSTS_ENABLED', 'false').lower() == 'true'
+    SECURITY_HSTS_MAX_AGE = int(os.getenv('SECURITY_HSTS_MAX_AGE', 31536000))
 
     FIREBIRD_HOST = os.getenv('FIREBIRD_HOST')
     FIREBIRD_PORT = int(os.getenv('FIREBIRD_PORT', 3050))

@@ -5,14 +5,16 @@ from flask import (
     jsonify
 )
 
-from flask_jwt_extended import get_jwt_identity, jwt_required
+from flask_jwt_extended import decode_token, get_jwt_identity, jwt_required
 from sqlalchemy.orm import joinedload
 from src.security.decorators import roles_required
 
 from src.controllers.login_controller import LoginController
+from src.models.auditoria_model import AcaoAuditoria
 from src.models.usuario_model import Usuario
 
 from src.settings.extensions import db, limiter
+from src.services.auditoria_service import registrar_auditoria
 from src.services.medicos_spdata_service import (
     buscar_medicos_spdata,
     normalizar_texto,
@@ -56,7 +58,21 @@ def login():
         token = controller.generate_JWT_usuario(email, senha)
 
         if not token:
+            registrar_auditoria(
+                AcaoAuditoria.LOGIN_FALHA,
+                entidade="usuarios",
+                descricao=f"Falha de login para email={str(email).strip().lower()[:255]}",
+            )
             return jsonify({"error": "Credenciais inválidas"}), 401
+
+        decoded_token = decode_token(token)
+        registrar_auditoria(
+            AcaoAuditoria.LOGIN_SUCESSO,
+            entidade="usuarios",
+            entidade_id=int(decoded_token["sub"]),
+            usuario_id=int(decoded_token["sub"]),
+            descricao="Login realizado com sucesso",
+        )
 
         return jsonify(access_token=token), 200
 
@@ -92,6 +108,20 @@ def me():
     except Exception:
         current_app.logger.exception("Erro ao carregar usuário autenticado")
         return jsonify({"error": "Erro interno ao carregar sessão"}), 500
+
+
+@login_bp.route("/logout", methods=["POST"])
+@jwt_required()
+def logout():
+    usuario_id = int(get_jwt_identity())
+    registrar_auditoria(
+        AcaoAuditoria.LOGOUT,
+        entidade="usuarios",
+        entidade_id=usuario_id,
+        usuario_id=usuario_id,
+        descricao="Logout realizado",
+    )
+    return jsonify({"ok": True}), 200
 
 
 @login_bp.route("/register", methods=["POST"])

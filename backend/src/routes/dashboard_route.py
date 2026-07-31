@@ -2,8 +2,10 @@ from flask import (
     Blueprint, request, jsonify
 )
 
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import get_jwt_identity, jwt_required
+from src.models.auditoria_model import AcaoAuditoria
 from src.security.decorators import roles_required
+from src.services.auditoria_service import registrar_auditoria
 
 import json
 
@@ -77,6 +79,13 @@ def dashboard_paciente_lista():
             result = [dict(zip(columns, row)) for row in rows]
             
             #redis_connection.set_cache(CACHE_KEY_PACIENTES, json.dumps(result, default=str), ttl=CACHE_TTL)
+
+            registrar_auditoria(
+                AcaoAuditoria.VISUALIZOU_PRONTUARIO,
+                entidade="dashboard_pacientes",
+                usuario_id=int(get_jwt_identity()),
+                descricao=f"Listagem de pacientes do dashboard. total={len(result)}",
+            )
 
             return jsonify(result), 200
 

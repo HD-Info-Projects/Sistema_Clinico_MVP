@@ -1,6 +1,8 @@
 from flask_jwt_extended import create_access_token
 
 from src.models.repositories.usuario_repository import UsuarioRepository
+from src.security.passwords import verify_password
+from src.settings.extensions import db
 
 class LoginController:
     
@@ -13,8 +15,14 @@ class LoginController:
         if not usuario:
             return None
 
-        if usuario.senha != senha:
+        senha_valida, senha_legada = verify_password(usuario.senha, senha)
+
+        if not senha_valida:
             return None
+
+        if senha_legada:
+            usuario.set_senha(senha)
+            db.session.commit()
 
         token = create_access_token(
             identity=str(usuario.id),

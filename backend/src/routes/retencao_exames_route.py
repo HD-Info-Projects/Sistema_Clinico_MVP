@@ -1,9 +1,11 @@
 from datetime import date, datetime
 
 from flask import Blueprint, current_app, jsonify, request
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import get_jwt_identity, jwt_required
 
+from src.models.auditoria_model import AcaoAuditoria
 from src.security.decorators import roles_required
+from src.services.auditoria_service import registrar_auditoria
 from src.services.retencao_exames_service import listar_retencao_exames
 from src.settings.extensions import db
 
@@ -29,7 +31,14 @@ def index():
         if data_fim < data_ini:
             return jsonify({"error": "dataFim não pode ser menor que dataIni."}), 400
 
-        return jsonify(listar_retencao_exames(data_ini, data_fim)), 200
+        resultado = listar_retencao_exames(data_ini, data_fim)
+        registrar_auditoria(
+            AcaoAuditoria.VISUALIZOU_RETENCAO_EXAMES,
+            entidade="retencao_exames",
+            usuario_id=int(get_jwt_identity()),
+            descricao=f"Listagem de retenção de exames. data_ini={data_ini} data_fim={data_fim}",
+        )
+        return jsonify(resultado), 200
 
     except ValueError as e:
         return jsonify({"error": str(e)}), 400

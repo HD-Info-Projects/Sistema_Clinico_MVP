@@ -3,7 +3,9 @@ from datetime import date, datetime
 from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
+from src.models.auditoria_model import AcaoAuditoria
 from src.security.decorators import roles_required
+from src.services.auditoria_service import registrar_auditoria
 from src.services.spdata_atendimentos_service import (
     atualizar_status_agenda,
     listar_agenda_medica,
@@ -39,7 +41,14 @@ def listar_agenda():
             data_ini = _parse_data(request.args.get("dataIni") or data)
             data_fim = _parse_data(request.args.get("dataFim") or data, data_ini)
 
-        return jsonify(listar_agenda_medica(usuario_id, data_ini, data_fim, status=status, search=search)), 200
+        resultado = listar_agenda_medica(usuario_id, data_ini, data_fim, status=status, search=search)
+        registrar_auditoria(
+            AcaoAuditoria.VISUALIZOU_AGENDA,
+            entidade="agenda_medica",
+            usuario_id=usuario_id,
+            descricao=f"Listagem de agenda médica. data_ini={data_ini} data_fim={data_fim} status={status or ''}",
+        )
+        return jsonify(resultado), 200
 
     except ValueError as e:
         return jsonify({"error": str(e)}), 400

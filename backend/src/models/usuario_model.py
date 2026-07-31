@@ -1,6 +1,7 @@
 from sqlalchemy import Column, String, Integer, DateTime
 from datetime import datetime
 
+from src.security.passwords import hash_password
 from src.settings.extensions import db
 
 class Usuario(db.Model):
@@ -60,8 +61,11 @@ class Usuario(db.Model):
         self.nome_completo = nome_completo
         self.cnpj_cpf = cnpj_cpf
         self.email = email
-        self.senha = senha
+        self.set_senha(senha)
         self.role = role
+
+    def set_senha(self, senha):
+        self.senha = hash_password(senha)
 
 
     def __repr__(self):

@@ -1,13 +1,16 @@
 <script setup lang="ts">
 const auth = useAuthStore()
 
-const navItems = [
+const navItems = computed(() => [
   { label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: '/dashboard' },
   { label: 'Agenda', icon: 'i-lucide-calendar', to: '/agenda' },
   { label: 'Atendimento Médico', icon: 'i-lucide-stethoscope', to: '/atendimento-medico' },
   { label: 'Meus Pacientes', icon: 'i-lucide-users', to: '/pacientes' },
-  { label: 'Padrões', icon: 'i-lucide-file-text', to: '/padroes-solicitacoes' }
-]
+  { label: 'Padrões', icon: 'i-lucide-file-text', to: '/padroes-solicitacoes' },
+  ...(['admin', 'dpo', 'ti'].includes(auth.user?.role || '')
+    ? [{ label: 'Auditoria LGPD', icon: 'i-lucide-shield-check', to: '/lgpd/auditoria' }]
+    : [])
+])
 </script>
 
 <template>

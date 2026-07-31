@@ -8,9 +8,11 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import selectinload
 
 from src.security.decorators import roles_required
+from src.models.auditoria_model import AcaoAuditoria
 from src.models.db.handler_fb_db import ConnectionDBFireBird
 from src.models.db.handler_sql_server import ConnectionSqlServer
 from src.models.db.handler_redis_db import ConnectionDBRedis
+from src.services.auditoria_service import registrar_auditoria
 from src.settings.extensions import db
 from src.models.atendimentos_model import Atendimento
 from src.models.anamnese_model import Anamnese
@@ -625,6 +627,14 @@ def historico_paciente_local(paciente_id):
                 ],
             })
 
+        registrar_auditoria(
+            AcaoAuditoria.VISUALIZOU_PRONTUARIO,
+            entidade="paciente",
+            entidade_id=paciente_id,
+            usuario_id=usuario_id,
+            descricao=f"Acesso ao histórico local do paciente. total={len(result)}",
+        )
+
         return jsonify(result), 200
 
     except PermissionError:
@@ -645,7 +655,16 @@ def historico_paciente(id:int):
         limit = min(max(limit or 10, 1), 50)
         offset = max(offset or 0, 0)
 
-        return jsonify(_historico_biodata(id, usuario_id, limit, offset)), 200
+        resultado = _historico_biodata(id, usuario_id, limit, offset)
+        registrar_auditoria(
+            AcaoAuditoria.VISUALIZOU_HISTORICO_BIODATA,
+            entidade="paciente",
+            entidade_id=id,
+            usuario_id=usuario_id,
+            descricao=f"Acesso ao histórico BioData do paciente. limit={limit} offset={offset}",
+        )
+
+        return jsonify(resultado), 200
 
     except PermissionError:
         return jsonify({"error": "Paciente não encontrado"}), 404

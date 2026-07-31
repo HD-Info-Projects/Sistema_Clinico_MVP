@@ -231,7 +231,7 @@ def upsert_usuario_medico_spdata(medico_spdata, email=None, senha=None, crm_aten
         usuario.cnpj_cpf = dados["documento"]
         usuario.email = dados["email"]
         if senha is not None:
-            usuario.senha = senha
+            usuario.set_senha(senha)
         usuario.role = "medico"
         usuario_criado = False
 

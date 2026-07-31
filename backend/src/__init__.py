@@ -19,8 +19,27 @@ def create_app():
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
-    cors.init_app(app)
+    cors_kwargs = {"supports_credentials": True}
+    if app.config.get("CORS_ORIGINS"):
+        cors_kwargs["origins"] = app.config["CORS_ORIGINS"]
+    cors.init_app(app, **cors_kwargs)
     limiter.init_app(app)
+
+    @app.after_request
+    def add_security_headers(response):
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        response.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+
+        if app.config.get("SECURITY_HSTS_ENABLED"):
+            max_age = app.config.get("SECURITY_HSTS_MAX_AGE", 31536000)
+            response.headers.setdefault(
+                "Strict-Transport-Security",
+                f"max-age={max_age}; includeSubDomains",
+            )
+
+        return response
 
     @app.errorhandler(RateLimitExceeded)
     def handle_rate_limit(_error):
@@ -86,6 +105,7 @@ def create_app():
     from src.routes.retencao_exames_route import retencao_exames_bp
     from src.routes.tts_route import tts_bp
     from src.routes.documentos_medicos_route import documentos_medicos_bp
+    from src.routes.auditoria_route import auditoria_bp
 
     app.register_blueprint(login_bp)
     app.register_blueprint(dashboard_bp)
@@ -101,5 +121,6 @@ def create_app():
     app.register_blueprint(retencao_exames_bp)
     app.register_blueprint(tts_bp)
     app.register_blueprint(documentos_medicos_bp)
+    app.register_blueprint(auditoria_bp)
 
     return app

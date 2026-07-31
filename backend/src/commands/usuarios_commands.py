@@ -41,7 +41,7 @@ def _registrar_usuario_local(nome_completo, documento, email, senha, role, atual
         else:
             usuario.nome_completo = nome_completo
             usuario.cnpj_cpf = documento
-            usuario.senha = senha
+            usuario.set_senha(senha)
             usuario.role = role
             acao = "atualizado"
 
