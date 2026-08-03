@@ -29,7 +29,7 @@ from src.utils.normalizar import normalizar_cpf
 # 340 - Natus
 # 350 - Centro AMI
 
-UNIDADE_PADRAO_SPDATA = 340
+UNIDADE_PADRAO_SPDATA = 350
 
 STATUS_VALIDOS = {
     "em-atendimento",
