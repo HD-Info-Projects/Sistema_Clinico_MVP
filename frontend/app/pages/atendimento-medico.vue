@@ -1116,11 +1116,11 @@ async function finalizarConsulta() {
                   />
                 </div>
               </UFormField>
-
+              <!-- revisar dps esse h-30 -->
               <UCard
                 class="grow flex flex-col min-h-0"
                 :ui="{
-                  body: 'overflow-y-auto p-3 grow',
+                  body: 'overflow-y-auto h-30 p-3 grow',
                   header: 'shrink-0'
                 }"
               >
