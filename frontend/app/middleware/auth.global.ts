@@ -20,10 +20,19 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return navigateTo('/login')
   }
 
+  // Rota raiz - redirecionar baseado no role
+  if (to.path === '/') {
+    if (auth.isAdmin) return navigateTo('/admin')
+    if (auth.isRecepcao) return navigateTo('/recepcao')
+    return navigateTo('/dashboard')
+  }
+
   // Rota de seleção de clínica — permitir se não tiver clínica ativa
   if (to.path === '/selecionar-clinica') {
     if (auth.activeClinicaId) {
-      return navigateTo(auth.isRecepcao ? '/recepcao' : '/dashboard')
+      if (auth.isAdmin) return navigateTo('/admin')
+      if (auth.isRecepcao) return navigateTo('/recepcao')
+      return navigateTo('/dashboard')
     }
     return
   }
@@ -33,15 +42,31 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return navigateTo('/selecionar-clinica')
   }
 
-  // Role-based routing
+  // Role-based routing - proteger rotas por role
+  const isAdminRoute = to.path.startsWith('/admin')
   const isRecepcaoRoute = to.path.startsWith('/recepcao')
-  const isMedicoRoute = !isRecepcaoRoute
+  const isDashboardRoute = to.path.startsWith('/dashboard') || to.path.startsWith('/agenda') || 
+                           to.path.startsWith('/atendimento') || to.path.startsWith('/pacientes') ||
+                           to.path.startsWith('/padroes')
 
-  if (auth.user?.role === 'recepcao' && isMedicoRoute) {
+  // Admin só pode acessar rotas /admin
+  if (auth.isAdmin && !isAdminRoute) {
+    return navigateTo('/admin')
+  }
+
+  // Não-admin não pode acessar rotas /admin
+  if (!auth.isAdmin && isAdminRoute) {
+    if (auth.isRecepcao) return navigateTo('/recepcao')
+    return navigateTo('/dashboard')
+  }
+
+  // Recepção só pode acessar rotas /recepcao
+  if (auth.isRecepcao && !isRecepcaoRoute && !isAdminRoute) {
     return navigateTo('/recepcao')
   }
 
-  if (auth.user?.role === 'medico' && isRecepcaoRoute) {
+  // Médico só pode acessar rotas médicas (dashboard, agenda, etc)
+  if (auth.isMedico && !isDashboardRoute && !isAdminRoute && !isRecepcaoRoute) {
     return navigateTo('/dashboard')
   }
 })

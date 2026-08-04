@@ -11,6 +11,7 @@ const layoutName = computed(() => {
   if (path === '/painel-chamada') return 'tv'
   if (path === '/atendimento-medico') return 'atendimento'
   if (path.startsWith('/recepcao')) return 'recepcao'
+  if (path.startsWith('/admin')) return 'admin'
   return 'default'
 })
 

@@ -8,6 +8,8 @@ function selecionar(id: number) {
   auth.setActiveClinica(id)
   if (auth.isRecepcao) {
     navigateTo('/recepcao')
+  } else if (auth.isAdmin) {
+    navigateTo('/admin')
   } else {
     navigateTo('/dashboard')
   }

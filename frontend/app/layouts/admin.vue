@@ -2,11 +2,11 @@
 const auth = useAuthStore()
 
 const navItems = [
-  { label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: '/recepcao' },
-  { label: 'Agenda', icon: 'i-lucide-calendar', to: '/recepcao/agenda' },
-  // { label: 'Cadastro', icon: 'i-lucide-user-plus', to: '/recepcao/cadastro' },
-  { label: 'No-show', icon: 'i-lucide-user-x', to: '/recepcao/noshow' },
-  { label: 'Conversão de Exames', icon: 'i-lucide-flask-conical', to: '/recepcao/retencao-exames' }
+  { label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: '/admin' },
+  { label: 'Medicos', icon: 'i-lucide-stethoscope', to: '/admin/medicos' },
+  { label: 'Recepcionistas', icon: 'i-lucide-user-plus', to: '/admin/recepcao' },
+  { label: 'Administradores', icon: 'i-lucide-shield', to: '/admin/admins' },
+  { label: 'Unidades', icon: 'i-lucide-building', to: '/admin/unidades' }
 ]
 </script>
 
@@ -17,8 +17,8 @@ const navItems = [
       side="left"
     >
       <template #header>
-        <NuxtLink to="/recepcao">
-          <logoMed :tipo="1" />
+        <NuxtLink to="/admin">
+          <logoMed :tipo="2" />
         </NuxtLink>
       </template>
 

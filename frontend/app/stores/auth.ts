@@ -33,6 +33,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isMedico = computed(() => user.value?.role === 'medico')
   const isRecepcao = computed(() => user.value?.role === 'recepcao')
+  const isAdmin = computed(() => user.value?.role === 'admin')
 
   function limparRascunhosClinicosLocais() {
     if (!import.meta.client) return
@@ -71,8 +72,10 @@ export const useAuthStore = defineStore('auth', () => {
         }
         if (response.user.role === 'recepcao') {
           navigateTo('/recepcao')
+        } else if (response.user.role === 'admin') {
+          navigateTo('/admin')
         } else {
-          navigateTo('/')
+          navigateTo('/dashboard')
         }
       }
 
@@ -138,6 +141,7 @@ export const useAuthStore = defineStore('auth', () => {
     isLoggedIn,
     isMedico,
     isRecepcao,
+    isAdmin,
     login,
     logout,
     fetchUser,

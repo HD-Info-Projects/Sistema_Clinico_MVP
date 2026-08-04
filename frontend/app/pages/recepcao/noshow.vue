@@ -481,32 +481,32 @@ onMounted(() => {
       />
 
       <div class="w-full grid grid-cols-5 items-center gap-4">
-        <CardNoShow
+        <CardInformativo
           titulo="Taxa de Recuperação"
           :valor="taxaRecuperacao"
           medida="%"
           cor="primary"
           icone="i-lucide-trending-up"
         />
-        <CardNoShow
+        <CardInformativo
           titulo="Desistentes"
           :valor="totalNaoConfirmado"
           cor="quinary"
           icone="lucide:user-round-x"
         />
-        <CardNoShow
+        <CardInformativo
           titulo="Faltou"
           :valor="totalFaltou"
           cor="error"
           icone="i-lucide-calendar-x"
         />
-        <CardNoShow
+        <CardInformativo
           titulo="Sem contato"
           :valor="totalSemContato"
           cor="secondary"
           icone="i-lucide-clock"
         />
-        <CardNoShow
+        <CardInformativo
           titulo="Lista de resgate"
           :valor="totalFiltrado"
           cor="tertiary"
@@ -749,7 +749,7 @@ onMounted(() => {
             :page="(table?.tableApi?.getState().pagination.pageIndex || 0) + 1"
             :items-per-page="table?.tableApi?.getState().pagination.pageSize || pagination.pageSize"
             :total="table?.tableApi?.getFilteredRowModel().rows.length || 0"
-            @update:page="(p) => table?.tableApi?.setPageIndex(p - 1)"
+            @update:page="(p: number) => table?.tableApi?.setPageIndex(p - 1)"
           />
         </div>
       </UCard>
