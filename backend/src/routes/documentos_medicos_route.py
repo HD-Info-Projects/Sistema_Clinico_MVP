@@ -50,9 +50,9 @@ def listar_documentos():
         return jsonify({"error": str(e)}), 404
     except PermissionError as e:
         return jsonify({"error": str(e)}), 403
-    except Exception as e:
+    except Exception:
         current_app.logger.exception("Erro ao listar documentos médicos")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Erro interno ao listar documentos médicos"}), 500
 
 
 @documentos_medicos_bp.route("/<int:med_spdata_atendimento_id>", methods=["GET"])
@@ -75,9 +75,9 @@ def listar_documentos_do_atendimento(med_spdata_atendimento_id):
         return jsonify({"error": str(e)}), 404
     except PermissionError as e:
         return jsonify({"error": str(e)}), 403
-    except Exception as e:
+    except Exception:
         current_app.logger.exception("Erro ao listar documentos médicos do atendimento")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Erro interno ao listar documentos médicos"}), 500
 
 
 @documentos_medicos_bp.route("/<int:med_spdata_atendimento_id>/<tipo>", methods=["PUT"])
@@ -107,7 +107,7 @@ def salvar_documento_medico(med_spdata_atendimento_id, tipo):
     except ValueError as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 400
-    except Exception as e:
+    except Exception:
         db.session.rollback()
         current_app.logger.exception("Erro ao salvar documento médico")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Erro interno ao salvar documento médico"}), 500

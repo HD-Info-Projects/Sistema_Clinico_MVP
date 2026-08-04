@@ -2,6 +2,7 @@ from flask import Flask, jsonify
 from flask_limiter.errors import RateLimitExceeded
 from .settings.config import Config
 from .settings.extensions import db, migrate, jwt, cors, limiter
+from .security.jwt_blocklist import is_jti_revoked
 
 from src.commands.exames_commands import importar_exames_spdata_command
 from src.commands.convenios_commands import (
@@ -16,14 +17,31 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
+    if app.config.get("IS_PRODUCTION"):
+        missing = [
+            key
+            for key in ("SECRET_KEY", "JWT_SECRET_KEY", "SQLALCHEMY_DATABASE_URI")
+            if not app.config.get(key)
+        ]
+        if missing:
+            raise RuntimeError(
+                "Configuração de produção incompleta: " + ", ".join(missing)
+            )
+
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
-    cors_kwargs = {"supports_credentials": True}
     if app.config.get("CORS_ORIGINS"):
-        cors_kwargs["origins"] = app.config["CORS_ORIGINS"]
-    cors.init_app(app, **cors_kwargs)
+        cors.init_app(app, supports_credentials=True, origins=app.config["CORS_ORIGINS"])
     limiter.init_app(app)
+
+    @jwt.token_in_blocklist_loader
+    def check_if_token_revoked(_jwt_header, jwt_payload):
+        return is_jti_revoked(jwt_payload.get("jti"))
+
+    @jwt.revoked_token_loader
+    def revoked_token_response(_jwt_header, _jwt_payload):
+        return jsonify({"error": "Sessão encerrada"}), 401
 
     @app.after_request
     def add_security_headers(response):
@@ -31,6 +49,13 @@ def create_app():
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
         response.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+        response.headers.setdefault(
+            "Content-Security-Policy",
+            "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; "
+            "img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self'; "
+            "script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; "
+            "font-src 'self' data:; form-action 'self'",
+        )
 
         if app.config.get("SECURITY_HSTS_ENABLED"):
             max_age = app.config.get("SECURITY_HSTS_MAX_AGE", 31536000)

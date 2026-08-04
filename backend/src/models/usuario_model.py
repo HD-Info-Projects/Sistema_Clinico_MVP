@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, DateTime
+from sqlalchemy import Boolean, Column, String, Integer, DateTime
 from datetime import datetime
 
 from src.security.passwords import hash_password
@@ -14,6 +14,9 @@ class Usuario(db.Model):
     email = Column(String(255), nullable=False)
     senha = Column(String(255), nullable=False)
     role = Column(String(50), nullable=False, default="medico")
+    ativo = Column(Boolean, nullable=False, default=True)
+    bloqueado_em = Column(DateTime, nullable=True)
+    ultimo_login_em = Column(DateTime, nullable=True)
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
@@ -57,12 +60,13 @@ class Usuario(db.Model):
     )
     
     
-    def __init__(self, nome_completo, cnpj_cpf, email, senha, role="medico"):
+    def __init__(self, nome_completo, cnpj_cpf, email, senha, role="medico", ativo=True):
         self.nome_completo = nome_completo
         self.cnpj_cpf = cnpj_cpf
         self.email = email
         self.set_senha(senha)
         self.role = role
+        self.ativo = ativo
 
     def set_senha(self, senha):
         self.senha = hash_password(senha)
@@ -78,6 +82,7 @@ class Usuario(db.Model):
             "cnpj_cpf": self.cnpj_cpf,
             "email": self.email,
             "role": self.role,
+            "ativo": self.ativo,
         }
 
     def _to_dict_(self):

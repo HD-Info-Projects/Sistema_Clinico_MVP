@@ -3,6 +3,7 @@ import click
 from flask.cli import with_appcontext
 
 from src.models.usuario_model import Usuario
+from src.security.passwords import validate_password_strength
 from src.settings.extensions import db
 
 
@@ -19,6 +20,11 @@ def _registrar_usuario_local(nome_completo, documento, email, senha, role, atual
         raise click.ClickException("Informe --email.")
     if not senha:
         raise click.ClickException("Informe --senha.")
+
+    try:
+        validate_password_strength(senha)
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
 
     usuario = db.session.query(Usuario).filter(Usuario.email == email).first()
 

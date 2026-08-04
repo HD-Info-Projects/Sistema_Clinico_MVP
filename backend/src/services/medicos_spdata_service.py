@@ -3,6 +3,7 @@ from sqlalchemy import or_, select
 from src.models.db.handler_fb_db import ConnectionDBFireBird
 from src.models.medico_model import Medico
 from src.models.usuario_model import Usuario
+from src.security.passwords import validate_password_strength
 from src.settings.extensions import db
 
 
@@ -200,6 +201,9 @@ def dados_medico_normalizados(medico_spdata, email=None, crm_atendimento_spdata=
 
 
 def upsert_usuario_medico_spdata(medico_spdata, email=None, senha=None, crm_atendimento_spdata=None):
+    if senha is not None:
+        validate_password_strength(senha)
+
     dados = dados_medico_normalizados(
         medico_spdata,
         email=email,
@@ -278,6 +282,8 @@ def upsert_usuario_medico_spdata(medico_spdata, email=None, senha=None, crm_aten
 
 
 def criar_usuario_medico_spdata(medico_spdata, email=None, senha=None, crm_atendimento_spdata=None):
+    validate_password_strength(senha)
+
     dados = dados_medico_normalizados(
         medico_spdata,
         email=email,

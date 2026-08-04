@@ -5,9 +5,11 @@ from flask import (
     jsonify
 )
 
-from flask_jwt_extended import decode_token, get_jwt_identity, jwt_required
+from flask_jwt_extended import decode_token, get_jwt, get_jwt_identity, jwt_required
 from sqlalchemy.orm import joinedload
 from src.security.decorators import roles_required
+from src.security.jwt_blocklist import revoke_jti
+from src.security.passwords import validate_password_strength
 
 from src.controllers.login_controller import LoginController
 from src.models.auditoria_model import AcaoAuditoria
@@ -96,6 +98,9 @@ def me():
         if not usuario:
             return jsonify({"error": "Não autorizado"}), 401
 
+        if not usuario.ativo or usuario.bloqueado_em:
+            return jsonify({"error": "Não autorizado"}), 401
+
         return jsonify({
             "id": usuario.id,
             "email": usuario.email,
@@ -114,6 +119,8 @@ def me():
 @jwt_required()
 def logout():
     usuario_id = int(get_jwt_identity())
+    claims = get_jwt()
+    revoke_jti(claims.get("jti"), claims.get("exp"))
     registrar_auditoria(
         AcaoAuditoria.LOGOUT,
         entidade="usuarios",
@@ -153,6 +160,8 @@ def register_medic():
         nome_completo = data["nome_completo_medico"]
         cpf_cnpj = data["CNPJ_CPF"]
         crm_atendimento_spdata = data.get("crm_atendimento_spdata")
+
+        validate_password_strength(senha, current_app.config.get("PASSWORD_MIN_LENGTH", 8))
 
         medicos_spdata = buscar_medicos_spdata(cpf=cpf_cnpj)
         if not medicos_spdata:
@@ -204,6 +213,7 @@ def register_medic():
         db.session.rollback()
         return jsonify({"error": str(e)}), 409
 
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        current_app.logger.exception("Erro ao cadastrar médico")
+        return jsonify({"error": "Erro interno ao cadastrar médico"}), 500

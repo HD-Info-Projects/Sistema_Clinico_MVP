@@ -1,6 +1,9 @@
 from werkzeug.security import check_password_hash, generate_password_hash
 
 
+DEFAULT_MIN_PASSWORD_LENGTH = 8
+
+
 PASSWORD_HASH_PREFIXES = (
     "scrypt:",
     "pbkdf2:",
@@ -12,6 +15,14 @@ def hash_password(password: str) -> str:
         raise ValueError("Senha não pode ser vazia")
 
     return generate_password_hash(password)
+
+
+def validate_password_strength(password: str, min_length: int = DEFAULT_MIN_PASSWORD_LENGTH) -> None:
+    if not password:
+        raise ValueError("Senha não pode ser vazia")
+
+    if len(password) < min_length:
+        raise ValueError(f"Senha deve ter pelo menos {min_length} caracteres")
 
 
 def is_hashed_password(stored_password: str | None) -> bool:

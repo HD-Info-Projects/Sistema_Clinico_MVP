@@ -42,7 +42,7 @@ def index():
 
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
-    except Exception as e:
+    except Exception:
         db.session.rollback()
         current_app.logger.exception("Erro ao listar retenção de exames")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Erro interno ao listar retenção de exames"}), 500

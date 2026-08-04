@@ -94,9 +94,9 @@ def create_padrao_medico_exame():
     except ValueError as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 400
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Erro interno"}), 500
 
 
 @padrao_medico_exame_bp.route(
@@ -130,9 +130,9 @@ def add_exame_padrao_medico_exame(id_padrao_medico_exame):
     except ValueError as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 400
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Erro interno"}), 500
 
 
 @padrao_medico_exame_bp.route("/lista", methods=["GET"])
@@ -149,8 +149,8 @@ def lista_padroes_medicos_exame():
 
         return jsonify({"padroes_exames": [_padrao_medico_exame_to_dict(p) for p in lista]}), 200
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    except Exception:
+        return jsonify({"error": "Erro interno"}), 500
 
 
 @padrao_medico_exame_bp.route("/<int:id>", methods=["GET"])
@@ -166,8 +166,8 @@ def detalhes_padrao_medico_exame(id):
 
         return jsonify(_padrao_medico_exame_to_dict(padrao)), 200
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    except Exception:
+        return jsonify({"error": "Erro interno"}), 500
 
 
 @padrao_medico_exame_bp.route("/editar/<int:id>", methods=["PUT", "PATCH"])
@@ -192,9 +192,9 @@ def editar_padrao_medico_exame(id):
 
         return jsonify(_padrao_medico_exame_to_dict(padrao)), 200
 
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Erro interno"}), 500
 
 
 @padrao_medico_exame_bp.route("/editar_exame/<int:id>", methods=["PUT", "PATCH"])
@@ -235,9 +235,9 @@ def editar_exame_padrao_medico_exame(id):
     except ValueError as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 400
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Erro interno"}), 500
 
 
 @padrao_medico_exame_bp.route("/deletar/<int:id>", methods=["DELETE"])
@@ -256,9 +256,9 @@ def deletar_padrao_medico_exame(id):
 
         return jsonify({"message": "Padrão de exames deletado com sucesso"}), 200
 
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Erro interno"}), 500
 
 
 @padrao_medico_exame_bp.route("/deletar_exame/<int:id>", methods=["DELETE"])
@@ -277,6 +277,6 @@ def deletar_exame_padrao_medico_exame(id):
 
         return jsonify({"message": "Exame deletado com sucesso"}), 200
 
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Erro interno"}), 500

@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 from flask_jwt_extended import create_access_token
 
 from src.models.repositories.usuario_repository import UsuarioRepository
@@ -15,6 +17,9 @@ class LoginController:
         if not usuario:
             return None
 
+        if not getattr(usuario, "ativo", True) or getattr(usuario, "bloqueado_em", None):
+            return None
+
         senha_valida, senha_legada = verify_password(usuario.senha, senha)
 
         if not senha_valida:
@@ -22,7 +27,9 @@ class LoginController:
 
         if senha_legada:
             usuario.set_senha(senha)
-            db.session.commit()
+
+        usuario.ultimo_login_em = datetime.now(UTC).replace(tzinfo=None)
+        db.session.commit()
 
         token = create_access_token(
             identity=str(usuario.id),

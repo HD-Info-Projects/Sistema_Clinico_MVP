@@ -71,9 +71,9 @@ def create_padrao_medico_receita():
 
         return jsonify(new_padrao_medico_receita._to_dict()), 201
 
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Erro interno"}), 500
 
 
 @padrao_medico_receita_bp.route("/add_medicamento/<int:id_padrao_medico_receita>", methods=["POST"])
@@ -106,9 +106,9 @@ def add_medicamento_padrao_medico_receita(id_padrao_medico_receita: int):
 
         return jsonify(new_medicamento._to_dict()), 201
 
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Erro interno"}), 500
 
 
 ### ROTAS DE GET
@@ -132,8 +132,8 @@ def lista_padroes_medicos_receita():
             ]
         }), 200
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    except Exception:
+        return jsonify({"error": "Erro interno"}), 500
 
 
 @padrao_medico_receita_bp.route("/<int:id>", methods=["GET"])
@@ -149,8 +149,8 @@ def detalhes_padrao_medico_receita(id: int):
 
         return jsonify(_padrao_medico_receita_to_dict(detalhe_padrao_receita_select)), 200
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    except Exception:
+        return jsonify({"error": "Erro interno"}), 500
 
 
 ### ROTAS DE UPDATE
@@ -178,9 +178,9 @@ def editar_padrao_medico_receita(id: int):
 
         return jsonify(_padrao_medico_receita_to_dict(padrao)), 200
 
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Erro interno"}), 500
 
 
 @padrao_medico_receita_bp.route("/editar_medicamento/<int:id>", methods=["PUT", "PATCH"])
@@ -226,9 +226,9 @@ def editar_medicamento_padrao_medico_receita(id: int):
 
         return jsonify(medicamento._to_dict()), 200
 
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Erro interno"}), 500
 
 
 ### ROTAS DE DELETE
@@ -249,9 +249,9 @@ def deletar_padrao_medico_receita(id: int):
 
         return jsonify({"message": "Padrão médico de receita deletado com sucesso"}), 200
 
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Erro interno"}), 500
 
 
 @padrao_medico_receita_bp.route("/deletar_medicamento/<int:id>", methods=["DELETE"])
@@ -270,6 +270,6 @@ def deletar_medicamento_padrao_medico_receita(id: int):
 
         return jsonify({"message": "Medicamento deletado com sucesso"}), 200
 
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Erro interno"}), 500

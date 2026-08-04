@@ -1,6 +1,5 @@
 import { getRequestIP, readBody } from 'h3'
 
-const MAX_TTS_TEXT_LENGTH = 240
 const RATE_LIMIT_WINDOW_MS = 60_000
 const RATE_LIMIT_MAX = 30
 const rateLimit = new Map<string, { count: number, resetAt: number }>()
@@ -21,26 +20,27 @@ function checkRateLimit(key: string) {
 }
 
 export default defineEventHandler(async (event) => {
-  const body = await readBody<{ text?: string, voice?: string }>(event)
-  const text = String(body?.text || '').trim()
-
-  if (!text) {
-    throw createError({ statusCode: 400, statusMessage: 'Campo text é obrigatório' })
+  const config = useRuntimeConfig()
+  if (!config.enableTts) {
+    throw createError({ statusCode: 503, statusMessage: 'TTS desabilitado' })
   }
 
-  if (text.length > MAX_TTS_TEXT_LENGTH) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: `Campo text deve ter até ${MAX_TTS_TEXT_LENGTH} caracteres`
-    })
+  const body = await readBody<{ chamadoId?: number, voice?: string }>(event)
+  const chamadoId = Number(body?.chamadoId)
+
+  if (!Number.isFinite(chamadoId) || chamadoId <= 0) {
+    throw createError({ statusCode: 400, statusMessage: 'chamadoId inválido' })
+  }
+
+  const text = textoChamadoParaTts(chamadoId)
+  if (!text) {
+    throw createError({ statusCode: 404, statusMessage: 'Chamado não encontrado' })
   }
 
   const ip = getRequestIP(event) || 'unknown'
   if (!checkRateLimit(ip)) {
     throw createError({ statusCode: 429, statusMessage: 'Muitas solicitações de áudio' })
   }
-
-  const config = useRuntimeConfig()
 
   const res = await fetch(`${config.flaskBaseUrl}/tts/speak`, {
     method: 'POST',

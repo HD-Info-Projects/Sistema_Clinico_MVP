@@ -52,10 +52,10 @@ def listar_agenda():
 
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
-    except Exception as e:
+    except Exception:
         db.session.rollback()
         current_app.logger.exception("Erro ao listar agenda médica")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Erro interno ao listar agenda médica"}), 500
 
 
 @agenda_medica_bp.route("/<int:med_spdata_atendimento_id>/status", methods=["PATCH"])
@@ -84,7 +84,7 @@ def atualizar_status(med_spdata_atendimento_id):
     except ValueError as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 400
-    except Exception as e:
+    except Exception:
         db.session.rollback()
         current_app.logger.exception("Erro ao atualizar status da agenda médica")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Erro interno ao atualizar agenda médica"}), 500
