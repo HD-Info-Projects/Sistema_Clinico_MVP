@@ -97,7 +97,7 @@ const tabItems = [
 type CidResultado = { cid: string, nome: string }
 
 type AtendimentoDraft = {
-  version: 4
+  version: 5
   savedAt: string
   agendamentoId: number
   pacienteId: number | null
@@ -113,6 +113,7 @@ type AtendimentoDraft = {
   examesSelecionados: ExameSelecionado[]
   exameSelecionado: ExameCatalogo | null
   buscaTermoExame: string
+  caraterAtendimento: boolean
 }
 
 type AtendimentoDraftSalvo = Partial<Omit<AtendimentoDraft, 'version'>> & {
@@ -261,6 +262,14 @@ const buscaTermoExame = ref('')
 const sugestoesExames = ref<ExameCatalogo[]>([])
 const carregandoExames = ref(false)
 const exameTemplateSelected = ref<{ label: string, value: PadraoExame }>()
+const caraterAtendimento = ref(false)
+
+const cidPrincipal = computed(() => {
+  if (cidSelecionadoLista.value.length === 0) return ''
+  const idx = cidPrincipalIndex.value
+  const cid = cidSelecionadoLista.value[idx]
+  return cid ? `${cid.cid} - ${cid.nome}` : ''
+})
 
 let buscaExameTimeout: ReturnType<typeof setTimeout> | null = null
 let examesController: AbortController | null = null
@@ -472,7 +481,7 @@ function montarDraft(): AtendimentoDraft | null {
   if (!ag) return null
 
   return {
-    version: 4,
+    version: 5,
     savedAt: new Date().toISOString(),
     agendamentoId: ag.id,
     pacienteId: ag.paciente.id ?? null,
@@ -487,7 +496,8 @@ function montarDraft(): AtendimentoDraft | null {
     remedioDetalhes: remedioDetalhes.value,
     examesSelecionados: [...examesSelecionados.value],
     exameSelecionado: exameSelecionado.value,
-    buscaTermoExame: buscaTermoExame.value
+    buscaTermoExame: buscaTermoExame.value,
+    caraterAtendimento: caraterAtendimento.value
   }
 }
 
@@ -571,6 +581,7 @@ function restaurarDraft() {
     examesSelecionados.value = normalizarListaExames(draft.examesSelecionados)
     exameSelecionado.value = null
     buscaTermoExame.value = draft.buscaTermoExame || ''
+    caraterAtendimento.value = draft.caraterAtendimento ?? false
     draftSalvoEm.value = draft.savedAt
     draftRestaurado.value = true
   } catch {
@@ -604,7 +615,8 @@ watch(
     remedioDetalhes,
     examesSelecionados,
     exameSelecionado,
-    buscaTermoExame
+    buscaTermoExame,
+    caraterAtendimento
   ],
   () => {
     salvarDraftComDebounce()
@@ -680,7 +692,9 @@ async function gerarSolicitacaoExames() {
       exames: examesSelecionados.value,
       medico: auth.user?.nome,
       crm: auth.user?.crm,
-      especialidade: auth.user?.especialidades?.join(', ')
+      especialidade: auth.user?.especialidades?.join(', '),
+      cidPrincipal: cidPrincipal.value,
+      caraterAtendimento: caraterAtendimento.value
     }
     const html = await gerarHtmlGuiaTiss(params)
     imprimirGuiaTiss(html)
@@ -1055,14 +1069,22 @@ async function finalizarConsulta() {
             class="grow flex flex-col"
           >
             <template #title>
-              <div class="flex items-center gap-2">
-                <UIcon
-                  name="i-lucide-flask-conical"
-                  class="text-primary"
-                />
-                <p class="font-semibold">
-                  Pedido de Exames
-                </p>
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <UIcon
+                    name="i-lucide-flask-conical"
+                    class="text-primary"
+                  />
+                  <p class="font-semibold">
+                    Pedido de Exames
+                  </p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="text-sm text-muted">
+                    {{ caraterAtendimento ? 'U - Urgência/Emergência' : 'E - Eletiva' }}
+                  </span>
+                  <USwitch v-model="caraterAtendimento" />
+                </div>
               </div>
             </template>
 
