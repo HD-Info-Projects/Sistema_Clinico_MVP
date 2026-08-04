@@ -140,7 +140,7 @@ export const useAgendamentosStore = defineStore('agendamentos', () => {
   async function init(clinicaId?: number, data?: string, medicoId?: number) {
     atualizarFiltros(clinicaId, data, medicoId)
     registrarSseHandlers()
-    sse?.connect({ data })
+    sse?.connect({ data, clinicaId })
     await fetchAgendamentos(clinicaId, data, medicoId)
   }
 

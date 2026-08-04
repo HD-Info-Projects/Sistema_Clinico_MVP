@@ -4,6 +4,7 @@ from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import jwt_required
 
 from src.security.decorators import roles_required
+from src.security.unidades import unidade_atual_required
 from src.services.retencao_exames_service import listar_retencao_exames
 from src.settings.extensions import db
 
@@ -29,7 +30,7 @@ def index():
         if data_fim < data_ini:
             return jsonify({"error": "dataFim não pode ser menor que dataIni."}), 400
 
-        return jsonify(listar_retencao_exames(data_ini, data_fim)), 200
+        return jsonify(listar_retencao_exames(data_ini, data_fim, unidade=unidade_atual_required())), 200
 
     except ValueError as e:
         return jsonify({"error": str(e)}), 400

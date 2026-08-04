@@ -23,7 +23,7 @@ function confirmarSala() {
 onMounted(() => {
   const hoje = formatarDataISO(new Date())
   agendamentosStore.init(auth.activeClinicaId ?? undefined, hoje, auth.user?.id)
-  chamadosStore.init()
+  chamadosStore.init({ clinicaId: auth.activeClinicaId, data: hoje })
   if (precisaSelecionar.value) {
     showSalaModal.value = true
   }
@@ -92,7 +92,7 @@ function chamarPaciente(ag: AgendamentoComPaciente) {
     showSalaModal.value = true
     return
   }
-  chamadosStore.chamarPaciente(ag.paciente.id, ag.paciente.nome, sala.value, auth.user?.nome ?? 'Dr.')
+  chamadosStore.chamarPaciente(ag.paciente.id, ag.paciente.nome, sala.value, auth.user?.nome ?? 'Dr.', auth.activeClinicaId)
   if (callingInterval) clearInterval(callingInterval)
   callingState.value = { pacienteId: ag.paciente.id, secondsLeft: 5 }
   callingInterval = setInterval(() => {

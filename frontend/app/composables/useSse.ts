@@ -1,6 +1,7 @@
 type SseHandler = (data: unknown) => void
 type SseConnectOptions = {
   data?: string
+  clinicaId?: number | null
   public?: boolean
 }
 
@@ -21,6 +22,7 @@ const SSE_EVENTS = [
 function buildUrl(options?: SseConnectOptions) {
   const params = new URLSearchParams()
   if (options?.data) params.set('data', options.data)
+  if (options?.clinicaId) params.set('clinicaId', String(options.clinicaId))
 
   const qs = params.toString()
   const path = options?.public ? '/api/sse/tv' : '/api/sse'

@@ -15,11 +15,16 @@ export const useChamadosStore = defineStore('chamados', () => {
     chamados.value.filter(c => c.status !== 'chamando')
   )
 
-  async function fetchChamados() {
+  function chamadasQuery(clinicaId?: number | null) {
+    return clinicaId ? `?clinicaId=${encodeURIComponent(String(clinicaId))}` : ''
+  }
+
+  async function fetchChamados(clinicaId?: number | null) {
     try {
+      const qs = chamadasQuery(clinicaId)
       const [ativa, historico] = await Promise.all([
-        $fetch<Chamado | null>('/api/chamadas/ativa'),
-        $fetch<Chamado[]>('/api/chamadas/historico')
+        $fetch<Chamado | null>(`/api/chamadas/ativa${qs}`),
+        $fetch<Chamado[]>(`/api/chamadas/historico${qs}`)
       ])
       chamados.value = []
       if (ativa) chamados.value.push(ativa)
@@ -31,12 +36,12 @@ export const useChamadosStore = defineStore('chamados', () => {
     }
   }
 
-  async function init(options?: { public?: boolean }) {
+  async function init(options?: { public?: boolean, clinicaId?: number | null, data?: string }) {
     sse = useSse()
-    await fetchChamados()
+    await fetchChamados(options?.clinicaId)
 
     if (sseHandlersRegistrados) {
-      sse.connect({ public: options?.public })
+      sse.connect({ public: options?.public, clinicaId: options?.clinicaId, data: options?.data })
       return
     }
 
@@ -61,23 +66,25 @@ export const useChamadosStore = defineStore('chamados', () => {
       if (idx >= 0) chamados.value[idx] = chamado
     })
     sseHandlersRegistrados = true
-    sse.connect({ public: options?.public })
+    sse.connect({ public: options?.public, clinicaId: options?.clinicaId, data: options?.data })
   }
 
-  async function chamarPaciente(pacienteId: number, pacienteNome: string, localAtendimento: string, medicoResponsavel: string) {
+  async function chamarPaciente(pacienteId: number, pacienteNome: string, localAtendimento: string, medicoResponsavel: string, clinicaId?: number | null) {
     try {
-      await $fetch('/api/chamadas', {
+      const qs = chamadasQuery(clinicaId)
+      await $fetch(`/api/chamadas${qs}`, {
         method: 'POST',
-        body: { pacienteId, pacienteNome, localAtendimento, medicoResponsavel }
+        body: { pacienteId, pacienteNome, localAtendimento, medicoResponsavel, clinicaId }
       })
     } catch {
       console.error('Erro ao chamar paciente')
     }
   }
 
-  async function concluirChamado(chamadoId: number) {
+  async function concluirChamado(chamadoId: number, clinicaId?: number | null) {
     try {
-      await $fetch(`/api/chamadas/${chamadoId}`, {
+      const qs = chamadasQuery(clinicaId)
+      await $fetch(`/api/chamadas/${chamadoId}${qs}`, {
         method: 'PATCH',
         body: { status: 'concluido' }
       })

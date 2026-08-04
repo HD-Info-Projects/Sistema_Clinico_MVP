@@ -1,19 +1,21 @@
-from flask import (
-    Blueprint, request, jsonify
-)
+from datetime import date, datetime
 
-from flask_jwt_extended import jwt_required
+from flask import Blueprint, request, jsonify
+
+from flask_jwt_extended import get_jwt_identity, jwt_required
 from src.security.decorators import roles_required
-
-import json
+from src.security.unidades import unidade_atual_required
+from src.services.spdata_atendimentos_service import get_crm_medico_usuario
 
 from src.models.db.handler_fb_db import ConnectionDBFireBird
-from src.models.db.handler_redis_db import ConnectionDBRedis
 
 dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/dashboard")
 
-CACHE_KEY_PACIENTES = "dashboard:pacientes"
-CACHE_TTL = 300
+
+def parse_data(valor):
+    if not valor:
+        return date.today()
+    return datetime.fromisoformat(str(valor)[:10]).date()
 
 
 @dashboard_bp.route("/pacientes", methods=["GET"])
@@ -21,6 +23,11 @@ CACHE_TTL = 300
 @roles_required("medico")
 def dashboard_paciente_lista():
     try:
+        usuario_id = int(get_jwt_identity())
+        unidade = unidade_atual_required()
+        crm_medico = get_crm_medico_usuario(usuario_id)
+        data_ref = parse_data(request.args.get("data"))
+
         # redis_connection = ConnectionDBRedis()
         # cached = redis_connection.get_cache(CACHE_KEY_PACIENTES)
         # if cached is not None:
@@ -66,11 +73,11 @@ def dashboard_paciente_lista():
                     ON a.ID_TBCBOPRO_ATENDIMENTO = tb.ID
                 INNER JOIN TBPROFIS medico
                     ON tb.ID_TBPROFIS = medico.ID
-                WHERE a.ID_TBCENCUS = 340
-                AND tb.COD = 10460
-                AND CAST(a.DATA_HORA_ENTRADA AS DATE) = CURRENT_DATE - 3
+                WHERE a.ID_TBCENCUS = ?
+                AND tb.COD = ?
+                AND CAST(a.DATA_HORA_ENTRADA AS DATE) = ?
                 ORDER BY a.DATA_HORA_ENTRADA DESC;
-            """)
+            """, (unidade.codigo_spdata_centro_custo, crm_medico, data_ref))
 
             columns = [desc[0] for desc in cursor.description]
             rows = cursor.fetchall()

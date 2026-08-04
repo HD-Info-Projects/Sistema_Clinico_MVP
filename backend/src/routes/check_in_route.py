@@ -3,13 +3,14 @@ from decimal import Decimal
 
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
-from sqlalchemy import or_, select
+from sqlalchemy import and_, or_, select
 
 from src.models.db.handler_fb_db import ConnectionDBFireBird
 from src.models.medico_model import Medico
 from src.models.model_mydsystem.med_atendimentos_model import MedAtendimentos
 from src.models.model_mydsystem.med_spdata_convenios_model import MedSpdataConvenio
 from src.security.decorators import roles_required
+from src.security.unidades import unidade_atual_required
 from src.settings.extensions import db
 
 
@@ -145,9 +146,14 @@ def row_para_dict(row, nomes_colunas):
     }
 
 
-def buscar_agendamentos_firebird(data_ref, medico=None, q=None):
+def buscar_agendamentos_firebird(data_ref, unidade, medico=None, q=None):
     where = ["CAST(r.DATA AS DATE) = ?"]
     params = [data_ref]
+
+    codigo_agenda = normalizar_texto(getattr(unidade, "codigo_spdata_agenda", None))
+    if codigo_agenda:
+        where.append("CAST(r.UNIDADE AS VARCHAR(50)) = ?")
+        params.append(codigo_agenda)
 
     medico = normalizar_texto(medico)
     if medico:
@@ -227,7 +233,7 @@ def buscar_agendamentos_firebird(data_ref, medico=None, q=None):
         return [row_para_dict(row, nomes_colunas) for row in cursor.fetchall()]
 
 
-def buscar_atendimentos_firebird(data_ref):
+def buscar_atendimentos_firebird(data_ref, unidade):
     sql = """
         SELECT
             a.ID AS ID_ATENDIMENTO,
@@ -285,14 +291,14 @@ def buscar_atendimentos_firebird(data_ref):
             )
         LEFT JOIN TBESPEC esp_princ
             ON esp_princ.COD = medico.ESP_PRINC
-        WHERE a.ID_TBCENCUS = 340
+        WHERE a.ID_TBCENCUS = ?
           AND CAST(a.DATA_HORA_ENTRADA AS DATE) = ?
         ORDER BY a.DATA_HORA_ENTRADA, paciente.NOME
     """
 
     with ConnectionDBFireBird() as con:
         cursor = con.cursor()
-        cursor.execute(sql, (data_ref,))
+        cursor.execute(sql, (unidade.codigo_spdata_centro_custo, data_ref))
         nomes_colunas = [desc[0].strip().upper() for desc in cursor.description]
         return [row_para_dict(row, nomes_colunas) for row in cursor.fetchall()]
 
@@ -375,14 +381,19 @@ def filtrar_rows(rows, medico=None, q=None):
     return filtrados
 
 
-def buscar_status_local(registros):
+def buscar_status_local(registros, unidade=None):
     registros = [normalizar_texto(registro) for registro in registros if normalizar_texto(registro)]
     if not registros:
         return {}
 
-    rows = db.session.execute(
-        select(MedAtendimentos).where(MedAtendimentos.cod_atendimento.in_(registros))
-    ).scalars().all()
+    filtros = [MedAtendimentos.cod_atendimento.in_(registros)]
+    if unidade:
+        filtros.append(or_(
+            MedAtendimentos.unidade_id == unidade.id,
+            MedAtendimentos.unidade_id.is_(None),
+        ))
+
+    rows = db.session.execute(select(MedAtendimentos).where(and_(*filtros))).scalars().all()
 
     status_por_registro = {}
     for row in rows:
@@ -476,7 +487,7 @@ def especialidade_para_frontend(row, especialidades_por_medico):
     return normalizar_especialidade(row.get("ESPECIALIDADE"))
 
 
-def item_para_frontend(row, status_local, convenios_por_codigo, especialidades_por_medico):
+def item_para_frontend(row, status_local, convenios_por_codigo, especialidades_por_medico, unidade):
     registro = normalizar_texto(row.get("REGISTRO"))
     id_convenio_spdata = normalizar_int(row.get("ID_CONVENIO_SPDATA") or row.get("CONVENIO"))
     local = status_local.get(registro)
@@ -493,6 +504,8 @@ def item_para_frontend(row, status_local, convenios_por_codigo, especialidades_p
 
     return {
         "id": row.get("ID_AGENDAMENTO") or registro,
+        "clinicaId": unidade.id,
+        "unidadeId": unidade.id,
         "registro": registro,
         "grvAte": row.get("GRV_ATE"),
         "medsystemAtendimentoId": local["medsystemAtendimentoId"] if local else None,
@@ -571,6 +584,7 @@ def calcular_medicos(rows, especialidades_por_medico):
 def home_check_in():
     try:
         data_ref = parse_data_param()
+        unidade = unidade_atual_required()
         page = parse_int_param("page", 1)
         page_size = parse_int_param("pageSize", 20, maximo=MAX_PAGE_SIZE)
         status_filtro = normalizar_texto(request.args.get("status"))
@@ -580,20 +594,20 @@ def home_check_in():
         if status_filtro and status_filtro not in STATUS_VALIDOS:
             return jsonify({"error": "Status inválido"}), 400
 
-        rows_agenda = buscar_agendamentos_firebird(data_ref)
-        rows_atendimentos = buscar_atendimentos_firebird(data_ref)
+        rows_agenda = buscar_agendamentos_firebird(data_ref, unidade)
+        rows_atendimentos = buscar_atendimentos_firebird(data_ref, unidade)
         rows_dia = mesclar_agenda_atendimentos(rows_agenda, rows_atendimentos)
         rows_filtradas = filtrar_rows(rows_dia, medico=medico, q=q)
 
         registros = [row.get("REGISTRO") for row in rows_filtradas]
-        status_local = buscar_status_local(registros)
+        status_local = buscar_status_local(registros, unidade)
         convenios_por_codigo = buscar_convenios_locais(
             row.get("ID_CONVENIO_SPDATA") or row.get("CONVENIO")
             for row in rows_filtradas
         )
         especialidades_por_medico = buscar_especialidades_medicos_locais(rows_dia)
         items_com_status = [
-            item_para_frontend(row, status_local, convenios_por_codigo, especialidades_por_medico)
+            item_para_frontend(row, status_local, convenios_por_codigo, especialidades_por_medico, unidade)
             for row in rows_filtradas
         ]
 

@@ -9,6 +9,7 @@ class MedSpdataAtendimento(db.Model):
     id = db.Column(db.Integer, primary_key=True)
 
     spdata_atendimento_id = db.Column(db.Integer, nullable=False, unique=True, index=True)
+    unidade_id = db.Column(db.Integer, nullable=True, index=True)
     cod_atendimento = db.Column(db.String(50), nullable=True, index=True)
     id_paciente_spdata = db.Column(db.Integer, nullable=True, index=True)
     id_medico_spdata = db.Column(db.Integer, nullable=True, index=True)
@@ -54,6 +55,7 @@ class MedSpdataAtendimento(db.Model):
         return {
             "id": self.id,
             "spdata_atendimento_id": self.spdata_atendimento_id,
+            "unidade_id": self.unidade_id,
             "cod_atendimento": self.cod_atendimento,
             "id_paciente_spdata": self.id_paciente_spdata,
             "id_medico_spdata": self.id_medico_spdata,
