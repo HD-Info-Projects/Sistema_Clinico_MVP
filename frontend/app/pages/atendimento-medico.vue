@@ -4,6 +4,7 @@ import type {
   DocumentoMedicoTipo,
   ExameCatalogo,
   ExameSelecionado,
+  HistoricoLocalRecord,
   PadraoAnamnese,
   PadraoExame,
   PadraoReceita
@@ -32,6 +33,52 @@ onBeforeRouteLeave(() => {
 })
 
 const agendamento = computed(() => agendamentosStore.emAtendimento)
+const route = useRoute()
+
+const modoEdicao = computed(() => {
+  const id = Number(route.query.id)
+  return Number.isInteger(id) && id > 0 ? id : null
+})
+
+async function carregarConsultaExistente() {
+  const ag = agendamento.value
+  const edicaoId = modoEdicao.value
+  if (!ag || !edicaoId || ag.id !== edicaoId) return
+  if (!import.meta.client) return
+
+  try {
+    const registros = await $fetch<HistoricoLocalRecord[]>(
+      `/api/historico-local/${ag.paciente.id}`,
+      {
+        query: { spdataAtendimentoId: ag.spdataAtendimentoId ?? undefined }
+      }
+    )
+    const registro = registros?.[0]
+    if (!registro) return
+
+    anamneseTexto.value = registro.anamnese ?? ''
+
+    const cids: CidResultado[] = []
+    if (registro.cid_principal) {
+      cids.push({
+        cid: registro.cid_principal,
+        nome: registro.cid_principal_descricao ?? ''
+      })
+    }
+    for (const s of registro.cids_secundarios ?? []) {
+      if (s?.codigo) cids.push({ cid: s.codigo, nome: s.descricao ?? '' })
+    }
+    cidSelecionadoLista.value = cids
+
+    receitaTexto.value = (registro.medicamentos ?? []).join('\n')
+
+    examesSelecionados.value = (registro.exames ?? [])
+      .map(e => normalizarExameSelecionado(e))
+      .filter((e): e is ExameSelecionado => e !== null)
+  } catch (error) {
+    console.error('Erro ao carregar consulta para edição', error)
+  }
+}
 const documentosMedicos = shallowRef<Partial<Record<DocumentoMedicoTipo, DocumentoMedico>>>({})
 let documentosMedicosRequestId = 0
 
@@ -628,8 +675,28 @@ watch(
   draftKey,
   (key) => {
     if (!key) return
+
+    if (modoEdicao.value) {
+      draftDesativado = true
+      draftStorage().removeItem(key)
+      localStorage.removeItem(key)
+      draftSalvoEm.value = null
+      draftRestaurado.value = false
+      return
+    }
+
     draftDesativado = false
     restaurarDraft()
+  },
+  { immediate: true }
+)
+
+watch(
+  () => [modoEdicao.value, agendamento.value?.id] as const,
+  ([edicaoId, agendamentoId]) => {
+    if (edicaoId && edicaoId === agendamentoId && import.meta.client) {
+      void carregarConsultaExistente()
+    }
   },
   { immediate: true }
 )

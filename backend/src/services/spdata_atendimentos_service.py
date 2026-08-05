@@ -32,6 +32,7 @@ from src.utils.normalizar import normalizar_cpf
 UNIDADE_PADRAO_SPDATA = 340
 
 STATUS_VALIDOS = {
+    "em-espera",
     "em-atendimento",
     "atendido",
     "faltou",
@@ -1182,6 +1183,13 @@ def atualizar_status_agenda(med_spdata_atendimento_id, status, usuario_id=None, 
         if normalizar_status(atendimento.status) != "em-atendimento":
             raise ValueError(
                 "Apenas atendimentos em andamento podem ser cancelados e devolvidos à fila."
+            )
+        db.session.delete(atendimento)
+        atendimento = None
+    elif status == "em-espera":
+        if normalizar_status(atendimento.status) != "faltou":
+            raise ValueError(
+                "Apenas faltas podem ser desfeitas devolvendo o paciente à fila."
             )
         db.session.delete(atendimento)
         atendimento = None

@@ -125,6 +125,50 @@ async function atenderAgendamento(ag: AgendamentoComPaciente) {
   }
 }
 
+async function editarAtendimento(ag: AgendamentoComPaciente) {
+  try {
+    await agendamentosStore.atualizarStatus(ag.id, 'em-atendimento')
+    await navigateTo(`/atendimento-medico?id=${ag.id}`)
+  } catch {
+    console.error('Erro ao reabrir atendimento')
+  }
+}
+
+async function desfazerFalta(ag: AgendamentoComPaciente) {
+  try {
+    await agendamentosStore.atualizarStatus(ag.id, 'em-espera')
+  } catch {
+    console.error('Erro ao desfazer falta')
+  }
+}
+
+const modalConfirma = ref<{
+  titulo: string
+  descricao: string
+  cor?: 'error' | 'success' | 'warning' | 'info' | 'neutral'
+  onConfirm: () => void
+} | null>(null)
+
+function abrirModalFalta(ag: AgendamentoComPaciente) {
+  const executar = () => faltouAgendamento(ag)
+  modalConfirma.value = {
+    titulo: 'Marcar como faltou?',
+    descricao: `Tem certeza que deseja marcar "${ag.paciente.nome}" como faltou?`,
+    cor: 'error',
+    onConfirm: executar
+  }
+}
+
+function abrirModalDesfazerFalta(ag: AgendamentoComPaciente) {
+  const executar = () => desfazerFalta(ag)
+  modalConfirma.value = {
+    titulo: 'Desfazer falta?',
+    descricao: `O paciente "${ag.paciente.nome}" voltará para a fila de espera.`,
+    cor: 'warning',
+    onConfirm: executar
+  }
+}
+
 const pacientesNaFila = computed(() =>
   agendamentosStore.ordenados.filter(
     a => a.status === 'em-espera' || a.status === 'em-atendimento'
@@ -353,7 +397,7 @@ const tempoMedioEspera = computed(() => {
                 :color="row.original.status === 'faltou' ? 'error' : (isTerminal(row.original.status) ? 'neutral' : 'error')"
                 :variant="isTerminal(row.original.status) ? 'soft' : 'solid'"
                 :disabled="temPacienteEmAtendimento || isTerminal(row.original.status) || isCalling(row.original.paciente.id)"
-                @click="faltouAgendamento(row.original as AgendamentoComPaciente)"
+                @click="abrirModalFalta(row.original as AgendamentoComPaciente)"
               />
               <UButton
                 :icon="row.original.status === 'atendido' ? 'i-lucide-check-circle' : 'i-lucide-user-check'"
@@ -377,7 +421,7 @@ const tempoMedioEspera = computed(() => {
         </template>
 
         <UTable
-          :columns="colunas.filter(c => c.id !== 'acoes')"
+          :columns="colunas"
           :data="pacientesFinalizados"
         >
           <template #nome-cell="{ row }">
@@ -412,6 +456,27 @@ const tempoMedioEspera = computed(() => {
               :color="corStatus(row.original.status)"
               variant="subtle"
             />
+          </template>
+
+          <template #acoes-cell="{ row }">
+            <div class="flex items-center gap-1">
+              <UButton
+                v-if="row.original.status === 'atendido'"
+                icon="i-lucide-pencil"
+                label="Editar atendimento"
+                size="sm"
+                color="primary"
+                @click="editarAtendimento(row.original as AgendamentoComPaciente)"
+              />
+              <UButton
+                v-else-if="row.original.status === 'faltou'"
+                icon="i-lucide-undo-2"
+                label="Desfazer falta"
+                size="sm"
+                color="neutral"
+                @click="abrirModalDesfazerFalta(row.original as AgendamentoComPaciente)"
+              />
+            </div>
           </template>
         </UTable>
       </UCard>
@@ -449,5 +514,14 @@ const tempoMedioEspera = computed(() => {
         </div>
       </template>
     </UModal>
+    <ModalConfirmacao
+      :abrir="!!modalConfirma"
+      :titulo="modalConfirma?.titulo ?? ''"
+      :descricao="modalConfirma?.descricao ?? ''"
+      :cor-confirma="modalConfirma?.cor ?? 'error'"
+      texto-confirma="Confirmar"
+      @fechar="modalConfirma = null"
+      @confirmar="modalConfirma?.onConfirm(); modalConfirma = null"
+    />
   </div>
 </template>

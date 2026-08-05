@@ -7,10 +7,6 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Status inválido' })
   }
 
-  if (body.status === 'em-espera') {
-    throw createError({ statusCode: 400, statusMessage: 'Status em-espera é calculado pelo backend' })
-  }
-
   try {
     const result = await flaskFetch<{ id?: number, status?: string, pacienteId?: number }>(event, `/agenda-medica/${id}/status`, {
       method: 'PATCH',
