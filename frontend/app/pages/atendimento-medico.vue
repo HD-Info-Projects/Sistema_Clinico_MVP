@@ -685,6 +685,7 @@ async function gerarSolicitacaoExames() {
   if (convenio && convenio !== 'particular') {
     const params = {
       paciente: agendamento.value?.paciente.nome ?? 'Paciente',
+      nomeSocial: agendamento.value?.paciente.nomeSocial,
       cpf: agendamento.value?.paciente.cpf,
       convenio: agendamento.value?.paciente.convenio ?? '',
       idConvenioSpdata: agendamento.value?.paciente.idConvenioSpdata,

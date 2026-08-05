@@ -21,6 +21,7 @@ class MedSpdataAgenda(db.Model):
     hora_agenda = db.Column(db.Time, nullable=True)
 
     paciente = db.Column(db.String(255), nullable=False, index=True)
+    paciente_nome_social = db.Column(db.String(255), nullable=True)
     cpf = db.Column(db.String(20), nullable=True, index=True)
     prontuario = db.Column(db.String(50), nullable=True, index=True)
 
@@ -55,6 +56,7 @@ class MedSpdataAgenda(db.Model):
         crm_atend=None,
         medico=None,
         hora_agenda=None,
+        paciente_nome_social=None,
         cpf=None,
         prontuario=None,
         id_convenio_spdata=None,
@@ -77,6 +79,7 @@ class MedSpdataAgenda(db.Model):
         self.data_agenda = data_agenda
         self.hora_agenda = hora_agenda
         self.paciente = paciente
+        self.paciente_nome_social = paciente_nome_social
         self.cpf = cpf
         self.prontuario = prontuario
         self.id_convenio_spdata = id_convenio_spdata
@@ -102,6 +105,7 @@ class MedSpdataAgenda(db.Model):
             "data_agenda": self.data_agenda.isoformat() if self.data_agenda else None,
             "hora_agenda": str(self.hora_agenda) if self.hora_agenda else None,
             "paciente": self.paciente,
+            "paciente_nome_social": self.paciente_nome_social,
             "cpf": self.cpf,
             "prontuario": self.prontuario,
             "id_convenio_spdata": self.id_convenio_spdata,

@@ -135,6 +135,7 @@ def buscar_agenda_spdata(data_ini, data_fim):
             r.HORA AS HORA_AGENDA,
             r.HR_AGE AS HR_AGE,
             r.PACIENTE AS PACIENTE,
+            paciente.APELIDO AS PACIENTE_NOME_SOCIAL,
             r.CPF AS CPF,
             r.PRONT AS PRONTUARIO,
             r.CONV AS ID_CONVENIO_SPDATA,
@@ -153,6 +154,8 @@ def buscar_agenda_spdata(data_ini, data_fim):
         FROM REPACAGD r
         LEFT JOIN TBESPEC esp_agenda
             ON esp_agenda.COD = r.ESPEC
+        LEFT JOIN RICADPAC paciente
+            ON paciente.ID = r.ID_RICADPAC
         LEFT JOIN TBPROFIS prof
             ON prof.ID = (
                 SELECT FIRST 1 cb.ID_TBPROFIS
@@ -227,6 +230,7 @@ def sincronizar_agenda_spdata(data_ini, data_fim):
         registro.data_agenda = data_agenda
         registro.hora_agenda = normalizar_hora(item.get("HORA_AGENDA") or item.get("HR_AGE"))
         registro.paciente = paciente
+        registro.paciente_nome_social = normalizar_texto(item.get("PACIENTE_NOME_SOCIAL"), 255)
         registro.cpf = normalizar_cpf(item.get("CPF"))
         registro.prontuario = normalizar_texto(item.get("PRONTUARIO"), 50)
         registro.id_paciente_spdata = normalizar_int(item.get("ID_PACIENTE_SPDATA"))

@@ -15,6 +15,7 @@ export interface HistoricoItem {
 export interface Paciente {
   id: number
   nome: string
+  nomeSocial?: string | null
   encaixado: boolean
   sexo: 'masculino' | 'feminino'
   dataNascimento: string

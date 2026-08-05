@@ -225,6 +225,7 @@ def buscar_atendimentos_spdata(data_ini, data_fim, crm_medico):
 
             paciente.PRONT AS PRONTUARIO,
             paciente.NOME AS PACIENTE,
+            paciente.APELIDO AS PACIENTE_NOME_SOCIAL,
             paciente.NASC AS DATA_NASCIMENTO,
             paciente.SEXO AS SEXO,
             paciente.CELULAR AS CELULAR,
@@ -320,6 +321,7 @@ def sincronizar_atendimentos_spdata(data_ini, data_fim, crm_medico):
         registro.id_centro_custo_spdata = normalizar_int(item.get("ID_CENTRO_CUSTO_SPDATA"))
         registro.obs_atendimento = normalizar_texto(item.get("OBS_ATENDIMENTO"))
         registro.paciente = paciente
+        registro.paciente_nome_social = normalizar_texto(item.get("PACIENTE_NOME_SOCIAL"), 255)
         registro.cpf = normalizar_cpf(item.get("CPF"))
         registro.prontuario = normalizar_texto(item.get("PRONTUARIO"), 50)
         registro.data_nascimento = normalizar_data(item.get("DATA_NASCIMENTO"))
@@ -491,6 +493,7 @@ def buscar_spdata_atendimento_para_agenda(agenda, atendimento=None):
     spdata.id_centro_custo_spdata = UNIDADE_PADRAO_SPDATA
     spdata.obs_atendimento = agenda.obs
     spdata.paciente = agenda.paciente
+    spdata.paciente_nome_social = agenda.paciente_nome_social
     spdata.cpf = agenda.cpf
     spdata.prontuario = agenda.prontuario
     spdata.data_nascimento = agenda.data_nascimento
@@ -614,6 +617,7 @@ def agenda_para_frontend(spdata, atendimento=None, convenios_por_codigo=None):
         "paciente": {
             "id": paciente_id,
             "nome": spdata.paciente,
+            "nomeSocial": spdata.paciente_nome_social,
             "encaixado": False,
             "sexo": sexo_para_frontend(spdata.sexo),
             "dataNascimento": data_iso(spdata.data_nascimento) or "1900-01-01",
@@ -661,6 +665,7 @@ def agenda_spdata_para_frontend(agenda, spdata_ref, atendimento=None, convenios_
         "paciente": {
             "id": paciente_id,
             "nome": agenda.paciente,
+            "nomeSocial": agenda.paciente_nome_social,
             "encaixado": False,
             "sexo": "masculino",
             "dataNascimento": data_iso(agenda.data_nascimento) or "1900-01-01",
