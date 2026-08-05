@@ -4,7 +4,7 @@ export default defineEventHandler(async (event) => {
 
   const validStatuses = ['em-espera', 'em-atendimento', 'atendido', 'faltou', 'cancelado']
   if (!body.status || !validStatuses.includes(body.status)) {
-    throw createError({ statusCode: 400, message: 'Status inválido' })
+    throw createError({ statusCode: 400, statusMessage: 'Status inválido' })
   }
 
   try {
