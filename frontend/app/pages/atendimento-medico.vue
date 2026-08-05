@@ -296,15 +296,35 @@ function normalizarListaExames(valor: unknown) {
   return exames
 }
 
-function adicionarExame(valor: unknown) {
-  const exame = normalizarExameSelecionado(valor)
-  if (!exame) return
-  if (exameExisteNaLista(examesSelecionados.value, exame)) return
+type ResultadoAdicionarExame = 'adicionado' | 'duplicado' | 'invalido'
 
-  examesSelecionados.value.push(exame)
+function limparBuscaExame() {
   exameSelecionado.value = null
   buscaTermoExame.value = ''
   sugestoesExames.value = []
+}
+
+function adicionarExame(valor: unknown, avisarDuplicado = true): ResultadoAdicionarExame {
+  const exame = normalizarExameSelecionado(valor)
+  if (!exame) return 'invalido'
+
+  if (exameExisteNaLista(examesSelecionados.value, exame)) {
+    if (avisarDuplicado) {
+      toast.add({
+        title: 'Exame já lançado',
+        description: 'Este exame já está na solicitação.',
+        color: 'warning',
+        icon: 'i-lucide-alert-triangle'
+      })
+    }
+
+    limparBuscaExame()
+    return 'duplicado'
+  }
+
+  examesSelecionados.value.push(exame)
+  limparBuscaExame()
+  return 'adicionado'
 }
 
 function adicionarExameManual() {
@@ -317,9 +337,22 @@ function removerExameDaLista(i: number) {
 
 function adicionarPadraoExame() {
   if (!exameTemplateSelected.value) return
+
+  let duplicados = 0
+
   for (const e of exameTemplateSelected.value.value.exames) {
-    adicionarExame(e)
+    if (adicionarExame(e, false) === 'duplicado') duplicados++
   }
+
+  if (duplicados) {
+    toast.add({
+      title: duplicados === 1 ? 'Exame já lançado' : 'Alguns exames já estavam lançados',
+      description: `${duplicados} exame${duplicados === 1 ? '' : 's'} do padrão ${duplicados === 1 ? 'não foi adicionado novamente' : 'não foram adicionados novamente'}.`,
+      color: 'warning',
+      icon: 'i-lucide-alert-triangle'
+    })
+  }
+
   exameTemplateSelected.value = undefined
 }
 
