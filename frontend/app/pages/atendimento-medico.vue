@@ -733,6 +733,34 @@ async function gerarComparecimento() {
   pdfMake.createPdf(doc).open()
 }
 
+const cancelandoConsulta = ref(false)
+const modalCancelarAberto = ref(false)
+
+async function cancelarAtendimento() {
+  if (!agendamento.value || cancelandoConsulta.value) return
+
+  cancelandoConsulta.value = true
+  const agendamentoAtual = agendamento.value
+
+  try {
+    await agendamentosStore.atualizarStatus(agendamentoAtual.id, 'cancelado')
+    limparDraft()
+    cronometro.stop()
+    modalCancelarAberto.value = false
+    await navigateTo('/dashboard', { replace: true })
+  } catch (error) {
+    console.error('Erro ao cancelar atendimento', error)
+    toast.add({
+      title: 'Erro ao cancelar atendimento',
+      description: 'Não foi possível devolver o paciente à fila. Tente novamente.',
+      color: 'error',
+      icon: 'i-lucide-alert-circle'
+    })
+  } finally {
+    cancelandoConsulta.value = false
+  }
+}
+
 async function finalizarConsulta() {
   if (!agendamento.value || finalizandoConsulta.value) return
 
@@ -1265,8 +1293,18 @@ async function finalizarConsulta() {
             </div>
           </UCard>
           <UCard
-            :ui="{ body: 'flex justify-center' }"
+            :ui="{ body: 'flex justify-center gap-4' }"
           >
+            <UButton
+              icon="i-lucide-x-circle"
+              label="Cancelar atendimento"
+              color="error"
+              size="xl"
+              class="p-3 text-lg font-bold min-w-110"
+              :loading="cancelandoConsulta"
+              :disabled="cancelandoConsulta"
+              @click="void (modalCancelarAberto = true)"
+            />
             <UButton
               icon="i-lucide-check-circle"
               label="Finalizar Consulta"
@@ -1309,6 +1347,15 @@ async function finalizarConsulta() {
       :agendamento="agendamento"
       :data-atendimento="agendamento?.data"
       @saved="salvarOrientacaoExame"
+    />
+    <ModalConfirmacao
+      :abrir="modalCancelarAberto"
+      titulo="Cancelar atendimento?"
+      descricao="O paciente será devolvido à fila de espera e o atendimento atual será descartado. Tem certeza?"
+      texto-confirma="Cancelar Atendimento"
+      cor-confirma="error"
+      @fechar="modalCancelarAberto = false"
+      @confirmar="void cancelarAtendimento()"
     />
   </div>
 </template>

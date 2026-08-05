@@ -2,7 +2,7 @@ export default defineEventHandler(async (event) => {
   const id = Number(getRouterParam(event, 'id'))
   const body = await readBody<{ status: string, consulta?: { anamnese?: string, diagnosticos?: { cid: string, descricao?: string, principal: boolean }[], medicamentos?: string, exames?: { nome: string, exame_id?: number | null, orientacao?: string | null }[], duracao?: number } }>(event)
 
-  const validStatuses = ['em-espera', 'em-atendimento', 'atendido', 'faltou']
+  const validStatuses = ['em-espera', 'em-atendimento', 'atendido', 'faltou', 'cancelado']
   if (!body.status || !validStatuses.includes(body.status)) {
     throw createError({ statusCode: 400, statusMessage: 'Status inválido' })
   }

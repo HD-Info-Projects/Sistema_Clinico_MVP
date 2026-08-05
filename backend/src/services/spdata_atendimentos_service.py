@@ -35,6 +35,7 @@ STATUS_VALIDOS = {
     "em-atendimento",
     "atendido",
     "faltou",
+    "cancelado",
 }
 
 STATUS_ALIASES = {
@@ -1177,6 +1178,13 @@ def atualizar_status_agenda(med_spdata_atendimento_id, status, usuario_id=None, 
         salvar_conteudo_clinico(spdata, atendimento, usuario_id, consulta)
     elif status == "faltou":
         atendimento.marcar_faltou()
+    elif status == "cancelado":
+        if normalizar_status(atendimento.status) != "em-atendimento":
+            raise ValueError(
+                "Apenas atendimentos em andamento podem ser cancelados e devolvidos à fila."
+            )
+        db.session.delete(atendimento)
+        atendimento = None
 
     db.session.commit()
     convenios_por_codigo = buscar_convenios_locais([spdata.id_convenio_spdata])
