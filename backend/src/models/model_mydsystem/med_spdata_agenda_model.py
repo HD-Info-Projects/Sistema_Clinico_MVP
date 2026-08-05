@@ -35,6 +35,7 @@ class MedSpdataAgenda(db.Model):
     celular = db.Column(db.String(30), nullable=True)
     email = db.Column(db.String(255), nullable=True)
     obs = db.Column(db.Text, nullable=True)
+    motivo_no_show = db.Column(db.String(30), nullable=True)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(
@@ -67,7 +68,8 @@ class MedSpdataAgenda(db.Model):
         telefone=None,
         celular=None,
         email=None,
-        obs=None
+        obs=None,
+        motivo_no_show=None
     ):
         self.spdata_agenda_id = spdata_agenda_id
         self.id_paciente_spdata = id_paciente_spdata
@@ -91,6 +93,7 @@ class MedSpdataAgenda(db.Model):
         self.celular = celular
         self.email = email
         self.obs = obs
+        self.motivo_no_show = motivo_no_show
 
     def _to_dict(self):
         return {
@@ -117,6 +120,7 @@ class MedSpdataAgenda(db.Model):
             "celular": self.celular,
             "email": self.email,
             "obs": self.obs,
+            "motivo_no_show": self.motivo_no_show,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }

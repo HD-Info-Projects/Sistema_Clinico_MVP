@@ -4,7 +4,7 @@ from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import jwt_required
 
 from src.security.decorators import roles_required
-from src.services.no_show_service import listar_no_show
+from src.services.no_show_service import listar_no_show, registrar_motivo_no_show
 from src.settings.extensions import db
 
 
@@ -53,4 +53,23 @@ def index():
     except Exception as e:
         db.session.rollback()
         current_app.logger.exception("Erro ao listar no-show")
+        return jsonify({"error": str(e)}), 500
+
+
+@no_show_bp.route("/<int:agenda_id>/motivo", methods=["PATCH"])
+@jwt_required()
+@roles_required("recepcao")
+def atualizar_motivo(agenda_id):
+    try:
+        body = request.get_json() or {}
+        return jsonify(registrar_motivo_no_show(agenda_id, body.get("motivo"))), 200
+
+    except LookupError as e:
+        return jsonify({"error": str(e)}), 404
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception("Erro ao registrar motivo do no-show")
         return jsonify({"error": str(e)}), 500

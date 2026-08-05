@@ -21,6 +21,7 @@ STATUS_MEDSYSTEM_ALIASES = {
 }
 
 STATUS_NO_SHOW = {"faltou", "nao-confirmado"}
+MOTIVOS_NO_SHOW = {"esquecimento", "transporte", "outros"}
 
 NO_SHOW_GRACE_PERIOD = timedelta(hours=8)
 
@@ -51,6 +52,13 @@ def normalizar_especialidade(valor):
 
 def normalizar_status_medsystem(status):
     return STATUS_MEDSYSTEM_ALIASES.get(normalizar_texto(status))
+
+
+def normalizar_motivo_no_show(motivo):
+    motivo = normalizar_texto(motivo)
+    if motivo not in MOTIVOS_NO_SHOW:
+        return None
+    return motivo
 
 
 def data_iso(valor):
@@ -160,10 +168,28 @@ def montar_item(agenda, atendimento, status, situacao, especialidades_por_medico
         "horario": hora_hhmm(agenda.hora_agenda),
         "status": status,
         "situacao": situacao,
-        "motivo": None,
+        "motivo": normalizar_motivo_no_show(getattr(agenda, "motivo_no_show", None)),
         "recuperado": False,
         "cpf": normalizar_texto(agenda.cpf),
         "prontuario": normalizar_texto(agenda.prontuario),
+    }
+
+
+def registrar_motivo_no_show(agenda_id, motivo):
+    motivo_normalizado = normalizar_motivo_no_show(motivo)
+    if not motivo_normalizado:
+        raise ValueError("Motivo do no-show inválido")
+
+    agenda = db.session.get(MedSpdataAgenda, agenda_id)
+    if not agenda:
+        raise LookupError("Agenda do no-show não encontrada")
+
+    agenda.motivo_no_show = motivo_normalizado
+    db.session.commit()
+
+    return {
+        "id": agenda.id,
+        "motivo": agenda.motivo_no_show,
     }
 
 
