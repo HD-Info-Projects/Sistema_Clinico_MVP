@@ -87,12 +87,16 @@ function isCalling(pacienteId: number) {
 
 const temPacienteEmAtendimento = computed(() => !!agendamentosStore.emAtendimento)
 
+function nomePacienteChamada(ag: AgendamentoComPaciente) {
+  return ag.paciente.nomeSocial || ag.paciente.nome
+}
+
 function chamarPaciente(ag: AgendamentoComPaciente) {
   if (!sala.value) {
     showSalaModal.value = true
     return
   }
-  chamadosStore.chamarPaciente(ag.paciente.id, ag.paciente.nome, sala.value, auth.user?.nome ?? 'Dr.')
+  chamadosStore.chamarPaciente(ag.paciente.id, nomePacienteChamada(ag), sala.value, auth.user?.nome ?? 'Dr.')
   if (callingInterval) clearInterval(callingInterval)
   callingState.value = { pacienteId: ag.paciente.id, secondsLeft: 5 }
   callingInterval = setInterval(() => {

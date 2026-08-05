@@ -10,6 +10,7 @@ let convenioLogoIndexLoaded = false
 
 export async function gerarHtmlGuiaTiss(params: {
   paciente: string
+  nomeSocial?: string | null
   cpf?: string
   convenio: string
   idConvenioSpdata?: number | null
@@ -42,6 +43,7 @@ export async function gerarHtmlGuiaTiss(params: {
       .replaceAll('{{CONVENIO}}', escapeHtml(params.convenio))
       .replaceAll('{{CONVENIO_LOGO}}', convenioLogo)
       .replaceAll('{{PACIENTE}}', escapeHtml(params.paciente))
+      .replaceAll('{{PACIENTE_NOME_SOCIAL}}', escapeHtml(params.nomeSocial ?? ''))
       .replaceAll('{{CPF}}', escapeHtml(params.cpf ?? ''))
       .replaceAll('{{MEDICO}}', escapeHtml(params.medico ?? ''))
       .replaceAll('{{CRM_NUMERO}}', extractCrmNumero(params.crm))

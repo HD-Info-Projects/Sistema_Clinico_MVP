@@ -26,6 +26,7 @@ class MedSpdataAtendimento(db.Model):
     obs_atendimento = db.Column(db.Text, nullable=True)
 
     paciente = db.Column(db.String(255), nullable=False, index=True)
+    paciente_nome_social = db.Column(db.String(255), nullable=True)
     cpf = db.Column(db.String(20), nullable=True, index=True)
     prontuario = db.Column(db.String(50), nullable=True, index=True)
     data_nascimento = db.Column(db.Date, nullable=True)
@@ -67,6 +68,7 @@ class MedSpdataAtendimento(db.Model):
             "id_centro_custo_spdata": self.id_centro_custo_spdata,
             "obs_atendimento": self.obs_atendimento,
             "paciente": self.paciente,
+            "paciente_nome_social": self.paciente_nome_social,
             "cpf": self.cpf,
             "prontuario": self.prontuario,
             "data_nascimento": self.data_nascimento.isoformat() if self.data_nascimento else None,
