@@ -164,7 +164,6 @@ export async function buildReceita(params: {
   }
 }
 
-<<<<<<< HEAD
 const LINHAS_BLOCO_RECEITA_DUPLA = 18
 
 function montarBlocoTextoLinhas(params: {
@@ -184,8 +183,6 @@ function montarBlocoTextoLinhas(params: {
   }))
 }
 
-=======
->>>>>>> 6d1d933 (feat: implementação inicial estavel da funcionalidade de imprimir 2 itens por pagina)
 async function montarCorpoReceitaEspecialDupla(params: {
   paciente: string
   data: string
@@ -197,12 +194,6 @@ async function montarCorpoReceitaEspecialDupla(params: {
 }) {
   const logo = await getLogoBase64()
 
-<<<<<<< HEAD
-  const blocoMedicamentos = {
-    stack: montarBlocoTextoLinhas(params),
-    margin: [0, 0, 0, 8]
-  }
-=======
   const medicamentosContent = params.texto
     ? [{ text: params.texto, fontSize: 9, margin: [0, 0, 0, 8] }]
     : params.medicamentos.map(m => ({
@@ -212,7 +203,6 @@ async function montarCorpoReceitaEspecialDupla(params: {
         ],
         margin: [0, 0, 0, 6]
       }))
->>>>>>> 6d1d933 (feat: implementação inicial estavel da funcionalidade de imprimir 2 itens por pagina)
 
   return [
     {
@@ -233,11 +223,7 @@ async function montarCorpoReceitaEspecialDupla(params: {
     { text: `DATA: ${params.data}`, fontSize: 9, alignment: 'right', margin: [0, 0, 0, 4] },
     { text: 'RECEITA DE CONTROLE ESPECIAL', fontSize: 13, bold: true, alignment: 'center', margin: [0, 2, 0, 10] },
     { text: `PACIENTE: ${params.paciente.toUpperCase()}`, bold: true, fontSize: 9, decoration: 'underline', margin: [0, 0, 0, 8] },
-<<<<<<< HEAD
-    blocoMedicamentos,
-=======
     ...medicamentosContent,
->>>>>>> 6d1d933 (feat: implementação inicial estavel da funcionalidade de imprimir 2 itens por pagina)
     {
       stack: [
         { text: '\n\n' },
