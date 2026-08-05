@@ -146,6 +146,125 @@ export async function buildReceita(params: {
   }
 }
 
+async function montarCorpoReceitaEspecialDupla(params: {
+  paciente: string
+  data: string
+  medicamentos: ItemMedicamento[]
+  texto?: string
+  medico?: string
+  crm?: string
+  especialidade?: string
+}) {
+  const logo = await getLogoBase64()
+
+  const medicamentosContent = params.texto
+    ? [{ text: params.texto, fontSize: 9, margin: [0, 0, 0, 8] }]
+    : params.medicamentos.map(m => ({
+        columns: [
+          { text: `\u2022 ${m.nome} — ${m.dosagem}`, bold: true, fontSize: 9, width: '42%' },
+          { text: m.detalhes, fontSize: 9, width: '58%' }
+        ],
+        margin: [0, 0, 0, 6]
+      }))
+
+  return [
+    {
+      columns: [
+        { image: logo, width: 74, alignment: 'left' },
+        {
+          stack: [
+            { text: 'HOSPITAL NATUS LUMINE', fontSize: 9, bold: true, alignment: 'right' },
+            { text: 'Av. dos Holandeses, n\u00BA 69, Olho D\'Água', fontSize: 6.5, color: '#555555', alignment: 'right' },
+            { text: 'São Luís - MA | CEP: 65065-180 | Tel: (98) 2107-5252', fontSize: 6.5, color: '#555555', alignment: 'right' }
+          ],
+          margin: [0, 2, 0, 0]
+        }
+      ],
+      margin: [0, 0, 0, 6]
+    },
+    { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 360, y2: 0, lineWidth: 0.5, lineColor: '#CCCCCC' }], margin: [0, 4, 0, 6] },
+    { text: `DATA: ${params.data}`, fontSize: 9, alignment: 'right', margin: [0, 0, 0, 4] },
+    { text: 'RECEITA DE CONTROLE ESPECIAL', fontSize: 13, bold: true, alignment: 'center', margin: [0, 2, 0, 10] },
+    { text: `PACIENTE: ${params.paciente.toUpperCase()}`, bold: true, fontSize: 9, decoration: 'underline', margin: [0, 0, 0, 8] },
+    ...medicamentosContent,
+    {
+      stack: [
+        { text: '\n\n' },
+        { text: '________________________________________________', alignment: 'center', fontSize: 9, margin: [0, 4, 0, 2] },
+        { text: params.medico ?? 'Médico Responsável', bold: true, fontSize: 8, alignment: 'center' },
+        ...(params.especialidade ? [{ text: params.especialidade, fontSize: 7, alignment: 'center', color: '#555555' }] : []),
+        ...(params.crm ? [{ text: `CRM:${params.crm}`, fontSize: 7, alignment: 'center', color: '#555555' }] : [])
+      ],
+      unbreakable: true,
+      margin: [0, 0, 0, 8]
+    },
+    {
+      table: {
+        widths: ['50%', '50%'],
+        body: [[
+          {
+            stack: [
+              { text: 'IDENTIFICAÇÃO DO COMPRADOR', bold: true, fontSize: 7, alignment: 'center', margin: [0, 0, 0, 4] },
+              { text: 'Nome: ________________________________', fontSize: 6.5, margin: [0, 0, 0, 2] },
+              { text: 'Identidade: ______________________', fontSize: 6.5, margin: [0, 0, 0, 2] },
+              { text: 'Org. Emissor: ____________________', fontSize: 6.5, margin: [0, 0, 0, 2] },
+              { text: 'Endereço: ________________________________', fontSize: 6.5, margin: [0, 0, 0, 2] },
+              { text: 'Cidade: ________________  UF: ____', fontSize: 6.5, margin: [0, 0, 0, 2] },
+              { text: 'Telefone: __________________________', fontSize: 6.5, margin: [0, 0, 0, 2] }
+            ],
+            border: [true, true, true, true],
+            padding: 5
+          },
+          {
+            stack: [
+              { text: 'IDENTIFICAÇÃO DO FORNECEDOR', bold: true, fontSize: 7, alignment: 'center', margin: [0, 0, 0, 4] },
+              { text: '\n' },
+              { text: 'Assinatura do Farmacêutico:', fontSize: 6.5, alignment: 'center', margin: [0, 0, 0, 6] },
+              { text: '____________________________________', fontSize: 6.5, alignment: 'center', margin: [0, 0, 0, 10] },
+              { text: 'Data: ______ / ______ / ______', fontSize: 6.5, alignment: 'center' }
+            ],
+            border: [true, true, true, true],
+            padding: 5
+          }
+        ]]
+      }
+    }
+  ]
+}
+
+export async function buildReceitaEspecialDupla(params: {
+  paciente: string
+  data: string
+  medicamentos: ItemMedicamento[]
+  texto?: string
+  medico?: string
+  crm?: string
+  especialidade?: string
+}) {
+  const esquerda = montarCorpoReceitaEspecialDupla(params)
+  const direita = montarCorpoReceitaEspecialDupla(params)
+  const [esq, dir] = await Promise.all([esquerda, direita])
+
+  return {
+    pageSize: 'A4',
+    pageOrientation: 'landscape',
+    pageMargins: [10, 10, 10, 10],
+    content: [
+      {
+        table: {
+          widths: ['*', 12, '*'],
+          body: [[
+            { stack: esq, border: [true, true, true, true], padding: 8 },
+            { text: '', border: [false, false, false, false] },
+            { stack: dir, border: [true, true, true, true], padding: 8 }
+          ]]
+        }
+      }
+    ],
+    defaultStyle: { fontSize: 9, lineHeight: 1.3 }
+  }
+}
+
 export async function buildReceitaEspecial(params: {
   paciente: string
   data: string

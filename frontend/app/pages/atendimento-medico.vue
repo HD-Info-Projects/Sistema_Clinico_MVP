@@ -9,7 +9,7 @@ import type {
   PadraoReceita
 } from '~/types'
 import { usePdfMake } from '~/utils/pdf'
-import { buildSolicitacaoExames, buildReceita, buildReceitaEspecial, buildAtestadoComparecimento } from '~/utils/pdf-documents'
+import { buildSolicitacaoExames, buildReceita, buildReceitaEspecialDupla, buildAtestadoComparecimento } from '~/utils/pdf-documents'
 import { gerarHtmlGuiaTiss, imprimirGuiaTiss } from '~/utils/guia-tiss'
 
 const auth = useAuthStore()
@@ -665,7 +665,7 @@ async function gerarReceitaPdf() {
 async function gerarReceitaEspecialPdf() {
   if (!receitaTexto.value.trim()) return
   const pdfMake = await usePdfMake()
-  const doc = await buildReceitaEspecial({
+  const doc = await buildReceitaEspecialDupla({
     paciente: agendamento.value?.paciente.nome ?? 'Paciente',
     data: new Date().toLocaleDateString('pt-BR'),
     medicamentos: [],
