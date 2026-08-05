@@ -80,6 +80,9 @@ def me():
         if not usuario:
             return jsonify({"error": "Não autorizado"}), 401
 
+        if not usuario.ativo:
+            return jsonify({"error": "Usuário inativo"}), 401
+
         return jsonify({
             "id": usuario.id,
             "email": usuario.email,

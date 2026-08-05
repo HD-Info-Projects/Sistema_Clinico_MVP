@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Usuario, UsuarioForm, RoleUsuario } from '~/types'
+import type { Usuario, UsuarioForm, RoleUsuario, MedicoSpdata } from '~/types'
 
 const props = defineProps<{
   usuario?: Usuario | null
@@ -18,10 +18,13 @@ const form = ref<UsuarioForm>({
   email: '',
   senha: '',
   role: props.role,
-  medico: props.role === 'medico' ? {} : undefined
+  ativo: true,
+  medico: props.role === 'medico' ? { ativo: true } : undefined
 })
 
 const saving = ref(false)
+const buscandoSpdata = ref(false)
+const spdataBusca = ref('')
 
 const estadosBr = [
   'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA',
@@ -39,8 +42,15 @@ const titulo = computed(() => {
   return `${acao} ${tipo[props.role]}`
 })
 
+const podeSalvar = computed(() => {
+  const camposBase = form.value.nome_completo.trim() && form.value.email.trim()
+  if (props.role !== 'medico') return Boolean(camposBase)
+  return Boolean(camposBase && form.value.medico?.spdata_id)
+})
+
 watch(open, (isOpen) => {
   if (isOpen) {
+    usuariosStore.limparMedicosSpdata()
     form.value.role = props.role
     if (props.usuario) {
       form.value = {
@@ -49,16 +59,20 @@ watch(open, (isOpen) => {
         email: props.usuario.email,
         senha: '',
         role: props.usuario.role,
+        ativo: props.usuario.ativo ?? true,
         medico: props.usuario.role === 'medico'
           ? {
+              spdata_id: props.usuario.medico?.spdata_id ?? null,
               crm: props.usuario.medico?.crm ?? '',
               crm_uf: props.usuario.medico?.crm_uf ?? '',
               crm_atendimento_spdata: props.usuario.medico?.crm_atendimento_spdata ?? '',
               rqe: props.usuario.medico?.rqe ?? '',
-              especialidade: props.usuario.medico?.especialidade ?? ''
+              especialidade: props.usuario.medico?.especialidade ?? '',
+              ativo: props.usuario.medico?.ativo ?? true
             }
           : undefined
       }
+      spdataBusca.value = props.usuario.nome_completo
     } else {
       form.value = {
         nome_completo: '',
@@ -66,23 +80,61 @@ watch(open, (isOpen) => {
         email: '',
         senha: '',
         role: props.role,
-        medico: props.role === 'medico' ? {} : undefined
+        ativo: true,
+        medico: props.role === 'medico' ? { ativo: true } : undefined
       }
+      spdataBusca.value = ''
     }
   }
 })
 
+async function buscarSpdata() {
+  const nome = spdataBusca.value.trim()
+  if (!nome) return
+
+  buscandoSpdata.value = true
+  try {
+    const res = await usuariosStore.buscarMedicosSpdata({ nome })
+    if (!res.success) {
+      toast.add({ title: res.message, color: 'error' })
+      return
+    }
+    if (res.data.length === 0) {
+      toast.add({ title: 'Nenhum médico encontrado no SPDATA', color: 'warning' })
+    }
+  } finally {
+    buscandoSpdata.value = false
+  }
+}
+
+function selecionarMedicoSpdata(medico: MedicoSpdata) {
+  form.value.nome_completo = medico.nome || ''
+  form.value.cnpj_cpf = medico.documento || ''
+  if (!form.value.email && medico.email) form.value.email = medico.email
+  form.value.medico = {
+    ...form.value.medico,
+    spdata_id: medico.spdata_id,
+    crm: medico.crm || '',
+    crm_uf: medico.crm_uf || '',
+    crm_atendimento_spdata: medico.crm_atendimento_spdata || '',
+    especialidade: medico.especialidade || '',
+    ativo: true
+  }
+  spdataBusca.value = medico.nome
+  toast.add({ title: 'Médico SPDATA selecionado', color: 'success' })
+}
+
 async function salvar() {
-  if (!form.value.nome_completo.trim() || !form.value.email.trim()) return
+  if (!podeSalvar.value) return
   saving.value = true
   try {
-    const dados = { ...form.value }
+    const dados = { ...form.value, medico: form.value.medico ? { ...form.value.medico } : undefined }
     if (!dados.senha?.trim()) delete dados.senha
 
     if (props.usuario) {
       const res = await usuariosStore.atualizar(props.usuario.id, dados)
       if (res.success) {
-        toast.add({ title: 'Usuario atualizado', color: 'success' })
+        toast.add({ title: res.message, color: 'success' })
         open.value = false
         emit('saved')
       } else {
@@ -91,7 +143,7 @@ async function salvar() {
     } else {
       const res = await usuariosStore.criar(dados)
       if (res.success) {
-        toast.add({ title: 'Usuario criado', color: 'success' })
+        toast.add({ title: res.message, color: 'success' })
         open.value = false
         emit('saved')
       } else {
@@ -154,6 +206,58 @@ async function salvar() {
         </div>
 
         <template v-if="role === 'medico'">
+          <USeparator label="Vínculo SPDATA" />
+
+          <div class="space-y-3">
+            <div class="flex flex-col sm:flex-row gap-2">
+              <UInput
+                v-model="spdataBusca"
+                class="flex-1"
+                placeholder="Buscar médico por nome no SPDATA"
+                :disabled="Boolean(usuario)"
+                @keydown.enter.prevent="buscarSpdata"
+              />
+              <UButton
+                label="Buscar SPDATA"
+                :loading="buscandoSpdata"
+                :disabled="Boolean(usuario) || !spdataBusca.trim()"
+                @click="buscarSpdata"
+              />
+            </div>
+
+            <div
+              v-if="form.medico?.spdata_id"
+              class="flex items-center gap-2 text-sm"
+            >
+              <UBadge
+                :label="`SPDATA ID ${form.medico.spdata_id}`"
+                color="success"
+                variant="subtle"
+              />
+              <span class="text-muted">Médico vinculado ao SPDATA</span>
+            </div>
+
+            <div
+              v-if="!usuario && usuariosStore.medicosSpdata.length"
+              class="space-y-2 max-h-56 overflow-auto rounded-md border border-default p-2"
+            >
+              <button
+                v-for="medico in usuariosStore.medicosSpdata"
+                :key="medico.spdata_id"
+                type="button"
+                class="w-full text-left rounded-md border border-default p-3 hover:bg-muted/50 transition"
+                @click="selecionarMedicoSpdata(medico)"
+              >
+                <p class="font-medium">
+                  {{ medico.nome }}
+                </p>
+                <p class="text-xs text-muted">
+                  ID {{ medico.spdata_id }} | CPF/CNPJ {{ medico.documento || '-' }} | CRM {{ medico.crm || '-' }}
+                </p>
+              </button>
+            </div>
+          </div>
+
           <USeparator label="Dados Medicos" />
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -199,6 +303,11 @@ async function salvar() {
             />
           </div>
         </template>
+
+        <div class="flex items-center gap-3">
+          <USwitch v-model="form.ativo" />
+          <label class="text-sm font-medium">Usuário ativo</label>
+        </div>
       </div>
     </template>
 
@@ -213,7 +322,7 @@ async function salvar() {
         <UButton
           label="Salvar"
           :loading="saving"
-          :disabled="!form.nome_completo.trim() || !form.email.trim()"
+          :disabled="!podeSalvar"
           @click="salvar"
         />
       </div>

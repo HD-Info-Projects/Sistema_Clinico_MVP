@@ -294,16 +294,30 @@ export interface UsuarioForm {
   email: string
   senha?: string
   role: 'medico' | 'recepcao' | 'admin'
+  ativo?: boolean
   medico?: {
+    spdata_id?: number | null
     crm?: string
     crm_uf?: string
     crm_atendimento_spdata?: string
     rqe?: string
     especialidade?: string
+    ativo?: boolean
   }
 }
 
 export type RoleUsuario = 'medico' | 'recepcao' | 'admin'
+
+export interface MedicoSpdata {
+  spdata_id: number
+  nome: string
+  documento: string
+  email?: string | null
+  crm?: string | null
+  crm_uf?: string | null
+  crm_atendimento_spdata?: string | null
+  especialidade?: string | null
+}
 
 export interface Unidade {
   id: number

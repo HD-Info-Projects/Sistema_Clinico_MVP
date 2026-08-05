@@ -55,7 +55,7 @@ async function salvar() {
     if (props.unidade) {
       const res = await unidadesStore.atualizar(props.unidade.id, form.value)
       if (res.success) {
-        toast.add({ title: 'Unidade atualizada', color: 'success' })
+        toast.add({ title: res.message, color: 'success' })
         open.value = false
         emit('saved')
       } else {
@@ -64,7 +64,7 @@ async function salvar() {
     } else {
       const res = await unidadesStore.criar(form.value)
       if (res.success) {
-        toast.add({ title: 'Unidade criada', color: 'success' })
+        toast.add({ title: res.message, color: 'success' })
         open.value = false
         emit('saved')
       } else {

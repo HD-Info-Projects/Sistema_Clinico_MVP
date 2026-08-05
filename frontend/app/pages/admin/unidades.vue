@@ -52,7 +52,7 @@ async function executarExclusao() {
   if (confirmDeleteId.value === null) return
   const res = await unidadesStore.excluir(confirmDeleteId.value)
   if (res.success) {
-    useToast().add({ title: 'Unidade excluida', color: 'success' })
+    useToast().add({ title: res.message, color: 'success' })
   } else {
     useToast().add({ title: res.message, color: 'error' })
   }
@@ -173,6 +173,7 @@ function onSaved() {
                 color="error"
                 variant="ghost"
                 size="sm"
+                :disabled="row.original.ativa === false"
                 @click="confirmarExclusao(row.original.id)"
               />
             </div>
@@ -189,9 +190,9 @@ function onSaved() {
 
     <ModalConfirmacao
       :abrir="confirmDeleteId !== null"
-      titulo="Excluir Unidade?"
-      descricao="Tem certeza que deseja excluir esta unidade? Esta acao nao pode ser desfeita."
-      texto-confirma="Excluir"
+      titulo="Inativar Unidade?"
+      descricao="Tem certeza que deseja inativar esta unidade? Ela permanecera no historico do sistema."
+      texto-confirma="Inativar"
       @fechar="confirmDeleteId = null"
       @confirmar="executarExclusao"
     />

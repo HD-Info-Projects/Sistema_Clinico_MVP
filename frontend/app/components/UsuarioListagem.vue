@@ -21,6 +21,7 @@ const colunas = computed(() => {
     { accessorKey: 'nome', header: 'Nome' },
     { accessorKey: 'email', header: 'Email' },
     { accessorKey: 'cnpj_cpf', header: 'CPF/CNPJ' },
+    { accessorKey: 'ativo', header: 'Status' },
     { id: 'acoes', header: 'Acoes' }
   ]
   if (props.role === 'medico') {
@@ -74,7 +75,7 @@ async function executarExclusao() {
   if (confirmDeleteId.value === null) return
   const res = await usuariosStore.excluir(confirmDeleteId.value)
   if (res.success) {
-    useToast().add({ title: 'Usuario excluido', color: 'success' })
+    useToast().add({ title: res.message, color: 'success' })
   } else {
     useToast().add({ title: res.message, color: 'error' })
   }
@@ -199,6 +200,15 @@ function onSaved() {
             >-</span>
           </template>
 
+          <template #ativo-cell="{ row }">
+            <UBadge
+              :label="row.original.ativo ? 'Ativo' : 'Inativo'"
+              :color="row.original.ativo ? 'success' : 'neutral'"
+              variant="subtle"
+              size="sm"
+            />
+          </template>
+
           <template #acoes-cell="{ row }">
             <div class="flex items-center gap-1">
               <UButton
@@ -213,6 +223,7 @@ function onSaved() {
                 color="error"
                 variant="ghost"
                 size="sm"
+                :disabled="row.original.ativo === false"
                 @click="confirmarExclusao(row.original.id)"
               />
             </div>
@@ -230,9 +241,9 @@ function onSaved() {
 
     <ModalConfirmacao
       :abrir="confirmDeleteId !== null"
-      titulo="Excluir Usuario?"
-      descricao="Tem certeza que deseja excluir este usuario? Esta acao nao pode ser desfeita."
-      texto-confirma="Excluir"
+      titulo="Inativar Usuario?"
+      descricao="Tem certeza que deseja inativar este usuario? Ele nao podera acessar o sistema."
+      texto-confirma="Inativar"
       @fechar="confirmDeleteId = null"
       @confirmar="executarExclusao"
     />

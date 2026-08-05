@@ -13,6 +13,9 @@ class LoginController:
         if not usuario:
             return None
 
+        if not usuario.ativo:
+            return None
+
         if usuario.senha != senha:
             return None
 

@@ -1,6 +1,31 @@
 import { defineStore } from 'pinia'
 import type { Unidade, UnidadeForm } from '~/types'
 
+type UnidadeResponse = {
+  message?: string
+  unidade?: Unidade
+}
+
+function mensagemErro(error: unknown, fallback: string) {
+  const err = error as {
+    data?: {
+      message?: string
+      error?: string
+      statusMessage?: string
+      data?: { message?: string, error?: string }
+    }
+    statusMessage?: string
+  }
+
+  return err.data?.message
+    || err.data?.error
+    || err.data?.data?.message
+    || err.data?.data?.error
+    || err.data?.statusMessage
+    || err.statusMessage
+    || fallback
+}
+
 export const useUnidadesStore = defineStore('unidades', () => {
   const unidades = ref<Unidade[]>([])
   const loading = ref(false)
@@ -13,7 +38,7 @@ export const useUnidadesStore = defineStore('unidades', () => {
       const data = await $fetch<Unidade[]>('/api/unidades')
       unidades.value = data
     } catch (e) {
-      error.value = 'Erro ao carregar unidades'
+      error.value = mensagemErro(e, 'Erro ao carregar unidades')
       console.error(e)
       unidades.value = []
     } finally {
@@ -25,16 +50,17 @@ export const useUnidadesStore = defineStore('unidades', () => {
     loading.value = true
     error.value = null
     try {
-      const data = await $fetch<Unidade>('/api/unidades', {
+      const data = await $fetch<UnidadeResponse>('/api/unidades', {
         method: 'POST',
         body: form
       })
-      unidades.value.push(data)
-      return { success: true }
+      if (data.unidade) unidades.value.push(data.unidade)
+      return { success: true, message: data.message || 'Unidade criada com sucesso' }
     } catch (e) {
-      error.value = 'Erro ao criar unidade'
+      const message = mensagemErro(e, 'Erro ao criar unidade')
+      error.value = message
       console.error(e)
-      return { success: false, message: 'Erro ao criar unidade' }
+      return { success: false, message }
     } finally {
       loading.value = false
     }
@@ -44,17 +70,20 @@ export const useUnidadesStore = defineStore('unidades', () => {
     loading.value = true
     error.value = null
     try {
-      const data = await $fetch<Unidade>(`/api/unidades/${id}`, {
+      const data = await $fetch<UnidadeResponse>(`/api/unidades/${id}`, {
         method: 'PUT',
         body: form
       })
-      const index = unidades.value.findIndex(u => u.id === id)
-      if (index !== -1) unidades.value[index] = data
-      return { success: true }
+      if (data.unidade) {
+        const index = unidades.value.findIndex(u => u.id === id)
+        if (index !== -1) unidades.value[index] = data.unidade
+      }
+      return { success: true, message: data.message || 'Unidade atualizada com sucesso' }
     } catch (e) {
-      error.value = 'Erro ao atualizar unidade'
+      const message = mensagemErro(e, 'Erro ao atualizar unidade')
+      error.value = message
       console.error(e)
-      return { success: false, message: 'Erro ao atualizar unidade' }
+      return { success: false, message }
     } finally {
       loading.value = false
     }
@@ -64,13 +93,17 @@ export const useUnidadesStore = defineStore('unidades', () => {
     loading.value = true
     error.value = null
     try {
-      await $fetch(`/api/unidades/${id}`, { method: 'DELETE' })
-      unidades.value = unidades.value.filter(u => u.id !== id)
-      return { success: true }
+      const data = await $fetch<UnidadeResponse>(`/api/unidades/${id}`, { method: 'DELETE' })
+      if (data.unidade) {
+        const index = unidades.value.findIndex(u => u.id === id)
+        if (index !== -1) unidades.value[index] = data.unidade
+      }
+      return { success: true, message: data.message || 'Unidade inativada com sucesso' }
     } catch (e) {
-      error.value = 'Erro ao excluir unidade'
+      const message = mensagemErro(e, 'Erro ao inativar unidade')
+      error.value = message
       console.error(e)
-      return { success: false, message: 'Erro ao excluir unidade' }
+      return { success: false, message }
     } finally {
       loading.value = false
     }

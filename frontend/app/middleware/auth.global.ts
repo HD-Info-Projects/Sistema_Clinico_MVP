@@ -45,9 +45,11 @@ export default defineNuxtRouteMiddleware(async (to) => {
   // Role-based routing - proteger rotas por role
   const isAdminRoute = to.path.startsWith('/admin')
   const isRecepcaoRoute = to.path.startsWith('/recepcao')
-  const isDashboardRoute = to.path.startsWith('/dashboard') || to.path.startsWith('/agenda') || 
-                           to.path.startsWith('/atendimento') || to.path.startsWith('/pacientes') ||
-                           to.path.startsWith('/padroes')
+  const isDashboardRoute = to.path.startsWith('/dashboard')
+    || to.path.startsWith('/agenda')
+    || to.path.startsWith('/atendimento')
+    || to.path.startsWith('/pacientes')
+    || to.path.startsWith('/padroes')
 
   // Admin só pode acessar rotas /admin
   if (auth.isAdmin && !isAdminRoute) {

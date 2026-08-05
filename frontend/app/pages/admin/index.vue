@@ -3,13 +3,14 @@ definePageMeta({ layout: 'admin' })
 
 const auth = useAuthStore()
 const usuariosStore = useUsuariosStore()
+const unidadesStore = useUnidadesStore()
 
 const userName = computed(() => auth.user?.nome || 'Administrador')
 
-const totalMedicos = computed(() => usuariosStore.porRole('medico').length)
-const totalRecepcao = computed(() => usuariosStore.porRole('recepcao').length)
-const totalAdmins = computed(() => usuariosStore.porRole('admin').length)
-const totalUnidades = 0
+const totalMedicos = computed(() => usuariosStore.porRole('medico').filter(u => u.ativo !== false).length)
+const totalRecepcao = computed(() => usuariosStore.porRole('recepcao').filter(u => u.ativo !== false).length)
+const totalAdmins = computed(() => usuariosStore.porRole('admin').filter(u => u.ativo !== false).length)
+const totalUnidades = computed(() => unidadesStore.unidades.filter(u => u.ativa).length)
 // const totalUsuarios = computed(() => totalMedicos.value + totalRecepcao.value + totalAdmins.value)
 
 const ultimosUsuarios = computed(() => {
@@ -27,6 +28,7 @@ const colunas = [
 
 onMounted(() => {
   usuariosStore.fetchAll()
+  unidadesStore.fetchAll()
 })
 
 function corRole(role: string) {

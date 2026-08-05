@@ -168,7 +168,7 @@ const ultimasChamadas = computed(() => chamadosStore.historicoChamados.slice(0, 
   <div class="flex flex-col h-screen p-6 gap-4 overflow-hidden">
     <header class="flex items-center justify-between shrink-0">
       <div class="flex items-center gap-3">
-        <LogoMed :isrecepcao="false" />
+        <LogoMed :tipo="0" />
         <UButton
           v-if="!audioAtivo"
           icon="i-lucide-volume-2"

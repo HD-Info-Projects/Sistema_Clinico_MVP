@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, DateTime
+from sqlalchemy import Boolean, Column, String, Integer, DateTime
 from datetime import datetime
 
 from src.settings.extensions import db
@@ -13,9 +13,10 @@ class Usuario(db.Model):
     email = Column(String(255), nullable=False)
     senha = Column(String(255), nullable=False)
     role = Column(String(50), nullable=False, default="medico")
+    ativo = Column(Boolean, nullable=False, default=True)
     
     created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relações
     evolucoes_medicas = db.relationship(
@@ -74,6 +75,10 @@ class Usuario(db.Model):
             "cnpj_cpf": self.cnpj_cpf,
             "email": self.email,
             "role": self.role,
+            "ativo": self.ativo,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "medico": self.medico._to_dict() if self.medico else None,
         }
 
     def _to_dict_(self):
