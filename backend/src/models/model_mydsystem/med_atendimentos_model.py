@@ -27,6 +27,7 @@ class MedAtendimentos(db.Model):
     )
 
     spdata_atendimento_id = db.Column(db.Integer, nullable=False, index=True)
+    unidade_id = db.Column(db.Integer, nullable=True, index=True)
     cod_atendimento = db.Column(db.String(50), nullable=True, index=True)
 
     id_medico_spdata = db.Column(db.Integer, nullable=True, index=True)
@@ -71,6 +72,7 @@ class MedAtendimentos(db.Model):
         data_agenda,
         paciente,
         status=StatusAtendimentoMedSystem.EM_ATENDIMENTO,
+        unidade_id=None,
         cod_atendimento=None,
         id_medico_spdata=None,
         medico=None,
@@ -84,6 +86,7 @@ class MedAtendimentos(db.Model):
     ):
         self.med_spdata_atendimento_id = med_spdata_atendimento_id
         self.spdata_atendimento_id = spdata_atendimento_id
+        self.unidade_id = unidade_id
         self.cod_atendimento = cod_atendimento
         self.id_medico_spdata = id_medico_spdata
         self.medico = medico
@@ -119,6 +122,7 @@ class MedAtendimentos(db.Model):
             "id": self.id,
             "med_spdata_atendimento_id": self.med_spdata_atendimento_id,
             "spdata_atendimento_id": self.spdata_atendimento_id,
+            "unidade_id": self.unidade_id,
             "cod_atendimento": self.cod_atendimento,
             "id_medico_spdata": self.id_medico_spdata,
             "medico": self.medico,

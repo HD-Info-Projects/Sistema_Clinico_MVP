@@ -4,7 +4,12 @@ from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import jwt_required
 
 from src.security.decorators import roles_required
+<<<<<<< HEAD
 from src.services.no_show_service import listar_no_show, registrar_motivo_no_show
+=======
+from src.security.unidades import unidade_atual_required
+from src.services.no_show_service import listar_no_show
+>>>>>>> feature/unidades-painel-chamada
 from src.settings.extensions import db
 
 
@@ -35,10 +40,12 @@ def index():
         data_fim = parse_data(request.args.get("dataFim"), hoje)
         page = parse_int("page", 1)
         page_size = parse_int("pageSize", 20, maximo=500)
+        unidade = unidade_atual_required()
 
         return jsonify(listar_no_show(
             data_ini,
             data_fim,
+            unidade=unidade,
             medico=request.args.get("medico"),
             especialidade=request.args.get("especialidade"),
             convenio=request.args.get("convenio"),

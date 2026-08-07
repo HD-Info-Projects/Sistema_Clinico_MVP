@@ -157,6 +157,8 @@ def montar_item(agenda, atendimento, status, situacao, especialidades_por_medico
     telefone = normalizar_texto(agenda.celular) or normalizar_texto(agenda.telefone)
     return {
         "id": agenda.id,
+        "clinicaId": agenda.unidade_id,
+        "unidadeId": agenda.unidade_id,
         "spdataAgendaId": agenda.spdata_agenda_id,
         "medsystemAtendimentoId": atendimento.id if atendimento else None,
         "nome": normalizar_texto(agenda.paciente),
@@ -281,6 +283,7 @@ def resumo(items):
 def listar_no_show(
     data_ini,
     data_fim,
+    unidade,
     medico=None,
     especialidade=None,
     convenio=None,
@@ -292,20 +295,28 @@ def listar_no_show(
     if data_fim < data_ini:
         raise ValueError("dataFim não pode ser menor que dataIni.")
 
-    sincronizar_agenda_spdata(data_ini, data_fim)
+    sincronizar_agenda_spdata(data_ini, data_fim, unidade=unidade)
 
-    join_cond = or_(
-        and_(
-            MedAtendimentos.cod_atendimento.isnot(None),
-            MedSpdataAgenda.registro.isnot(None),
-            MedAtendimentos.cod_atendimento == MedSpdataAgenda.registro,
-        ),
-        and_(
-            MedAtendimentos.cpf.isnot(None),
-            MedSpdataAgenda.cpf.isnot(None),
-            MedAtendimentos.cpf == MedSpdataAgenda.cpf,
-            MedAtendimentos.data_agenda == MedSpdataAgenda.data_agenda,
-            MedAtendimentos.hora_agenda == MedSpdataAgenda.hora_agenda,
+    mesma_unidade = or_(
+        MedAtendimentos.unidade_id == MedSpdataAgenda.unidade_id,
+        MedAtendimentos.unidade_id.is_(None),
+        MedSpdataAgenda.unidade_id.is_(None),
+    )
+    join_cond = and_(
+        mesma_unidade,
+        or_(
+            and_(
+                MedAtendimentos.cod_atendimento.isnot(None),
+                MedSpdataAgenda.registro.isnot(None),
+                MedAtendimentos.cod_atendimento == MedSpdataAgenda.registro,
+            ),
+            and_(
+                MedAtendimentos.cpf.isnot(None),
+                MedSpdataAgenda.cpf.isnot(None),
+                MedAtendimentos.cpf == MedSpdataAgenda.cpf,
+                MedAtendimentos.data_agenda == MedSpdataAgenda.data_agenda,
+                MedAtendimentos.hora_agenda == MedSpdataAgenda.hora_agenda,
+            ),
         ),
     )
 
@@ -315,6 +326,7 @@ def listar_no_show(
         .filter(
             MedSpdataAgenda.data_agenda >= data_ini,
             MedSpdataAgenda.data_agenda <= data_fim,
+            MedSpdataAgenda.unidade_id == unidade.id,
         )
         .order_by(MedSpdataAgenda.data_agenda, MedSpdataAgenda.hora_agenda, MedSpdataAgenda.paciente)
         .all()

@@ -4,7 +4,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const auth = useAuthStore()
 
   // Páginas públicas que não precisam de autenticação
-  if (to.path === '/painel-chamada') return
+  if (to.path.startsWith('/painel-chamada')) return
   if (to.path === '/login') return
 
   if (import.meta.server) return
@@ -22,7 +22,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   // Rota de seleção de clínica — permitir se não tiver clínica ativa
   if (to.path === '/selecionar-clinica') {
-    if (auth.activeClinicaId) {
+    if (auth.activeClinicaId && auth.clinicas.length <= 1) {
       return navigateTo(auth.isRecepcao ? '/recepcao' : '/dashboard')
     }
     return

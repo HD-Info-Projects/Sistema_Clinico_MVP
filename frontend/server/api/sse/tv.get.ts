@@ -2,6 +2,11 @@ const KEEP_ALIVE_MS = 15000
 
 export default defineEventHandler((event) => {
   const { req, res } = event.node
+  const clinicaId = getActiveClinicaId(event)
+
+  if (!clinicaId) {
+    throw createError({ statusCode: 400, statusMessage: 'clinicaId obrigatório' })
+  }
 
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
@@ -35,7 +40,7 @@ export default defineEventHandler((event) => {
       clearInterval(keepAlive)
       res.end()
     }
-  }, 'tv')
+  }, `tv:${clinicaId}`)
 
   req.on('close', () => {
     closed = true

@@ -122,10 +122,19 @@ def buscar_convenios_locais(codigos_spdata):
     }
 
 
-def buscar_agenda_spdata(data_ini, data_fim):
-    sql = """
+def buscar_agenda_spdata(data_ini, data_fim, unidade=None):
+    where = ["CAST(r.DATA AS DATE) BETWEEN ? AND ?"]
+    params = [data_ini, data_fim]
+
+    codigo_agenda = normalizar_texto(getattr(unidade, "codigo_spdata_agenda", None), 50)
+    if codigo_agenda:
+        where.append("CAST(r.UNIDADE AS VARCHAR(50)) = ?")
+        params.append(codigo_agenda)
+
+    sql = f"""
         SELECT
             r.ID AS SPDATA_AGENDA_ID,
+            r.UNIDADE AS CODIGO_UNIDADE_SPDATA,
             r.REGISTRO AS REGISTRO,
             r.GRV_ATE AS GRV_ATE,
             r.NOME AS MEDICO,
@@ -165,19 +174,19 @@ def buscar_agenda_spdata(data_ini, data_fim):
             )
         LEFT JOIN TBESPEC esp_princ
             ON esp_princ.COD = prof.ESP_PRINC
-        WHERE CAST(r.DATA AS DATE) BETWEEN ? AND ?
+        WHERE {' AND '.join(where)}
         ORDER BY r.DATA, r.HORA, r.PACIENTE
     """
 
     with ConnectionDBFireBird() as connection:
         cursor = connection.cursor()
-        cursor.execute(sql, (data_ini, data_fim))
+        cursor.execute(sql, tuple(params))
         nomes_colunas = [desc[0].strip().upper() for desc in cursor.description]
         return [row_para_dict(row, nomes_colunas) for row in cursor.fetchall()]
 
 
-def sincronizar_agenda_spdata(data_ini, data_fim):
-    dados_spdata = buscar_agenda_spdata(data_ini, data_fim)
+def sincronizar_agenda_spdata(data_ini, data_fim, unidade=None):
+    dados_spdata = buscar_agenda_spdata(data_ini, data_fim, unidade=unidade)
     ids_spdata = [
         normalizar_int(item.get("SPDATA_AGENDA_ID"))
         for item in dados_spdata
@@ -214,6 +223,8 @@ def sincronizar_agenda_spdata(data_ini, data_fim):
                 spdata_agenda_id=spdata_agenda_id,
                 paciente=paciente,
                 data_agenda=data_agenda,
+                unidade_id=getattr(unidade, "id", None),
+                codigo_unidade_spdata=normalizar_texto(item.get("CODIGO_UNIDADE_SPDATA"), 50),
             )
             db.session.add(registro)
             existentes[spdata_agenda_id] = registro
@@ -222,6 +233,8 @@ def sincronizar_agenda_spdata(data_ini, data_fim):
             total_atualizados += 1
 
         id_convenio = normalizar_int(item.get("ID_CONVENIO_SPDATA"))
+        registro.unidade_id = getattr(unidade, "id", None)
+        registro.codigo_unidade_spdata = normalizar_texto(item.get("CODIGO_UNIDADE_SPDATA"), 50)
         registro.registro = normalizar_texto(item.get("REGISTRO"), 50)
         registro.grv_ate = normalizar_int(item.get("GRV_ATE"))
         registro.crm = normalizar_texto(item.get("CRM"), 50)

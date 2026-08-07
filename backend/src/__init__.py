@@ -11,6 +11,11 @@ from src.commands.convenios_commands import (
 from src.commands.especialidades_commands import importar_especialidades_spdata_command
 from src.commands.medicos_commands import registrar_medico_spdata_command
 from src.commands.usuarios_commands import registrar_admin_command, registrar_recepcao_command
+from src.commands.unidades_commands import (
+    criar_unidade_command,
+    listar_unidades_command,
+    vincular_unidade_usuario_command,
+)
 
 def create_app():
     app = Flask(__name__)
@@ -35,6 +40,9 @@ def create_app():
     app.cli.add_command(registrar_medico_spdata_command)
     app.cli.add_command(registrar_admin_command)
     app.cli.add_command(registrar_recepcao_command)
+    app.cli.add_command(criar_unidade_command)
+    app.cli.add_command(listar_unidades_command)
+    app.cli.add_command(vincular_unidade_usuario_command)
 
     # Importações de Models:
     from src.models.atendimentos_model import Atendimento
@@ -50,6 +58,8 @@ def create_app():
     from src.models.auditoria_model import Auditoria
     from src.models.usuario_model import Usuario
     from src.models.medico_model import Medico
+    from src.models.unidade_model import Unidade
+    from src.models.usuario_unidade_model import UsuarioUnidade
 
     # Cruzamento:
     from src.models.model_mydsystem.med_spdata_agenda_model import MedSpdataAgenda
@@ -86,6 +96,7 @@ def create_app():
     from src.routes.retencao_exames_route import retencao_exames_bp
     from src.routes.tts_route import tts_bp
     from src.routes.documentos_medicos_route import documentos_medicos_bp
+    from src.routes.unidades_route import unidades_bp
 
     app.register_blueprint(login_bp)
     app.register_blueprint(dashboard_bp)
@@ -101,5 +112,6 @@ def create_app():
     app.register_blueprint(retencao_exames_bp)
     app.register_blueprint(tts_bp)
     app.register_blueprint(documentos_medicos_bp)
+    app.register_blueprint(unidades_bp)
 
     return app

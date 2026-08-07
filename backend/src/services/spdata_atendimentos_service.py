@@ -22,13 +22,14 @@ from src.models.prescricao_model import Prescricao
 from src.models.solicitacao_exame_model import SolicitacaoExame
 from src.models.db.handler_fb_db import ConnectionDBFireBird
 from src.services.spdata_agenda_service import sincronizar_agenda_spdata
+from src.services.unidades_service import resolver_unidade_usuario
 from src.settings.extensions import db
 from src.utils.normalizar import normalizar_cpf
 
 
+# Códigos conhecidos no SPDATA. A seleção real vem da tabela local `unidades`.
 # 340 - Natus
 # 350 - Centro AMI
-
 UNIDADE_PADRAO_SPDATA = 340
 
 STATUS_VALIDOS = {
@@ -210,7 +211,28 @@ def get_crm_medico_usuario(usuario_id):
     return crm_atendimento or crm
 
 
-def buscar_atendimentos_spdata(data_ini, data_fim, crm_medico):
+def codigo_centro_custo_unidade(unidade):
+    codigo = normalizar_int(getattr(unidade, "codigo_spdata_centro_custo", None))
+    return codigo if codigo is not None else UNIDADE_PADRAO_SPDATA
+
+
+def filtro_spdata_unidade(model, unidade):
+    codigo = codigo_centro_custo_unidade(unidade)
+    return or_(
+        model.unidade_id == unidade.id,
+        model.id_centro_custo_spdata == codigo,
+    )
+
+
+def filtro_agenda_unidade(unidade):
+    filtros = [MedSpdataAgenda.unidade_id == unidade.id]
+    codigo_agenda = normalizar_texto(getattr(unidade, "codigo_spdata_agenda", None), 50)
+    if codigo_agenda:
+        filtros.append(MedSpdataAgenda.codigo_unidade_spdata == codigo_agenda)
+    return or_(*filtros)
+
+
+def buscar_atendimentos_spdata(data_ini, data_fim, crm_medico, unidade):
     sql = """
         SELECT
             a.ID AS SPDATA_ATENDIMENTO_ID,
@@ -256,7 +278,7 @@ def buscar_atendimentos_spdata(data_ini, data_fim, crm_medico):
         cursor.execute(
             sql,
             (
-                UNIDADE_PADRAO_SPDATA,
+                codigo_centro_custo_unidade(unidade),
                 crm_medico,
                 data_ini,
                 data_fim,
@@ -266,8 +288,8 @@ def buscar_atendimentos_spdata(data_ini, data_fim, crm_medico):
         return [row_para_dict(row, nomes_colunas) for row in cursor.fetchall()]
 
 
-def sincronizar_atendimentos_spdata(data_ini, data_fim, crm_medico):
-    dados_spdata = buscar_atendimentos_spdata(data_ini, data_fim, crm_medico)
+def sincronizar_atendimentos_spdata(data_ini, data_fim, crm_medico, unidade):
+    dados_spdata = buscar_atendimentos_spdata(data_ini, data_fim, crm_medico, unidade)
     ids_spdata = [
         normalizar_int(item.get("SPDATA_ATENDIMENTO_ID"))
         for item in dados_spdata
@@ -309,6 +331,7 @@ def sincronizar_atendimentos_spdata(data_ini, data_fim, crm_medico):
             total_atualizados += 1
 
         registro.cod_atendimento = normalizar_texto(item.get("COD_ATENDIMENTO"), 50)
+        registro.unidade_id = unidade.id
         registro.id_paciente_spdata = normalizar_int(item.get("ID_PACIENTE_SPDATA"))
         registro.id_medico_spdata = normalizar_int(item.get("ID_MEDICO_SPDATA"))
         registro.medico = normalizar_texto(item.get("MEDICO"), 255)
@@ -383,19 +406,28 @@ def atendimento_prioridade(atendimento):
 
 
 def atendimento_join_agenda_cond():
-    return or_(
-        and_(
-            MedAtendimentos.cod_atendimento.isnot(None),
-            MedSpdataAgenda.registro.isnot(None),
-            MedAtendimentos.cod_atendimento == MedSpdataAgenda.registro,
-            MedAtendimentos.data_agenda == MedSpdataAgenda.data_agenda,
-        ),
-        and_(
-            MedAtendimentos.cpf.isnot(None),
-            MedSpdataAgenda.cpf.isnot(None),
-            MedAtendimentos.cpf == MedSpdataAgenda.cpf,
-            MedAtendimentos.data_agenda == MedSpdataAgenda.data_agenda,
-            MedAtendimentos.hora_agenda == MedSpdataAgenda.hora_agenda,
+    mesma_unidade = or_(
+        MedAtendimentos.unidade_id == MedSpdataAgenda.unidade_id,
+        MedAtendimentos.unidade_id.is_(None),
+        MedSpdataAgenda.unidade_id.is_(None),
+    )
+
+    return and_(
+        mesma_unidade,
+        or_(
+            and_(
+                MedAtendimentos.cod_atendimento.isnot(None),
+                MedSpdataAgenda.registro.isnot(None),
+                MedAtendimentos.cod_atendimento == MedSpdataAgenda.registro,
+                MedAtendimentos.data_agenda == MedSpdataAgenda.data_agenda,
+            ),
+            and_(
+                MedAtendimentos.cpf.isnot(None),
+                MedSpdataAgenda.cpf.isnot(None),
+                MedAtendimentos.cpf == MedSpdataAgenda.cpf,
+                MedAtendimentos.data_agenda == MedSpdataAgenda.data_agenda,
+                MedAtendimentos.hora_agenda == MedSpdataAgenda.hora_agenda,
+            ),
         ),
     )
 
@@ -435,10 +467,12 @@ def atendimento_matches_agenda(spdata, agenda):
     )
 
 
-def buscar_spdata_atendimento_para_agenda(agenda, atendimento=None):
+def buscar_spdata_atendimento_para_agenda(agenda, atendimento=None, unidade=None):
     if atendimento and atendimento.med_spdata_atendimento_id:
         spdata = db.session.get(MedSpdataAtendimento, atendimento.med_spdata_atendimento_id)
         if spdata:
+            if not spdata.unidade_id:
+                spdata.unidade_id = agenda.unidade_id or getattr(unidade, "id", None)
             return spdata
 
     registro = normalizar_texto(agenda.registro, 50)
@@ -452,6 +486,8 @@ def buscar_spdata_atendimento_para_agenda(agenda, atendimento=None):
             .order_by(MedSpdataAtendimento.spdata_atendimento_id.desc())
         ).scalars().first()
         if spdata:
+            if not spdata.unidade_id:
+                spdata.unidade_id = agenda.unidade_id or getattr(unidade, "id", None)
             return spdata
 
     cpf = normalizar_texto(agenda.cpf, 20)
@@ -464,6 +500,8 @@ def buscar_spdata_atendimento_para_agenda(agenda, atendimento=None):
             )
         ).scalars().first()
         if spdata:
+            if not spdata.unidade_id:
+                spdata.unidade_id = agenda.unidade_id or getattr(unidade, "id", None)
             return spdata
 
     placeholder_id = spdata_atendimento_id_placeholder(agenda)
@@ -490,7 +528,8 @@ def buscar_spdata_atendimento_para_agenda(agenda, atendimento=None):
     spdata.data_atendimento = agenda.data_agenda
     spdata.hora_entrada = agenda.hora_agenda
     spdata.id_convenio_spdata = agenda.id_convenio_spdata
-    spdata.id_centro_custo_spdata = UNIDADE_PADRAO_SPDATA
+    spdata.unidade_id = agenda.unidade_id or getattr(unidade, "id", None)
+    spdata.id_centro_custo_spdata = codigo_centro_custo_unidade(unidade) if unidade else UNIDADE_PADRAO_SPDATA
     spdata.obs_atendimento = agenda.obs
     spdata.paciente = agenda.paciente
     spdata.paciente_nome_social = agenda.paciente_nome_social
@@ -517,18 +556,30 @@ def buscar_atendimento_medsystem_para_spdata(spdata):
     filtros = []
     registro = normalizar_texto(spdata.cod_atendimento, 50)
     if registro and spdata.data_atendimento:
-        filtros.append(and_(
+        condicoes = [
             MedAtendimentos.cod_atendimento == registro,
             MedAtendimentos.data_agenda == spdata.data_atendimento,
-        ))
+        ]
+        if spdata.unidade_id:
+            condicoes.append(or_(
+                MedAtendimentos.unidade_id == spdata.unidade_id,
+                MedAtendimentos.unidade_id.is_(None),
+            ))
+        filtros.append(and_(*condicoes))
 
     cpf = normalizar_texto(spdata.cpf, 20)
     if cpf and spdata.data_atendimento and spdata.hora_entrada:
-        filtros.append(and_(
+        condicoes = [
             MedAtendimentos.cpf == cpf,
             MedAtendimentos.data_agenda == spdata.data_atendimento,
             MedAtendimentos.hora_agenda == spdata.hora_entrada,
-        ))
+        ]
+        if spdata.unidade_id:
+            condicoes.append(or_(
+                MedAtendimentos.unidade_id == spdata.unidade_id,
+                MedAtendimentos.unidade_id.is_(None),
+            ))
+        filtros.append(and_(*condicoes))
 
     if not filtros:
         return None
@@ -607,7 +658,7 @@ def agenda_para_frontend(spdata, atendimento=None, convenios_por_codigo=None):
         "medsystemAtendimentoId": atendimento.id if atendimento else None,
         "pacienteId": paciente_id,
         "medicoId": spdata.id_medico_spdata or 0,
-        "clinicaId": 1,
+        "clinicaId": spdata.unidade_id,
         "data": data_atendimento,
         "horario": horario,
         "prioridade": "normal",
@@ -655,7 +706,7 @@ def agenda_spdata_para_frontend(agenda, spdata_ref, atendimento=None, convenios_
         "medsystemAtendimentoId": atendimento.id if atendimento else None,
         "pacienteId": paciente_id,
         "medicoId": spdata_ref.id_medico_spdata or 0,
-        "clinicaId": 1,
+        "clinicaId": agenda.unidade_id or spdata_ref.unidade_id,
         "data": data_iso(agenda.data_agenda),
         "horario": hora_hhmm(agenda.hora_agenda),
         "prioridade": "normal",
@@ -683,13 +734,10 @@ def agenda_spdata_para_frontend(agenda, spdata_ref, atendimento=None, convenios_
     }
 
 
-def listar_atendimentos_medsystem_para_frontend(crm_medico, data_ini=None, data_fim=None, status=None, search=None):
+def listar_atendimentos_medsystem_para_frontend(crm_medico, unidade, data_ini=None, data_fim=None, status=None, search=None):
     filtros = [
         MedSpdataAtendimento.crm_medico == crm_medico,
-        or_(
-            MedSpdataAtendimento.id_centro_custo_spdata == UNIDADE_PADRAO_SPDATA,
-            MedSpdataAtendimento.id_centro_custo_spdata.is_(None),
-        ),
+        filtro_spdata_unidade(MedSpdataAtendimento, unidade),
     ]
 
     if data_ini:
@@ -728,8 +776,9 @@ def listar_atendimentos_medsystem_para_frontend(crm_medico, data_ini=None, data_
     ]
 
 
-def listar_agenda_medica(usuario_id, data_ini, data_fim, status=None, search=None):
+def listar_agenda_medica(usuario_id, data_ini, data_fim, status=None, search=None, unidade_id=None):
     crm_medico = get_crm_medico_usuario(usuario_id)
+    unidade = resolver_unidade_usuario(usuario_id, unidade_id)
     status = normalizar_status(status)
     if status and status not in STATUS_VALIDOS:
         raise ValueError("Status inválido")
@@ -739,6 +788,7 @@ def listar_agenda_medica(usuario_id, data_ini, data_fim, status=None, search=Non
     if data_ini is None and data_fim is None:
         return listar_atendimentos_medsystem_para_frontend(
             crm_medico,
+            unidade,
             status=status,
             search=search,
         )
@@ -746,8 +796,8 @@ def listar_agenda_medica(usuario_id, data_ini, data_fim, status=None, search=Non
     if data_fim < data_ini:
         raise ValueError("dataFim não pode ser menor que dataIni.")
 
-    sincronizar_agenda_spdata(data_ini, data_fim)
-    sincronizar_atendimentos_spdata(data_ini, data_fim, crm_medico)
+    sincronizar_agenda_spdata(data_ini, data_fim, unidade=unidade)
+    sincronizar_atendimentos_spdata(data_ini, data_fim, crm_medico, unidade)
 
     rows_agenda = (
         db.session.query(MedSpdataAgenda, MedAtendimentos)
@@ -755,6 +805,7 @@ def listar_agenda_medica(usuario_id, data_ini, data_fim, status=None, search=Non
         .filter(
             MedSpdataAgenda.data_agenda >= data_ini,
             MedSpdataAgenda.data_agenda <= data_fim,
+            filtro_agenda_unidade(unidade),
             or_(
                 MedSpdataAgenda.crm_atend == crm_medico,
                 MedSpdataAgenda.crm == crm_medico,
@@ -778,7 +829,7 @@ def listar_agenda_medica(usuario_id, data_ini, data_fim, status=None, search=Non
     items = []
     agendas_encontradas = []
     for agenda, atendimento in agendas_por_id.values():
-        spdata_ref = buscar_spdata_atendimento_para_agenda(agenda, atendimento)
+        spdata_ref = buscar_spdata_atendimento_para_agenda(agenda, atendimento, unidade)
         items.append(agenda_spdata_para_frontend(agenda, spdata_ref, atendimento, convenios_por_codigo))
         agendas_encontradas.append(agenda)
 
@@ -798,7 +849,7 @@ def listar_agenda_medica(usuario_id, data_ini, data_fim, status=None, search=Non
             MedSpdataAtendimento.data_atendimento >= data_ini,
             MedSpdataAtendimento.data_atendimento <= data_fim,
             MedSpdataAtendimento.crm_medico == crm_medico,
-            MedSpdataAtendimento.id_centro_custo_spdata == UNIDADE_PADRAO_SPDATA,
+            filtro_spdata_unidade(MedSpdataAtendimento, unidade),
         )
         .order_by(MedSpdataAtendimento.data_hora_entrada, MedSpdataAtendimento.paciente)
         .all()
@@ -1027,7 +1078,7 @@ def normalizar_diagnosticos_consulta(consulta):
     return diagnosticos
 
 
-def salvar_conteudo_clinico(spdata, atendimento_medsystem, usuario_id, consulta):
+def salvar_conteudo_clinico(spdata, atendimento_medsystem, usuario_id, consulta, unidade=None):
     if not consulta:
         return
 
@@ -1063,6 +1114,7 @@ def salvar_conteudo_clinico(spdata, atendimento_medsystem, usuario_id, consulta)
             hora_inicio=hora_inicio,
             hora_fim=hora_fim,
             spdata_atendimento_id=spdata.spdata_atendimento_id,
+            unidade_id=getattr(unidade, "id", None) or spdata.unidade_id,
         )
         db.session.add(atendimento)
         db.session.flush()
@@ -1141,13 +1193,15 @@ def salvar_conteudo_clinico(spdata, atendimento_medsystem, usuario_id, consulta)
             )
 
 
-def atualizar_status_agenda(med_spdata_atendimento_id, status, usuario_id=None, consulta=None):
+def atualizar_status_agenda(med_spdata_atendimento_id, status, usuario_id=None, consulta=None, unidade_id=None):
     status = normalizar_status(status)
     if status not in STATUS_VALIDOS:
         raise ValueError("Status inválido")
 
     if usuario_id is None:
         raise PermissionError("Usuário autenticado obrigatório")
+
+    unidade = resolver_unidade_usuario(usuario_id, unidade_id)
 
     spdata = db.session.get(MedSpdataAtendimento, med_spdata_atendimento_id)
     if not spdata:
@@ -1157,12 +1211,21 @@ def atualizar_status_agenda(med_spdata_atendimento_id, status, usuario_id=None, 
     if normalizar_texto(spdata.crm_medico, 50) != crm_medico_usuario:
         raise PermissionError("Atendimento não pertence ao médico autenticado")
 
+    codigo_unidade = codigo_centro_custo_unidade(unidade)
+    if spdata.unidade_id and spdata.unidade_id != unidade.id:
+        raise PermissionError("Atendimento não pertence à unidade selecionada")
+    if spdata.id_centro_custo_spdata and spdata.id_centro_custo_spdata != codigo_unidade:
+        raise PermissionError("Atendimento não pertence à unidade selecionada")
+    if not spdata.unidade_id:
+        spdata.unidade_id = unidade.id
+
     atendimento = buscar_atendimento_medsystem_para_spdata(spdata)
 
     if atendimento is None:
         atendimento = MedAtendimentos(
             med_spdata_atendimento_id=spdata.id,
             spdata_atendimento_id=spdata.spdata_atendimento_id,
+            unidade_id=unidade.id,
             cod_atendimento=spdata.cod_atendimento,
             data_agenda=spdata.data_atendimento,
             hora_agenda=spdata.hora_entrada,
@@ -1174,12 +1237,14 @@ def atualizar_status_agenda(med_spdata_atendimento_id, status, usuario_id=None, 
             prontuario=spdata.prontuario,
         )
         db.session.add(atendimento)
+    else:
+        atendimento.unidade_id = unidade.id
 
     if status == "em-atendimento":
         atendimento.marcar_em_atendimento()
     elif status == "atendido":
         atendimento.marcar_atendido()
-        salvar_conteudo_clinico(spdata, atendimento, usuario_id, consulta)
+        salvar_conteudo_clinico(spdata, atendimento, usuario_id, consulta, unidade=unidade)
     elif status == "faltou":
         atendimento.marcar_faltou()
 

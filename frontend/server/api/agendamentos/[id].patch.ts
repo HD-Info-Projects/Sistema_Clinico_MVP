@@ -12,6 +12,7 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
+    const clinicaId = getActiveClinicaId(event)
     const result = await flaskFetch<{ id?: number, status?: string, pacienteId?: number }>(event, `/agenda-medica/${id}/status`, {
       method: 'PATCH',
       body
@@ -24,7 +25,7 @@ export default defineEventHandler(async (event) => {
         status: result.status || body.status,
         pacienteId: Number(result.pacienteId) || undefined
       }
-    })
+    }, clinicaId)
 
     return result
   } catch (error) {

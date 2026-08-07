@@ -9,6 +9,8 @@ class MedSpdataAgenda(db.Model):
     id = db.Column(db.Integer, primary_key=True)
 
     spdata_agenda_id = db.Column(db.Integer, nullable=False, unique=True, index=True)
+    unidade_id = db.Column(db.Integer, nullable=True, index=True)
+    codigo_unidade_spdata = db.Column(db.String(50), nullable=True, index=True)
     id_paciente_spdata = db.Column(db.Integer, nullable=True, index=True)
 
     registro = db.Column(db.String(50), nullable=True, index=True)
@@ -50,6 +52,8 @@ class MedSpdataAgenda(db.Model):
         spdata_agenda_id,
         paciente,
         data_agenda,
+        unidade_id=None,
+        codigo_unidade_spdata=None,
         id_paciente_spdata=None,
         registro=None,
         grv_ate=None,
@@ -72,6 +76,8 @@ class MedSpdataAgenda(db.Model):
         motivo_no_show=None
     ):
         self.spdata_agenda_id = spdata_agenda_id
+        self.unidade_id = unidade_id
+        self.codigo_unidade_spdata = codigo_unidade_spdata
         self.id_paciente_spdata = id_paciente_spdata
         self.registro = registro
         self.grv_ate = grv_ate
@@ -99,6 +105,8 @@ class MedSpdataAgenda(db.Model):
         return {
             "id": self.id,
             "spdata_agenda_id": self.spdata_agenda_id,
+            "unidade_id": self.unidade_id,
+            "codigo_unidade_spdata": self.codigo_unidade_spdata,
             "id_paciente_spdata": self.id_paciente_spdata,
             "registro": self.registro,
             "grv_ate": self.grv_ate,

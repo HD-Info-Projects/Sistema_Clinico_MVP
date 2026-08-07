@@ -18,6 +18,7 @@ from src.services.spdata_atendimentos_service import (
     normalizar_texto,
     spdata_agenda_id_do_atendimento,
 )
+from src.services.unidades_service import resolver_unidade_usuario
 from src.settings.extensions import db
 
 
@@ -66,7 +67,8 @@ def snapshot_medico(usuario_id):
     }
 
 
-def buscar_spdata_do_medico(med_spdata_atendimento_id, usuario_id):
+def buscar_spdata_do_medico(med_spdata_atendimento_id, usuario_id, unidade_id=None):
+    unidade = resolver_unidade_usuario(usuario_id, unidade_id)
     spdata = db.session.get(MedSpdataAtendimento, med_spdata_atendimento_id)
     if not spdata:
         raise LookupError("Atendimento do SPDATA não encontrado no MedSystem")
@@ -74,6 +76,13 @@ def buscar_spdata_do_medico(med_spdata_atendimento_id, usuario_id):
     crm_medico_usuario = get_crm_medico_usuario(usuario_id)
     if normalizar_texto(spdata.crm_medico, 50) != crm_medico_usuario:
         raise PermissionError("Atendimento não pertence ao médico autenticado")
+
+    if spdata.unidade_id and spdata.unidade_id != unidade.id:
+        raise PermissionError("Atendimento não pertence à unidade selecionada")
+    if spdata.id_centro_custo_spdata and spdata.id_centro_custo_spdata != unidade.codigo_spdata_centro_custo:
+        raise PermissionError("Atendimento não pertence à unidade selecionada")
+    if not spdata.unidade_id:
+        spdata.unidade_id = unidade.id
 
     return spdata
 
@@ -95,14 +104,23 @@ def buscar_atendimento_local(spdata, criar=False):
     if spdata_agenda_id is not None:
         filtros.append(Atendimento.spdata_agenda_id == spdata_agenda_id)
 
+    filtros_unidade = []
+    if spdata.unidade_id:
+        filtros_unidade.append(Atendimento.unidade_id == spdata.unidade_id)
+        filtros_unidade.append(Atendimento.unidade_id.is_(None))
+
     if not filtros:
         if criar:
             raise LookupError("Atendimento do SPDATA sem identificador para vínculo local")
         return None
 
+    where = [or_(*filtros)]
+    if filtros_unidade:
+        where.append(or_(*filtros_unidade))
+
     atendimento = db.session.execute(
         select(Atendimento)
-        .where(or_(*filtros))
+        .where(*where)
         .order_by(Atendimento.id.desc())
     ).scalars().first()
 
@@ -119,6 +137,7 @@ def buscar_atendimento_local(spdata, criar=False):
         hora_inicio=spdata.hora_entrada or time.min,
         hora_fim=None,
         spdata_atendimento_id=spdata.spdata_atendimento_id,
+        unidade_id=spdata.unidade_id,
     )
     db.session.add(atendimento)
     db.session.flush()
@@ -191,10 +210,10 @@ def documento_para_dict(documento, med_spdata_atendimento_id, pode_editar):
     }
 
 
-def listar_documentos_por_ids(usuario_id, ids):
+def listar_documentos_por_ids(usuario_id, ids, unidade_id=None):
     documentos = []
     for med_spdata_atendimento_id in ids:
-        spdata = buscar_spdata_do_medico(med_spdata_atendimento_id, usuario_id)
+        spdata = buscar_spdata_do_medico(med_spdata_atendimento_id, usuario_id, unidade_id=unidade_id)
         atendimento = buscar_atendimento_local(spdata, criar=False)
         if not atendimento:
             continue
@@ -206,13 +225,13 @@ def listar_documentos_por_ids(usuario_id, ids):
     return documentos
 
 
-def listar_documentos_atendimento(usuario_id, med_spdata_atendimento_id):
-    return listar_documentos_por_ids(usuario_id, [med_spdata_atendimento_id])
+def listar_documentos_atendimento(usuario_id, med_spdata_atendimento_id, unidade_id=None):
+    return listar_documentos_por_ids(usuario_id, [med_spdata_atendimento_id], unidade_id=unidade_id)
 
 
-def salvar_documento(usuario_id, med_spdata_atendimento_id, tipo, dados):
+def salvar_documento(usuario_id, med_spdata_atendimento_id, tipo, dados, unidade_id=None):
     tipo = normalizar_tipo_documento(tipo)
-    spdata = buscar_spdata_do_medico(med_spdata_atendimento_id, usuario_id)
+    spdata = buscar_spdata_do_medico(med_spdata_atendimento_id, usuario_id, unidade_id=unidade_id)
     if not pode_editar_spdata(spdata):
         raise PermissionError("Documentos de atendimentos passados só podem ser impressos")
 
