@@ -4,12 +4,8 @@ from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import jwt_required
 
 from src.security.decorators import roles_required
-<<<<<<< HEAD
-from src.services.no_show_service import listar_no_show, registrar_motivo_no_show
-=======
 from src.security.unidades import unidade_atual_required
-from src.services.no_show_service import listar_no_show
->>>>>>> feature/unidades-painel-chamada
+from src.services.no_show_service import listar_no_show, registrar_motivo_no_show
 from src.settings.extensions import db
 
 

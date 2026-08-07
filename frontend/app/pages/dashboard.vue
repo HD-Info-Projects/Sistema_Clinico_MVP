@@ -96,11 +96,7 @@ function chamarPaciente(ag: AgendamentoComPaciente) {
     showSalaModal.value = true
     return
   }
-<<<<<<< HEAD
-  chamadosStore.chamarPaciente(ag.paciente.id, nomePacienteChamada(ag), sala.value, auth.user?.nome ?? 'Dr.')
-=======
-  chamadosStore.chamarPaciente(ag.paciente.id, ag.paciente.nome, sala.value, auth.user?.nome ?? 'Dr.', auth.activeClinicaId)
->>>>>>> feature/unidades-painel-chamada
+  chamadosStore.chamarPaciente(ag.paciente.id, nomePacienteChamada(ag), sala.value, auth.user?.nome ?? 'Dr.', auth.activeClinicaId)
   if (callingInterval) clearInterval(callingInterval)
   callingState.value = { pacienteId: ag.paciente.id, secondsLeft: 5 }
   callingInterval = setInterval(() => {
