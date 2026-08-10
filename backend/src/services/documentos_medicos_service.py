@@ -11,6 +11,7 @@ from src.models.documento_medico_model import (
     TIPOS_DOCUMENTO_VALIDOS,
 )
 from src.models.medico_model import Medico
+from src.models.model_mydsystem.med_procedimentos_model import Procedimento
 from src.models.model_mydsystem.med_spdata_atendimentos_model import MedSpdataAtendimento
 from src.models.usuario_model import Usuario
 from src.services.spdata_atendimentos_service import (
@@ -48,6 +49,155 @@ def parse_data_iso(valor, campo):
         return datetime.fromisoformat(texto[:10]).date().isoformat()
     except ValueError as exc:
         raise ValueError(f"{campo} inválida") from exc
+
+
+def normalizar_procedimento_id(valor):
+    if valor is None or valor == "":
+        return None
+
+    try:
+        procedimento_id = int(valor)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("procedimento_id inválido") from exc
+
+    if procedimento_id <= 0:
+        raise ValueError("procedimento_id inválido")
+
+    return procedimento_id
+
+
+def primeiro_valor(dados, *campos):
+    for campo in campos:
+        if campo not in dados:
+            continue
+        valor = dados.get(campo)
+        if valor is not None:
+            return valor
+
+    return None
+
+
+def descricao_procedimentos(procedimentos):
+    linhas = []
+    for procedimento in procedimentos:
+        codigo = normalizar_texto(procedimento.get("codigo_procedimento"), 50)
+        nome = normalizar_texto(procedimento.get("nome"), 255)
+        if not nome:
+            continue
+        linhas.append(f"{codigo} - {nome}" if codigo else nome)
+
+    return "\n".join(linhas)
+
+
+def normalizar_procedimentos_documento(valor):
+    if valor is None or valor == "":
+        return []
+    if isinstance(valor, dict):
+        itens = [valor]
+    elif isinstance(valor, (list, tuple)):
+        itens = valor
+    else:
+        raise ValueError("procedimentos inválidos")
+
+    procedimentos = []
+    ids = set()
+
+    for item in itens:
+        if not isinstance(item, dict):
+            raise ValueError("procedimentos inválidos")
+
+        procedimento_id = normalizar_procedimento_id(
+            primeiro_valor(item, "procedimento_id", "procedimentoId", "id")
+        )
+        nome = normalizar_texto(
+            primeiro_valor(item, "nome", "descricao", "label"),
+            255,
+        )
+
+        if procedimento_id:
+            ids.add(procedimento_id)
+        elif not nome:
+            continue
+
+        procedimentos.append({
+            "procedimento_id": procedimento_id,
+            "nome": nome,
+            "codigo_procedimento": primeiro_valor(
+                item,
+                "codigo_procedimento",
+                "codigoProcedimento",
+            ),
+            "tipo_ato_codigo": primeiro_valor(
+                item,
+                "tipo_ato_codigo",
+                "tipoAtoCodigo",
+            ),
+            "tipo_ato_nome": primeiro_valor(item, "tipo_ato_nome", "tipoAtoNome"),
+            "exige_autorizacao": primeiro_valor(
+                item,
+                "exige_autorizacao",
+                "exigeAutorizacao",
+            ),
+            "qtde_max_guia": primeiro_valor(item, "qtde_max_guia", "qtdeMaxGuia"),
+        })
+
+    procedimentos_por_id = {}
+    if ids:
+        procedimentos_por_id = {
+            procedimento.id: procedimento
+            for procedimento in db.session.execute(
+                select(Procedimento).where(Procedimento.id.in_(ids))
+            ).scalars()
+        }
+        ids_inexistentes = sorted(ids - set(procedimentos_por_id.keys()))
+        if ids_inexistentes:
+            raise ValueError(
+                f"procedimento_id inválido: {', '.join(str(i) for i in ids_inexistentes)}"
+            )
+
+    normalizados = []
+    chaves_usadas = set()
+    for item in procedimentos:
+        procedimento = procedimentos_por_id.get(item["procedimento_id"])
+        nome = item["nome"] or (procedimento.nome if procedimento else None)
+        if not nome:
+            continue
+
+        chave = item["procedimento_id"] or nome.casefold()
+        if chave in chaves_usadas:
+            continue
+        chaves_usadas.add(chave)
+
+        normalizados.append({
+            "procedimento_id": item["procedimento_id"],
+            "nome": normalizar_texto(nome, 255) or nome[:255],
+            "codigo_procedimento": (
+                procedimento.codigo_procedimento
+                if procedimento
+                else item["codigo_procedimento"]
+            ),
+            "tipo_ato_codigo": (
+                procedimento.tipo_ato_codigo
+                if procedimento
+                else item["tipo_ato_codigo"]
+            ),
+            "tipo_ato_nome": normalizar_texto(
+                procedimento.tipo_ato_nome if procedimento else item["tipo_ato_nome"],
+                100,
+            ),
+            "exige_autorizacao": (
+                procedimento.exige_autorizacao
+                if procedimento
+                else item["exige_autorizacao"]
+            ),
+            "qtde_max_guia": (
+                procedimento.qtde_max_guia
+                if procedimento
+                else item["qtde_max_guia"]
+            ),
+        })
+
+    return normalizados
 
 
 def snapshot_medico(usuario_id):
@@ -185,14 +335,21 @@ def validar_dados_documento(tipo, dados):
         }
 
     if tipo == TIPO_SOLICITACAO_PROCEDIMENTO:
+        procedimentos = normalizar_procedimentos_documento(dados.get("procedimentos"))
         descricao = normalizar_texto(dados.get("descricao"))
+        if procedimentos:
+            descricao = descricao_procedimentos(procedimentos)
         if not descricao:
             raise ValueError("descricao é obrigatória")
 
-        return {
+        dados_normalizados = {
             "data": parse_data_iso(dados.get("data"), "data"),
             "descricao": descricao,
         }
+        if procedimentos:
+            dados_normalizados["procedimentos"] = procedimentos
+
+        return dados_normalizados
 
     raise ValueError("Tipo de documento inválido")
 

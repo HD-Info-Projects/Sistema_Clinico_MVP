@@ -114,7 +114,7 @@ function chamarPaciente(ag: AgendamentoComPaciente) {
 
 async function faltouAgendamento(ag: AgendamentoComPaciente) {
   try {
-    await agendamentosStore.atualizarStatus(ag.id, 'faltou')
+    await agendamentosStore.atualizarStatus(ag.id, 'faltou', undefined, ag.clinicaId)
   } catch {
     console.error('Erro ao marcar falta')
   }
@@ -122,7 +122,7 @@ async function faltouAgendamento(ag: AgendamentoComPaciente) {
 
 async function atenderAgendamento(ag: AgendamentoComPaciente) {
   try {
-    await agendamentosStore.atualizarStatus(ag.id, 'em-atendimento')
+    await agendamentosStore.atualizarStatus(ag.id, 'em-atendimento', undefined, ag.clinicaId)
     await navigateTo('/atendimento-medico')
   } catch {
     console.error('Erro ao iniciar atendimento')

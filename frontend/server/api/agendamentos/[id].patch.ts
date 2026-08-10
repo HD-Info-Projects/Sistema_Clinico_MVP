@@ -4,11 +4,11 @@ export default defineEventHandler(async (event) => {
 
   const validStatuses = ['em-espera', 'em-atendimento', 'atendido', 'faltou']
   if (!body.status || !validStatuses.includes(body.status)) {
-    throw createError({ statusCode: 400, statusMessage: 'Status inválido' })
+    throw createError({ statusCode: 400, message: 'Status inválido' })
   }
 
   if (body.status === 'em-espera') {
-    throw createError({ statusCode: 400, statusMessage: 'Status em-espera é calculado pelo backend' })
+    throw createError({ statusCode: 400, message: 'Status em-espera é calculado pelo backend' })
   }
 
   try {
@@ -29,9 +29,32 @@ export default defineEventHandler(async (event) => {
 
     return result
   } catch (error) {
+    const fetchError = error as {
+      status?: number
+      statusCode?: number
+      response?: { status?: number, _data?: { error?: string, message?: string, statusMessage?: string } }
+      data?: { error?: string, message?: string, statusMessage?: string }
+      message?: string
+    }
+    const statusCode = fetchError.response?.status ?? fetchError.statusCode ?? fetchError.status
+    const errorData = fetchError.response?._data ?? fetchError.data
+    const message = errorData?.error
+      || errorData?.message
+      || errorData?.statusMessage
+      || fetchError.message
+      || 'Falha ao atualizar status no backend Flask'
+
+    if (statusCode) {
+      throw createError({
+        statusCode,
+        message,
+        data: errorData
+      })
+    }
+
     throw createError({
       statusCode: 502,
-      statusMessage: 'Falha ao atualizar status no backend Flask',
+      message: 'Falha ao conectar com o backend Flask',
       data: String(error)
     })
   }

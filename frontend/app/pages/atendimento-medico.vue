@@ -758,7 +758,7 @@ async function finalizarConsulta() {
         orientacao: e.orientacao ?? null
       })),
       duracao
-    })
+    }, agendamentoAtual.clinicaId)
     limparDraft()
     cronometro.stop()
     await navigateTo('/dashboard', { replace: true })
