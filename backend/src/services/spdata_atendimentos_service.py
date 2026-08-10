@@ -33,9 +33,11 @@ from src.utils.normalizar import normalizar_cpf
 UNIDADE_PADRAO_SPDATA = 340
 
 STATUS_VALIDOS = {
+    "em-espera",
     "em-atendimento",
     "atendido",
     "faltou",
+    "cancelado",
 }
 
 STATUS_ALIASES = {
@@ -161,7 +163,7 @@ def valores_status_medsystem(status):
         return []
     if status not in STATUS_VALIDOS:
         raise ValueError("Status inválido")
-    return list(STATUS_MEDSYSTEM_VALUES[status])
+    return list(STATUS_MEDSYSTEM_VALUES.get(status, []))
 
 
 def filtrar_agenda_frontend(items, status=None, search=None):
@@ -1221,6 +1223,9 @@ def atualizar_status_agenda(med_spdata_atendimento_id, status, usuario_id=None, 
 
     atendimento = buscar_atendimento_medsystem_para_spdata(spdata)
 
+    if atendimento is None and status in {"cancelado", "em-espera"}:
+        raise ValueError("Atendimento existente obrigatório para alterar para este status.")
+
     if atendimento is None:
         atendimento = MedAtendimentos(
             med_spdata_atendimento_id=spdata.id,
@@ -1247,6 +1252,20 @@ def atualizar_status_agenda(med_spdata_atendimento_id, status, usuario_id=None, 
         salvar_conteudo_clinico(spdata, atendimento, usuario_id, consulta, unidade=unidade)
     elif status == "faltou":
         atendimento.marcar_faltou()
+    elif status == "cancelado":
+        if normalizar_status(atendimento.status) != "em-atendimento":
+            raise ValueError(
+                "Apenas atendimentos em andamento podem ser cancelados e devolvidos à fila."
+            )
+        db.session.delete(atendimento)
+        atendimento = None
+    elif status == "em-espera":
+        if normalizar_status(atendimento.status) != "faltou":
+            raise ValueError(
+                "Apenas faltas podem ser desfeitas devolvendo o paciente à fila."
+            )
+        db.session.delete(atendimento)
+        atendimento = None
 
     db.session.commit()
     convenios_por_codigo = buscar_convenios_locais([spdata.id_convenio_spdata])
