@@ -179,6 +179,7 @@ const cidSelecionadoLista = ref<CidResultado[]>([])
 const cidTempSelecionado = ref<CidResultado | null>(null)
 const cidPrincipalIndex = ref(0)
 const isLoadingCid = ref(false)
+const erroBuscaCid = ref('')
 
 watch(searchCid, (val) => {
   onSearchInput(val)
@@ -202,6 +203,23 @@ function limparResultadosCid() {
   cidRequestId++
   cidController?.abort()
   resultadosCid.value = []
+  erroBuscaCid.value = ''
+  isLoadingCid.value = false
+}
+
+function mensagemErroFetch(error: unknown, fallback: string) {
+  const fetchError = error as {
+    data?: { error?: string, message?: string, statusMessage?: string }
+    response?: { _data?: { error?: string, message?: string, statusMessage?: string } }
+    message?: string
+  }
+  const data = fetchError.response?._data ?? fetchError.data
+
+  return data?.error
+    || data?.message
+    || data?.statusMessage
+    || fetchError.message
+    || fallback
 }
 
 async function buscarCid(q: string) {
@@ -218,6 +236,7 @@ async function buscarCid(q: string) {
   cidController = new AbortController()
 
   isLoadingCid.value = true
+  erroBuscaCid.value = ''
 
   try {
     const data = await $fetch<CidResultado[]>('/api/cid', {
@@ -239,8 +258,9 @@ async function buscarCid(q: string) {
     if (requestId !== cidRequestId) return
 
     resultadosCid.value = []
+    erroBuscaCid.value = mensagemErroFetch(error, 'Não foi possível buscar CID no momento.')
   } finally {
-    isLoadingCid.value = false
+    if (requestId === cidRequestId) isLoadingCid.value = false
   }
 }
 
@@ -308,6 +328,7 @@ const exameSelecionado = ref<ExameCatalogo | null>(null)
 const buscaTermoExame = ref('')
 const sugestoesExames = ref<ExameCatalogo[]>([])
 const carregandoExames = ref(false)
+const erroBuscaExames = ref('')
 const exameTemplateSelected = ref<{ label: string, value: PadraoExame }>()
 const caraterAtendimento = ref(false)
 
@@ -329,15 +350,25 @@ watch(exameSelecionado, (val) => {
 watch(buscaTermoExame, (val) => {
   if (buscaExameTimeout) clearTimeout(buscaExameTimeout)
 
-  if (!val || val.length < 2) {
-    sugestoesExames.value = []
+  const termo = val.trim()
+
+  if (termo.length < 2) {
+    limparSugestoesExames()
     return
   }
 
   buscaExameTimeout = setTimeout(() => {
-    buscarExames(val)
+    buscarExames(termo)
   }, 300)
 })
+
+function limparSugestoesExames() {
+  examesRequestId++
+  examesController?.abort()
+  sugestoesExames.value = []
+  erroBuscaExames.value = ''
+  carregandoExames.value = false
+}
 
 async function buscarExames(q: string) {
   const termo = q.trim()
@@ -348,6 +379,7 @@ async function buscarExames(q: string) {
   examesController = new AbortController()
 
   carregandoExames.value = true
+  erroBuscaExames.value = ''
   try {
     const data = await $fetch<{ exames: ExameCatalogo[] }>('/api/exames/buscar', {
       query: { q: termo },
@@ -362,8 +394,9 @@ async function buscarExames(q: string) {
     if (error instanceof Error && error.name === 'AbortError') return
     if (requestId !== examesRequestId) return
     sugestoesExames.value = []
+    erroBuscaExames.value = mensagemErroFetch(error, 'Não foi possível buscar exames no momento.')
   } finally {
-    carregandoExames.value = false
+    if (requestId === examesRequestId) carregandoExames.value = false
   }
 }
 
@@ -442,7 +475,7 @@ function adicionarExame(valor: unknown) {
   examesSelecionados.value.push(exame)
   exameSelecionado.value = null
   buscaTermoExame.value = ''
-  sugestoesExames.value = []
+  limparSugestoesExames()
 }
 
 function adicionarOrientacao(valor: ExameSelecionado) {
@@ -992,7 +1025,13 @@ async function finalizarConsulta() {
                 </template>
                 <template #empty>
                   <p
-                    v-if="searchCid"
+                    v-if="erroBuscaCid"
+                    class="px-3 py-4 text-sm text-error text-center"
+                  >
+                    {{ erroBuscaCid }}
+                  </p>
+                  <p
+                    v-else-if="searchCid"
                     class="px-3 py-4 text-sm text-muted text-center"
                   >
                     Nenhum CID encontrado
@@ -1222,6 +1261,20 @@ async function finalizarConsulta() {
                       <span class="text-sm">
                         {{ item.codigo_alfanumerico ? `${item.codigo_alfanumerico} — ` : '' }}{{ item.nome }}{{ item.codigo_amb ? ` (${item.codigo_amb})` : '' }}
                       </span>
+                    </template>
+                    <template #empty>
+                      <p
+                        v-if="erroBuscaExames"
+                        class="px-3 py-4 text-sm text-error text-center"
+                      >
+                        {{ erroBuscaExames }}
+                      </p>
+                      <p
+                        v-else-if="buscaTermoExame.trim().length >= 2"
+                        class="px-3 py-4 text-sm text-muted text-center"
+                      >
+                        Nenhum exame encontrado
+                      </p>
                     </template>
                   </UInputMenu>
                   <UButton

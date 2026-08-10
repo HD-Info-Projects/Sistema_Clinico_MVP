@@ -25,33 +25,6 @@ export default defineEventHandler(async (event) => {
 
     return result
   } catch (error) {
-    const fetchError = error as {
-      status?: number
-      statusCode?: number
-      response?: { status?: number, _data?: { error?: string, message?: string, statusMessage?: string } }
-      data?: { error?: string, message?: string, statusMessage?: string }
-      message?: string
-    }
-    const statusCode = fetchError.response?.status ?? fetchError.statusCode ?? fetchError.status
-    const errorData = fetchError.response?._data ?? fetchError.data
-    const message = errorData?.error
-      || errorData?.message
-      || errorData?.statusMessage
-      || fetchError.message
-      || 'Falha ao atualizar status no backend Flask'
-
-    if (statusCode) {
-      throw createError({
-        statusCode,
-        message,
-        data: errorData
-      })
-    }
-
-    throw createError({
-      statusCode: 502,
-      message: 'Falha ao conectar com o backend Flask',
-      data: String(error)
-    })
+    throwProxyError(error, 'Falha ao atualizar status no backend Flask')
   }
 })

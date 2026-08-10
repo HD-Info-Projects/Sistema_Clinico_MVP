@@ -4,12 +4,13 @@ import type { H3Event } from 'h3'
 export async function flaskFetch<T>(event: H3Event, path: string, opts?: any): Promise<T> {
   const token = requireAuthToken(event)
   const config = useRuntimeConfig()
-  const activeClinicaId = getActiveClinicaId(event)
+  const { activeClinica = true, ...fetchOpts } = opts ?? {}
+  const activeClinicaId = activeClinica ? getActiveClinicaId(event) : null
 
   return $fetch<T>(`${config.flaskBaseUrl}${path}`, {
-    ...opts,
+    ...fetchOpts,
     headers: {
-      ...opts?.headers,
+      ...fetchOpts.headers,
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(activeClinicaId ? { 'X-Unidade-Id': String(activeClinicaId) } : {})
     }
