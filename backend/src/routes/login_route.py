@@ -5,12 +5,13 @@ from flask import (
     jsonify
 )
 
-from flask_jwt_extended import get_jwt_identity, jwt_required
-from sqlalchemy.orm import joinedload
+from flask_jwt_extended import decode_token, get_jwt_identity, jwt_required
+from sqlalchemy.orm import joinedload, selectinload
 from src.security.decorators import roles_required
 
 from src.controllers.login_controller import LoginController
 from src.models.usuario_model import Usuario
+from src.services.unidades_service import listar_unidades_usuario_frontend, vincular_usuario_unidade
 
 from src.settings.extensions import db, limiter
 from src.services.medicos_spdata_service import (
@@ -21,6 +22,10 @@ from src.services.medicos_spdata_service import (
 
 login_bp = Blueprint('login', __name__, url_prefix="/login")
 controller = LoginController()
+
+
+def registrar_auditoria(*_args, **_kwargs):
+    return None
 
 
 def _login_email_rate_limit_key():
@@ -72,7 +77,10 @@ def me():
         usuario_id = int(get_jwt_identity())
         usuario = (
             db.session.query(Usuario)
-            .options(joinedload(Usuario.medico))
+            .options(
+                joinedload(Usuario.medico),
+                selectinload(Usuario.unidades),
+            )
             .filter(Usuario.id == usuario_id)
             .first()
         )
@@ -87,6 +95,7 @@ def me():
             "role": usuario.role,
             "crm": usuario.medico.crm_atendimento_spdata if usuario.medico else None,
             "especialidade": usuario.medico.especialidade if usuario.medico else None,
+            "unidades": listar_unidades_usuario_frontend(usuario.id),
         }), 200
 
     except Exception:
@@ -123,6 +132,9 @@ def register_medic():
         nome_completo = data["nome_completo_medico"]
         cpf_cnpj = data["CNPJ_CPF"]
         crm_atendimento_spdata = data.get("crm_atendimento_spdata")
+        unidade_ids = data.get("unidade_ids") or data.get("unidadeIds") or []
+        if isinstance(unidade_ids, (str, int)):
+            unidade_ids = [unidade_ids]
 
         medicos_spdata = buscar_medicos_spdata(cpf=cpf_cnpj)
         if not medicos_spdata:
@@ -163,10 +175,20 @@ def register_medic():
             crm_atendimento_spdata=crm_atendimento_spdata,
         )
 
+        for indice, unidade_id in enumerate(unidade_ids):
+            vincular_usuario_unidade(
+                resultado["usuario"].id,
+                int(unidade_id),
+                principal=indice == 0,
+            )
+        if unidade_ids:
+            db.session.commit()
+
         return jsonify({
             "msg": "Médico cadastrado com sucesso!",
             "usuario": resultado["usuario"]._to_dict(),
             "medico": resultado["medico"]._to_dict(),
+            "unidades": listar_unidades_usuario_frontend(resultado["usuario"].id),
         }), 201
         
         

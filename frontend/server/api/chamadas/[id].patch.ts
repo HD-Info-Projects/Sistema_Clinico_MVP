@@ -1,5 +1,6 @@
 export default defineEventHandler(async (event) => {
-  await requireRole(event, ['medico', 'recepcao'])
+  const user = await requireRole(event, ['medico', 'recepcao'])
+  const clinicaId = requireClinicaUsuario(event, user)
   const id = Number(getRouterParam(event, 'id'))
   const body = await readBody<{ status?: string }>(event)
 
@@ -11,7 +12,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Status inválido' })
   }
 
-  const chamado = atualizarChamadoStatus(id, body.status)
+  const chamado = atualizarChamadoStatus(id, clinicaId, body.status)
   if (!chamado) {
     throw createError({ statusCode: 404, statusMessage: 'Chamado não encontrado' })
   }

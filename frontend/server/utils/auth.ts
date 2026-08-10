@@ -1,6 +1,7 @@
 import type { H3Event } from 'h3'
 import { createError, deleteCookie, getCookie, setCookie } from 'h3'
-import { getClinica } from './clinicas'
+import type { ServerClinica } from './clinicas'
+import { clinicasFromBackend } from './clinicas'
 
 export const AUTH_COOKIE_NAME = 'auth_token'
 
@@ -11,6 +12,8 @@ type BackendAuthUser = {
   role: 'medico' | 'recepcao' | 'admin'
   crm?: string | null
   especialidade?: string | null
+  unidades?: ServerClinica[]
+  clinicas?: ServerClinica[]
 }
 
 function authCookieMaxAgeSeconds() {
@@ -48,10 +51,8 @@ export function requireAuthToken(event: H3Event) {
 }
 
 export function buildAuthPayload(raw: BackendAuthUser) {
-  const clinicaIds = [1]
-  const clinicas = clinicaIds
-    .map(id => getClinica(id))
-    .filter(Boolean)
+  const clinicas = clinicasFromBackend(raw)
+  const clinicaIds = clinicas.map(c => c.id)
 
   return {
     user: {

@@ -2,7 +2,7 @@ from collections import defaultdict
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from src.models.atendimentos_model import Atendimento
 from src.models.db.handler_fb_db import ConnectionDBFireBird
@@ -127,7 +127,20 @@ def cpf_normalizado(*valores):
     return ""
 
 
-def buscar_solicitacoes_locais(data_ini, data_fim):
+def buscar_solicitacoes_locais(data_ini, data_fim, unidade=None):
+    filtros = [
+        SolicitacaoExame.created_at >= data_hora_inicial(data_ini),
+        SolicitacaoExame.created_at <= data_hora_final(data_fim),
+        SolicitacaoExame.status != StatusSolicitacaoExame.CANCELADO,
+    ]
+
+    if unidade:
+        filtros.append(or_(
+            Atendimento.unidade_id == unidade.id,
+            MedSpdataAtendimento.unidade_id == unidade.id,
+            MedSpdataAtendimento.id_centro_custo_spdata == unidade.codigo_spdata_centro_custo,
+        ))
+
     stmt = (
         select(
             SolicitacaoExame,
@@ -146,11 +159,7 @@ def buscar_solicitacoes_locais(data_ini, data_fim):
             MedSpdataConvenio,
             MedSpdataAtendimento.id_convenio_spdata == MedSpdataConvenio.codigo_spdata,
         )
-        .where(
-            SolicitacaoExame.created_at >= data_hora_inicial(data_ini),
-            SolicitacaoExame.created_at <= data_hora_final(data_fim),
-            SolicitacaoExame.status != StatusSolicitacaoExame.CANCELADO,
-        )
+        .where(*filtros)
         .order_by(SolicitacaoExame.created_at.desc(), SolicitacaoExame.id.desc())
     )
 
@@ -210,7 +219,7 @@ def parametros_busca_spdata(registros_locais):
     }
 
 
-def buscar_realizacoes_spdata(registros_locais):
+def buscar_realizacoes_spdata(registros_locais, unidade=None):
     params = parametros_busca_spdata(registros_locais)
     codigos = params["codigos"]
     nomes_sem_codigo = params["nomes_sem_codigo"]
@@ -247,6 +256,11 @@ def buscar_realizacoes_spdata(registros_locais):
 
     if not filtros_paciente:
         return []
+
+    filtro_unidade = ""
+    if unidade and unidade.codigo_spdata_centro_custo is not None:
+        filtro_unidade = " AND ATD.ID_TBCENCUS = ?"
+        valores.append(unidade.codigo_spdata_centro_custo)
 
     sql = f"""
         SELECT
@@ -313,6 +327,7 @@ def buscar_realizacoes_spdata(registros_locais):
         WHERE CAST(SIL.DATA AS DATE) BETWEEN ? AND ?
           AND ({' OR '.join(filtros_exame)})
           AND ({' OR '.join(filtros_paciente)})
+          {filtro_unidade}
         ORDER BY SIL.DATA ASC, SIL.ID ASC
     """
 
@@ -420,6 +435,8 @@ def solicitacao_para_item(solicitacao, atendimento, exame, spdata, convenio, rea
 
     return {
         "id": solicitacao.id,
+        "clinicaId": getattr(atendimento, "unidade_id", None) or getattr(spdata, "unidade_id", None),
+        "unidadeId": getattr(atendimento, "unidade_id", None) or getattr(spdata, "unidade_id", None),
         "localSolicitacaoId": solicitacao.id,
         "spdataExameId": realizacao.get("ID_EXAME_LANCAMENTO") if realizacao else None,
         "spdataContaId": realizacao.get("ID_SICADATE") if realizacao else None,
@@ -452,9 +469,9 @@ def solicitacao_para_item(solicitacao, atendimento, exame, spdata, convenio, rea
     }
 
 
-def listar_retencao_exames(data_ini, data_fim):
-    registros_locais = buscar_solicitacoes_locais(data_ini, data_fim)
-    realizacoes = buscar_realizacoes_spdata(registros_locais)
+def listar_retencao_exames(data_ini, data_fim, unidade=None):
+    registros_locais = buscar_solicitacoes_locais(data_ini, data_fim, unidade=unidade)
+    realizacoes = buscar_realizacoes_spdata(registros_locais, unidade=unidade)
     indice = indexar_realizacoes(realizacoes)
     hoje = date.today()
 

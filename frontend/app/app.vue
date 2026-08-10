@@ -8,7 +8,7 @@ const route = useRoute()
 const layoutName = computed(() => {
   const path = route.path
   if (path === '/login' || path === '/selecionar-clinica') return 'auth'
-  if (path === '/painel-chamada') return 'tv'
+  if (path.startsWith('/painel-chamada')) return 'tv'
   if (path === '/atendimento-medico') return 'atendimento'
   if (path.startsWith('/recepcao')) return 'recepcao'
   return 'default'

@@ -23,7 +23,7 @@ function confirmarSala() {
 onMounted(() => {
   const hoje = formatarDataISO(new Date())
   agendamentosStore.init(auth.activeClinicaId ?? undefined, hoje, auth.user?.id)
-  chamadosStore.init()
+  chamadosStore.init({ clinicaId: auth.activeClinicaId, data: hoje })
   if (precisaSelecionar.value) {
     showSalaModal.value = true
   }
@@ -87,12 +87,16 @@ function isCalling(pacienteId: number) {
 
 const temPacienteEmAtendimento = computed(() => !!agendamentosStore.emAtendimento)
 
+function nomePacienteChamada(ag: AgendamentoComPaciente) {
+  return ag.paciente.nomeSocial || ag.paciente.nome
+}
+
 function chamarPaciente(ag: AgendamentoComPaciente) {
   if (!sala.value) {
     showSalaModal.value = true
     return
   }
-  chamadosStore.chamarPaciente(ag.paciente.id, ag.paciente.nome, sala.value, auth.user?.nome ?? 'Dr.')
+  chamadosStore.chamarPaciente(ag.paciente.id, nomePacienteChamada(ag), sala.value, auth.user?.nome ?? 'Dr.', auth.activeClinicaId)
   if (callingInterval) clearInterval(callingInterval)
   callingState.value = { pacienteId: ag.paciente.id, secondsLeft: 5 }
   callingInterval = setInterval(() => {
@@ -110,7 +114,7 @@ function chamarPaciente(ag: AgendamentoComPaciente) {
 
 async function faltouAgendamento(ag: AgendamentoComPaciente) {
   try {
-    await agendamentosStore.atualizarStatus(ag.id, 'faltou')
+    await agendamentosStore.atualizarStatus(ag.id, 'faltou', undefined, ag.clinicaId)
   } catch {
     console.error('Erro ao marcar falta')
   }
@@ -118,7 +122,7 @@ async function faltouAgendamento(ag: AgendamentoComPaciente) {
 
 async function atenderAgendamento(ag: AgendamentoComPaciente) {
   try {
-    await agendamentosStore.atualizarStatus(ag.id, 'em-atendimento')
+    await agendamentosStore.atualizarStatus(ag.id, 'em-atendimento', undefined, ag.clinicaId)
     await navigateTo('/atendimento-medico')
   } catch {
     console.error('Erro ao iniciar atendimento')
@@ -127,7 +131,7 @@ async function atenderAgendamento(ag: AgendamentoComPaciente) {
 
 async function editarAtendimento(ag: AgendamentoComPaciente) {
   try {
-    await agendamentosStore.atualizarStatus(ag.id, 'em-atendimento')
+    await agendamentosStore.atualizarStatus(ag.id, 'em-atendimento', undefined, ag.clinicaId)
     await navigateTo(`/atendimento-medico?id=${ag.id}`)
   } catch {
     console.error('Erro ao reabrir atendimento')
@@ -136,7 +140,7 @@ async function editarAtendimento(ag: AgendamentoComPaciente) {
 
 async function desfazerFalta(ag: AgendamentoComPaciente) {
   try {
-    await agendamentosStore.atualizarStatus(ag.id, 'em-espera')
+    await agendamentosStore.atualizarStatus(ag.id, 'em-espera', undefined, ag.clinicaId)
   } catch {
     console.error('Erro ao desfazer falta')
   }

@@ -33,6 +33,7 @@ class Atendimento(db.Model):
     spdata_paciente_id = Column(Integer, nullable=True)
     spdata_agenda_id = Column(Integer, nullable=True)
     spdata_medico_id = Column(Integer, nullable=True)
+    unidade_id = Column(Integer, nullable=True, index=True)
     
     # Colunas da tabela
     paciente_nome = Column(String(255), nullable=False)
@@ -102,8 +103,10 @@ class Atendimento(db.Model):
         hora_inicio,
         hora_fim,
         spdata_atendimento_id=None,
+        unidade_id=None,
     ):
         self.spdata_atendimento_id = spdata_atendimento_id
+        self.unidade_id = unidade_id
         self.spdata_paciente_id = spdata_paciente_id
         self.spdata_agenda_id = spdata_agenda_id
         self.spdata_medico_id = spdata_medico_id
@@ -120,6 +123,7 @@ class Atendimento(db.Model):
         return {
             "id": self.id,
             "spdata_atendimento_id": self.spdata_atendimento_id,
+            "unidade_id": self.unidade_id,
             "spdata_paciente_id": self.spdata_paciente_id,
             "spdata_agenda_id": self.spdata_agenda_id,
             "spdata_medico_id": self.spdata_medico_id,

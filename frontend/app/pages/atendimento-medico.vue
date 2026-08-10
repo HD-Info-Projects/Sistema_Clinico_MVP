@@ -752,6 +752,7 @@ async function gerarSolicitacaoExames() {
   if (convenio && convenio !== 'particular') {
     const params = {
       paciente: agendamento.value?.paciente.nome ?? 'Paciente',
+      nomeSocial: agendamento.value?.paciente.nomeSocial,
       cpf: agendamento.value?.paciente.cpf,
       convenio: agendamento.value?.paciente.convenio ?? '',
       idConvenioSpdata: agendamento.value?.paciente.idConvenioSpdata,
@@ -810,7 +811,7 @@ async function cancelarAtendimento() {
   const agendamentoAtual = agendamento.value
 
   try {
-    await agendamentosStore.atualizarStatus(agendamentoAtual.id, 'cancelado')
+    await agendamentosStore.atualizarStatus(agendamentoAtual.id, 'cancelado', undefined, agendamentoAtual.clinicaId)
     limparDraft()
     cronometro.stop()
     modalCancelarAberto.value = false
@@ -852,7 +853,7 @@ async function finalizarConsulta() {
         orientacao: e.orientacao ?? null
       })),
       duracao
-    })
+    }, agendamentoAtual.clinicaId)
     limparDraft()
     cronometro.stop()
     await navigateTo('/dashboard', { replace: true })
