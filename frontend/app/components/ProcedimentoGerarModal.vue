@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AgendamentoComPaciente, DocumentoMedico, Paciente, SolicitacaoProcedimentoDocumentoDados } from '~/types'
+import type { AgendamentoComPaciente, DocumentoMedico, Paciente, ProcedimentoCatalogo, ProcedimentoSelecionado, SolicitacaoProcedimentoDocumentoDados } from '~/types'
 import { usePdfMake } from '~/utils/pdf'
 import { buildSolicitacaoProcedimento } from '~/utils/pdf-documents'
 
@@ -31,8 +31,161 @@ function hojeIso() {
 const dataAtendimentoPadrao = computed(() => props.dataAtendimento ?? props.agendamento?.data ?? hojeIso())
 
 const data = ref(dataAtendimentoPadrao.value)
-const descricao = ref('')
+const procedimentoSelecionado = ref<ProcedimentoCatalogo | null>(null)
+const buscaTermoProcedimento = ref('')
+const sugestoesProcedimentos = ref<ProcedimentoCatalogo[]>([])
+const procedimentosSelecionados = ref<ProcedimentoSelecionado[]>([])
+const carregandoProcedimentos = ref(false)
 const salvando = ref(false)
+
+let buscaProcedimentoTimeout: ReturnType<typeof setTimeout> | null = null
+let procedimentosController: AbortController | null = null
+let procedimentosRequestId = 0
+
+function normalizarId(valor: unknown) {
+  if (valor === null || valor === undefined || valor === '') return null
+
+  const numero = Number(valor)
+  return Number.isInteger(numero) && numero > 0 ? numero : null
+}
+
+function normalizarNumero(valor: unknown) {
+  if (valor === null || valor === undefined || valor === '') return null
+
+  const numero = Number(valor)
+  return Number.isFinite(numero) ? numero : null
+}
+
+function normalizarTexto(valor: unknown) {
+  return typeof valor === 'string' ? valor.trim() : ''
+}
+
+function normalizarProcedimentoSelecionado(valor: unknown): ProcedimentoSelecionado | null {
+  if (typeof valor === 'string') {
+    const nome = valor.trim()
+    return nome ? { procedimento_id: null, nome } : null
+  }
+
+  if (!valor || typeof valor !== 'object') return null
+
+  const item = valor as Record<string, unknown>
+  const nome = normalizarTexto(item.nome ?? item.descricao ?? item.label)
+  const procedimentoId = normalizarId(item.procedimento_id ?? item.procedimentoId ?? item.id)
+
+  if (!nome) return null
+
+  return {
+    procedimento_id: procedimentoId,
+    nome,
+    codigo_procedimento: normalizarNumero(item.codigo_procedimento ?? item.codigoProcedimento),
+    tipo_ato_codigo: normalizarId(item.tipo_ato_codigo ?? item.tipoAtoCodigo),
+    tipo_ato_nome: normalizarTexto(item.tipo_ato_nome ?? item.tipoAtoNome) || null,
+    exige_autorizacao: normalizarNumero(item.exige_autorizacao ?? item.exigeAutorizacao),
+    qtde_max_guia: normalizarNumero(item.qtde_max_guia ?? item.qtdeMaxGuia)
+  }
+}
+
+function procedimentoExisteNaLista(lista: ProcedimentoSelecionado[], procedimento: ProcedimentoSelecionado) {
+  const nome = procedimento.nome.trim().toLocaleLowerCase('pt-BR')
+
+  return lista.some((atual) => {
+    if (atual.procedimento_id && procedimento.procedimento_id && atual.procedimento_id === procedimento.procedimento_id) return true
+    return atual.nome.trim().toLocaleLowerCase('pt-BR') === nome
+  })
+}
+
+function normalizarListaProcedimentos(valor: unknown) {
+  const procedimentos: ProcedimentoSelecionado[] = []
+  const itens = typeof valor === 'string'
+    ? valor.split(/\r?\n/).map(linha => linha.replace(/^[-•\s]+/, '').trim()).filter(Boolean)
+    : Array.isArray(valor)
+      ? valor
+      : valor
+        ? [valor]
+        : []
+
+  for (const item of itens) {
+    const procedimento = normalizarProcedimentoSelecionado(item)
+    if (!procedimento || procedimentoExisteNaLista(procedimentos, procedimento)) continue
+    procedimentos.push(procedimento)
+  }
+
+  return procedimentos
+}
+
+function procedimentoLabel(procedimento: ProcedimentoSelecionado | ProcedimentoCatalogo) {
+  const codigo = procedimento.codigo_procedimento ? `${procedimento.codigo_procedimento} - ` : ''
+  return `${codigo}${procedimento.nome}`
+}
+
+const descricaoProcedimentos = computed(() => (
+  procedimentosSelecionados.value
+    .map(procedimentoLabel)
+    .join('\n')
+))
+
+function limparBuscaProcedimentos() {
+  procedimentosRequestId++
+  procedimentosController?.abort()
+  sugestoesProcedimentos.value = []
+}
+
+watch(buscaTermoProcedimento, (val) => {
+  if (buscaProcedimentoTimeout) clearTimeout(buscaProcedimentoTimeout)
+
+  const termo = val.trim()
+  if (termo.length < 2) {
+    limparBuscaProcedimentos()
+    return
+  }
+
+  buscaProcedimentoTimeout = setTimeout(() => {
+    buscarProcedimentos(termo)
+  }, 300)
+})
+
+async function buscarProcedimentos(q: string) {
+  const termo = q.trim()
+  if (termo.length < 2) return
+
+  const requestId = ++procedimentosRequestId
+  procedimentosController?.abort()
+  procedimentosController = new AbortController()
+
+  carregandoProcedimentos.value = true
+  try {
+    const data = await $fetch<{ procedimentos: ProcedimentoCatalogo[] }>('/api/procedimentos/buscar', {
+      query: { q: termo },
+      signal: procedimentosController.signal
+    })
+
+    if (requestId !== procedimentosRequestId) return
+    if (buscaTermoProcedimento.value.trim() !== termo) return
+
+    sugestoesProcedimentos.value = data.procedimentos || []
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') return
+    if (requestId !== procedimentosRequestId) return
+    sugestoesProcedimentos.value = []
+  } finally {
+    carregandoProcedimentos.value = false
+  }
+}
+
+function adicionarProcedimento(valor: unknown) {
+  const procedimento = normalizarProcedimentoSelecionado(valor)
+  if (!procedimento) return
+  if (procedimentoExisteNaLista(procedimentosSelecionados.value, procedimento)) return
+
+  procedimentosSelecionados.value.push(procedimento)
+  procedimentoSelecionado.value = null
+  buscaTermoProcedimento.value = ''
+  sugestoesProcedimentos.value = []
+}
+
+function removerProcedimentoDaLista(index: number) {
+  procedimentosSelecionados.value.splice(index, 1)
+}
 
 function preencherFormulario() {
   const dados = props.documento?.tipoDocumento === 'SOLICITACAO_PROCEDIMENTO'
@@ -40,7 +193,13 @@ function preencherFormulario() {
     : null
 
   data.value = dados?.data ?? dataAtendimentoPadrao.value
-  descricao.value = dados?.descricao ?? ''
+  const procedimentos = normalizarListaProcedimentos(dados?.procedimentos)
+  procedimentosSelecionados.value = procedimentos.length
+    ? procedimentos
+    : normalizarListaProcedimentos(dados?.descricao)
+  procedimentoSelecionado.value = null
+  buscaTermoProcedimento.value = ''
+  sugestoesProcedimentos.value = []
 }
 
 watch(
@@ -58,7 +217,7 @@ function formatarDataPdf(dataISO: string) {
 
 const podeEnviar = computed(() => {
   if (!podeEditar.value) return Boolean(props.documento)
-  return Boolean(medSpdataAtendimentoId.value && data.value && descricao.value.trim())
+  return Boolean(medSpdataAtendimentoId.value && data.value && procedimentosSelecionados.value.length)
 })
 
 const botaoLabel = computed(() => podeEditar.value ? 'Salvar e Imprimir' : 'Imprimir')
@@ -67,11 +226,13 @@ async function gerarPdf(documento: DocumentoMedico) {
   if (documento.tipoDocumento !== 'SOLICITACAO_PROCEDIMENTO') return
 
   const dados = documento.dados as SolicitacaoProcedimentoDocumentoDados
+  const procedimentos = normalizarListaProcedimentos(dados.procedimentos)
   const pdfMake = await usePdfMake()
   const doc = await buildSolicitacaoProcedimento({
     paciente: paciente.value?.nome ?? 'Paciente',
     data: formatarDataPdf(dados.data),
     descricao: dados.descricao,
+    procedimentos: procedimentos.length ? procedimentos : normalizarListaProcedimentos(dados.descricao),
     medico: dados.medico ?? undefined,
     crm: dados.crm ?? undefined,
     especialidade: dados.especialidade ?? undefined
@@ -100,7 +261,8 @@ async function salvarEImprimir() {
       body: {
         dados: {
           data: data.value,
-          descricao: descricao.value.trim()
+          descricao: descricaoProcedimentos.value,
+          procedimentos: procedimentosSelecionados.value
         }
       }
     })
@@ -118,6 +280,11 @@ async function salvarEImprimir() {
     salvando.value = false
   }
 }
+
+onUnmounted(() => {
+  if (buscaProcedimentoTimeout) clearTimeout(buscaProcedimentoTimeout)
+  procedimentosController?.abort()
+})
 </script>
 
 <template>
@@ -155,15 +322,119 @@ async function salvarEImprimir() {
           />
         </UFormField>
 
-        <UFormField label="Descrição do procedimento">
-          <UTextarea
-            v-model="descricao"
-            placeholder="Descreva o procedimento solicitado..."
-            class="w-full"
-            :disabled="!podeEditar"
-            :rows="6"
-          />
+        <UFormField label="Procedimentos">
+          <div class="flex gap-2">
+            <UInputMenu
+              v-model="procedimentoSelecionado"
+              v-model:search-term="buscaTermoProcedimento"
+              :items="sugestoesProcedimentos"
+              :loading="carregandoProcedimentos"
+              label-key="nome"
+              placeholder="Buscar procedimento por nome, código ou tipo..."
+              icon="i-lucide-search"
+              clear
+              ignore-filter
+              :disabled="!podeEditar"
+              class="flex-1 w-full"
+            >
+              <template #item-label="{ item }">
+                <div class="min-w-0 flex flex-col">
+                  <span class="text-sm truncate">{{ procedimentoLabel(item) }}</span>
+                  <span
+                    v-if="item.tipo_ato_nome"
+                    class="text-xs text-muted truncate"
+                  >
+                    {{ item.tipo_ato_nome }}
+                  </span>
+                </div>
+              </template>
+              <template #empty>
+                <p
+                  v-if="buscaTermoProcedimento"
+                  class="px-3 py-4 text-sm text-muted text-center"
+                >
+                  Nenhum procedimento encontrado
+                </p>
+              </template>
+            </UInputMenu>
+            <UButton
+              icon="i-lucide-plus"
+              label="Adicionar"
+              color="primary"
+              variant="soft"
+              :disabled="!podeEditar || !procedimentoSelecionado"
+              @click="adicionarProcedimento(procedimentoSelecionado)"
+            />
+          </div>
         </UFormField>
+
+        <UCard
+          :ui="{ body: 'p-3' }"
+        >
+          <template #title>
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium">Procedimentos selecionados</span>
+              <span class="text-xs text-muted">{{ procedimentosSelecionados.length }} procedimento(s)</span>
+            </div>
+          </template>
+
+          <div
+            v-if="procedimentosSelecionados.length"
+            class="space-y-2"
+          >
+            <div
+              v-for="(procedimento, index) in procedimentosSelecionados"
+              :key="procedimento.procedimento_id ?? `${procedimento.nome}-${index}`"
+              class="flex items-start justify-between gap-3 p-3 rounded-lg border border-muted"
+            >
+              <div class="min-w-0 space-y-1">
+                <p class="text-sm font-medium truncate">
+                  {{ procedimentoLabel(procedimento) }}
+                </p>
+                <div class="flex flex-wrap gap-2">
+                  <UBadge
+                    v-if="procedimento.tipo_ato_nome"
+                    size="xs"
+                    color="neutral"
+                    variant="soft"
+                  >
+                    {{ procedimento.tipo_ato_nome }}
+                  </UBadge>
+                  <UBadge
+                    v-if="procedimento.exige_autorizacao"
+                    size="xs"
+                    color="warning"
+                    variant="soft"
+                  >
+                    Exige autorização
+                  </UBadge>
+                  <UBadge
+                    v-if="!procedimento.procedimento_id"
+                    size="xs"
+                    color="neutral"
+                    variant="outline"
+                  >
+                    Legado
+                  </UBadge>
+                </div>
+              </div>
+              <UButton
+                v-if="podeEditar"
+                icon="i-lucide-x"
+                color="error"
+                variant="ghost"
+                size="sm"
+                @click="removerProcedimentoDaLista(index)"
+              />
+            </div>
+          </div>
+          <p
+            v-else
+            class="text-sm text-muted italic py-4 text-center"
+          >
+            Nenhum procedimento selecionado.
+          </p>
+        </UCard>
       </div>
     </template>
 
