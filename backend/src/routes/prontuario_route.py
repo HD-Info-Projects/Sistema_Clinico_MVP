@@ -381,12 +381,26 @@ def _executar_historico_biodata(where_clause, params, limit, offset):
         ORDER BY RN;
     """
 
-    with ConnectionSqlServer() as con:
-        cursor = con.cursor()
-        cursor.execute(sql, [*params, row_start, row_end])
-        columns = [desc[0] for desc in cursor.description]
-        rows = cursor.fetchall()
-        cursor.close()
+    rows = None
+    last_error = None
+    for host in ConnectionSqlServer.ordered_hosts():
+        try:
+            with ConnectionSqlServer(host=host) as con:
+                cursor = con.cursor()
+                cursor.execute(sql, [*params, row_start, row_end])
+                columns = [desc[0] for desc in cursor.description]
+                rows = cursor.fetchall()
+                cursor.close()
+            break
+        except Exception as e:
+            rows = None
+            last_error = e
+            continue
+
+    if rows is None:
+        if last_error is not None:
+            raise last_error
+        rows = []
 
     items = [
         {

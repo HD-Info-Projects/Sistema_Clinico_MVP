@@ -6,6 +6,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+_last_success_host = None
+
 
 def _get_env(name, default=None, required=False):
     value = os.getenv(name)
@@ -18,10 +20,20 @@ def _get_env(name, default=None, required=False):
     return default
 
 
+def _parse_hosts(raw):
+    return [host.strip() for host in raw.split(",") if host.strip()]
+
+
 class ConnectionSqlServer:
 
-    def __init__(self):
-        self.host = _get_env("SQLSERVER_HOST", required=True)
+    def __init__(self, host=None):
+        self.hosts = _parse_hosts(_get_env("SQLSERVER_HOST", required=True))
+        if not self.hosts:
+            raise RuntimeError("SQLSERVER_HOST ausente ou vazio")
+
+        if host is not None:
+            self.hosts = [host]
+
         self.port = _get_env("SQLSERVER_PORT", default="1433")
         self.database = _get_env("SQLSERVER_DATABASE", default="master")
         self.user = _get_env("SQLSERVER_USER", required=True)
@@ -57,12 +69,43 @@ class ConnectionSqlServer:
             f"Connection Timeout={self.timeout}",
         ])
 
+    @classmethod
+    def ordered_hosts(cls):
+        hosts = _parse_hosts(_get_env("SQLSERVER_HOST", required=True))
+        if not hosts:
+            raise RuntimeError("SQLSERVER_HOST ausente ou vazio")
+
+        if _last_success_host in hosts and hosts[0] != _last_success_host:
+            hosts = [_last_success_host] + [h for h in hosts if h != _last_success_host]
+
+        return hosts
+
     def _connect(self):
-        self._connection = pyodbc.connect(
-            self._connection_string(),
-            timeout=self.timeout,
-        )
-        self._connection.timeout = self.timeout
+        global _last_success_host
+
+        hosts = self.hosts
+        if _last_success_host in hosts and hosts[0] != _last_success_host:
+            hosts = [_last_success_host] + [h for h in hosts if h != _last_success_host]
+
+        last_error = None
+        for host in hosts:
+            self.host = host
+            try:
+                self._connection = pyodbc.connect(
+                    self._connection_string(),
+                    timeout=self.timeout,
+                )
+                self._connection.timeout = self.timeout
+                _last_success_host = host
+                return
+            except Exception as e:
+                last_error = e
+                continue
+
+        if last_error is not None:
+            raise last_error
+
+        raise RuntimeError("Nenhum host SQL Server configurado")
 
     def cursor(self):
         return self._connection.cursor()
@@ -86,19 +129,24 @@ class ConnectionSqlServer:
 
 
 def test_connection():
-    try:
-        with ConnectionSqlServer() as con:
-            cursor = con.cursor()
-            cursor.execute("SELECT 1")
-            result = cursor.fetchone()
-            cursor.close()
+    last_error = None
+    for host in ConnectionSqlServer.ordered_hosts():
+        try:
+            with ConnectionSqlServer(host=host) as con:
+                cursor = con.cursor()
+                cursor.execute("SELECT 1")
+                result = cursor.fetchone()
+                cursor.close()
 
-        print("Conexão SQL Server OK:", result[0])
-        return True
+            print("Conexão SQL Server OK:", result[0], f"(host: {host})")
+            return True
 
-    except Exception as e:
-        print("Erro ao conectar no SQL Server:", e)
-        return False
+        except Exception as e:
+            last_error = e
+            print("Falha no host:", host, "-", e)
+
+    print("Erro ao conectar no SQL Server:", last_error)
+    return False
 
 
 if __name__ == "__main__":
