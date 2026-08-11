@@ -12,6 +12,14 @@ type AgendamentoStatusEvent = {
   pacienteId?: number
 }
 
+type ConsultaStatusPayload = {
+  anamnese?: string
+  diagnosticos?: { cid: string, descricao?: string, principal: boolean }[]
+  medicamentos?: string
+  exames?: ExameConsultaPayload[]
+  duracao?: number
+}
+
 export const useAgendamentosStore = defineStore('agendamentos', () => {
   const agendamentos = ref<AgendamentoComPaciente[]>([])
   const loading = ref(true)
@@ -144,9 +152,16 @@ export const useAgendamentosStore = defineStore('agendamentos', () => {
     await fetchAgendamentos(clinicaId, data, medicoId)
   }
 
-  async function atualizarStatus(id: number, status: AgendamentoStatus, consulta?: { anamnese?: string, diagnosticos?: { cid: string, descricao?: string, principal: boolean }[], medicamentos?: string, exames?: ExameConsultaPayload[], duracao?: number }) {
+  async function atualizarStatus(id: number, status: AgendamentoStatus, consulta?: ConsultaStatusPayload, clinicaId?: number) {
     try {
-      const atualizado = await $fetch<AgendamentoComPaciente>(`/api/agendamentos/${id}`, {
+      const clinicaIdEfetiva = clinicaId
+        ?? agendamentos.value.find(a => a.id === id)?.clinicaId
+        ?? filtrosAtuais.clinicaId
+      const params = new URLSearchParams()
+      if (clinicaIdEfetiva) params.set('clinicaId', String(clinicaIdEfetiva))
+      const qs = params.toString()
+
+      const atualizado = await $fetch<AgendamentoComPaciente>(`/api/agendamentos/${id}${qs ? `?${qs}` : ''}`, {
         method: 'PATCH',
         body: { status, consulta }
       })

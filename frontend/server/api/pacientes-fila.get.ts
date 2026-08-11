@@ -37,10 +37,6 @@ export default defineEventHandler(async (event) => {
       }
     })
   } catch (error) {
-    throw createError({
-      statusCode: 502,
-      statusMessage: 'Falha ao conectar com o backend Flask',
-      data: String(error)
-    })
+    throwProxyError(error, 'Falha ao carregar pacientes no backend Flask')
   }
 })

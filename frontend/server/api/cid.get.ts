@@ -16,7 +16,8 @@ export default defineEventHandler(async (event) => {
     const qs = params.toString()
     const raw = await flaskFetch<{ items: Record<string, unknown>[] }>(
       event,
-      `/prontuario/doenca-cid?${qs}`
+      `/prontuario/doenca-cid?${qs}`,
+      { activeClinica: false }
     )
 
     return raw.items.map((item: Record<string, unknown>) => ({
@@ -24,10 +25,6 @@ export default defineEventHandler(async (event) => {
       nome: item.DOENCA
     }))
   } catch (error) {
-    throw createError({
-      statusCode: 502,
-      statusMessage: 'Falha ao conectar com o backend Flask',
-      data: String(error)
-    })
+    throwProxyError(error, 'Falha ao buscar CID no backend Flask')
   }
 })

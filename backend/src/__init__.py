@@ -4,6 +4,7 @@ from .settings.config import Config
 from .settings.extensions import db, migrate, jwt, cors, limiter
 
 from src.commands.exames_commands import importar_exames_spdata_command
+from src.commands.procedimentos_commands import importar_procedimentos_spdata_command
 from src.commands.convenios_commands import (
     exportar_logos_tiss_command,
     importar_convenios_spdata_command,
@@ -34,6 +35,7 @@ def create_app():
         }), 429
 
     app.cli.add_command(importar_exames_spdata_command)
+    app.cli.add_command(importar_procedimentos_spdata_command)
     app.cli.add_command(importar_convenios_spdata_command)
     app.cli.add_command(exportar_logos_tiss_command)
     app.cli.add_command(importar_especialidades_spdata_command)
@@ -67,6 +69,7 @@ def create_app():
     from src.models.model_mydsystem.med_atendimentos_model import MedAtendimentos
     from src.models.model_mydsystem.med_spdata_convenios_model import MedSpdataConvenio
     from src.models.model_mydsystem.med_spdata_especialidades_model import MedSpdataEspecialidade
+    from src.models.model_mydsystem.med_procedimentos_model import Procedimento
 
     # Modelos Médicos:
     from src.models.model_padroes_solicitacoes.modelo_receita_model import ModeloReceita
@@ -92,6 +95,7 @@ def create_app():
     from src.routes.modelo_orientacao_exame_route import padrao_medico_orientacao_exame_bp
     from src.routes.agenda_medica_route import agenda_medica_bp
     from src.routes.exames_route import exames_bp
+    from src.routes.procedimentos_route import procedimentos_bp
     from src.routes.no_show_route import no_show_bp
     from src.routes.retencao_exames_route import retencao_exames_bp
     from src.routes.tts_route import tts_bp
@@ -108,6 +112,7 @@ def create_app():
     app.register_blueprint(padrao_medico_orientacao_exame_bp)
     app.register_blueprint(agenda_medica_bp)
     app.register_blueprint(exames_bp)
+    app.register_blueprint(procedimentos_bp)
     app.register_blueprint(no_show_bp)
     app.register_blueprint(retencao_exames_bp)
     app.register_blueprint(tts_bp)

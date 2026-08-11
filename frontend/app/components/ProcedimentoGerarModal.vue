@@ -288,7 +288,10 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <UModal v-model:open="open">
+  <UModal
+    v-model:open="open"
+    fullscreen
+  >
     <template #header>
       <div class="flex items-center justify-between">
         <h2 class="text-lg font-semibold">

@@ -7,12 +7,8 @@ export default defineEventHandler(async (event) => {
     : '/procedimentos/buscar'
 
   try {
-    return await flaskFetch(event, endpoint)
+    return await flaskFetch(event, endpoint, { activeClinica: false })
   } catch (e) {
-    throw createError({
-      statusCode: 502,
-      statusMessage: 'Falha ao buscar procedimentos',
-      data: String(e)
-    })
+    throwProxyError(e, 'Falha ao buscar procedimentos')
   }
 })

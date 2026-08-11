@@ -4,12 +4,13 @@ import type {
   DocumentoMedicoTipo,
   ExameCatalogo,
   ExameSelecionado,
+  HistoricoLocalRecord,
   PadraoAnamnese,
   PadraoExame,
   PadraoReceita
 } from '~/types'
 import { usePdfMake } from '~/utils/pdf'
-import { buildSolicitacaoExames, buildReceita, buildReceitaEspecial, buildAtestadoComparecimento } from '~/utils/pdf-documents'
+import { buildSolicitacaoExames, buildReceita, buildReceitaEspecialDupla, buildAtestadoComparecimento } from '~/utils/pdf-documents'
 import { gerarHtmlGuiaTiss, imprimirGuiaTiss } from '~/utils/guia-tiss'
 
 const auth = useAuthStore()
@@ -32,6 +33,52 @@ onBeforeRouteLeave(() => {
 })
 
 const agendamento = computed(() => agendamentosStore.emAtendimento)
+const route = useRoute()
+
+const modoEdicao = computed(() => {
+  const id = Number(route.query.id)
+  return Number.isInteger(id) && id > 0 ? id : null
+})
+
+async function carregarConsultaExistente() {
+  const ag = agendamento.value
+  const edicaoId = modoEdicao.value
+  if (!ag || !edicaoId || ag.id !== edicaoId) return
+  if (!import.meta.client) return
+
+  try {
+    const registros = await $fetch<HistoricoLocalRecord[]>(
+      `/api/historico-local/${ag.paciente.id}`,
+      {
+        query: { spdataAtendimentoId: ag.spdataAtendimentoId ?? undefined }
+      }
+    )
+    const registro = registros?.[0]
+    if (!registro) return
+
+    anamneseTexto.value = registro.anamnese ?? ''
+
+    const cids: CidResultado[] = []
+    if (registro.cid_principal) {
+      cids.push({
+        cid: registro.cid_principal,
+        nome: registro.cid_principal_descricao ?? ''
+      })
+    }
+    for (const s of registro.cids_secundarios ?? []) {
+      if (s?.codigo) cids.push({ cid: s.codigo, nome: s.descricao ?? '' })
+    }
+    cidSelecionadoLista.value = cids
+
+    receitaTexto.value = (registro.medicamentos ?? []).join('\n')
+
+    examesSelecionados.value = (registro.exames ?? [])
+      .map(e => normalizarExameSelecionado(e))
+      .filter((e): e is ExameSelecionado => e !== null)
+  } catch (error) {
+    console.error('Erro ao carregar consulta para edição', error)
+  }
+}
 const documentosMedicos = shallowRef<Partial<Record<DocumentoMedicoTipo, DocumentoMedico>>>({})
 let documentosMedicosRequestId = 0
 
@@ -132,6 +179,7 @@ const cidSelecionadoLista = ref<CidResultado[]>([])
 const cidTempSelecionado = ref<CidResultado | null>(null)
 const cidPrincipalIndex = ref(0)
 const isLoadingCid = ref(false)
+const erroBuscaCid = ref('')
 
 watch(searchCid, (val) => {
   onSearchInput(val)
@@ -155,6 +203,23 @@ function limparResultadosCid() {
   cidRequestId++
   cidController?.abort()
   resultadosCid.value = []
+  erroBuscaCid.value = ''
+  isLoadingCid.value = false
+}
+
+function mensagemErroFetch(error: unknown, fallback: string) {
+  const fetchError = error as {
+    data?: { error?: string, message?: string, statusMessage?: string }
+    response?: { _data?: { error?: string, message?: string, statusMessage?: string } }
+    message?: string
+  }
+  const data = fetchError.response?._data ?? fetchError.data
+
+  return data?.error
+    || data?.message
+    || data?.statusMessage
+    || fetchError.message
+    || fallback
 }
 
 async function buscarCid(q: string) {
@@ -171,6 +236,7 @@ async function buscarCid(q: string) {
   cidController = new AbortController()
 
   isLoadingCid.value = true
+  erroBuscaCid.value = ''
 
   try {
     const data = await $fetch<CidResultado[]>('/api/cid', {
@@ -192,8 +258,9 @@ async function buscarCid(q: string) {
     if (requestId !== cidRequestId) return
 
     resultadosCid.value = []
+    erroBuscaCid.value = mensagemErroFetch(error, 'Não foi possível buscar CID no momento.')
   } finally {
-    isLoadingCid.value = false
+    if (requestId === cidRequestId) isLoadingCid.value = false
   }
 }
 
@@ -261,6 +328,7 @@ const exameSelecionado = ref<ExameCatalogo | null>(null)
 const buscaTermoExame = ref('')
 const sugestoesExames = ref<ExameCatalogo[]>([])
 const carregandoExames = ref(false)
+const erroBuscaExames = ref('')
 const exameTemplateSelected = ref<{ label: string, value: PadraoExame }>()
 const caraterAtendimento = ref(false)
 
@@ -282,15 +350,25 @@ watch(exameSelecionado, (val) => {
 watch(buscaTermoExame, (val) => {
   if (buscaExameTimeout) clearTimeout(buscaExameTimeout)
 
-  if (!val || val.length < 2) {
-    sugestoesExames.value = []
+  const termo = val.trim()
+
+  if (termo.length < 2) {
+    limparSugestoesExames()
     return
   }
 
   buscaExameTimeout = setTimeout(() => {
-    buscarExames(val)
+    buscarExames(termo)
   }, 300)
 })
+
+function limparSugestoesExames() {
+  examesRequestId++
+  examesController?.abort()
+  sugestoesExames.value = []
+  erroBuscaExames.value = ''
+  carregandoExames.value = false
+}
 
 async function buscarExames(q: string) {
   const termo = q.trim()
@@ -301,6 +379,7 @@ async function buscarExames(q: string) {
   examesController = new AbortController()
 
   carregandoExames.value = true
+  erroBuscaExames.value = ''
   try {
     const data = await $fetch<{ exames: ExameCatalogo[] }>('/api/exames/buscar', {
       query: { q: termo },
@@ -315,8 +394,9 @@ async function buscarExames(q: string) {
     if (error instanceof Error && error.name === 'AbortError') return
     if (requestId !== examesRequestId) return
     sugestoesExames.value = []
+    erroBuscaExames.value = mensagemErroFetch(error, 'Não foi possível buscar exames no momento.')
   } finally {
-    carregandoExames.value = false
+    if (requestId === examesRequestId) carregandoExames.value = false
   }
 }
 
@@ -395,7 +475,7 @@ function adicionarExame(valor: unknown) {
   examesSelecionados.value.push(exame)
   exameSelecionado.value = null
   buscaTermoExame.value = ''
-  sugestoesExames.value = []
+  limparSugestoesExames()
 }
 
 function adicionarOrientacao(valor: ExameSelecionado) {
@@ -628,8 +708,28 @@ watch(
   draftKey,
   (key) => {
     if (!key) return
+
+    if (modoEdicao.value) {
+      draftDesativado = true
+      draftStorage().removeItem(key)
+      localStorage.removeItem(key)
+      draftSalvoEm.value = null
+      draftRestaurado.value = false
+      return
+    }
+
     draftDesativado = false
     restaurarDraft()
+  },
+  { immediate: true }
+)
+
+watch(
+  () => [modoEdicao.value, agendamento.value?.id] as const,
+  ([edicaoId, agendamentoId]) => {
+    if (edicaoId && edicaoId === agendamentoId && import.meta.client) {
+      void carregarConsultaExistente()
+    }
   },
   { immediate: true }
 )
@@ -665,7 +765,7 @@ async function gerarReceitaPdf() {
 async function gerarReceitaEspecialPdf() {
   if (!receitaTexto.value.trim()) return
   const pdfMake = await usePdfMake()
-  const doc = await buildReceitaEspecial({
+  const doc = await buildReceitaEspecialDupla({
     paciente: agendamento.value?.paciente.nome ?? 'Paciente',
     data: new Date().toLocaleDateString('pt-BR'),
     medicamentos: [],
@@ -734,6 +834,34 @@ async function gerarComparecimento() {
   pdfMake.createPdf(doc).open()
 }
 
+const cancelandoConsulta = ref(false)
+const modalCancelarAberto = ref(false)
+
+async function cancelarAtendimento() {
+  if (!agendamento.value || cancelandoConsulta.value) return
+
+  cancelandoConsulta.value = true
+  const agendamentoAtual = agendamento.value
+
+  try {
+    await agendamentosStore.atualizarStatus(agendamentoAtual.id, 'cancelado', undefined, agendamentoAtual.clinicaId)
+    limparDraft()
+    cronometro.stop()
+    modalCancelarAberto.value = false
+    await navigateTo('/dashboard', { replace: true })
+  } catch (error) {
+    console.error('Erro ao cancelar atendimento', error)
+    toast.add({
+      title: 'Erro ao cancelar atendimento',
+      description: 'Não foi possível devolver o paciente à fila. Tente novamente.',
+      color: 'error',
+      icon: 'i-lucide-alert-circle'
+    })
+  } finally {
+    cancelandoConsulta.value = false
+  }
+}
+
 async function finalizarConsulta() {
   if (!agendamento.value || finalizandoConsulta.value) return
 
@@ -758,7 +886,7 @@ async function finalizarConsulta() {
         orientacao: e.orientacao ?? null
       })),
       duracao
-    })
+    }, agendamentoAtual.clinicaId)
     limparDraft()
     cronometro.stop()
     await navigateTo('/dashboard', { replace: true })
@@ -897,7 +1025,13 @@ async function finalizarConsulta() {
                 </template>
                 <template #empty>
                   <p
-                    v-if="searchCid"
+                    v-if="erroBuscaCid"
+                    class="px-3 py-4 text-sm text-error text-center"
+                  >
+                    {{ erroBuscaCid }}
+                  </p>
+                  <p
+                    v-else-if="searchCid"
                     class="px-3 py-4 text-sm text-muted text-center"
                   >
                     Nenhum CID encontrado
@@ -1128,6 +1262,20 @@ async function finalizarConsulta() {
                         {{ item.codigo_alfanumerico ? `${item.codigo_alfanumerico} — ` : '' }}{{ item.nome }}{{ item.codigo_amb ? ` (${item.codigo_amb})` : '' }}
                       </span>
                     </template>
+                    <template #empty>
+                      <p
+                        v-if="erroBuscaExames"
+                        class="px-3 py-4 text-sm text-error text-center"
+                      >
+                        {{ erroBuscaExames }}
+                      </p>
+                      <p
+                        v-else-if="buscaTermoExame.trim().length >= 2"
+                        class="px-3 py-4 text-sm text-muted text-center"
+                      >
+                        Nenhum exame encontrado
+                      </p>
+                    </template>
                   </UInputMenu>
                   <UButton
                     icon="i-lucide-plus"
@@ -1266,8 +1414,18 @@ async function finalizarConsulta() {
             </div>
           </UCard>
           <UCard
-            :ui="{ body: 'flex justify-center' }"
+            :ui="{ body: 'flex justify-center gap-4' }"
           >
+            <UButton
+              icon="i-lucide-x-circle"
+              label="Cancelar atendimento"
+              color="error"
+              size="xl"
+              class="p-3 text-lg font-bold min-w-110"
+              :loading="cancelandoConsulta"
+              :disabled="cancelandoConsulta"
+              @click="void (modalCancelarAberto = true)"
+            />
             <UButton
               icon="i-lucide-check-circle"
               label="Finalizar Consulta"
@@ -1310,6 +1468,15 @@ async function finalizarConsulta() {
       :agendamento="agendamento"
       :data-atendimento="agendamento?.data"
       @saved="salvarOrientacaoExame"
+    />
+    <ModalConfirmacao
+      :abrir="modalCancelarAberto"
+      titulo="Cancelar atendimento?"
+      descricao="O paciente será devolvido à fila de espera e o atendimento atual será descartado. Tem certeza?"
+      texto-confirma="Cancelar Atendimento"
+      cor-confirma="error"
+      @fechar="modalCancelarAberto = false"
+      @confirmar="void cancelarAtendimento()"
     />
   </div>
 </template>
