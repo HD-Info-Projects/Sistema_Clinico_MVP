@@ -31,31 +31,33 @@ const navItems = [
       />
 
       <template #footer>
-        <div class="mb-2 space-y-2 px-2">
-          <UBadge
-            :label="unidadeAtivaLabel"
-            color="primary"
-            variant="soft"
-            class="w-full justify-center"
-          />
+        <div class="felx flex-col gap-2 w-full">
+          <div class="mb-2 flex flex-col gap-2 px-2">
+            <UBadge
+              :label="unidadeAtivaLabel"
+              color="primary"
+              variant="soft"
+              class="w-full justify-center"
+            />
+            <UButton
+              v-if="podeTrocarUnidade"
+              icon="i-lucide-building-2"
+              label="Trocar unidade"
+              color="neutral"
+              variant="ghost"
+              class="w-full justify-start"
+              to="/selecionar-clinica"
+            />
+          </div>
           <UButton
-            v-if="podeTrocarUnidade"
-            icon="i-lucide-building-2"
-            label="Trocar unidade"
+            icon="i-lucide-log-out"
+            label="Sair"
             color="neutral"
             variant="ghost"
             class="w-full justify-start"
-            to="/selecionar-clinica"
+            @click="auth.logout()"
           />
         </div>
-        <UButton
-          icon="i-lucide-log-out"
-          label="Sair"
-          color="neutral"
-          variant="ghost"
-          class="w-full justify-start"
-          @click="auth.logout()"
-        />
       </template>
     </USidebar>
 
