@@ -1,4 +1,3 @@
-import json
 import re
 from datetime import date, datetime, time, timedelta
 
@@ -8,9 +7,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import selectinload
 
 from src.security.decorators import roles_required
-from src.models.db.handler_fb_db import ConnectionDBFireBird
 from src.models.db.handler_sql_server import ConnectionSqlServer
-from src.models.db.handler_redis_db import ConnectionDBRedis
 from src.settings.extensions import db
 from src.models.atendimentos_model import Atendimento
 from src.models.anamnese_model import Anamnese
@@ -21,6 +18,7 @@ from src.models.evolucoes_medicas_model import EvolucaoMedica
 from src.models.model_mydsystem.med_spdata_atendimentos_model import MedSpdataAtendimento
 from src.models.model_mydsystem.med_spdata_agenda_model import MedSpdataAgenda
 from src.services.spdata_atendimentos_service import get_crm_medico_usuario
+from src.services.cids_service import buscar_cids_locais
 from src.security.unidades import unidade_id_request
 from src.services.unidades_service import resolver_unidade_usuario
 from src.utils.normalizar import normalizar_cpf
@@ -28,7 +26,6 @@ from src.utils.normalizar import normalizar_cpf
 
 prontuario_bp = Blueprint("prontuario", __name__, url_prefix="/prontuario")
 
-CID_CACHE_TTL = 3600
 CID_CODE_PATTERN = re.compile(r"^[A-Za-z][0-9.]*$")
 RTF_DESTINATIONS = {
     "fonttbl", "colortbl", "datastore", "themedata", "stylesheet", "info",
@@ -480,64 +477,18 @@ def doenca_cid():
                 "has_more": False
             }), 200
 
-        cache_key = f"prontuario:cid:{'codigo' if is_codigo_cid else 'nome'}:{q.casefold()}:{limit}:{offset}"
-        redis_connection = ConnectionDBRedis()
-
-        cached = redis_connection.get_cache(cache_key)
-        if cached is not None:
-            return jsonify(json.loads(cached)), 200
-
-        row_start = offset + 1
-        row_end = offset + limit
-
-        where = [
-            "COD IS NOT NULL",
-            "NOME IS NOT NULL"
-        ]
-        params = []
-
-        if is_codigo_cid:
-            where.append("COD STARTING WITH ?")
-            params.append(q.upper())
-        else:
-            where.append("NOME CONTAINING ?")
-            params.append(q)
-
-        sql = f"""
-            SELECT
-                COD AS CID,
-                NOME AS DOENCA
-            FROM TBCID10
-            WHERE {' AND '.join(where)}
-            ORDER BY COD
-            ROWS {row_start} TO {row_end};
-        """
-
-        with ConnectionDBFireBird() as con:
-            cursor = con.cursor()
-            cursor.execute(sql, params)
-
-            columns = [desc[0] for desc in cursor.description]
-            rows = cursor.fetchall()
-            result = [dict(zip(columns, row)) for row in rows]
-
-        response = {
-            "items": result,
-            "limit": limit,
-            "offset": offset,
-            "has_more": len(result) == limit
-        }
-
-        redis_connection.set_cache(
-            cache_key,
-            json.dumps(response, default=str),
-            ttl=CID_CACHE_TTL
+        response = buscar_cids_locais(
+            q,
+            limit=limit,
+            offset=offset,
+            is_codigo_cid=is_codigo_cid,
         )
 
         return jsonify(response), 200
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    except Exception:
+        current_app.logger.exception("Erro ao buscar CIDs locais")
+        return jsonify({"error": "Erro ao buscar CIDs."}), 500
 
 
 @prontuario_bp.route("/historico-local/<int:paciente_id>")

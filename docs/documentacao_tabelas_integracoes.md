@@ -24,7 +24,7 @@ Este documento lista as tabelas externas e locais usadas pelo sistema, separadas
 | `TBCONVEN` | Cadastro de convenios. Traz nome, codigo, situacao e registro ANS. |
 | `SITABPRO` | Cadastro de exames/procedimentos. Usada para importar exames para o sistema local. |
 | `TBTISS` | Logos/imagens TISS dos convenios. Usada para exportar logos dos convenios. |
-| `TBCID10` | Cadastro de CID-10. Usada na busca de doencas/CID no prontuario. |
+| `TBCID10` | Cadastro de CID-10. Fonte da importacao para o espelho local `MED_SPDATA_CIDS`. |
 | `RDB$DATABASE` | Usada apenas para testar conexao Firebird. |
 
 ## BioData / SQL Server
@@ -55,6 +55,7 @@ Este documento lista as tabelas externas e locais usadas pelo sistema, separadas
 | `MED_ATENDIMENTOS` | Controle local do atendimento medico sobre registros vindos do SPDATA, incluindo status local. |
 | `MED_SPDATA_CONVENIOS` | Espelho local dos convenios do SPDATA `TBCONVEN`. |
 | `MED_SPDATA_ESPECIALIDADES` | Espelho local das especialidades do SPDATA `TBESPEC`. |
+| `MED_SPDATA_CIDS` | Espelho local dos CIDs do SPDATA `TBCID10`. Usada na busca de doencas/CID no prontuario. |
 | `MODELO_ANAMNESE` | Modelos/padroes de anamnese criados por medico. |
 | `MODELO_SOLICITACAO_RECEITA` | Modelos de receita/prescricao. |
 | `MEDICAMENTOS_MODELO_RECEITA` | Medicamentos vinculados aos modelos de receita. |
@@ -74,6 +75,7 @@ Este documento lista as tabelas externas e locais usadas pelo sistema, separadas
 | Prontuario local | `anamneses`, `evolucoes_medicas`, `diagnosticos`, `prescricoes`, `solicitacoes_exames`, `documentos_medicos` |
 | Historico antigo BioData | `[BioData].[dbo].[tblAnamnese]`, `[Repositorio].[dbo].[tblCliente]`, `[BioData].[dbo].[tblProfissional]` |
 | Exames | `SITABPRO`, `exames`, `solicitacoes_exames` |
+| CIDs | `TBCID10`, `MED_SPDATA_CIDS`, `diagnosticos` |
 | Convenios | `TBCONVEN`, `MED_SPDATA_CONVENIOS`, `TBTISS` |
 | Medicos | `TBPROFIS`, `TBCBOPRO`, `TBMEDESP`, `medicos`, `usuarios` |
 | Especialidades | `TBESPEC`, `MED_SPDATA_ESPECIALIDADES` |
