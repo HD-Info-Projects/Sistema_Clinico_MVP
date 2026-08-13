@@ -216,3 +216,4 @@ __marimo__/
 
 backend/.env
 frontend/.env
+docker-compose.override.yml
