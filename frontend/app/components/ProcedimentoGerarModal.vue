@@ -16,6 +16,13 @@ const emit = defineEmits<{
 
 const open = defineModel<boolean>('open', { default: false })
 
+const tabAtiva = ref('0')
+
+const tabItems = [
+  { label: 'Internação', icon: 'i-lucide-notebook-text' },
+  { label: 'OPME', icon: 'i-lucide-flask-conical' }
+]
+
 const agendamentosStore = useAgendamentosStore()
 const toast = useToast()
 
@@ -37,6 +44,32 @@ const sugestoesProcedimentos = ref<ProcedimentoCatalogo[]>([])
 const procedimentosSelecionados = ref<ProcedimentoSelecionado[]>([])
 const carregandoProcedimentos = ref(false)
 const salvando = ref(false)
+
+const convenioNaoParticular = computed(() => {
+  const convenio = (paciente.value?.convenio ?? '').toLowerCase().trim()
+  return Boolean(convenio && convenio !== 'particular')
+})
+
+const tiposInternacao = [
+  '1 - clínica',
+  '2 - cirurgia',
+  '3 - obstétrica',
+  '4 - pediátrica',
+  '5 - psiquiátrica'
+]
+
+const regimesInternacao = [
+  '1 - hospitalar',
+  '2 - hospital-dia',
+  '3 - domiciliar'
+]
+
+const caraterInternacao = ref(false)
+const tipoInternacao = ref<string | undefined>(undefined)
+const regimeInternacao = ref<string | undefined>(undefined)
+const quantidadeDiarias = ref<number | null>(null)
+const indicacaoClinica = ref('')
+const opmeSolicitados = ref('')
 
 let buscaProcedimentoTimeout: ReturnType<typeof setTimeout> | null = null
 let procedimentosController: AbortController | null = null
@@ -307,137 +340,237 @@ onUnmounted(() => {
     </template>
 
     <template #body>
-      <div class="space-y-4 p-4">
-        <UFormField label="Paciente">
-          <UInput
-            :model-value="paciente?.nome ?? '—'"
-            disabled
-            class="w-full"
-          />
-        </UFormField>
-
-        <UFormField label="Data">
-          <UInput
-            v-model="data"
-            type="date"
-            :disabled="!podeEditar"
-            class="w-full"
-          />
-        </UFormField>
-
-        <UFormField label="Procedimentos">
-          <div class="flex gap-2">
-            <UInputMenu
-              v-model="procedimentoSelecionado"
-              v-model:search-term="buscaTermoProcedimento"
-              :items="sugestoesProcedimentos"
-              :loading="carregandoProcedimentos"
-              label-key="nome"
-              placeholder="Buscar procedimento por nome, código ou tipo..."
-              icon="i-lucide-search"
-              clear
-              ignore-filter
-              :disabled="!podeEditar"
-              class="flex-1 w-full"
-            >
-              <template #item-label="{ item }">
-                <div class="min-w-0 flex flex-col">
-                  <span class="text-sm truncate">{{ procedimentoLabel(item) }}</span>
-                  <span
-                    v-if="item.tipo_ato_nome"
-                    class="text-xs text-muted truncate"
-                  >
-                    {{ item.tipo_ato_nome }}
-                  </span>
-                </div>
-              </template>
-              <template #empty>
-                <p
-                  v-if="buscaTermoProcedimento"
-                  class="px-3 py-4 text-sm text-muted text-center"
-                >
-                  Nenhum procedimento encontrado
-                </p>
-              </template>
-            </UInputMenu>
-            <UButton
-              icon="i-lucide-plus"
-              label="Adicionar"
-              color="primary"
-              variant="soft"
-              :disabled="!podeEditar || !procedimentoSelecionado"
-              @click="adicionarProcedimento(procedimentoSelecionado)"
-            />
-          </div>
-        </UFormField>
-
-        <UCard
-          :ui="{ body: 'p-3' }"
+      <div class="flex justify-center">
+        <UTabs
+          v-model="tabAtiva"
+          :items="tabItems"
+          color="primary"
+          size="lg"
+          :ui="{
+            content: 'grow min-h-0 flex flex-col',
+            list: 'bg-default/75 backdrop-blur border-b border-default rounded-tl-none rounded-tr-none'
+          }"
+          class="flex-1 overflow-hidden max-w-[60%]"
         >
-          <template #title>
-            <div class="flex items-center justify-between">
-              <span class="text-sm font-medium">Procedimentos selecionados</span>
-              <span class="text-xs text-muted">{{ procedimentosSelecionados.length }} procedimento(s)</span>
+          <template #content="{ index }">
+            <div
+              v-if="index === 0"
+              class="space-y-4 p-4"
+            >
+              <UFormField label="Paciente">
+                <UInput
+                  :model-value="paciente?.nome ?? '—'"
+                  disabled
+                  class="w-full"
+                />
+              </UFormField>
+
+              <UFormField label="Data">
+                <UInput
+                  v-model="data"
+                  type="date"
+                  :disabled="!podeEditar"
+                  class=""
+                />
+              </UFormField>
+
+              <UCard
+                v-if="convenioNaoParticular"
+                :ui="{ body: 'p-4 space-y-4' }"
+              >
+                <template #title>
+                  <p class="text-sm font-medium">
+                    Dados de Internação
+                  </p>
+                </template>
+
+                <UFormField label="Caráter de internação">
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm">
+                      {{ caraterInternacao ? 'U - Urgência/Emergência' : 'E - Eletiva' }}
+                    </span>
+                    <USwitch
+                      v-model="caraterInternacao"
+                      :disabled="!podeEditar"
+                    />
+                  </div>
+                </UFormField>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <UFormField label="Tipo de internação">
+                    <USelectMenu
+                      v-model="tipoInternacao"
+                      :items="tiposInternacao"
+                      placeholder="Selecione o tipo"
+                      :disabled="!podeEditar"
+                      class="w-full"
+                    />
+                  </UFormField>
+
+                  <UFormField label="Regime de internação">
+                    <USelectMenu
+                      v-model="regimeInternacao"
+                      :items="regimesInternacao"
+                      placeholder="Selecione o regime"
+                      :disabled="!podeEditar"
+                      class="w-full"
+                    />
+                  </UFormField>
+
+                  <UFormField label="Quantidade de diárias solicitadas">
+                    <UInput
+                      v-model="quantidadeDiarias"
+                      type="number"
+                      min="1"
+                      placeholder="1"
+                      :default-value="1"
+                      :disabled="!podeEditar"
+                      class="w-full"
+                    />
+                  </UFormField>
+                </div>
+
+                <UFormField label="Indicação clínica">
+                  <UTextarea
+                    v-model="indicacaoClinica"
+                    placeholder="Descreva a indicação clínica..."
+                    :rows="6"
+                    :disabled="!podeEditar"
+                    class="w-full"
+                  />
+                </UFormField>
+              </UCard>
+
+              <UFormField label="Procedimentos">
+                <div class="flex gap-2">
+                  <UInputMenu
+                    v-model="procedimentoSelecionado"
+                    v-model:search-term="buscaTermoProcedimento"
+                    :items="sugestoesProcedimentos"
+                    :loading="carregandoProcedimentos"
+                    label-key="nome"
+                    placeholder="Buscar procedimento por nome, código ou tipo..."
+                    icon="i-lucide-search"
+                    clear
+                    ignore-filter
+                    :disabled="!podeEditar"
+                    class="flex-1 w-full"
+                  >
+                    <template #item-label="{ item }">
+                      <div class="min-w-0 flex flex-col">
+                        <span class="text-sm truncate">{{ procedimentoLabel(item) }}</span>
+                        <span
+                          v-if="item.tipo_ato_nome"
+                          class="text-xs text-muted truncate"
+                        >
+                          {{ item.tipo_ato_nome }}
+                        </span>
+                      </div>
+                    </template>
+                    <template #empty>
+                      <p
+                        v-if="buscaTermoProcedimento"
+                        class="px-3 py-4 text-sm text-muted text-center"
+                      >
+                        Nenhum procedimento encontrado
+                      </p>
+                    </template>
+                  </UInputMenu>
+                  <UButton
+                    icon="i-lucide-plus"
+                    label="Adicionar"
+                    color="primary"
+                    variant="soft"
+                    :disabled="!podeEditar || !procedimentoSelecionado"
+                    @click="adicionarProcedimento(procedimentoSelecionado)"
+                  />
+                </div>
+              </UFormField>
+
+              <UCard
+                :ui="{ body: 'p-3' }"
+              >
+                <template #title>
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm font-medium">Procedimentos selecionados</span>
+                    <span class="text-xs text-muted">{{ procedimentosSelecionados.length }} procedimento(s)</span>
+                  </div>
+                </template>
+
+                <div
+                  v-if="procedimentosSelecionados.length"
+                  class="space-y-2"
+                >
+                  <div
+                    v-for="(procedimento, posicao) in procedimentosSelecionados"
+                    :key="procedimento.procedimento_id ?? `${procedimento.nome}-${posicao}`"
+                    class="flex items-start justify-between gap-3 p-3 rounded-lg border border-muted"
+                  >
+                    <div class="min-w-0 space-y-1">
+                      <p class="text-sm font-medium truncate">
+                        {{ procedimentoLabel(procedimento) }}
+                      </p>
+                      <div class="flex flex-wrap gap-2">
+                        <UBadge
+                          v-if="procedimento.tipo_ato_nome"
+                          size="xs"
+                          color="neutral"
+                          variant="soft"
+                        >
+                          {{ procedimento.tipo_ato_nome }}
+                        </UBadge>
+                        <UBadge
+                          v-if="procedimento.exige_autorizacao"
+                          size="xs"
+                          color="warning"
+                          variant="soft"
+                        >
+                          Exige autorização
+                        </UBadge>
+                        <UBadge
+                          v-if="!procedimento.procedimento_id"
+                          size="xs"
+                          color="neutral"
+                          variant="outline"
+                        >
+                          Legado
+                        </UBadge>
+                      </div>
+                    </div>
+                    <UButton
+                      v-if="podeEditar"
+                      icon="i-lucide-x"
+                      color="error"
+                      variant="ghost"
+                      size="sm"
+                      @click="removerProcedimentoDaLista(posicao)"
+                    />
+                  </div>
+                </div>
+                <p
+                  v-else
+                  class="text-sm text-muted italic py-4 text-center"
+                >
+                  Nenhum procedimento selecionado.
+                </p>
+              </UCard>
+            </div>
+            <div
+              v-if="index === 1"
+              class="space-y-4 p-4"
+            >
+              <UFormField label="OPME solicitados">
+                <UTextarea
+                  v-model="opmeSolicitados"
+                  placeholder="Liste as órteses, próteses e materiais especiais solicitados..."
+                  :rows="6"
+                  :disabled="!podeEditar"
+                  class="w-full"
+                />
+              </UFormField>
             </div>
           </template>
-
-          <div
-            v-if="procedimentosSelecionados.length"
-            class="space-y-2"
-          >
-            <div
-              v-for="(procedimento, index) in procedimentosSelecionados"
-              :key="procedimento.procedimento_id ?? `${procedimento.nome}-${index}`"
-              class="flex items-start justify-between gap-3 p-3 rounded-lg border border-muted"
-            >
-              <div class="min-w-0 space-y-1">
-                <p class="text-sm font-medium truncate">
-                  {{ procedimentoLabel(procedimento) }}
-                </p>
-                <div class="flex flex-wrap gap-2">
-                  <UBadge
-                    v-if="procedimento.tipo_ato_nome"
-                    size="xs"
-                    color="neutral"
-                    variant="soft"
-                  >
-                    {{ procedimento.tipo_ato_nome }}
-                  </UBadge>
-                  <UBadge
-                    v-if="procedimento.exige_autorizacao"
-                    size="xs"
-                    color="warning"
-                    variant="soft"
-                  >
-                    Exige autorização
-                  </UBadge>
-                  <UBadge
-                    v-if="!procedimento.procedimento_id"
-                    size="xs"
-                    color="neutral"
-                    variant="outline"
-                  >
-                    Legado
-                  </UBadge>
-                </div>
-              </div>
-              <UButton
-                v-if="podeEditar"
-                icon="i-lucide-x"
-                color="error"
-                variant="ghost"
-                size="sm"
-                @click="removerProcedimentoDaLista(index)"
-              />
-            </div>
-          </div>
-          <p
-            v-else
-            class="text-sm text-muted italic py-4 text-center"
-          >
-            Nenhum procedimento selecionado.
-          </p>
-        </UCard>
+        </UTabs>
       </div>
     </template>
 
