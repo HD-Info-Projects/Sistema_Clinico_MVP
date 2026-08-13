@@ -23,6 +23,8 @@ from src.models.evolucoes_medicas_model import EvolucaoMedica
 from src.models.model_mydsystem.med_spdata_atendimentos_model import MedSpdataAtendimento
 from src.models.model_mydsystem.med_spdata_agenda_model import MedSpdataAgenda
 from src.services.spdata_atendimentos_service import get_crm_medico_usuario
+from src.security.unidades import unidade_id_request
+from src.services.unidades_service import resolver_unidade_usuario
 from src.utils.normalizar import normalizar_cpf
 
 
@@ -107,8 +109,13 @@ def _referencia_autorizada_paciente(
     cpf=None,
     nome=None,
     spdata_atendimento_id=None,
+    unidade_id=None,
 ):
     crm_medico = get_crm_medico_usuario(usuario_id)
+    unidade = resolver_unidade_usuario(usuario_id, unidade_id)
+    filtros_unidade_agenda = [MedSpdataAgenda.unidade_id == unidade.id]
+    if unidade.codigo_spdata_agenda:
+        filtros_unidade_agenda.append(MedSpdataAgenda.codigo_unidade_spdata == unidade.codigo_spdata_agenda)
     cpf = _cpf_valido(cpf)
     nome = _texto_ou_none(nome)
 
@@ -128,6 +135,10 @@ def _referencia_autorizada_paciente(
             select(MedSpdataAtendimento)
             .where(
                 MedSpdataAtendimento.crm_medico == crm_medico,
+                or_(
+                    MedSpdataAtendimento.unidade_id == unidade.id,
+                    MedSpdataAtendimento.id_centro_custo_spdata == unidade.codigo_spdata_centro_custo,
+                ),
                 or_(*filtros_spdata),
             )
             .order_by(MedSpdataAtendimento.data_hora_entrada.desc())
@@ -153,6 +164,7 @@ def _referencia_autorizada_paciente(
                     MedSpdataAgenda.crm_atend == crm_medico,
                     MedSpdataAgenda.crm == crm_medico,
                 ),
+                or_(*filtros_unidade_agenda),
                 or_(*filtros_agenda),
             )
             .order_by(MedSpdataAgenda.data_agenda.desc())
@@ -178,6 +190,10 @@ def _referencia_autorizada_paciente(
             .join(EvolucaoMedica, EvolucaoMedica.atendimento_id == Atendimento.id)
             .where(
                 EvolucaoMedica.medico_id == usuario_id,
+                or_(
+                    Atendimento.unidade_id == unidade.id,
+                    Atendimento.unidade_id.is_(None),
+                ),
                 or_(*filtros_local),
             )
             .order_by(Atendimento.data_atendimento.desc())
@@ -327,6 +343,7 @@ def _referencia_paciente_biodata(paciente_id, usuario_id):
         paciente_id=paciente_id,
         cpf=request.args.get("cpf"),
         nome=request.args.get("nome"),
+        unidade_id=unidade_id_request(),
     )
     return referencia["cpf"], referencia["nome"]
 
@@ -547,6 +564,7 @@ def historico_paciente_local(paciente_id):
             cpf=request.args.get("cpf"),
             nome=request.args.get("nome"),
             spdata_atendimento_id=spdata_atendimento_id,
+            unidade_id=unidade_id_request(),
         )
         paciente_id_autorizado = referencia.get("paciente_id")
         cpf = referencia["cpf"]

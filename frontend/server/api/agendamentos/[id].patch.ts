@@ -2,16 +2,13 @@ export default defineEventHandler(async (event) => {
   const id = Number(getRouterParam(event, 'id'))
   const body = await readBody<{ status: string, consulta?: { anamnese?: string, diagnosticos?: { cid: string, descricao?: string, principal: boolean }[], medicamentos?: string, exames?: { nome: string, exame_id?: number | null, orientacao?: string | null }[], duracao?: number } }>(event)
 
-  const validStatuses = ['em-espera', 'em-atendimento', 'atendido', 'faltou']
+  const validStatuses = ['em-espera', 'em-atendimento', 'atendido', 'faltou', 'cancelado']
   if (!body.status || !validStatuses.includes(body.status)) {
-    throw createError({ statusCode: 400, statusMessage: 'Status inválido' })
-  }
-
-  if (body.status === 'em-espera') {
-    throw createError({ statusCode: 400, statusMessage: 'Status em-espera é calculado pelo backend' })
+    throw createError({ statusCode: 400, message: 'Status inválido' })
   }
 
   try {
+    const clinicaId = getActiveClinicaId(event)
     const result = await flaskFetch<{ id?: number, status?: string, pacienteId?: number }>(event, `/agenda-medica/${id}/status`, {
       method: 'PATCH',
       body
@@ -24,14 +21,10 @@ export default defineEventHandler(async (event) => {
         status: result.status || body.status,
         pacienteId: Number(result.pacienteId) || undefined
       }
-    })
+    }, clinicaId)
 
     return result
   } catch (error) {
-    throw createError({
-      statusCode: 502,
-      statusMessage: 'Falha ao atualizar status no backend Flask',
-      data: String(error)
-    })
+    throwProxyError(error, 'Falha ao atualizar status no backend Flask')
   }
 })

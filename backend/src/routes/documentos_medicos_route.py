@@ -3,6 +3,7 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 
 from src.models.auditoria_model import AcaoAuditoria
 from src.security.decorators import roles_required
+from src.security.unidades import unidade_id_request
 from src.services.auditoria_service import registrar_auditoria
 from src.services.documentos_medicos_service import (
     listar_documentos_atendimento,
@@ -35,7 +36,11 @@ def listar_documentos():
         if not ids:
             return jsonify([]), 200
 
-        resultado = listar_documentos_por_ids(usuario_id, ids)
+        resultado = listar_documentos_por_ids(
+            usuario_id,
+            ids,
+            unidade_id=unidade_id_request(),
+        )
         registrar_auditoria(
             AcaoAuditoria.VISUALIZOU_DOCUMENTOS_MEDICOS,
             entidade="documentos_medicos",
@@ -61,7 +66,11 @@ def listar_documentos():
 def listar_documentos_do_atendimento(med_spdata_atendimento_id):
     try:
         usuario_id = int(get_jwt_identity())
-        resultado = listar_documentos_atendimento(usuario_id, med_spdata_atendimento_id)
+        resultado = listar_documentos_atendimento(
+            usuario_id,
+            med_spdata_atendimento_id,
+            unidade_id=unidade_id_request(),
+        )
         registrar_auditoria(
             AcaoAuditoria.VISUALIZOU_DOCUMENTOS_MEDICOS,
             entidade="med_spdata_atendimentos",
@@ -89,7 +98,13 @@ def salvar_documento_medico(med_spdata_atendimento_id, tipo):
         body = request.get_json() or {}
         dados = body.get("dados") if isinstance(body, dict) and "dados" in body else body
 
-        resultado = salvar_documento(usuario_id, med_spdata_atendimento_id, tipo, dados)
+        resultado = salvar_documento(
+            usuario_id,
+            med_spdata_atendimento_id,
+            tipo,
+            dados,
+            unidade_id=unidade_id_request(),
+        )
         registrar_auditoria(
             AcaoAuditoria.SALVOU_DOCUMENTO_MEDICO,
             entidade="med_spdata_atendimentos",

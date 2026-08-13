@@ -1,14 +1,26 @@
-from datetime import date
+from datetime import date, datetime
 
-from flask import Blueprint, current_app, jsonify
+from flask import Blueprint, current_app, jsonify, request
 
 from flask_jwt_extended import get_jwt_identity, jwt_required
+
 from src.models.auditoria_model import AcaoAuditoria
 from src.security.decorators import roles_required
+from src.security.unidades import unidade_atual_required
 from src.services.auditoria_service import registrar_auditoria
-from src.services.spdata_atendimentos_service import get_crm_medico_usuario, listar_agenda_medica
+from src.services.spdata_atendimentos_service import (
+    get_crm_medico_usuario,
+    listar_agenda_medica,
+)
 
 dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/dashboard")
+
+
+def parse_data(valor):
+    if not valor:
+        return date.today()
+    return datetime.fromisoformat(str(valor)[:10]).date()
+
 
 def _data_hora_entrada(item):
     data = item.get("data") or date.today().isoformat()
@@ -29,6 +41,7 @@ def _item_dashboard(item, crm_medico):
         "ID_TBCONVEN": paciente.get("idConvenioSpdata"),
         "PRONTUARIO": "",
         "PACIENTE": paciente.get("nome") or "Paciente",
+        "PACIENTE_NOME_SOCIAL": paciente.get("nomeSocial") or "",
         "DATA_NASCIMENTO": paciente.get("dataNascimento") or "",
         "SEXO": paciente.get("sexo") or "",
         "CELULAR": "",
@@ -47,9 +60,15 @@ def _item_dashboard(item, crm_medico):
 def dashboard_paciente_lista():
     try:
         usuario_id = int(get_jwt_identity())
-        hoje = date.today()
+        unidade = unidade_atual_required()
         crm_medico = get_crm_medico_usuario(usuario_id)
-        items = listar_agenda_medica(usuario_id, hoje, hoje)
+        data_ref = parse_data(request.args.get("data"))
+        items = listar_agenda_medica(
+            usuario_id,
+            data_ref,
+            data_ref,
+            unidade_id=unidade.id,
+        )
         result = [_item_dashboard(item, crm_medico) for item in items]
 
         registrar_auditoria(
@@ -61,6 +80,10 @@ def dashboard_paciente_lista():
 
         return jsonify(result), 200
 
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except PermissionError as e:
+        return jsonify({"error": str(e)}), 403
     except Exception:
         current_app.logger.exception("Erro ao listar pacientes do dashboard")
         return jsonify({"error": "Erro interno ao listar pacientes do dashboard"}), 500

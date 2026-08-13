@@ -1,5 +1,8 @@
 VPS - Acesso.md
 
+# Documentacao local
+/docs/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -213,3 +216,4 @@ __marimo__/
 
 backend/.env
 frontend/.env
+docker-compose.override.yml

@@ -4,10 +4,11 @@ from flask.cli import with_appcontext
 
 from src.models.usuario_model import Usuario
 from src.security.passwords import validate_password_strength
+from src.services.unidades_service import vincular_usuario_unidade
 from src.settings.extensions import db
 
 
-def _registrar_usuario_local(nome_completo, documento, email, senha, role, atualizar):
+def _registrar_usuario_local(nome_completo, documento, email, senha, role, atualizar, unidade_ids=None):
     nome_completo = (nome_completo or "").strip()
     documento = (documento or "").strip()
     email = (email or "").strip().lower()
@@ -51,6 +52,10 @@ def _registrar_usuario_local(nome_completo, documento, email, senha, role, atual
             usuario.role = role
             acao = "atualizado"
 
+        db.session.flush()
+        for indice, unidade_id in enumerate(unidade_ids or []):
+            vincular_usuario_unidade(usuario.id, int(unidade_id), principal=indice == 0)
+
         db.session.commit()
         return usuario, acao
 
@@ -75,8 +80,14 @@ def _registrar_usuario_local(nome_completo, documento, email, senha, role, atual
     is_flag=True,
     help="Atualiza o usuário existente pelo e-mail, se ele já existir.",
 )
+@click.option(
+    "--unidade-id",
+    multiple=True,
+    type=int,
+    help="ID local da unidade vinculada ao usuário. Pode ser repetido.",
+)
 @with_appcontext
-def registrar_recepcao_command(nome_completo, documento, email, senha, atualizar):
+def registrar_recepcao_command(nome_completo, documento, email, senha, atualizar, unidade_id):
     """Cria um usuário local com role recepcao."""
 
     usuario, acao = _registrar_usuario_local(
@@ -86,6 +97,7 @@ def registrar_recepcao_command(nome_completo, documento, email, senha, atualizar
         senha,
         "recepcao",
         atualizar,
+        unidade_ids=unidade_id,
     )
 
     click.secho("Usuário de recepção registrado com sucesso.", fg="green")
@@ -111,8 +123,14 @@ def registrar_recepcao_command(nome_completo, documento, email, senha, atualizar
     is_flag=True,
     help="Atualiza o usuário existente pelo e-mail, se ele já existir.",
 )
+@click.option(
+    "--unidade-id",
+    multiple=True,
+    type=int,
+    help="ID local da unidade vinculada ao usuário. Pode ser repetido.",
+)
 @with_appcontext
-def registrar_admin_command(nome_completo, documento, email, senha, atualizar):
+def registrar_admin_command(nome_completo, documento, email, senha, atualizar, unidade_id):
     """Cria um usuário local com role admin."""
 
     usuario, acao = _registrar_usuario_local(
@@ -122,6 +140,7 @@ def registrar_admin_command(nome_completo, documento, email, senha, atualizar):
         senha,
         "admin",
         atualizar,
+        unidade_ids=unidade_id,
     )
 
     click.secho("Usuário admin registrado com sucesso.", fg="green")

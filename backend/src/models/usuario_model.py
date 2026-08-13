@@ -58,6 +58,12 @@ class Usuario(db.Model):
         uselist=False,
         cascade="all, delete-orphan"
     )
+
+    unidades = db.relationship(
+        "UsuarioUnidade",
+        back_populates="usuario",
+        cascade="all, delete-orphan"
+    )
     
     
     def __init__(self, nome_completo, cnpj_cpf, email, senha, role="medico", ativo=True):

@@ -1,4 +1,4 @@
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
 from src.models.interfaces.usuario_interface import IUsuario
 
@@ -11,7 +11,10 @@ class UsuarioRepository(IUsuario):
         try:    
             usuario = (
                 db.session.query(Usuario)
-                .options(joinedload(Usuario.medico))
+                .options(
+                    joinedload(Usuario.medico),
+                    selectinload(Usuario.unidades),
+                )
                 .filter(Usuario.email == email)
                 .first()
             )

@@ -4,6 +4,7 @@ type ChamadoStatus = 'chamando' | 'concluido' | 'cancelado'
 
 type Chamado = {
   id: number
+  clinicaId: number
   pacienteId: number
   pacienteNome: string
   dataChamada: string
@@ -12,7 +13,7 @@ type Chamado = {
   medicoResponsavel: string
 }
 
-type CriarChamadoPayload = Pick<Chamado, 'pacienteId' | 'pacienteNome' | 'localAtendimento' | 'medicoResponsavel'>
+type CriarChamadoPayload = Pick<Chamado, 'clinicaId' | 'pacienteId' | 'pacienteNome' | 'localAtendimento' | 'medicoResponsavel'>
 
 const chamados: Chamado[] = []
 const MAX_CHAMADOS = 100
@@ -31,6 +32,7 @@ export function chamadoPublico(chamado: Chamado | null) {
 
   return {
     id: chamado.id,
+    clinicaId: chamado.clinicaId,
     pacienteId: 0,
     pacienteNome: nomePublicoPaciente(chamado.pacienteNome),
     dataChamada: chamado.dataChamada,
@@ -51,37 +53,37 @@ export function textoChamadoParaTts(id: number) {
   return `${nomePublicoPaciente(chamado.pacienteNome)}, por favor dirija-se à ${localPublico(chamado.localAtendimento)}`
 }
 
-export function getChamadoAtivo() {
-  return chamados.find(chamado => chamado.status === 'chamando') ?? null
+export function getChamadoAtivo(clinicaId: number) {
+  return chamados.find(chamado => chamado.clinicaId === clinicaId && chamado.status === 'chamando') ?? null
 }
 
-export function getHistoricoChamados(limit = 10) {
+export function getHistoricoChamados(clinicaId: number, limit = 10) {
   const safeLimit = Number.isFinite(limit) ? Math.min(Math.max(Math.trunc(limit), 1), 100) : 10
 
   return chamados
-    .filter(chamado => chamado.status !== 'chamando')
+    .filter(chamado => chamado.clinicaId === clinicaId && chamado.status !== 'chamando')
     .slice()
     .reverse()
     .slice(0, safeLimit)
 }
 
 export function criarChamado(data: CriarChamadoPayload) {
-  const chamadoAtivo = chamados.find(chamado => chamado.status === 'chamando')
+  const chamadoAtivo = chamados.find(chamado => chamado.clinicaId === data.clinicaId && chamado.status === 'chamando')
 
   if (chamadoAtivo?.pacienteId === data.pacienteId) {
     chamadoAtivo.pacienteNome = data.pacienteNome
     chamadoAtivo.localAtendimento = data.localAtendimento
     chamadoAtivo.medicoResponsavel = data.medicoResponsavel
     chamadoAtivo.dataChamada = new Date().toLocaleTimeString('pt-BR')
-    broadcastSse({ type: 'chamado:novo', data: chamadoAtivo })
+    broadcastSse({ type: 'chamado:novo', data: chamadoAtivo }, data.clinicaId)
 
     return chamadoAtivo
   }
 
   for (const chamado of chamados) {
-    if (chamado.status === 'chamando') {
+    if (chamado.clinicaId === data.clinicaId && chamado.status === 'chamando') {
       chamado.status = 'concluido'
-      broadcastSse({ type: 'chamado:concluido', data: chamado })
+      broadcastSse({ type: 'chamado:concluido', data: chamado }, data.clinicaId)
     }
   }
 
@@ -96,17 +98,17 @@ export function criarChamado(data: CriarChamadoPayload) {
   if (chamados.length > MAX_CHAMADOS) {
     chamados.splice(0, chamados.length - MAX_CHAMADOS)
   }
-  broadcastSse({ type: 'chamado:novo', data: chamado })
+  broadcastSse({ type: 'chamado:novo', data: chamado }, data.clinicaId)
 
   return chamado
 }
 
-export function atualizarChamadoStatus(id: number, status: ChamadoStatus) {
-  const chamado = chamados.find(chamado => chamado.id === id)
+export function atualizarChamadoStatus(id: number, clinicaId: number, status: ChamadoStatus) {
+  const chamado = chamados.find(chamado => chamado.id === id && chamado.clinicaId === clinicaId)
   if (!chamado) return null
 
   chamado.status = status
-  broadcastSse({ type: 'chamado:concluido', data: chamado })
+  broadcastSse({ type: 'chamado:concluido', data: chamado }, clinicaId)
 
   return chamado
 }

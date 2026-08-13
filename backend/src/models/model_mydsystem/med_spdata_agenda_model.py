@@ -9,6 +9,8 @@ class MedSpdataAgenda(db.Model):
     id = db.Column(db.Integer, primary_key=True)
 
     spdata_agenda_id = db.Column(db.Integer, nullable=False, unique=True, index=True)
+    unidade_id = db.Column(db.Integer, nullable=True, index=True)
+    codigo_unidade_spdata = db.Column(db.String(50), nullable=True, index=True)
     id_paciente_spdata = db.Column(db.Integer, nullable=True, index=True)
 
     registro = db.Column(db.String(50), nullable=True, index=True)
@@ -21,6 +23,7 @@ class MedSpdataAgenda(db.Model):
     hora_agenda = db.Column(db.Time, nullable=True)
 
     paciente = db.Column(db.String(255), nullable=False, index=True)
+    paciente_nome_social = db.Column(db.String(255), nullable=True)
     cpf = db.Column(db.String(20), nullable=True, index=True)
     prontuario = db.Column(db.String(50), nullable=True, index=True)
 
@@ -34,6 +37,7 @@ class MedSpdataAgenda(db.Model):
     celular = db.Column(db.String(30), nullable=True)
     email = db.Column(db.String(255), nullable=True)
     obs = db.Column(db.Text, nullable=True)
+    motivo_no_show = db.Column(db.String(30), nullable=True)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(
@@ -48,6 +52,8 @@ class MedSpdataAgenda(db.Model):
         spdata_agenda_id,
         paciente,
         data_agenda,
+        unidade_id=None,
+        codigo_unidade_spdata=None,
         id_paciente_spdata=None,
         registro=None,
         grv_ate=None,
@@ -55,6 +61,7 @@ class MedSpdataAgenda(db.Model):
         crm_atend=None,
         medico=None,
         hora_agenda=None,
+        paciente_nome_social=None,
         cpf=None,
         prontuario=None,
         id_convenio_spdata=None,
@@ -65,9 +72,12 @@ class MedSpdataAgenda(db.Model):
         telefone=None,
         celular=None,
         email=None,
-        obs=None
+        obs=None,
+        motivo_no_show=None
     ):
         self.spdata_agenda_id = spdata_agenda_id
+        self.unidade_id = unidade_id
+        self.codigo_unidade_spdata = codigo_unidade_spdata
         self.id_paciente_spdata = id_paciente_spdata
         self.registro = registro
         self.grv_ate = grv_ate
@@ -77,6 +87,7 @@ class MedSpdataAgenda(db.Model):
         self.data_agenda = data_agenda
         self.hora_agenda = hora_agenda
         self.paciente = paciente
+        self.paciente_nome_social = paciente_nome_social
         self.cpf = cpf
         self.prontuario = prontuario
         self.id_convenio_spdata = id_convenio_spdata
@@ -88,11 +99,14 @@ class MedSpdataAgenda(db.Model):
         self.celular = celular
         self.email = email
         self.obs = obs
+        self.motivo_no_show = motivo_no_show
 
     def _to_dict(self):
         return {
             "id": self.id,
             "spdata_agenda_id": self.spdata_agenda_id,
+            "unidade_id": self.unidade_id,
+            "codigo_unidade_spdata": self.codigo_unidade_spdata,
             "id_paciente_spdata": self.id_paciente_spdata,
             "registro": self.registro,
             "grv_ate": self.grv_ate,
@@ -102,6 +116,7 @@ class MedSpdataAgenda(db.Model):
             "data_agenda": self.data_agenda.isoformat() if self.data_agenda else None,
             "hora_agenda": str(self.hora_agenda) if self.hora_agenda else None,
             "paciente": self.paciente,
+            "paciente_nome_social": self.paciente_nome_social,
             "cpf": self.cpf,
             "prontuario": self.prontuario,
             "id_convenio_spdata": self.id_convenio_spdata,
@@ -113,6 +128,7 @@ class MedSpdataAgenda(db.Model):
             "celular": self.celular,
             "email": self.email,
             "obs": self.obs,
+            "motivo_no_show": self.motivo_no_show,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }

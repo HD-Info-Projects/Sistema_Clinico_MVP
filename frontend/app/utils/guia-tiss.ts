@@ -137,6 +137,7 @@ const TISS_PRINT_CSS = `
 
 export async function gerarHtmlGuiaTiss(params: {
   paciente: string
+  nomeSocial?: string | null
   cpf?: string
   convenio: string
   idConvenioSpdata?: number | null
@@ -145,6 +146,8 @@ export async function gerarHtmlGuiaTiss(params: {
   medico?: string
   crm?: string
   especialidade?: string
+  cidPrincipal?: string
+  caraterAtendimento?: boolean
 }): Promise<string> {
   const template = await $fetch<string>('/guia_tiss_sadt-v2.html', { responseType: 'text' })
 
@@ -171,10 +174,14 @@ export async function gerarHtmlGuiaTiss(params: {
       .replaceAll('{{CONVENIO}}', escapeHtml(params.convenio))
       .replaceAll('{{CONVENIO_LOGO}}', convenioLogo)
       .replaceAll('{{PACIENTE}}', escapeHtml(params.paciente))
+      .replaceAll('{{PACIENTE_NOME_SOCIAL}}', escapeHtml(params.nomeSocial ?? ''))
       .replaceAll('{{CPF}}', escapeHtml(params.cpf ?? ''))
       .replaceAll('{{MEDICO}}', escapeHtml(params.medico ?? ''))
       .replaceAll('{{CRM_NUMERO}}', extractCrmNumero(params.crm))
       .replaceAll('{{DATA_SOLICITACAO}}', escapeHtml(params.data))
+      .replaceAll('{{NOME_CONTRATADO}}', 'Natus Lumine Empreendimentos Medicos E Hospitalares LTDA')
+      .replaceAll('{{CARATER_ATENDIMENTO}}', params.caraterAtendimento ? 'U' : 'E')
+      .replaceAll('{{CID_PRINCIPAL}}', escapeHtml(params.cidPrincipal ?? ''))
       .replaceAll('{{EXAMES_ROWS}}', examesRows + blankRows)
   })
 
@@ -207,7 +214,7 @@ function imprimirJanela(w: Window) {
 function exameRowHtml(index: number, e: ExameTiss): string {
   return `            <tr>
                 <td>${index} - <input type="text" value="" style="width: 60%; float: right; height:12px;"></td>
-                <td><input type="text" value=""></td>
+                <td><input type="text" value="${escapeHtml(e.codigo_amb ?? '')}"></td>
                 <td><input type="text" value="${escapeHtml(e.nome)}"></td>
                 <td><input type="text" value="1"></td>
                 <td><input type="text" value=""></td>

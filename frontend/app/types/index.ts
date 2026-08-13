@@ -15,6 +15,7 @@ export interface HistoricoItem {
 export interface Paciente {
   id: number
   nome: string
+  nomeSocial?: string | null
   encaixado: boolean
   sexo: 'masculino' | 'feminino'
   dataNascimento: string
@@ -36,8 +37,11 @@ export interface Paciente {
 export interface Clinica {
   id: number
   nome: string
+  slug?: string
   endereco: string
   telefone: string
+  codigoSpdataCentroCusto?: number | null
+  codigoSpdataAgenda?: string | null
 }
 
 export type AgendamentoStatus = 'agendado' | 'em-espera' | 'em-atendimento' | 'atendido' | 'faltou' | 'cancelado'
@@ -124,6 +128,7 @@ export interface HistoricoExame {
 
 export interface Chamado {
   id: number
+  clinicaId: number
   pacienteId: number
   pacienteNome: string
   dataChamada: string

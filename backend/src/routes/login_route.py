@@ -6,7 +6,7 @@ from flask import (
 )
 
 from flask_jwt_extended import decode_token, get_jwt, get_jwt_identity, jwt_required
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 from src.security.decorators import roles_required
 from src.security.jwt_blocklist import revoke_jti
 from src.security.passwords import validate_password_strength
@@ -14,6 +14,7 @@ from src.security.passwords import validate_password_strength
 from src.controllers.login_controller import LoginController
 from src.models.auditoria_model import AcaoAuditoria
 from src.models.usuario_model import Usuario
+from src.services.unidades_service import listar_unidades_usuario_frontend, vincular_usuario_unidade
 
 from src.settings.extensions import db, limiter
 from src.services.auditoria_service import registrar_auditoria
@@ -90,7 +91,10 @@ def me():
         usuario_id = int(get_jwt_identity())
         usuario = (
             db.session.query(Usuario)
-            .options(joinedload(Usuario.medico))
+            .options(
+                joinedload(Usuario.medico),
+                selectinload(Usuario.unidades),
+            )
             .filter(Usuario.id == usuario_id)
             .first()
         )
@@ -108,6 +112,7 @@ def me():
             "role": usuario.role,
             "crm": usuario.medico.crm_atendimento_spdata if usuario.medico else None,
             "especialidade": usuario.medico.especialidade if usuario.medico else None,
+            "unidades": listar_unidades_usuario_frontend(usuario.id),
         }), 200
 
     except Exception:
@@ -160,6 +165,9 @@ def register_medic():
         nome_completo = data["nome_completo_medico"]
         cpf_cnpj = data["CNPJ_CPF"]
         crm_atendimento_spdata = data.get("crm_atendimento_spdata")
+        unidade_ids = data.get("unidade_ids") or data.get("unidadeIds") or []
+        if isinstance(unidade_ids, (str, int)):
+            unidade_ids = [unidade_ids]
 
         validate_password_strength(senha, current_app.config.get("PASSWORD_MIN_LENGTH", 8))
 
@@ -202,10 +210,20 @@ def register_medic():
             crm_atendimento_spdata=crm_atendimento_spdata,
         )
 
+        for indice, unidade_id in enumerate(unidade_ids):
+            vincular_usuario_unidade(
+                resultado["usuario"].id,
+                int(unidade_id),
+                principal=indice == 0,
+            )
+        if unidade_ids:
+            db.session.commit()
+
         return jsonify({
             "msg": "Médico cadastrado com sucesso!",
             "usuario": resultado["usuario"]._to_dict(),
             "medico": resultado["medico"]._to_dict(),
+            "unidades": listar_unidades_usuario_frontend(resultado["usuario"].id),
         }), 201
         
         

@@ -8,7 +8,6 @@ const props = defineProps<{
 const open = defineModel<boolean>('open', { default: false })
 
 const padroesOrientacoesStore = usePadroesOrientacoesStore()
-const { transformUpperCase, transformLowerCase, transformCapitalize } = useTextTransform()
 
 const nome = ref('')
 const conteudo = ref('')
@@ -66,7 +65,7 @@ async function salvar() {
     </template>
 
     <template #body>
-      <div class="h-full overflow-y-auto p-6 space-y-6">
+      <div class="h-full overflow-y-auto p-6 space-y-6 flex flex-col">
         <div class="space-y-1 flex flex-col">
           <label class="text-sm font-medium">Nome do modelo</label>
           <UInput
@@ -78,144 +77,11 @@ async function salvar() {
 
         <div class="space-y-1 flex flex-col grow">
           <label class="text-sm font-medium">Conteúdo da orientação</label>
-          <UEditor
+          <EditorRichText
             v-model="conteudo"
-            content-type="html"
             placeholder="Descreva o padrão de orientação..."
             class="grow flex flex-col min-h-96"
-          >
-            <template #default="{ editor }">
-              <div class="flex flex-wrap gap-1 p-2 border-b border-muted bg-neutral-50 dark:bg-neutral-900 rounded-t-lg">
-                <UButton
-                  icon="i-lucide-bold"
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  :class="{ 'bg-primary/10 text-primary': editor?.isActive('bold') }"
-                  @click="void editor?.chain().focus().toggleBold().run()"
-                />
-                <UButton
-                  icon="i-lucide-italic"
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  :class="{ 'bg-primary/10 text-primary': editor?.isActive('italic') }"
-                  @click="void editor?.chain().focus().toggleItalic().run()"
-                />
-                <UButton
-                  icon="i-lucide-strikethrough"
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  :class="{ 'bg-primary/10 text-primary': editor?.isActive('strike') }"
-                  @click="void editor?.chain().focus().toggleStrike().run()"
-                />
-                <USeparator
-                  orientation="vertical"
-                  class="h-6"
-                />
-                <UButton
-                  icon="i-lucide-heading-1"
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  :class="{ 'bg-primary/10 text-primary': editor?.isActive('heading', { level: 1 }) }"
-                  @click="void editor?.chain().focus().toggleHeading({ level: 1 }).run()"
-                />
-                <UButton
-                  icon="i-lucide-heading-2"
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  :class="{ 'bg-primary/10 text-primary': editor?.isActive('heading', { level: 2 }) }"
-                  @click="void editor?.chain().focus().toggleHeading({ level: 2 }).run()"
-                />
-                <UButton
-                  icon="i-lucide-heading-3"
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  :class="{ 'bg-primary/10 text-primary': editor?.isActive('heading', { level: 3 }) }"
-                  @click="void editor?.chain().focus().toggleHeading({ level: 3 }).run()"
-                />
-                <USeparator
-                  orientation="vertical"
-                  class="h-6"
-                />
-                <UButton
-                  icon="i-lucide-list"
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  :class="{ 'bg-primary/10 text-primary': editor?.isActive('bulletList') }"
-                  @click="void editor?.chain().focus().toggleBulletList().run()"
-                />
-                <UButton
-                  icon="i-lucide-list-ordered"
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  :class="{ 'bg-primary/10 text-primary': editor?.isActive('orderedList') }"
-                  @click="void editor?.chain().focus().toggleOrderedList().run()"
-                />
-                <UButton
-                  icon="i-lucide-text-quote"
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  :class="{ 'bg-primary/10 text-primary': editor?.isActive('blockquote') }"
-                  @click="void editor?.chain().focus().toggleBlockquote().run()"
-                />
-                <USeparator
-                  orientation="vertical"
-                  class="h-6"
-                />
-                <UButton
-                  icon="i-lucide-undo"
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  @click="void editor?.chain().focus().undo().run()"
-                />
-                <UButton
-                  icon="i-lucide-redo"
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  :class="{ 'bg-primary/10 text-primary': editor?.isActive('redo') }"
-                  @click="void editor?.chain().focus().redo().run()"
-                />
-                <USeparator
-                  orientation="vertical"
-                  class="h-6"
-                />
-                <UButton
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  @click="transformUpperCase(editor)"
-                >
-                  <span class="font-semibold text-[10px]">AA</span>
-                </UButton>
-                <UButton
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  @click="transformLowerCase(editor)"
-                >
-                  <span class="text-[10px]">aa</span>
-                </UButton>
-                <UButton
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  @click="transformCapitalize(editor)"
-                >
-                  <span class="text-[10px]">Aa</span>
-                </UButton>
-              </div>
-            </template>
-          </UEditor>
+          />
         </div>
       </div>
     </template>

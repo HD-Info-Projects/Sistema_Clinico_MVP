@@ -5,6 +5,7 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 
 from src.models.auditoria_model import AcaoAuditoria
 from src.security.decorators import roles_required
+from src.security.unidades import unidade_atual_required
 from src.services.auditoria_service import registrar_auditoria
 from src.services.retencao_exames_service import listar_retencao_exames
 from src.settings.extensions import db
@@ -31,7 +32,11 @@ def index():
         if data_fim < data_ini:
             return jsonify({"error": "dataFim não pode ser menor que dataIni."}), 400
 
-        resultado = listar_retencao_exames(data_ini, data_fim)
+        resultado = listar_retencao_exames(
+            data_ini,
+            data_fim,
+            unidade=unidade_atual_required(),
+        )
         registrar_auditoria(
             AcaoAuditoria.VISUALIZOU_RETENCAO_EXAMES,
             entidade="retencao_exames",
@@ -42,6 +47,8 @@ def index():
 
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
+    except PermissionError as e:
+        return jsonify({"error": str(e)}), 403
     except Exception:
         db.session.rollback()
         current_app.logger.exception("Erro ao listar retenção de exames")

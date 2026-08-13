@@ -5,6 +5,7 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 
 from src.models.auditoria_model import AcaoAuditoria
 from src.security.decorators import roles_required
+from src.security.unidades import unidade_id_request
 from src.services.auditoria_service import registrar_auditoria
 from src.services.spdata_atendimentos_service import (
     atualizar_status_agenda,
@@ -41,7 +42,14 @@ def listar_agenda():
             data_ini = _parse_data(request.args.get("dataIni") or data)
             data_fim = _parse_data(request.args.get("dataFim") or data, data_ini)
 
-        resultado = listar_agenda_medica(usuario_id, data_ini, data_fim, status=status, search=search)
+        resultado = listar_agenda_medica(
+            usuario_id,
+            data_ini,
+            data_fim,
+            status=status,
+            search=search,
+            unidade_id=unidade_id_request(),
+        )
         registrar_auditoria(
             AcaoAuditoria.VISUALIZOU_AGENDA,
             entidade="agenda_medica",
@@ -52,6 +60,8 @@ def listar_agenda():
 
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
+    except PermissionError as e:
+        return jsonify({"error": str(e)}), 403
     except Exception:
         db.session.rollback()
         current_app.logger.exception("Erro ao listar agenda médica")
@@ -74,6 +84,7 @@ def atualizar_status(med_spdata_atendimento_id):
                 status,
                 usuario_id=usuario_id,
                 consulta=consulta,
+                unidade_id=unidade_id_request(),
             )
         ), 200
 
