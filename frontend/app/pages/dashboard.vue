@@ -189,6 +189,8 @@ const totalPacientesDashboard = computed(() =>
   pacientesNaFila.value.length + pacientesFinalizados.value.length
 )
 
+const temPacientesDashboard = computed(() => totalPacientesDashboard.value > 0)
+
 function statusLabel(status: AgendamentoStatus) {
   switch (status) {
     case 'em-atendimento': return 'Em Atendimento'
@@ -273,7 +275,10 @@ const tempoMedioEspera = computed(() => {
           {{ dataFormatada }}. Veja o resumo do dia.
         </p>
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div
+        v-if="!agendamentosStore.loading && temPacientesDashboard"
+        class="grid grid-cols-1 md:grid-cols-2 gap-6"
+      >
         <ChartResumo
           :total="totalPacientesDashboard"
           :fila="agendamentosStore.fila.length"
@@ -335,6 +340,60 @@ const tempoMedioEspera = computed(() => {
             </div>
           </UPageCard>
         </div>
+      </div>
+      <div
+        v-else-if="agendamentosStore.loading"
+        class="grid grid-cols-1 md:grid-cols-2 gap-6"
+      >
+        <UPageCard>
+          <div class="flex flex-col gap-4 items-center justify-center h-full">
+            <USkeleton class="h-40 w-40" />
+            <USkeleton class="h-4 w-48" />
+          </div>
+        </UPageCard>
+        <div class="grid grid-cols-2 gap-2 items-center">
+          <UPageCard>
+            <div class="flex flex-col gap-3 items-center">
+              <USkeleton class="h-5 w-32" />
+              <USkeleton class="h-8 w-20" />
+            </div>
+          </UPageCard>
+          <UPageCard>
+            <div class="flex flex-col gap-3 items-center">
+              <USkeleton class="h-5 w-32" />
+              <USkeleton class="h-8 w-20" />
+            </div>
+          </UPageCard>
+          <UPageCard>
+            <div class="flex flex-col gap-3 items-center">
+              <USkeleton class="h-5 w-32" />
+              <USkeleton class="h-8 w-20" />
+            </div>
+          </UPageCard>
+          <UPageCard>
+            <div class="flex flex-col gap-3 items-center">
+              <USkeleton class="h-5 w-32" />
+              <USkeleton class="h-8 w-20" />
+            </div>
+          </UPageCard>
+        </div>
+      </div>
+      <div
+        v-else
+      >
+        <UPageCard>
+          <div class="flex flex-col gap-2 items-center">
+            <div class="flex items-center gap-2 text-muted ">
+              <p class="text-xl font-medium">
+                Nenhum Paciente na fila de espera nesse momento.
+              </p>
+            </div>
+            <UIcon
+              class="size-15"
+              name="lucide:user-round-x"
+            />
+          </div>
+        </UPageCard>
       </div>
       <UCard class="w-full">
         <template #title>
