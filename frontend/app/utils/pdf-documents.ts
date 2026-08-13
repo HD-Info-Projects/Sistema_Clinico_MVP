@@ -194,15 +194,10 @@ async function montarCorpoReceitaEspecialDupla(params: {
 }) {
   const logo = await getLogoBase64()
 
-  const medicamentosContent = params.texto
-    ? [{ text: params.texto, fontSize: 9, margin: [0, 0, 0, 8] }]
-    : params.medicamentos.map(m => ({
-        columns: [
-          { text: `\u2022 ${m.nome} — ${m.dosagem}`, bold: true, fontSize: 9, width: '42%' },
-          { text: m.detalhes, fontSize: 9, width: '58%' }
-        ],
-        margin: [0, 0, 0, 6]
-      }))
+  const blocoMedicamentos = {
+    stack: montarBlocoTextoLinhas(params),
+    margin: [0, 0, 0, 8]
+  }
 
   return [
     {
@@ -223,7 +218,7 @@ async function montarCorpoReceitaEspecialDupla(params: {
     { text: `DATA: ${params.data}`, fontSize: 9, alignment: 'right', margin: [0, 0, 0, 4] },
     { text: 'RECEITA DE CONTROLE ESPECIAL', fontSize: 13, bold: true, alignment: 'center', margin: [0, 2, 0, 10] },
     { text: `PACIENTE: ${params.paciente.toUpperCase()}`, bold: true, fontSize: 9, decoration: 'underline', margin: [0, 0, 0, 8] },
-    ...medicamentosContent,
+    blocoMedicamentos,
     {
       stack: [
         { text: '\n\n' },
