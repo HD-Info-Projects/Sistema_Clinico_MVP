@@ -220,17 +220,69 @@ docker compose restart frontend
 
 ## Backup do MySQL
 
-Gerar backup:
+Os backups devem ser compactados e criptografados com `age`. A VPS guarda apenas o destinatario publico; a identidade privada deve permanecer fora do servidor, sob custodia institucional.
+
+Instale o `age` no host da VPS:
 
 ```bash
-docker compose exec mysql sh -c 'mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"' > backup_mysql.sql
+apt update
+apt install -y age
 ```
 
-Restaurar backup:
+Configure no `.env`:
+
+```env
+BACKUP_DIR=/var/backups/sistema-clinico-mvp/mysql
+BACKUP_RETENTION_DAYS=30
+BACKUP_AGE_RECIPIENT=age1SUBSTITUA_PELO_DESTINATARIO_PUBLICO
+```
+
+Prepare o diretorio e gere um backup manual para validacao:
 
 ```bash
-docker compose exec -T mysql sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"' < backup_mysql.sql
+install -d -m 0700 /var/backups/sistema-clinico-mvp/mysql
+./scripts/backup_mysql_encrypted.sh
 ```
+
+O script gera `.sql.gz.age` e `.sha256`, nunca persiste o SQL em claro e remove backups com mais de `BACKUP_RETENTION_DAYS` somente depois de publicar um novo backup valido.
+
+Agende o backup diario depois do teste manual:
+
+```cron
+15 2 * * * cd /opt/sistema-clinico-mvp && /usr/bin/env bash -c 'set -o pipefail; ./scripts/backup_mysql_encrypted.sh 2>&1 | /usr/bin/logger -t sistema-clinico-backup'
+```
+
+Para restaurar, copie o backup e o checksum para um ambiente isolado e disponibilize temporariamente a identidade privada fora da VPS de producao:
+
+```bash
+AGE_IDENTITY_FILE=/secure/keys/medsystem-backup.agekey \
+  ./scripts/restore_mysql_encrypted.sh \
+  /secure/restore-input/sistema_clinico_mysql_YYYYMMDDTHHMMSSZ.sql.gz.age
+```
+
+O restore exige digitar `RESTAURAR:NOME_DO_BANCO` conforme o destino exibido. Backup e restore compartilham um lock para impedir execucao concorrente no mesmo projeto. Teste a restauracao trimestralmente em ambiente isolado. Nunca mantenha `AGE_IDENTITY_FILE` ou a chave privada na VPS de producao.
+
+## Retencao e descarte LGPD
+
+Antes de ativar os prazos, obtenha aprovacao do Controlador, DPO, juridico/regulatorio e responsavel assistencial. Simule primeiro:
+
+```bash
+docker compose exec -T backend flask lgpd-retencao --dry-run
+```
+
+Depois de revisar as contagens, anote o `Hash do plano` exibido e confirme um backup valido do mesmo ciclo. A execucao exige tambem chamado aprovado, operador e consulta a preservacoes legais:
+
+```bash
+docker compose exec -T backend flask lgpd-retencao --execute \
+  --plan-hash HASH_SHA256_DO_DRY_RUN \
+  --plan-reference REFERENCIA_UTC_DO_DRY_RUN \
+  --backup-reference sistema_clinico_mysql_YYYYMMDDTHHMMSSZ.sql.gz.age \
+  --approval-reference CHANGE-1234 \
+  --operator conta-tecnica-responsavel \
+  --confirm-no-legal-hold
+```
+
+O comando aborta se o conjunto destrutivo mudou desde o dry-run. Nesta versao ele exclui somente logs de integracao, filas terminais e auditorias vencidas. Os espelhos SPData e seus vinculos sao monitorados no dry-run, mas permanecem preservados ate homologacao das FKs e concorrencia no MySQL. Prontuario e demais dados clinicos nao fazem parte do descarte automatico. O descarte nao deve ser colocado em cron nesta versao. Consulte a politica completa em `docs/politica-retencao-descarte-backup.md` e no PDF correspondente.
 
 ## Diagnostico rapido
 

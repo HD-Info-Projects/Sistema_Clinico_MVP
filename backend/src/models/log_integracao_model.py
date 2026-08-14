@@ -55,7 +55,8 @@ class LogIntegracao(db.Model):
     created_at = db.Column(
         db.DateTime,
         nullable=False,
-        default=datetime.utcnow
+        default=datetime.utcnow,
+        index=True,
     )
 
     def __repr__(self):

@@ -1,16 +1,18 @@
 from datetime import date, datetime, time
 from decimal import Decimal
 
-from flask import Blueprint, jsonify, request
-from flask_jwt_extended import jwt_required
+from flask import Blueprint, current_app, jsonify, request
+from flask_jwt_extended import get_jwt_identity, jwt_required
 from sqlalchemy import and_, or_, select
 
+from src.models.auditoria_model import AcaoAuditoria
 from src.models.db.handler_fb_db import ConnectionDBFireBird
 from src.models.medico_model import Medico
 from src.models.model_mydsystem.med_atendimentos_model import MedAtendimentos
 from src.models.model_mydsystem.med_spdata_convenios_model import MedSpdataConvenio
 from src.security.decorators import roles_required
 from src.security.unidades import unidade_atual_required
+from src.services.auditoria_service import registrar_auditoria
 from src.settings.extensions import db
 
 
@@ -622,6 +624,13 @@ def home_check_in():
         start = (page - 1) * page_size
         end = start + page_size
 
+        registrar_auditoria(
+            AcaoAuditoria.VISUALIZOU_CHECK_IN,
+            entidade="check_in",
+            usuario_id=int(get_jwt_identity()),
+            descricao=f"Listagem de check-in. data={data_ref} page={page} page_size={page_size} total={total}",
+        )
+
         return jsonify({
             "items": items_filtrados[start:end],
             "page": page,
@@ -634,6 +643,9 @@ def home_check_in():
 
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
-    except Exception as e:
+    except PermissionError as e:
+        return jsonify({"error": str(e)}), 403
+    except Exception:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        current_app.logger.exception("Erro ao listar check-in")
+        return jsonify({"error": "Erro interno ao listar check-in"}), 500

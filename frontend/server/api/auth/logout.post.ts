@@ -1,4 +1,19 @@
-export default defineEventHandler((event) => {
+export default defineEventHandler(async (event) => {
+  const token = getCookie(event, AUTH_COOKIE_NAME)
+  if (token) {
+    const config = useRuntimeConfig()
+    try {
+      await $fetch(`${config.flaskBaseUrl}/login/logout`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      })
+    } catch {
+      // A sessão local deve ser encerrada mesmo se a auditoria do logout falhar.
+    }
+  }
+
   clearAuthTokenCookie(event)
   return { ok: true }
 })

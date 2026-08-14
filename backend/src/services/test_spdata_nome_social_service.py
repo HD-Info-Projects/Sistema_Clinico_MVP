@@ -14,6 +14,7 @@ def test_agenda_para_frontend_expoe_nome_social_sem_substituir_nome_civil():
         cod_atendimento="A1001",
         id_paciente_spdata=55,
         id_medico_spdata=7,
+        unidade_id=1,
         id_convenio_spdata=None,
         id_centro_custo_spdata=203,
         data_atendimento=date(2026, 8, 5),
@@ -43,6 +44,7 @@ def test_agenda_spdata_para_frontend_expoe_nome_social_sem_substituir_nome_civil
         spdata_agenda_id=2002,
         registro="R2002",
         id_paciente_spdata=66,
+        unidade_id=1,
         id_convenio_spdata=None,
         convenio=None,
         data_agenda=date(2026, 8, 5),
@@ -61,6 +63,7 @@ def test_agenda_spdata_para_frontend_expoe_nome_social_sem_substituir_nome_civil
         id=11,
         spdata_atendimento_id=-2002,
         id_medico_spdata=8,
+        unidade_id=1,
     )
 
     item = agenda_spdata_para_frontend(agenda, spdata_ref)

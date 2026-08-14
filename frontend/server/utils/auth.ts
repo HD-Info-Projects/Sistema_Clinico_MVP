@@ -9,7 +9,7 @@ type BackendAuthUser = {
   id: number
   email: string
   nome_completo: string
-  role: 'medico' | 'recepcao' | 'admin'
+  role: 'medico' | 'recepcao' | 'admin' | 'dpo' | 'ti'
   crm?: string | null
   especialidade?: string | null
   unidades?: ServerClinica[]

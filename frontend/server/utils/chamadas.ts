@@ -18,6 +18,15 @@ type CriarChamadoPayload = Pick<Chamado, 'clinicaId' | 'pacienteId' | 'pacienteN
 const chamados: Chamado[] = []
 const MAX_CHAMADOS = 100
 
+function nomePublicoPaciente(nome: string) {
+  const primeiroNome = String(nome || '').trim().split(/\s+/)[0]
+  return primeiroNome || 'Paciente'
+}
+
+function localPublico(local: string) {
+  return String(local || '').trim().slice(0, 80) || 'sala de atendimento'
+}
+
 export function chamadoPublico(chamado: Chamado | null) {
   if (!chamado) return null
 
@@ -25,12 +34,23 @@ export function chamadoPublico(chamado: Chamado | null) {
     id: chamado.id,
     clinicaId: chamado.clinicaId,
     pacienteId: 0,
-    pacienteNome: chamado.pacienteNome,
+    pacienteNome: nomePublicoPaciente(chamado.pacienteNome),
     dataChamada: chamado.dataChamada,
     status: chamado.status,
-    localAtendimento: chamado.localAtendimento,
+    localAtendimento: localPublico(chamado.localAtendimento),
     medicoResponsavel: ''
   }
+}
+
+export function getChamadoPorId(id: number) {
+  return chamados.find(chamado => chamado.id === id) ?? null
+}
+
+export function textoChamadoParaTts(id: number) {
+  const chamado = getChamadoPorId(id)
+  if (!chamado) return null
+
+  return `${nomePublicoPaciente(chamado.pacienteNome)}, por favor dirija-se à ${localPublico(chamado.localAtendimento)}`
 }
 
 export function getChamadoAtivo(clinicaId: number) {

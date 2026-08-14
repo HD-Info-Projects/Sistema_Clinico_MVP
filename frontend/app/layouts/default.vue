@@ -4,13 +4,20 @@ const auth = useAuthStore()
 const unidadeAtivaLabel = computed(() => auth.activeClinica?.nome || 'Sem unidade')
 const podeTrocarUnidade = computed(() => auth.clinicas.length > 1)
 
-const navItems = [
-  { label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: '/dashboard' },
-  { label: 'Agenda', icon: 'i-lucide-calendar', to: '/agenda' },
-  { label: 'Atendimento Médico', icon: 'i-lucide-stethoscope', to: '/atendimento-medico' },
-  { label: 'Meus Pacientes', icon: 'i-lucide-users', to: '/pacientes' },
-  { label: 'Padrões', icon: 'i-lucide-file-text', to: '/padroes-solicitacoes' }
-]
+const navItems = computed(() => [
+  ...(auth.user?.role === 'medico'
+    ? [
+        { label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: '/dashboard' },
+        { label: 'Agenda', icon: 'i-lucide-calendar', to: '/agenda' },
+        { label: 'Atendimento Médico', icon: 'i-lucide-stethoscope', to: '/atendimento-medico' },
+        { label: 'Meus Pacientes', icon: 'i-lucide-users', to: '/pacientes' },
+        { label: 'Padrões', icon: 'i-lucide-file-text', to: '/padroes-solicitacoes' }
+      ]
+    : []),
+  ...(['admin', 'dpo', 'ti'].includes(auth.user?.role || '')
+    ? [{ label: 'Auditoria LGPD', icon: 'i-lucide-shield-check', to: '/lgpd/auditoria' }]
+    : [])
+])
 </script>
 
 <template>

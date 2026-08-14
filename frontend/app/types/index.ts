@@ -87,7 +87,7 @@ export interface AuthUser {
   id: number
   nome: string
   email: string
-  role: 'medico' | 'recepcao' | 'admin'
+  role: 'medico' | 'recepcao' | 'admin' | 'dpo' | 'ti'
   especialidades?: string[]
   crm?: string
   clinicaIds: number[]

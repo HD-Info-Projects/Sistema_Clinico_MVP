@@ -20,6 +20,8 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return navigateTo('/login')
   }
 
+  if (to.path === '/acesso-negado') return
+
   // Rota de seleção de clínica — permitir se não tiver clínica ativa
   if (to.path === '/selecionar-clinica') {
     if (auth.activeClinicaId && auth.clinicas.length <= 1) {
@@ -34,6 +36,12 @@ export default defineNuxtRouteMiddleware(async (to) => {
   }
 
   // Role-based routing
+  const isLgpdRoute = to.path.startsWith('/lgpd')
+  const canAccessLgpd = ['admin', 'dpo', 'ti'].includes(auth.user?.role || '')
+  if (isLgpdRoute && !canAccessLgpd) {
+    return navigateTo('/acesso-negado')
+  }
+
   const isRecepcaoRoute = to.path.startsWith('/recepcao')
   const isMedicoRoute = !isRecepcaoRoute
 

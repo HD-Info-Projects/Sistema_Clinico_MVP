@@ -28,6 +28,7 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     flaskBaseUrl: process.env.NUXT_FLASK_BASE_URL || 'http://localhost:5000',
+    enableTts: process.env.NUXT_ENABLE_TTS === 'true',
     public: {
       authCookieMaxAgeSeconds: Number.isFinite(authCookieMaxAgeSeconds)
         ? authCookieMaxAgeSeconds

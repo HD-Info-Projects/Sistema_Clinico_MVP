@@ -20,7 +20,6 @@ class UsuarioRepository(IUsuario):
             )
             return usuario
         
-        except Exception as e:
+        except Exception:
             db.session.rollback()
-            print(str(e))
             return None

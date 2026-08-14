@@ -1,10 +1,13 @@
 from datetime import date, datetime
 
 from flask import Blueprint, current_app, jsonify, request
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import get_jwt_identity, jwt_required
 
+from src.models.auditoria_model import AcaoAuditoria
+from src.models.model_mydsystem.med_spdata_agenda_model import MedSpdataAgenda
 from src.security.decorators import roles_required
 from src.security.unidades import unidade_atual_required
+from src.services.auditoria_service import registrar_auditoria
 from src.services.no_show_service import listar_no_show, registrar_motivo_no_show
 from src.settings.extensions import db
 
@@ -38,7 +41,7 @@ def index():
         page_size = parse_int("pageSize", 20, maximo=500)
         unidade = unidade_atual_required()
 
-        return jsonify(listar_no_show(
+        resultado = listar_no_show(
             data_ini,
             data_fim,
             unidade=unidade,
@@ -49,14 +52,23 @@ def index():
             q=request.args.get("q"),
             page=page,
             page_size=page_size,
-        )), 200
+        )
+        registrar_auditoria(
+            AcaoAuditoria.VISUALIZOU_NO_SHOW,
+            entidade="no_show",
+            usuario_id=int(get_jwt_identity()),
+            descricao=f"Listagem de no-show. data_ini={data_ini} data_fim={data_fim} page={page} page_size={page_size}",
+        )
+        return jsonify(resultado), 200
 
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
-    except Exception as e:
+    except PermissionError as e:
+        return jsonify({"error": str(e)}), 403
+    except Exception:
         db.session.rollback()
         current_app.logger.exception("Erro ao listar no-show")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Erro interno ao listar no-show"}), 500
 
 
 @no_show_bp.route("/<int:agenda_id>/motivo", methods=["PATCH"])
@@ -65,14 +77,23 @@ def index():
 def atualizar_motivo(agenda_id):
     try:
         body = request.get_json() or {}
+        unidade = unidade_atual_required()
+        agenda = db.session.get(MedSpdataAgenda, agenda_id)
+        if not agenda:
+            raise LookupError("Agenda do no-show não encontrada")
+        if agenda.unidade_id != unidade.id:
+            raise PermissionError("Agenda não pertence à unidade selecionada")
+
         return jsonify(registrar_motivo_no_show(agenda_id, body.get("motivo"))), 200
 
     except LookupError as e:
         return jsonify({"error": str(e)}), 404
+    except PermissionError as e:
+        return jsonify({"error": str(e)}), 403
     except ValueError as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 400
-    except Exception as e:
+    except Exception:
         db.session.rollback()
         current_app.logger.exception("Erro ao registrar motivo do no-show")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Erro interno ao registrar motivo do no-show"}), 500

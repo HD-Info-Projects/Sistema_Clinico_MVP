@@ -5,15 +5,19 @@ from flask import (
     jsonify
 )
 
-from flask_jwt_extended import decode_token, get_jwt_identity, jwt_required
+from flask_jwt_extended import decode_token, get_jwt, get_jwt_identity, jwt_required
 from sqlalchemy.orm import joinedload, selectinload
 from src.security.decorators import roles_required
+from src.security.jwt_blocklist import revoke_jti
+from src.security.passwords import validate_password_strength
 
 from src.controllers.login_controller import LoginController
+from src.models.auditoria_model import AcaoAuditoria
 from src.models.usuario_model import Usuario
 from src.services.unidades_service import listar_unidades_usuario_frontend, vincular_usuario_unidade
 
 from src.settings.extensions import db, limiter
+from src.services.auditoria_service import registrar_auditoria
 from src.services.medicos_spdata_service import (
     buscar_medicos_spdata,
     normalizar_texto,
@@ -22,10 +26,6 @@ from src.services.medicos_spdata_service import (
 
 login_bp = Blueprint('login', __name__, url_prefix="/login")
 controller = LoginController()
-
-
-def registrar_auditoria(*_args, **_kwargs):
-    return None
 
 
 def _login_email_rate_limit_key():
@@ -61,7 +61,21 @@ def login():
         token = controller.generate_JWT_usuario(email, senha)
 
         if not token:
+            registrar_auditoria(
+                AcaoAuditoria.LOGIN_FALHA,
+                entidade="usuarios",
+                descricao=f"Falha de login para email={str(email).strip().lower()[:255]}",
+            )
             return jsonify({"error": "Credenciais inválidas"}), 401
+
+        decoded_token = decode_token(token)
+        registrar_auditoria(
+            AcaoAuditoria.LOGIN_SUCESSO,
+            entidade="usuarios",
+            entidade_id=int(decoded_token["sub"]),
+            usuario_id=int(decoded_token["sub"]),
+            descricao="Login realizado com sucesso",
+        )
 
         return jsonify(access_token=token), 200
 
@@ -88,6 +102,9 @@ def me():
         if not usuario:
             return jsonify({"error": "Não autorizado"}), 401
 
+        if not usuario.ativo or usuario.bloqueado_em:
+            return jsonify({"error": "Não autorizado"}), 401
+
         return jsonify({
             "id": usuario.id,
             "email": usuario.email,
@@ -101,6 +118,22 @@ def me():
     except Exception:
         current_app.logger.exception("Erro ao carregar usuário autenticado")
         return jsonify({"error": "Erro interno ao carregar sessão"}), 500
+
+
+@login_bp.route("/logout", methods=["POST"])
+@jwt_required()
+def logout():
+    usuario_id = int(get_jwt_identity())
+    claims = get_jwt()
+    revoke_jti(claims.get("jti"), claims.get("exp"))
+    registrar_auditoria(
+        AcaoAuditoria.LOGOUT,
+        entidade="usuarios",
+        entidade_id=usuario_id,
+        usuario_id=usuario_id,
+        descricao="Logout realizado",
+    )
+    return jsonify({"ok": True}), 200
 
 
 @login_bp.route("/register", methods=["POST"])
@@ -135,6 +168,8 @@ def register_medic():
         unidade_ids = data.get("unidade_ids") or data.get("unidadeIds") or []
         if isinstance(unidade_ids, (str, int)):
             unidade_ids = [unidade_ids]
+
+        validate_password_strength(senha, current_app.config.get("PASSWORD_MIN_LENGTH", 8))
 
         medicos_spdata = buscar_medicos_spdata(cpf=cpf_cnpj)
         if not medicos_spdata:
@@ -196,6 +231,7 @@ def register_medic():
         db.session.rollback()
         return jsonify({"error": str(e)}), 409
 
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        current_app.logger.exception("Erro ao cadastrar médico")
+        return jsonify({"error": "Erro interno ao cadastrar médico"}), 500

@@ -1,6 +1,10 @@
+from datetime import UTC, datetime
+
 from flask_jwt_extended import create_access_token
 
 from src.models.repositories.usuario_repository import UsuarioRepository
+from src.security.passwords import verify_password
+from src.settings.extensions import db
 from src.services.unidades_service import listar_unidades_usuario_frontend
 
 class LoginController:
@@ -14,9 +18,25 @@ class LoginController:
         if not usuario:
             return None
 
-        if usuario.senha != senha:
+        if not getattr(usuario, "ativo", True) or getattr(usuario, "bloqueado_em", None):
             return None
 
+        senha_valida, senha_legada = verify_password(usuario.senha, senha)
+
+        if not senha_valida:
+            return None
+
+        if senha_legada:
+            usuario.set_senha(senha)
+
+        usuario.ultimo_login_em = datetime.now(UTC).replace(tzinfo=None)
+        db.session.commit()
+
+        unidades = (
+            listar_unidades_usuario_frontend(usuario.id)
+            if getattr(usuario, "unidades", [])
+            else []
+        )
         token = create_access_token(
             identity=str(usuario.id),
             additional_claims={
@@ -28,7 +48,7 @@ class LoginController:
                 "especialidade": usuario.medico.especialidade if usuario.medico else None,
                 "unidade_ids": [
                     unidade["id"]
-                    for unidade in listar_unidades_usuario_frontend(usuario.id)
+                    for unidade in unidades
                 ],
             }
         )

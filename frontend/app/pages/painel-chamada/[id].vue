@@ -82,7 +82,7 @@ async function ativarAudio() {
   audioAtivo.value = await testarAudioPermitido()
 }
 
-async function falarChamado(pacienteNome: string, localAtendimento: string) {
+async function falarChamado(chamadoId: number) {
   if (!audioAtivo.value) return
 
   const requestId = ttsRequestId.value + 1
@@ -91,7 +91,6 @@ async function falarChamado(pacienteNome: string, localAtendimento: string) {
 
   const abortController = new AbortController()
   ttsAbortController.value = abortController
-  const texto = `${pacienteNome}, por favor dirija-se à ${localAtendimento}`
 
   limparAudioAtual()
   ttsLoading.value = true
@@ -101,7 +100,7 @@ async function falarChamado(pacienteNome: string, localAtendimento: string) {
     const res = await fetch('/api/tts/speak', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: texto }),
+      body: JSON.stringify({ chamadoId }),
       signal: abortController.signal
     })
 
@@ -167,9 +166,9 @@ onMounted(async () => {
 
   const sse = useSse()
   sse.on('chamado:novo', (data: unknown) => {
-    const chamado = data as { pacienteNome?: string, localAtendimento?: string }
-    if (chamado?.pacienteNome) {
-      void falarChamado(chamado.pacienteNome, chamado.localAtendimento ?? 'sala de atendimento')
+    const chamado = data as { id?: number, pacienteNome?: string }
+    if (chamado?.id && chamado.pacienteNome) {
+      void falarChamado(chamado.id)
     }
   })
   sse.connect({ public: true, clinicaId: clinicaId.value })
