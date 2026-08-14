@@ -29,9 +29,9 @@ class Atendimento(db.Model):
     id = Column(Integer, primary_key=True)
     
     # As FKs
-    spdata_atendimento_id = Column(Integer, nullable=True)
+    spdata_atendimento_id = Column(Integer, nullable=True, index=True)
     spdata_paciente_id = Column(Integer, nullable=True)
-    spdata_agenda_id = Column(Integer, nullable=True)
+    spdata_agenda_id = Column(Integer, nullable=True, index=True)
     spdata_medico_id = Column(Integer, nullable=True)
     unidade_id = Column(Integer, nullable=True, index=True)
     

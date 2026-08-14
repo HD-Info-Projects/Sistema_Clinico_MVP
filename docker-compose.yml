@@ -1,7 +1,14 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "10"
+
 services:
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
+    logging: *default-logging
     environment:
       APP_DOMAIN: ${APP_DOMAIN:?Defina APP_DOMAIN no .env}
     ports:
@@ -19,6 +26,7 @@ services:
   mysql:
     image: mysql:8.4
     restart: unless-stopped
+    logging: *default-logging
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     environment:
       TZ: ${TZ:-America/Sao_Paulo}
@@ -37,6 +45,7 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    logging: *default-logging
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
@@ -50,6 +59,7 @@ services:
     build:
       context: ./backend
     restart: unless-stopped
+    logging: *default-logging
     environment:
       TZ: ${TZ:-America/Sao_Paulo}
       APP_ENV: ${APP_ENV:-production}
@@ -59,7 +69,11 @@ services:
       SECRET_KEY: ${SECRET_KEY:?Defina SECRET_KEY no .env}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Defina JWT_SECRET_KEY no .env}
       JWT_ACCESS_TOKEN_EXPIRES_SECONDS: ${JWT_ACCESS_TOKEN_EXPIRES_SECONDS:-43200}
-      SQLALCHEMY_DATABASE_URI: mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?Defina MYSQL_DATABASE no .env}
+      MYSQL_USER: ${MYSQL_USER:?Defina MYSQL_USER no .env}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Defina MYSQL_PASSWORD no .env}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_DB: 0
@@ -71,6 +85,11 @@ services:
       SECURITY_HSTS_MAX_AGE: ${SECURITY_HSTS_MAX_AGE:-31536000}
       ENABLE_TTS: ${ENABLE_TTS:-false}
       TTS_RATE_LIMIT: "${TTS_RATE_LIMIT:-30 per minute}"
+      LGPD_RETENTION_LOGS_INTEGRACAO_DAYS: ${LGPD_RETENTION_LOGS_INTEGRACAO_DAYS:-180}
+      LGPD_RETENTION_FILA_SINCRONIZACAO_DAYS: ${LGPD_RETENTION_FILA_SINCRONIZACAO_DAYS:-90}
+      LGPD_RETENTION_AUDITORIA_DAYS: ${LGPD_RETENTION_AUDITORIA_DAYS:-1825}
+      LGPD_RETENTION_SPDATA_ESPELHO_DAYS: ${LGPD_RETENTION_SPDATA_ESPELHO_DAYS:-730}
+      LGPD_RETENTION_BATCH_SIZE: ${LGPD_RETENTION_BATCH_SIZE:-500}
       FIREBIRD_HOST: ${FIREBIRD_HOST}
       FIREBIRD_PORT: ${FIREBIRD_PORT:-3050}
       FIREBIRD_DATABASE: ${FIREBIRD_DATABASE}
@@ -104,6 +123,7 @@ services:
     build:
       context: ./frontend
     restart: unless-stopped
+    logging: *default-logging
     environment:
       TZ: ${TZ:-America/Sao_Paulo}
       NODE_ENV: production

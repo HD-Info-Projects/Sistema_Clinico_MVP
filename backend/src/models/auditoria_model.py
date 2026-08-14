@@ -27,6 +27,7 @@ class AcaoAuditoria(Enum):
     GEROU_ATESTADO = "GEROU_ATESTADO"
     EXPORTOU_DADOS = "EXPORTOU_DADOS"
     SINCRONIZOU_SPDATA = "SINCRONIZOU_SPData"
+    RETENCAO_DESCARTE_EXECUTADA = "RETENCAO_DESCARTE_EXECUTADA"
 
 
 class Auditoria(db.Model):
@@ -71,7 +72,8 @@ class Auditoria(db.Model):
     created_at = db.Column(
         db.DateTime,
         nullable=False,
-        default=datetime.utcnow
+        default=datetime.utcnow,
+        index=True,
     )
 
     usuario = db.relationship(

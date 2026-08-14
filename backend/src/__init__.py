@@ -22,6 +22,7 @@ from src.commands.unidades_commands import (
     listar_unidades_command,
     vincular_unidade_usuario_command,
 )
+from src.commands.lgpd_commands import lgpd_retencao_command
 
 def create_app():
     app = Flask(__name__)
@@ -94,6 +95,7 @@ def create_app():
     app.cli.add_command(criar_unidade_command)
     app.cli.add_command(listar_unidades_command)
     app.cli.add_command(vincular_unidade_usuario_command)
+    app.cli.add_command(lgpd_retencao_command)
 
     # Importações de Models:
     from src.models.atendimentos_model import Atendimento
