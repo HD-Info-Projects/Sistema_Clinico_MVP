@@ -235,11 +235,14 @@ export interface SolicitacaoProcedimentoDocumentoDados extends DocumentoMedicoDa
   regimeInternacao?: string
   quantidadeDiarias?: number
   indicacaoClinica?: string
+  atendimentoRN?: boolean
+  cids?: { cid: string, nome: string }[]
 }
 
 export interface SolicitacaoOpmeDocumentoDados extends DocumentoMedicoDadosBase {
   data: string
-  opmeSolicitados: string
+  opmeSolicitados?: string
+  opmeItens?: { codigo?: string, nome: string, quantidade?: number }[]
   indicacaoClinica?: string
 }
 

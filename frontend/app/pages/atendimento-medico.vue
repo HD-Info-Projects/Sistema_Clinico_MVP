@@ -1398,13 +1398,6 @@ async function finalizarConsulta() {
                 @click="void (showProcedimentoModal = true)"
               />
               <UButton
-                icon="i-lucide-sliders-horizontal"
-                label="Solicitação de OPME"
-                color="secondary"
-                class="w-full p-3 text-lg font-bold"
-                @click="void (showOpmeModal = true)"
-              />
-              <UButton
                 icon="i-lucide-flask-conical"
                 label="Gerar Exames (PDF)"
                 color="warning"

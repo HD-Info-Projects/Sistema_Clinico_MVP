@@ -485,16 +485,17 @@ export async function buildSolicitacaoProcedimento(params: {
 export async function buildSolicitacaoOpme(params: {
   paciente: string
   data: string
-  opmeSolicitados: string
+  opmeItens?: { codigo?: string, nome: string, quantidade?: number }[]
   indicacaoClinica?: string
   medico?: string
   crm?: string
   especialidade?: string
 }) {
-  const linhasOpme = (params.opmeSolicitados || '')
-    .split(/\r?\n/)
-    .map(linha => linha.replace(/^[-•\s]+/, '').trim())
-    .filter(Boolean)
+  const linhasOpme = (params.opmeItens ?? []).map((opme) => {
+    const codigo = opme.codigo ? `${opme.codigo} - ` : ''
+    const qtd = opme.quantidade && opme.quantidade > 1 ? `  (x${opme.quantidade})` : ''
+    return `\u2022 ${codigo}${opme.nome}${qtd}`
+  })
 
   return {
     pageSize: 'A4' as const,

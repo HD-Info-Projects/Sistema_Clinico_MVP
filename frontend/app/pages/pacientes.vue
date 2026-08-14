@@ -33,6 +33,39 @@ function hojeComoCalendarDate() {
   return new CalendarDate(d.getFullYear(), d.getMonth() + 1, d.getDate())
 }
 
+function normalizarOpmeItens(dados: SolicitacaoOpmeDocumentoDados): { codigo?: string, nome: string, quantidade?: number }[] {
+  const bruto = dados.opmeItens ?? (typeof dados.opmeSolicitados === 'string'
+    ? dados.opmeSolicitados.split(/\r?\n/).map(linha => linha.replace(/^[-•\s]+/, '').trim()).filter(Boolean).map(nome => ({ nome }))
+    : [])
+
+  const itens = Array.isArray(bruto)
+    ? bruto
+    : bruto
+      ? [bruto]
+      : []
+
+  const opmes: { codigo?: string, nome: string, quantidade?: number }[] = []
+  const nomes = new Set<string>()
+
+  for (const item of itens) {
+    if (typeof item === 'string') continue
+    const nome = String((item as Record<string, unknown>).nome ?? '').trim()
+    if (!nome) continue
+
+    const chave = nome.toLocaleLowerCase('pt-BR')
+    if (nomes.has(chave)) continue
+    nomes.add(chave)
+
+    opmes.push({
+      codigo: String((item as Record<string, unknown>).codigo ?? '').trim() || undefined,
+      nome,
+      quantidade: Number((item as Record<string, unknown>).quantidade ?? 1) || 1
+    })
+  }
+
+  return opmes
+}
+
 const buscaNome = ref('')
 const filtroData = shallowRef(hojeComoCalendarDate())
 const isLoading = ref(false)
@@ -345,16 +378,19 @@ async function imprimirDocumentoMedico(ag: AgendamentoComPaciente, documento: Do
   if (documento.tipoDocumento === 'SOLICITACAO_OPME') {
     const dados = documento.dados as SolicitacaoOpmeDocumentoDados
     const dataFormatada = formatarDataParaPdf(dados.data)
+    const opmeItens = normalizarOpmeItens(dados)
 
     if (convenioNaoParticular) {
       const html = await gerarHtmlGuiaOpme({
         paciente: ag.paciente.nome,
         data: dataFormatada,
+        convenio: ag.paciente.convenio,
+        idConvenioSpdata: ag.paciente.idConvenioSpdata,
         medico: dados.medico ?? undefined,
         crm: dados.crm ?? undefined,
         especialidade: dados.especialidade ?? undefined,
         indicacaoClinica: dados.indicacaoClinica ?? '',
-        opmeSolicitados: dados.opmeSolicitados
+        opmeItens
       })
       imprimirGuiaOpme(html)
       return
@@ -363,7 +399,7 @@ async function imprimirDocumentoMedico(ag: AgendamentoComPaciente, documento: Do
     const doc = await buildSolicitacaoOpme({
       paciente: ag.paciente.nome,
       data: dataFormatada,
-      opmeSolicitados: dados.opmeSolicitados,
+      opmeItens,
       indicacaoClinica: dados.indicacaoClinica ?? undefined,
       medico: dados.medico ?? undefined,
       crm: dados.crm ?? undefined,
@@ -380,6 +416,8 @@ async function imprimirDocumentoMedico(ag: AgendamentoComPaciente, documento: Do
     const html = await gerarHtmlGuiaInternacao({
       paciente: ag.paciente.nome,
       data: dataFormatada,
+      convenio: ag.paciente.convenio,
+      idConvenioSpdata: ag.paciente.idConvenioSpdata,
       medico: dados.medico ?? undefined,
       crm: dados.crm ?? undefined,
       especialidade: dados.especialidade ?? undefined,
@@ -388,6 +426,8 @@ async function imprimirDocumentoMedico(ag: AgendamentoComPaciente, documento: Do
       regimeInternacao: dados.regimeInternacao,
       quantidadeDiarias: dados.quantidadeDiarias ?? null,
       indicacaoClinica: dados.indicacaoClinica ?? '',
+      atendimentoRN: dados.atendimentoRN,
+      cids: dados.cids,
       procedimentos: dados.procedimentos
     })
     imprimirGuiaInternacao(html)

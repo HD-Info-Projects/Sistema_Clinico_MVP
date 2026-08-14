@@ -373,6 +373,8 @@ function extrairNumeroOpcao(opcao?: string): string {
 export async function gerarHtmlGuiaInternacao(params: {
   paciente: string
   data: string
+  convenio?: string
+  idConvenioSpdata?: number | null
   medico?: string
   crm?: string
   especialidade?: string
@@ -381,7 +383,8 @@ export async function gerarHtmlGuiaInternacao(params: {
   regimeInternacao?: string
   quantidadeDiarias?: number | null
   indicacaoClinica?: string
-  cidPrincipal?: string
+  atendimentoRN?: boolean
+  cids?: { cid: string, nome: string }[]
   procedimentos?: { nome: string, codigo_procedimento?: string | number | null }[]
 }): Promise<string> {
   const template = await $fetch<string>('/guia_internacao.html', { responseType: 'text' })
@@ -399,8 +402,15 @@ export async function gerarHtmlGuiaInternacao(params: {
     })
     .join('\n')
 
+  const cids = (params.cids ?? [])
+    .map(c => String(c.cid || '').trim())
+    .filter(Boolean)
+
+  const convenioLogo = await convenioLogoHtml(params.convenio ?? '', params.idConvenioSpdata)
+
   return template
     .replaceAll('{{PACIENTE}}', escapeHtml(params.paciente))
+    .replaceAll('{{CONVENIO_LOGO}}', convenioLogo)
     .replaceAll('{{MEDICO}}', escapeHtml(params.medico ?? ''))
     .replaceAll('{{CRM_NUMERO}}', extractCrmNumero(params.crm))
     .replaceAll('{{CARATER}}', params.caraterInternacao ? 'U' : 'E')
@@ -408,7 +418,11 @@ export async function gerarHtmlGuiaInternacao(params: {
     .replaceAll('{{REGIME_INTERNACAO}}', extrairNumeroOpcao(params.regimeInternacao))
     .replaceAll('{{DIARIAS}}', escapeHtml(params.quantidadeDiarias != null ? String(params.quantidadeDiarias) : ''))
     .replaceAll('{{INDICACAO_CLINICA}}', escapeHtml(params.indicacaoClinica ?? ''))
-    .replaceAll('{{CID_PRINCIPAL}}', escapeHtml(params.cidPrincipal ?? ''))
+    .replaceAll('{{ATENDIMENTO_RN}}', params.atendimentoRN ? 'S' : 'N')
+    .replaceAll('{{CID_PRINCIPAL}}', escapeHtml(cids[0] ?? ''))
+    .replaceAll('{{CID_2}}', escapeHtml(cids[1] ?? ''))
+    .replaceAll('{{CID_3}}', escapeHtml(cids[2] ?? ''))
+    .replaceAll('{{CID_4}}', escapeHtml(cids[3] ?? ''))
     .replaceAll('{{DATA}}', escapeHtml(params.data))
     .replaceAll('{{PROCEDIMENTOS_ROWS}}', procedimentosRows)
 }
@@ -416,30 +430,32 @@ export async function gerarHtmlGuiaInternacao(params: {
 export async function gerarHtmlGuiaOpme(params: {
   paciente: string
   data: string
+  convenio?: string
+  idConvenioSpdata?: number | null
   medico?: string
   crm?: string
   especialidade?: string
   indicacaoClinica?: string
-  opmeSolicitados: string
+  opmeItens?: { codigo?: string, nome: string, quantidade?: number }[]
 }): Promise<string> {
   const template = await $fetch<string>('/guia_opme.html', { responseType: 'text' })
 
-  const opmeRows = params.opmeSolicitados
-    .split(/\r?\n/)
-    .map(linha => linha.replace(/^[-•\s]+/, '').trim())
-    .filter(Boolean)
+  const opmeRows = (params.opmeItens ?? [])
     .map(opme => `                <tr>
                     <td><input type="text" value="0"></td>
-                    <td><input type="text" value=""></td>
-                    <td><input type="text" value="${escapeHtml(opme)}"></td>
-                    <td><input type="text" value="1"></td>
+                    <td><input type="text" value="${escapeHtml(String(opme.codigo ?? ''))}"></td>
+                    <td><input type="text" value="${escapeHtml(opme.nome)}"></td>
+                    <td><input type="text" value="${escapeHtml(String(opme.quantidade ?? 1))}"></td>
                     <td><input type="text" value=""></td>
                     <td><input type="text" value=""></td>
                 </tr>`)
     .join('\n')
 
+  const convenioLogo = await convenioLogoHtml(params.convenio ?? '', params.idConvenioSpdata)
+
   return template
     .replaceAll('{{PACIENTE}}', escapeHtml(params.paciente))
+    .replaceAll('{{CONVENIO_LOGO}}', convenioLogo)
     .replaceAll('{{MEDICO}}', escapeHtml(params.medico ?? ''))
     .replaceAll('{{INDICACAO_CLINICA}}', escapeHtml(params.indicacaoClinica ?? ''))
     .replaceAll('{{OPME_ROWS}}', opmeRows)
