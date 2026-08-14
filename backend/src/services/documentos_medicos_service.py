@@ -7,6 +7,7 @@ from src.models.documento_medico_model import (
     DocumentoMedico,
     TIPO_ATESTADO,
     TIPO_ENCAMINHAMENTO,
+    TIPO_SOLICITACAO_OPME,
     TIPO_SOLICITACAO_PROCEDIMENTO,
     TIPOS_DOCUMENTO_VALIDOS,
 )
@@ -31,6 +32,9 @@ TIPO_ALIASES = {
     "solicitacao-procedimento": TIPO_SOLICITACAO_PROCEDIMENTO,
     "solicitacao_procedimento": TIPO_SOLICITACAO_PROCEDIMENTO,
     "SOLICITACAO_PROCEDIMENTO": TIPO_SOLICITACAO_PROCEDIMENTO,
+    "solicitacao-opme": TIPO_SOLICITACAO_OPME,
+    "solicitacao_opme": TIPO_SOLICITACAO_OPME,
+    "SOLICITACAO_OPME": TIPO_SOLICITACAO_OPME,
 }
 
 
@@ -348,6 +352,47 @@ def validar_dados_documento(tipo, dados):
         }
         if procedimentos:
             dados_normalizados["procedimentos"] = procedimentos
+
+        carater_internacao = dados.get("caraterInternacao")
+        if carater_internacao is not None:
+            dados_normalizados["caraterInternacao"] = bool(carater_internacao)
+
+        tipo_internacao = normalizar_texto(dados.get("tipoInternacao"), 50)
+        if tipo_internacao:
+            dados_normalizados["tipoInternacao"] = tipo_internacao
+
+        regime_internacao = normalizar_texto(dados.get("regimeInternacao"), 50)
+        if regime_internacao:
+            dados_normalizados["regimeInternacao"] = regime_internacao
+
+        diarias = dados.get("quantidadeDiarias")
+        if diarias is not None and diarias != "":
+            try:
+                diarias = int(diarias)
+            except (TypeError, ValueError) as exc:
+                raise ValueError("quantidadeDiarias inválida") from exc
+            if diarias <= 0:
+                raise ValueError("quantidadeDiarias deve ser maior que zero")
+            dados_normalizados["quantidadeDiarias"] = diarias
+
+        indicacao_clinica = normalizar_texto(dados.get("indicacaoClinica"))
+        if indicacao_clinica:
+            dados_normalizados["indicacaoClinica"] = indicacao_clinica
+
+        return dados_normalizados
+
+    if tipo == TIPO_SOLICITACAO_OPME:
+        opme_solicitados = normalizar_texto(dados.get("opmeSolicitados"))
+        if not opme_solicitados:
+            raise ValueError("opmeSolicitados é obrigatório")
+
+        dados_normalizados = {
+            "data": parse_data_iso(dados.get("data"), "data"),
+            "opmeSolicitados": opme_solicitados,
+        }
+        indicacao_clinica = normalizar_texto(dados.get("indicacaoClinica"))
+        if indicacao_clinica:
+            dados_normalizados["indicacaoClinica"] = indicacao_clinica
 
         return dados_normalizados
 

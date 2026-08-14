@@ -220,7 +220,7 @@
         </div>
         <div class="field w-45">
             <span class="label">Nome:</span>
-            <div class="value"><input type="text" value="CAROLINA LOPES VICENTE BENDER"></div>
+            <div class="value"><input type="text" value="{{PACIENTE}}"></div>
         </div>
         <div class="field w-20">
             <span class="label">Validade da Carteira:</span>
@@ -232,7 +232,7 @@
     <div class="row">
         <div class="field w-60">
             <span class="label">Nome do Profissional Solicitante:</span>
-            <div class="value"><input type="text" value="CAROLINA LOPES VICENTE BENDER"></div>
+            <div class="value"><input type="text" value="{{MEDICO}}"></div>
         </div>
         <div class="field w-20">
             <span class="label">Telefone:</span>
@@ -248,7 +248,7 @@
     <div class="row">
         <div class="field w-100" style="min-height: 45px;">
             <span class="label">Indicação Clínica:</span>
-            <div class="value"><textarea rows="2" style="width:100%; border:none; resize:none;">paciuknLKLK</textarea></div>
+            <div class="value"><textarea rows="2" style="width:100%; border:none; resize:none;">{{INDICACAO_CLINICA}}</textarea></div>
         </div>
     </div>
 
@@ -266,14 +266,7 @@
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                    <td><input type="text" value="0"></td>
-                    <td><input type="text" value=""></td>
-                    <td><input type="text" value="diu mirena"></td>
-                    <td><input type="text" value="1"></td>
-                    <td><input type="text" value=""></td>
-                    <td><input type="text" value=""></td>
-                </tr>
+                {{OPME_ROWS}}
             </tbody>
         </table>
     </div>
@@ -337,7 +330,7 @@
 
 <div class="footer-note">
     <span>Project One Sistemas - Biodata</span>
-    <span>Usuário: @CAROLINA LOPES VICENTE BENDER em 03/08/2026, 18:23:07</span>
+    <span>Usuário: {{MEDICO}}</span>
     <span>Página: 2</span>
 </div>
 

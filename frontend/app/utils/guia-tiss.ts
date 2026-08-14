@@ -363,3 +363,92 @@ function extractCrmNumero(crm?: string): string {
   const match = crm.match(/\d+/)
   return match ? escapeHtml(match[0]) : ''
 }
+
+function extrairNumeroOpcao(opcao?: string): string {
+  if (!opcao) return ''
+  const match = opcao.match(/^\d+/)
+  return match ? match[0] : escapeHtml(opcao)
+}
+
+export async function gerarHtmlGuiaInternacao(params: {
+  paciente: string
+  data: string
+  medico?: string
+  crm?: string
+  especialidade?: string
+  caraterInternacao?: boolean
+  tipoInternacao?: string
+  regimeInternacao?: string
+  quantidadeDiarias?: number | null
+  indicacaoClinica?: string
+  cidPrincipal?: string
+  procedimentos?: { nome: string, codigo_procedimento?: string | number | null }[]
+}): Promise<string> {
+  const template = await $fetch<string>('/guia_internacao.html', { responseType: 'text' })
+
+  const procedimentosRows = (params.procedimentos || [])
+    .map((p) => {
+      const codigo = p.codigo_procedimento ? String(p.codigo_procedimento) : ''
+      return `                    <tr>
+                        <td><input type="text" value="0"></td>
+                        <td><input type="text" value="${escapeHtml(codigo)}"></td>
+                        <td><input type="text" value="${escapeHtml(p.nome)}"></td>
+                        <td><input type="text" value="1"></td>
+                        <td><input type="text" value="1"></td>
+                    </tr>`
+    })
+    .join('\n')
+
+  return template
+    .replaceAll('{{PACIENTE}}', escapeHtml(params.paciente))
+    .replaceAll('{{MEDICO}}', escapeHtml(params.medico ?? ''))
+    .replaceAll('{{CRM_NUMERO}}', extractCrmNumero(params.crm))
+    .replaceAll('{{CARATER}}', params.caraterInternacao ? 'U' : 'E')
+    .replaceAll('{{TIPO_INTERNACAO}}', extrairNumeroOpcao(params.tipoInternacao))
+    .replaceAll('{{REGIME_INTERNACAO}}', extrairNumeroOpcao(params.regimeInternacao))
+    .replaceAll('{{DIARIAS}}', escapeHtml(params.quantidadeDiarias != null ? String(params.quantidadeDiarias) : ''))
+    .replaceAll('{{INDICACAO_CLINICA}}', escapeHtml(params.indicacaoClinica ?? ''))
+    .replaceAll('{{CID_PRINCIPAL}}', escapeHtml(params.cidPrincipal ?? ''))
+    .replaceAll('{{DATA}}', escapeHtml(params.data))
+    .replaceAll('{{PROCEDIMENTOS_ROWS}}', procedimentosRows)
+}
+
+export async function gerarHtmlGuiaOpme(params: {
+  paciente: string
+  data: string
+  medico?: string
+  crm?: string
+  especialidade?: string
+  indicacaoClinica?: string
+  opmeSolicitados: string
+}): Promise<string> {
+  const template = await $fetch<string>('/guia_opme.html', { responseType: 'text' })
+
+  const opmeRows = params.opmeSolicitados
+    .split(/\r?\n/)
+    .map(linha => linha.replace(/^[-•\s]+/, '').trim())
+    .filter(Boolean)
+    .map(opme => `                <tr>
+                    <td><input type="text" value="0"></td>
+                    <td><input type="text" value=""></td>
+                    <td><input type="text" value="${escapeHtml(opme)}"></td>
+                    <td><input type="text" value="1"></td>
+                    <td><input type="text" value=""></td>
+                    <td><input type="text" value=""></td>
+                </tr>`)
+    .join('\n')
+
+  return template
+    .replaceAll('{{PACIENTE}}', escapeHtml(params.paciente))
+    .replaceAll('{{MEDICO}}', escapeHtml(params.medico ?? ''))
+    .replaceAll('{{INDICACAO_CLINICA}}', escapeHtml(params.indicacaoClinica ?? ''))
+    .replaceAll('{{OPME_ROWS}}', opmeRows)
+}
+
+export function imprimirGuiaInternacao(html: string) {
+  imprimirGuiaTiss(html)
+}
+
+export function imprimirGuiaOpme(html: string) {
+  imprimirGuiaTiss(html)
+}

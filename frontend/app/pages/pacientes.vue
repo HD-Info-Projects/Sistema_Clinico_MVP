@@ -6,6 +6,7 @@ import type {
   DocumentoMedicoTipo,
   EncaminhamentoDocumentoDados,
   HistoricoLocalRecord,
+  SolicitacaoOpmeDocumentoDados,
   SolicitacaoProcedimentoDocumentoDados
 } from '~/types'
 import { CalendarDate, DateFormatter, getLocalTimeZone } from '@internationalized/date'
@@ -16,9 +17,10 @@ import {
   buildEncaminhamento,
   buildReceita,
   buildSolicitacaoExames,
+  buildSolicitacaoOpme,
   buildSolicitacaoProcedimento
 } from '~/utils/pdf-documents'
-import { gerarHtmlGuiaTiss, imprimirGuiaTiss } from '~/utils/guia-tiss'
+import { gerarHtmlGuiaInternacao, gerarHtmlGuiaOpme, gerarHtmlGuiaTiss, imprimirGuiaInternacao, imprimirGuiaOpme, imprimirGuiaTiss } from '~/utils/guia-tiss'
 
 const auth = useAuthStore()
 
@@ -43,6 +45,7 @@ const documentosMedicosPorAgendamento = shallowRef<Record<string, Partial<Record
 const showAtestadoModal = ref(false)
 const showEncaminhamentoModal = ref(false)
 const showProcedimentoModal = ref(false)
+const showOpmeModal = ref(false)
 const showHistoricoSlideover = ref(false)
 const dropdownAcoesAbertoId = ref<number | null>(null)
 
@@ -158,6 +161,7 @@ function documentoMedico(ag: AgendamentoComPaciente | null, tipo: DocumentoMedic
 const documentoAtestadoSelecionado = computed(() => documentoMedico(agendamentoSelecionado.value, 'ATESTADO'))
 const documentoEncaminhamentoSelecionado = computed(() => documentoMedico(agendamentoSelecionado.value, 'ENCAMINHAMENTO'))
 const documentoProcedimentoSelecionado = computed(() => documentoMedico(agendamentoSelecionado.value, 'SOLICITACAO_PROCEDIMENTO'))
+const documentoOpmeSelecionado = computed(() => documentoMedico(agendamentoSelecionado.value, 'SOLICITACAO_OPME'))
 
 function atualizarDocumentoMedico(documento: DocumentoMedico) {
   const chave = String(documento.medSpdataAtendimentoId)
@@ -182,6 +186,7 @@ async function abrirDocumentoMedico(ag: AgendamentoComPaciente, tipo: DocumentoM
   if (tipo === 'ATESTADO') showAtestadoModal.value = true
   if (tipo === 'ENCAMINHAMENTO') showEncaminhamentoModal.value = true
   if (tipo === 'SOLICITACAO_PROCEDIMENTO') showProcedimentoModal.value = true
+  if (tipo === 'SOLICITACAO_OPME') showOpmeModal.value = true
 }
 
 function formatarDataParaPdf(dataISO: string) {
@@ -306,6 +311,8 @@ function textoAtestado(paciente: string, dados: AtestadoDocumentoDados) {
 
 async function imprimirDocumentoMedico(ag: AgendamentoComPaciente, documento: DocumentoMedico) {
   const pdfMake = await usePdfMake()
+  const convenio = (ag.paciente.convenio ?? '').toLowerCase().trim()
+  const convenioNaoParticular = Boolean(convenio && convenio !== 'particular')
 
   if (documento.tipoDocumento === 'ATESTADO') {
     const dados = documento.dados as AtestadoDocumentoDados
@@ -335,11 +342,63 @@ async function imprimirDocumentoMedico(ag: AgendamentoComPaciente, documento: Do
     return
   }
 
+  if (documento.tipoDocumento === 'SOLICITACAO_OPME') {
+    const dados = documento.dados as SolicitacaoOpmeDocumentoDados
+    const dataFormatada = formatarDataParaPdf(dados.data)
+
+    if (convenioNaoParticular) {
+      const html = await gerarHtmlGuiaOpme({
+        paciente: ag.paciente.nome,
+        data: dataFormatada,
+        medico: dados.medico ?? undefined,
+        crm: dados.crm ?? undefined,
+        especialidade: dados.especialidade ?? undefined,
+        indicacaoClinica: dados.indicacaoClinica ?? '',
+        opmeSolicitados: dados.opmeSolicitados
+      })
+      imprimirGuiaOpme(html)
+      return
+    }
+
+    const doc = await buildSolicitacaoOpme({
+      paciente: ag.paciente.nome,
+      data: dataFormatada,
+      opmeSolicitados: dados.opmeSolicitados,
+      indicacaoClinica: dados.indicacaoClinica ?? undefined,
+      medico: dados.medico ?? undefined,
+      crm: dados.crm ?? undefined,
+      especialidade: dados.especialidade ?? undefined
+    })
+    pdfMake.createPdf(doc).open()
+    return
+  }
+
   const dados = documento.dados as SolicitacaoProcedimentoDocumentoDados
+  const dataFormatada = formatarDataParaPdf(dados.data)
+
+  if (convenioNaoParticular) {
+    const html = await gerarHtmlGuiaInternacao({
+      paciente: ag.paciente.nome,
+      data: dataFormatada,
+      medico: dados.medico ?? undefined,
+      crm: dados.crm ?? undefined,
+      especialidade: dados.especialidade ?? undefined,
+      caraterInternacao: dados.caraterInternacao,
+      tipoInternacao: dados.tipoInternacao,
+      regimeInternacao: dados.regimeInternacao,
+      quantidadeDiarias: dados.quantidadeDiarias ?? null,
+      indicacaoClinica: dados.indicacaoClinica ?? '',
+      procedimentos: dados.procedimentos
+    })
+    imprimirGuiaInternacao(html)
+    return
+  }
+
   const doc = await buildSolicitacaoProcedimento({
     paciente: ag.paciente.nome,
-    data: formatarDataParaPdf(dados.data),
+    data: dataFormatada,
     descricao: dados.descricao,
+    procedimentos: dados.procedimentos,
     medico: dados.medico ?? undefined,
     crm: dados.crm ?? undefined,
     especialidade: dados.especialidade ?? undefined
@@ -460,6 +519,7 @@ function dropdownItems(ag: AgendamentoComPaciente) {
   const documentosMedicos = [
     itemDocumentoMedico(ag, 'ATESTADO', 'Atestado Médico', 'i-lucide-file-text'),
     itemDocumentoMedico(ag, 'SOLICITACAO_PROCEDIMENTO', 'Solicitação de Procedimento', 'i-lucide-clipboard-list'),
+    itemDocumentoMedico(ag, 'SOLICITACAO_OPME', 'Solicitação de OPME', 'i-lucide-sliders-horizontal'),
     itemDocumentoMedico(ag, 'ENCAMINHAMENTO', 'Encaminhamento Médico', 'i-lucide-arrow-right-circle')
   ].filter((item): item is DropdownItem => Boolean(item))
 
@@ -641,6 +701,15 @@ function dropdownItems(ag: AgendamentoComPaciente) {
       :agendamento="agendamentoSelecionado"
       :data-atendimento="agendamentoSelecionado?.data"
       :documento="documentoProcedimentoSelecionado"
+      @saved="atualizarDocumentoMedico"
+    />
+    <ProcedimentoGerarModal
+      v-model:open="showOpmeModal"
+      :paciente="pacienteSelecionado"
+      :agendamento="agendamentoSelecionado"
+      :data-atendimento="agendamentoSelecionado?.data"
+      :documento="documentoOpmeSelecionado"
+      aba-inicial="opme"
       @saved="atualizarDocumentoMedico"
     />
     <HistoricoSlideover

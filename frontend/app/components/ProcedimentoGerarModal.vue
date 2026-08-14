@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import type { AgendamentoComPaciente, DocumentoMedico, Paciente, ProcedimentoCatalogo, ProcedimentoSelecionado, SolicitacaoProcedimentoDocumentoDados } from '~/types'
+import type { AgendamentoComPaciente, DocumentoMedico, Paciente, ProcedimentoCatalogo, ProcedimentoSelecionado, SolicitacaoOpmeDocumentoDados, SolicitacaoProcedimentoDocumentoDados } from '~/types'
 import { usePdfMake } from '~/utils/pdf'
-import { buildSolicitacaoProcedimento } from '~/utils/pdf-documents'
+import { buildSolicitacaoOpme, buildSolicitacaoProcedimento } from '~/utils/pdf-documents'
+import { gerarHtmlGuiaInternacao, gerarHtmlGuiaOpme, imprimirGuiaInternacao, imprimirGuiaOpme } from '~/utils/guia-tiss'
 
 const props = defineProps<{
   paciente?: Paciente
   agendamento?: AgendamentoComPaciente | null
   dataAtendimento?: string
   documento?: DocumentoMedico | null
+  abaInicial?: 'internacao' | 'opme'
 }>()
 
 const emit = defineEmits<{
@@ -221,6 +223,26 @@ function removerProcedimentoDaLista(index: number) {
 }
 
 function preencherFormulario() {
+  procedimentosSelecionados.value = []
+  procedimentoSelecionado.value = null
+  buscaTermoProcedimento.value = ''
+  sugestoesProcedimentos.value = []
+  caraterInternacao.value = false
+  tipoInternacao.value = undefined
+  regimeInternacao.value = undefined
+  quantidadeDiarias.value = null
+  indicacaoClinica.value = ''
+  opmeSolicitados.value = ''
+
+  if (props.documento?.tipoDocumento === 'SOLICITACAO_OPME') {
+    const dados = props.documento.dados as SolicitacaoOpmeDocumentoDados
+    data.value = dados?.data ?? dataAtendimentoPadrao.value
+    opmeSolicitados.value = dados?.opmeSolicitados ?? ''
+    indicacaoClinica.value = dados?.indicacaoClinica ?? ''
+    tabAtiva.value = '1'
+    return
+  }
+
   const dados = props.documento?.tipoDocumento === 'SOLICITACAO_PROCEDIMENTO'
     ? props.documento.dados as SolicitacaoProcedimentoDocumentoDados
     : null
@@ -230,9 +252,13 @@ function preencherFormulario() {
   procedimentosSelecionados.value = procedimentos.length
     ? procedimentos
     : normalizarListaProcedimentos(dados?.descricao)
-  procedimentoSelecionado.value = null
-  buscaTermoProcedimento.value = ''
-  sugestoesProcedimentos.value = []
+  caraterInternacao.value = dados?.caraterInternacao ?? false
+  tipoInternacao.value = dados?.tipoInternacao ?? undefined
+  regimeInternacao.value = dados?.regimeInternacao ?? undefined
+  quantidadeDiarias.value = dados?.quantidadeDiarias ?? null
+  indicacaoClinica.value = dados?.indicacaoClinica ?? ''
+
+  tabAtiva.value = props.abaInicial === 'opme' ? '1' : '0'
 }
 
 watch(
@@ -250,20 +276,76 @@ function formatarDataPdf(dataISO: string) {
 
 const podeEnviar = computed(() => {
   if (!podeEditar.value) return Boolean(props.documento)
-  return Boolean(medSpdataAtendimentoId.value && data.value && procedimentosSelecionados.value.length)
+  if (!medSpdataAtendimentoId.value || !data.value) return false
+
+  if (tabAtiva.value === '1') return Boolean(opmeSolicitados.value.trim())
+  return procedimentosSelecionados.value.length > 0
 })
 
 const botaoLabel = computed(() => podeEditar.value ? 'Salvar e Imprimir' : 'Imprimir')
 
 async function gerarPdf(documento: DocumentoMedico) {
+  const pdfMake = await usePdfMake()
+  const pacienteNome = paciente.value?.nome ?? 'Paciente'
+
+  if (documento.tipoDocumento === 'SOLICITACAO_OPME') {
+    const dados = documento.dados as SolicitacaoOpmeDocumentoDados
+    const dataFormatada = formatarDataPdf(dados.data)
+
+    if (convenioNaoParticular.value) {
+      const html = await gerarHtmlGuiaOpme({
+        paciente: pacienteNome,
+        data: dataFormatada,
+        medico: dados.medico ?? undefined,
+        crm: dados.crm ?? undefined,
+        especialidade: dados.especialidade ?? undefined,
+        indicacaoClinica: dados.indicacaoClinica ?? '',
+        opmeSolicitados: dados.opmeSolicitados
+      })
+      imprimirGuiaOpme(html)
+      return
+    }
+
+    const doc = await buildSolicitacaoOpme({
+      paciente: pacienteNome,
+      data: dataFormatada,
+      opmeSolicitados: dados.opmeSolicitados,
+      indicacaoClinica: dados.indicacaoClinica ?? undefined,
+      medico: dados.medico ?? undefined,
+      crm: dados.crm ?? undefined,
+      especialidade: dados.especialidade ?? undefined
+    })
+    pdfMake.createPdf(doc).open()
+    return
+  }
+
   if (documento.tipoDocumento !== 'SOLICITACAO_PROCEDIMENTO') return
 
   const dados = documento.dados as SolicitacaoProcedimentoDocumentoDados
   const procedimentos = normalizarListaProcedimentos(dados.procedimentos)
-  const pdfMake = await usePdfMake()
+  const dataFormatada = formatarDataPdf(dados.data)
+
+  if (convenioNaoParticular.value) {
+    const html = await gerarHtmlGuiaInternacao({
+      paciente: pacienteNome,
+      data: dataFormatada,
+      medico: dados.medico ?? undefined,
+      crm: dados.crm ?? undefined,
+      especialidade: dados.especialidade ?? undefined,
+      caraterInternacao: dados.caraterInternacao,
+      tipoInternacao: dados.tipoInternacao,
+      regimeInternacao: dados.regimeInternacao,
+      quantidadeDiarias: dados.quantidadeDiarias ?? null,
+      indicacaoClinica: dados.indicacaoClinica ?? '',
+      procedimentos: procedimentos.length ? procedimentos : normalizarListaProcedimentos(dados.descricao)
+    })
+    imprimirGuiaInternacao(html)
+    return
+  }
+
   const doc = await buildSolicitacaoProcedimento({
-    paciente: paciente.value?.nome ?? 'Paciente',
-    data: formatarDataPdf(dados.data),
+    paciente: pacienteNome,
+    data: dataFormatada,
     descricao: dados.descricao,
     procedimentos: procedimentos.length ? procedimentos : normalizarListaProcedimentos(dados.descricao),
     medico: dados.medico ?? undefined,
@@ -289,14 +371,29 @@ async function salvarEImprimir() {
 
   salvando.value = true
   try {
-    const documento = await $fetch<DocumentoMedico>(`/api/documentos-medicos/${medSpdataAtendimentoId.value}/SOLICITACAO_PROCEDIMENTO`, {
-      method: 'PUT',
-      body: {
-        dados: {
+    const ehOpme = tabAtiva.value === '1'
+    const tipo = ehOpme ? 'SOLICITACAO_OPME' : 'SOLICITACAO_PROCEDIMENTO'
+    const dados = ehOpme
+      ? {
+          data: data.value,
+          opmeSolicitados: opmeSolicitados.value,
+          indicacaoClinica: indicacaoClinica.value.trim() || undefined
+        }
+      : {
           data: data.value,
           descricao: descricaoProcedimentos.value,
-          procedimentos: procedimentosSelecionados.value
+          procedimentos: procedimentosSelecionados.value,
+          caraterInternacao: convenioNaoParticular.value ? caraterInternacao.value : undefined,
+          tipoInternacao: convenioNaoParticular.value ? tipoInternacao.value : undefined,
+          regimeInternacao: convenioNaoParticular.value ? regimeInternacao.value : undefined,
+          quantidadeDiarias: convenioNaoParticular.value ? quantidadeDiarias.value : undefined,
+          indicacaoClinica: convenioNaoParticular.value ? (indicacaoClinica.value.trim() || undefined) : undefined
         }
+
+    const documento = await $fetch<DocumentoMedico>(`/api/documentos-medicos/${medSpdataAtendimentoId.value}/${tipo}`, {
+      method: 'PUT',
+      body: {
+        dados
       }
     })
 

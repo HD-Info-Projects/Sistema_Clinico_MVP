@@ -207,7 +207,7 @@ export interface Atendimento {
   observacoes?: string
 }
 
-export type DocumentoMedicoTipo = 'ATESTADO' | 'ENCAMINHAMENTO' | 'SOLICITACAO_PROCEDIMENTO'
+export type DocumentoMedicoTipo = 'ATESTADO' | 'ENCAMINHAMENTO' | 'SOLICITACAO_PROCEDIMENTO' | 'SOLICITACAO_OPME'
 
 export interface DocumentoMedicoDadosBase {
   medico?: string | null
@@ -230,9 +230,20 @@ export interface SolicitacaoProcedimentoDocumentoDados extends DocumentoMedicoDa
   data: string
   descricao: string
   procedimentos?: ProcedimentoSelecionado[]
+  caraterInternacao?: boolean
+  tipoInternacao?: string
+  regimeInternacao?: string
+  quantidadeDiarias?: number
+  indicacaoClinica?: string
 }
 
-export type DocumentoMedicoDados = AtestadoDocumentoDados | EncaminhamentoDocumentoDados | SolicitacaoProcedimentoDocumentoDados
+export interface SolicitacaoOpmeDocumentoDados extends DocumentoMedicoDadosBase {
+  data: string
+  opmeSolicitados: string
+  indicacaoClinica?: string
+}
+
+export type DocumentoMedicoDados = AtestadoDocumentoDados | EncaminhamentoDocumentoDados | SolicitacaoProcedimentoDocumentoDados | SolicitacaoOpmeDocumentoDados
 
 export interface DocumentoMedico {
   id: number
