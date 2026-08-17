@@ -1,7 +1,7 @@
 """Add login attempt security fields.
 
 Revision ID: 9a0b1c2d3e4f
-Revises: e1f2a3b4c5d6
+Revises: f9a0b1c2d3e4
 Create Date: 2026-08-17 00:00:00.000000
 """
 
@@ -11,7 +11,7 @@ from sqlalchemy import inspect
 
 
 revision = "9a0b1c2d3e4f"
-down_revision = "e1f2a3b4c5d6"
+down_revision = "f9a0b1c2d3e4"
 branch_labels = None
 depends_on = None
 
