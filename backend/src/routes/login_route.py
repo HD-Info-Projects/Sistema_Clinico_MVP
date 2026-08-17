@@ -7,7 +7,7 @@ from flask import (
 
 from flask_jwt_extended import decode_token, get_jwt, get_jwt_identity, jwt_required
 from sqlalchemy.orm import joinedload, selectinload
-from src.security.decorators import roles_required
+from src.security.decorators import active_user_required, roles_required
 from src.security.jwt_blocklist import revoke_jti
 from src.security.passwords import validate_password_strength
 
@@ -86,6 +86,7 @@ def login():
 
 @login_bp.route("/me", methods=["GET"])
 @jwt_required()
+@active_user_required()
 def me():
     try:
         usuario_id = int(get_jwt_identity())
@@ -122,6 +123,7 @@ def me():
 
 @login_bp.route("/logout", methods=["POST"])
 @jwt_required()
+@active_user_required()
 def logout():
     usuario_id = int(get_jwt_identity())
     claims = get_jwt()

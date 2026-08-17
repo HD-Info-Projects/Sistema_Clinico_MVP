@@ -78,15 +78,29 @@ def atualizar_status(med_spdata_atendimento_id):
         status = body.get("status")
         consulta = body.get("consulta")
 
-        return jsonify(
-            atualizar_status_agenda(
-                med_spdata_atendimento_id,
-                status,
-                usuario_id=usuario_id,
-                consulta=consulta,
-                unidade_id=unidade_id_request(),
-            )
-        ), 200
+        resultado = atualizar_status_agenda(
+            med_spdata_atendimento_id,
+            status,
+            usuario_id=usuario_id,
+            consulta=consulta,
+            unidade_id=unidade_id_request(),
+        )
+        status_final = resultado.get("status") or status
+        acao = AcaoAuditoria.ALTEROU_STATUS_AGENDA
+        if status_final == "em-atendimento":
+            acao = AcaoAuditoria.INICIOU_ATENDIMENTO
+        elif status_final == "atendido":
+            acao = AcaoAuditoria.FINALIZOU_ATENDIMENTO
+
+        registrar_auditoria(
+            acao,
+            entidade="agenda_medica",
+            entidade_id=med_spdata_atendimento_id,
+            usuario_id=usuario_id,
+            descricao=f"Status de atendimento atualizado. status={status_final}",
+        )
+
+        return jsonify(resultado), 200
 
     except LookupError as e:
         return jsonify({"error": str(e)}), 404

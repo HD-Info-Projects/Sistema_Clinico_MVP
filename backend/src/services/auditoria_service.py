@@ -1,3 +1,5 @@
+import re
+
 from flask import current_app, has_request_context, request
 from flask_jwt_extended import get_jwt_identity
 
@@ -6,6 +8,10 @@ from src.settings.extensions import db
 
 
 MAX_DESCRICAO_LENGTH = 1000
+CPF_RE = re.compile(r"\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b")
+SENSITIVE_KEY_RE = re.compile(
+    r"(?i)\b(senha|password|token|authorization|jwt)\b\s*[:=]\s*([^\s,;]+)"
+)
 
 
 def _request_ip():
@@ -48,6 +54,8 @@ def _normalizar_descricao(descricao):
 
 
     texto = str(descricao)
+    texto = CPF_RE.sub("[CPF_REMOVIDO]", texto)
+    texto = SENSITIVE_KEY_RE.sub(lambda match: f"{match.group(1)}=[REMOVIDO]", texto)
     if len(texto) <= MAX_DESCRICAO_LENGTH:
         return texto
 

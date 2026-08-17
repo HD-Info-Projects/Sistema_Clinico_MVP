@@ -3,7 +3,9 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.security.decorators import roles_required
 
 from src.settings.extensions import db
+from src.models.auditoria_model import AcaoAuditoria
 from src.models.model_padroes_solicitacoes.modelo_anamnese_model import ModeloAnamnese
+from src.services.auditoria_service import registrar_auditoria
 
 padrao_medico_anamnese_bp = Blueprint(
     "padrao_medico_anamnese",
@@ -27,6 +29,16 @@ def _get_padrao_do_medico(id_padrao, medico_id):
     )
 
 
+def _auditar_modelo_anamnese(acao, modelo_id, medico_id, detalhe):
+    registrar_auditoria(
+        acao,
+        entidade="padrao_medico_anamnese",
+        entidade_id=modelo_id,
+        usuario_id=medico_id,
+        descricao=f"Modelo médico de anamnese {detalhe}.",
+    )
+
+
 @padrao_medico_anamnese_bp.route("/criar", methods=["POST"])
 @jwt_required()
 @roles_required("medico")
@@ -46,6 +58,12 @@ def create_padrao_medico_anamnese():
         new_padrao = ModeloAnamnese(nome_modelo, medico_id, conteudo)
         db.session.add(new_padrao)
         db.session.commit()
+        _auditar_modelo_anamnese(
+            AcaoAuditoria.CRIOU_MODELO_MEDICO,
+            new_padrao.id,
+            medico_id,
+            "criado",
+        )
 
         return jsonify(new_padrao._to_dict()), 201
 
@@ -120,6 +138,12 @@ def editar_padrao_medico_anamnese(id: int):
             padrao.conteudo = conteudo
 
         db.session.commit()
+        _auditar_modelo_anamnese(
+            AcaoAuditoria.EDITOU_MODELO_MEDICO,
+            padrao.id,
+            medico_id,
+            "editado",
+        )
 
         return jsonify(padrao._to_dict()), 200
 
@@ -141,6 +165,12 @@ def deletar_padrao_medico_anamnese(id: int):
 
         db.session.delete(padrao)
         db.session.commit()
+        _auditar_modelo_anamnese(
+            AcaoAuditoria.EXCLUIU_MODELO_MEDICO,
+            id,
+            medico_id,
+            "excluído",
+        )
 
         return jsonify({"message": "Padrão médico de anamnese deletado com sucesso"}), 200
 

@@ -4,6 +4,8 @@ import re
 
 from flask import Blueprint, Response, current_app, jsonify, request
 
+from src.models.auditoria_model import AcaoAuditoria
+from src.services.auditoria_service import registrar_auditoria
 from src.settings.extensions import limiter
 
 
@@ -64,6 +66,7 @@ def speak():
     body = request.get_json(silent=True) or {}
     texto = str(body.get("text") or "").strip()
     voice_key = str(body.get("voice") or DEFAULT_VOICE).strip().casefold()
+    chamado_id = body.get("chamadoId") or body.get("chamado_id")
 
     if not texto:
         return jsonify({"error": "Campo 'text' é obrigatório"}), 400
@@ -96,6 +99,21 @@ def speak():
 
     if not audio_bytes:
         return jsonify({"error": "Nenhum áudio gerado"}), 500
+
+    try:
+        entidade_id = int(chamado_id) if chamado_id is not None else None
+    except (TypeError, ValueError):
+        entidade_id = None
+
+    registrar_auditoria(
+        AcaoAuditoria.TTS_SOLICITADO,
+        entidade="tts",
+        entidade_id=entidade_id,
+        descricao=(
+            "TTS gerado com sucesso. "
+            f"voice={voice_key} tamanho_texto={len(texto)}"
+        ),
+    )
 
     return Response(
         audio_bytes,

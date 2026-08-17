@@ -3,11 +3,13 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.security.decorators import roles_required
 
 from src.settings.extensions import db
+from src.models.auditoria_model import AcaoAuditoria
 from src.models.model_mydsystem.med_exames_model import Exame
 from src.models.model_padroes_solicitacoes.modelo_exame_model import ModeloExame
 from src.models.model_padroes_solicitacoes.exames_para_modelo_exame_model import (
     ExamesDoModelo,
 )
+from src.services.auditoria_service import registrar_auditoria
 
 padrao_medico_exame_bp = Blueprint(
     "padrao_medico_exame",
@@ -73,6 +75,16 @@ def _get_exame_catalogo(data):
     return exame_id, exame
 
 
+def _auditar_modelo_exame(acao, modelo_id, medico_id, detalhe):
+    registrar_auditoria(
+        acao,
+        entidade="padrao_medico_exame",
+        entidade_id=modelo_id,
+        usuario_id=medico_id,
+        descricao=f"Modelo médico de exame {detalhe}.",
+    )
+
+
 @padrao_medico_exame_bp.route("/criar", methods=["POST"])
 @jwt_required()
 @roles_required("medico")
@@ -88,6 +100,12 @@ def create_padrao_medico_exame():
         new_padrao = ModeloExame(nome_modelo, medico_id)
         db.session.add(new_padrao)
         db.session.commit()
+        _auditar_modelo_exame(
+            AcaoAuditoria.CRIOU_MODELO_MEDICO,
+            new_padrao.id,
+            medico_id,
+            "criado",
+        )
 
         return jsonify(new_padrao._to_dict()), 201
 
@@ -124,6 +142,12 @@ def add_exame_padrao_medico_exame(id_padrao_medico_exame):
         new_exame = ExamesDoModelo(nome_exame, id_padrao_medico_exame, exame_id=exame_id)
         db.session.add(new_exame)
         db.session.commit()
+        _auditar_modelo_exame(
+            AcaoAuditoria.EDITOU_MODELO_MEDICO,
+            id_padrao_medico_exame,
+            medico_id,
+            "editado: exame adicionado",
+        )
 
         return jsonify(new_exame._to_dict()), 201
 
@@ -189,6 +213,12 @@ def editar_padrao_medico_exame(id):
 
         padrao.nome_modelo = nome_modelo
         db.session.commit()
+        _auditar_modelo_exame(
+            AcaoAuditoria.EDITOU_MODELO_MEDICO,
+            padrao.id,
+            medico_id,
+            "editado",
+        )
 
         return jsonify(_padrao_medico_exame_to_dict(padrao)), 200
 
@@ -230,6 +260,12 @@ def editar_exame_padrao_medico_exame(id):
             return jsonify({"error": "Nenhum campo válido informado"}), 400
 
         db.session.commit()
+        _auditar_modelo_exame(
+            AcaoAuditoria.EDITOU_MODELO_MEDICO,
+            exame.id_modelo_solicitacao_exame,
+            medico_id,
+            "editado: exame atualizado",
+        )
         return jsonify(exame._to_dict()), 200
 
     except ValueError as e:
@@ -253,6 +289,12 @@ def deletar_padrao_medico_exame(id):
 
         db.session.delete(padrao)
         db.session.commit()
+        _auditar_modelo_exame(
+            AcaoAuditoria.EXCLUIU_MODELO_MEDICO,
+            id,
+            medico_id,
+            "excluído",
+        )
 
         return jsonify({"message": "Padrão de exames deletado com sucesso"}), 200
 
@@ -272,8 +314,15 @@ def deletar_exame_padrao_medico_exame(id):
         if not exame:
             return jsonify({"error": "Exame não encontrado"}), 404
 
+        modelo_id = exame.id_modelo_solicitacao_exame
         db.session.delete(exame)
         db.session.commit()
+        _auditar_modelo_exame(
+            AcaoAuditoria.EDITOU_MODELO_MEDICO,
+            modelo_id,
+            medico_id,
+            "editado: exame excluído",
+        )
 
         return jsonify({"message": "Exame deletado com sucesso"}), 200
 
