@@ -197,8 +197,8 @@ async function fetchHistorico() {
         remontarHistoricoItems()
         if (historicoItemsVisiveis.value.length > 0) isLoadingHistorico.value = false
       })
-      .catch((error) => {
-        if (isHistoricoAtual(requestId, cacheKey)) console.error('Erro ao buscar histórico local:', error)
+      .catch(() => {
+        if (isHistoricoAtual(requestId, cacheKey)) console.error('Erro ao buscar histórico local')
       })
 
     const biodataPromise = buscarHistoricoBiodata(0)
@@ -209,8 +209,8 @@ async function fetchHistorico() {
         biodataHasMore.value = biodataResponse.has_more
         remontarHistoricoItems()
       })
-      .catch((error) => {
-        if (isHistoricoAtual(requestId, cacheKey)) console.error('Erro ao buscar histórico BioData:', error)
+      .catch(() => {
+        if (isHistoricoAtual(requestId, cacheKey)) console.error('Erro ao buscar histórico BioData')
       })
 
     await Promise.allSettled([localPromise, biodataPromise])
