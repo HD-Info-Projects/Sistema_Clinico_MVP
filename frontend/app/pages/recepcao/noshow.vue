@@ -346,11 +346,13 @@ function formatarData(iso: string) {
 }
 
 function ligar(paciente: PacienteNoShow) {
-  console.log('Ligar para', paciente.nome, paciente.telefone)
+  const tel = paciente.telefone.replace(/\D/g, '')
+  if (!tel) return
+  window.location.href = `tel:${tel}`
 }
 
 function reagendar(paciente: PacienteNoShow) {
-  console.log('Reagendar', paciente.nome)
+  void paciente
 }
 
 function recusou(paciente: PacienteNoShow) {

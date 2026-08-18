@@ -281,7 +281,9 @@ function _abrirPaciente(item: ExameRetencao) {
 }
 
 function ligar(item: ExameRetencao) {
-  console.log('Ligar para', item.paciente, item.telefone)
+  const tel = item.telefone.replace(/\D/g, '')
+  if (!tel) return
+  window.location.href = `tel:${tel}`
 }
 
 function whatsapp(item: ExameRetencao) {
@@ -291,7 +293,7 @@ function whatsapp(item: ExameRetencao) {
 }
 
 function agendar(item: ExameRetencao) {
-  console.log('Agendar', item.paciente)
+  void item
 }
 
 function atualizarStatus(item: ExameRetencao, novoStatus: string) {

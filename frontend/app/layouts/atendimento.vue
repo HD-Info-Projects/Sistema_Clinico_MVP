@@ -160,15 +160,15 @@ async function fetchHistorico() {
     }
 
     if (biodataResult.status === 'rejected') {
-      console.error('Erro ao buscar histórico BioData:', biodataResult.reason)
+      console.error('Erro ao buscar histórico BioData')
     }
     if (localResult.status === 'rejected') {
-      console.error('Erro ao buscar histórico local:', localResult.reason)
+      console.error('Erro ao buscar histórico local')
     }
 
     remontarHistoricoItems()
-  } catch (err) {
-    console.error('Erro ao buscar histórico:', err)
+  } catch {
+    console.error('Erro ao buscar histórico')
     historicoItems.value = []
   } finally {
     isLoadingHistorico.value = false
@@ -202,8 +202,8 @@ async function carregarMaisHistoricoBiodata() {
     biodataOffset.value = response.offset + response.items.length
     biodataHasMore.value = response.has_more
     remontarHistoricoItems()
-  } catch (err) {
-    console.error('Erro ao carregar mais histórico BioData:', err)
+  } catch {
+    console.error('Erro ao carregar mais histórico BioData')
   } finally {
     isLoadingMaisHistorico.value = false
   }

@@ -97,6 +97,10 @@ NUXT_AUTH_COOKIE_SECURE=true
 TZ=America/Sao_Paulo
 GUNICORN_WORKERS=3
 GUNICORN_TIMEOUT=120
+LOG_LEVEL=INFO
+LOG_FORMAT=json
+LOG_REQUESTS=true
+LOG_HEALTHCHECKS=false
 
 MYSQL_DATABASE=sistema_clinico_mvp
 MYSQL_USER=clinico
@@ -123,6 +127,8 @@ Observacoes:
 - `APP_DOMAIN` deve ser somente o dominio/subdominio, sem `http://` ou `https://`.
 - `TZ=America/Sao_Paulo` mantem backend, frontend e MySQL no fuso esperado.
 - `GUNICORN_WORKERS` e `GUNICORN_TIMEOUT` controlam o Gunicorn do backend sem rebuild da imagem.
+- `LOG_FORMAT=json` mantem os logs do backend estruturados para coleta e filtro por `request_id`.
+- `LOG_HEALTHCHECKS=false` evita ruido do healthcheck `/` nos logs de aplicacao.
 - `FIREBIRD_HOST` nao pode ser `localhost`, porque dentro do container `localhost` aponta para o proprio container.
 
 ## Subir a aplicacao
@@ -155,6 +161,8 @@ docker compose logs -f frontend
 docker compose logs -f caddy
 docker compose logs -f mysql
 ```
+
+Cada resposta do backend inclui `X-Request-ID`. Use esse valor para correlacionar um erro reportado pelo frontend com os logs do backend. Nao copie payloads clinicos, tokens, cookies, senhas ou strings de conexao para tickets ou comandos de diagnostico.
 
 Depois disso, acesse:
 
@@ -297,6 +305,8 @@ Ver logs do backend:
 ```bash
 docker compose logs --tail=200 backend
 ```
+
+Se o usuario informar um `X-Request-ID`, filtre por ele no coletor de logs ou na saida do container. Em producao, o backend usa `LOG_FORMAT=json` por padrao, facilitando a indexacao dos campos `request_id`, `path`, `status_code` e `duration_ms`.
 
 Ver logs do Caddy e emissao do certificado HTTPS:
 

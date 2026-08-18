@@ -31,3 +31,16 @@ python run.py
 ```
 
 A API fica disponivel em `http://127.0.0.1:5000`.
+
+## Logs operacionais
+
+O backend gera logs em stdout/stderr para uso com Docker e Gunicorn. As principais variaveis sao:
+
+```env
+LOG_LEVEL=INFO
+LOG_FORMAT=text
+LOG_REQUESTS=true
+LOG_HEALTHCHECKS=false
+```
+
+Cada resposta recebe `X-Request-ID`. Envie esse header a partir do cliente para correlacionar erros entre frontend, backend e logs do container. Logs tecnicos nao devem incluir senhas, tokens, cookies, CPF/CNPJ, telefones, payloads clinicos completos ou credenciais de integracao.

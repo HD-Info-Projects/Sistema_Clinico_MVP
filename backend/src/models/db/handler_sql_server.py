@@ -1,10 +1,13 @@
 import os
+import logging
 
 import pyodbc
 from dotenv import load_dotenv
 
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 
 def _get_env(name, default=None, required=False):
@@ -93,11 +96,11 @@ def test_connection():
             result = cursor.fetchone()
             cursor.close()
 
-        print("Conexão SQL Server OK:", result[0])
+        logger.info("Conexao SQL Server OK: %s", result[0])
         return True
 
-    except Exception as e:
-        print("Erro ao conectar no SQL Server:", e)
+    except Exception:
+        logger.exception("Erro ao conectar no SQL Server")
         return False
 
 

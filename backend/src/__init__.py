@@ -1,7 +1,11 @@
-from flask import Flask, jsonify
+import logging
+import time
+
+from flask import Flask, g, jsonify, request
 from flask_limiter.errors import RateLimitExceeded
 from .settings.config import Config
 from .settings.extensions import db, migrate, jwt, cors, limiter
+from .settings.logging_config import REQUEST_ID_HEADER, configure_logging, make_request_id
 from .security.jwt_blocklist import is_jti_revoked
 
 from src.commands.exames_commands import importar_exames_spdata_command
@@ -27,6 +31,8 @@ from src.commands.lgpd_commands import lgpd_retencao_command
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
+    configure_logging(app)
+    request_logger = logging.getLogger("src.requests")
 
     if app.config.get("IS_PRODUCTION"):
         missing = [
@@ -54,8 +60,51 @@ def create_app():
     def revoked_token_response(_jwt_header, _jwt_payload):
         return jsonify({"error": "Sessão encerrada"}), 401
 
+    @app.before_request
+    def prepare_request_logging():
+        g.request_started_at = time.perf_counter()
+        g.request_id = make_request_id(request.headers.get(REQUEST_ID_HEADER))
+
+    def _should_log_request():
+        if not app.config.get("LOG_REQUESTS", True):
+            return False
+
+        if request.path == "/" and not app.config.get("LOG_HEALTHCHECKS", False):
+            return False
+
+        return True
+
+    def _log_request(response):
+        if not _should_log_request():
+            return
+
+        started_at = getattr(g, "request_started_at", None)
+        duration_ms = None
+        if started_at is not None:
+            duration_ms = round((time.perf_counter() - started_at) * 1000, 2)
+
+        status_code = response.status_code
+        level = logging.INFO
+        if status_code >= 500:
+            level = logging.ERROR
+        elif status_code >= 400:
+            level = logging.WARNING
+
+        request_logger.log(
+            level,
+            "request completed",
+            extra={
+                "status_code": status_code,
+                "duration_ms": duration_ms,
+            },
+        )
+
     @app.after_request
     def add_security_headers(response):
+        response.headers.setdefault(
+            REQUEST_ID_HEADER,
+            getattr(g, "request_id", None) or make_request_id(),
+        )
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
@@ -75,6 +124,7 @@ def create_app():
                 f"max-age={max_age}; includeSubDomains",
             )
 
+        _log_request(response)
         return response
 
     @app.errorhandler(RateLimitExceeded)

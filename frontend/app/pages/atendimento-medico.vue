@@ -76,8 +76,8 @@ async function carregarConsultaExistente() {
     examesSelecionados.value = (registro.exames ?? [])
       .map(e => normalizarExameSelecionado(e))
       .filter((e): e is ExameSelecionado => e !== null)
-  } catch (error) {
-    console.error('Erro ao carregar consulta para edição', error)
+  } catch {
+    console.error('Erro ao carregar consulta para edição')
   }
 }
 const documentosMedicos = shallowRef<Partial<Record<DocumentoMedicoTipo, DocumentoMedico>>>({})
@@ -90,6 +90,7 @@ function documentoMedico(tipo: DocumentoMedicoTipo) {
 const documentoAtestado = computed(() => documentoMedico('ATESTADO'))
 const documentoEncaminhamento = computed(() => documentoMedico('ENCAMINHAMENTO'))
 const documentoProcedimento = computed(() => documentoMedico('SOLICITACAO_PROCEDIMENTO'))
+const documentoOpme = computed(() => documentoMedico('SOLICITACAO_OPME'))
 
 function atualizarDocumentoMedico(documento: DocumentoMedico) {
   documentosMedicos.value = {
@@ -525,6 +526,7 @@ function adicionarPadraoExame() {
 const showAtestadoModal = ref(false)
 const showEncaminhamentoModal = ref(false)
 const showProcedimentoModal = ref(false)
+const showOpmeModal = ref(false)
 const showOrientacaoExamesModal = ref(false)
 const finalizandoConsulta = ref(false)
 const draftSalvoEm = ref<string | null>(null)
@@ -850,8 +852,8 @@ async function cancelarAtendimento() {
     cronometro.stop()
     modalCancelarAberto.value = false
     await navigateTo('/dashboard', { replace: true })
-  } catch (error) {
-    console.error('Erro ao cancelar atendimento', error)
+  } catch {
+    console.error('Erro ao cancelar atendimento')
     toast.add({
       title: 'Erro ao cancelar atendimento',
       description: 'Não foi possível devolver o paciente à fila. Tente novamente.',
@@ -891,8 +893,8 @@ async function finalizarConsulta() {
     limparDraft()
     cronometro.stop()
     await navigateTo('/dashboard', { replace: true })
-  } catch (error) {
-    console.error('Erro ao finalizar consulta', error)
+  } catch {
+    console.error('Erro ao finalizar consulta')
     toast.add({
       title: 'Erro ao finalizar consulta',
       description: 'Não foi possível salvar os dados do atendimento. Tente novamente.',
@@ -1475,6 +1477,14 @@ async function finalizarConsulta() {
       :agendamento="agendamento"
       :data-atendimento="agendamento?.data"
       :documento="documentoProcedimento"
+      @saved="atualizarDocumentoMedico"
+    />
+    <ProcedimentoGerarModal
+      v-model:open="showOpmeModal"
+      :agendamento="agendamento"
+      :data-atendimento="agendamento?.data"
+      :documento="documentoOpme"
+      aba-inicial="opme"
       @saved="atualizarDocumentoMedico"
     />
     <OrientacaoExameModal

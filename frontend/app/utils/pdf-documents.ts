@@ -6,6 +6,12 @@ type ExameSolicitacaoPdf = string | {
   orientacao?: string | null
 }
 
+type ProcedimentoSolicitacaoPdf = string | {
+  nome: string
+  codigo_procedimento?: string | number | null
+  tipo_ato_nome?: string | null
+}
+
 async function hospitalHeader() {
   const logo = await getLogoBase64()
   return [
@@ -70,6 +76,18 @@ function normalizarExameSolicitacao(exame: ExameSolicitacaoPdf) {
   return {
     nome: exame.nome,
     orientacao: htmlTemConteudo(exame.orientacao) ? exame.orientacao || null : null
+  }
+}
+
+function normalizarProcedimentoSolicitacao(procedimento: ProcedimentoSolicitacaoPdf) {
+  if (typeof procedimento === 'string') {
+    return { nome: procedimento, codigo_procedimento: null, tipo_ato_nome: null }
+  }
+
+  return {
+    nome: procedimento.nome,
+    codigo_procedimento: procedimento.codigo_procedimento ?? null,
+    tipo_ato_nome: procedimento.tipo_ato_nome ?? null
   }
 }
 
@@ -428,11 +446,26 @@ export async function buildSolicitacaoProcedimento(params: {
   paciente: string
   data: string
   descricao: string
+  procedimentos?: ProcedimentoSolicitacaoPdf[]
   medico?: string
   crm?: string
   especialidade?: string
 }) {
   const htmlToPdfmake = (await import('html-to-pdfmake')).default
+  const procedimentos = (params.procedimentos || [])
+    .map(normalizarProcedimentoSolicitacao)
+    .filter(p => p.nome?.trim())
+  const conteudoProcedimentos = procedimentos.length
+    ? procedimentos.flatMap((p) => {
+        const codigo = p.codigo_procedimento ? `${p.codigo_procedimento} - ` : ''
+        return [
+          { text: `• ${codigo}${p.nome}`, margin: [0, 0, 0, p.tipo_ato_nome ? 0 : 4] },
+          ...(p.tipo_ato_nome
+            ? [{ text: `Tipo: ${p.tipo_ato_nome}`, fontSize: 9, color: '#555555', margin: [14, 0, 0, 4] }]
+            : [])
+        ]
+      })
+    : htmlToPdfmake(`<p>${params.descricao}</p>`, { window })
 
   return {
     pageSize: 'A4' as const,
@@ -442,7 +475,43 @@ export async function buildSolicitacaoProcedimento(params: {
       documentTitle('SOLICITA\u00C7\u00C3O DE PROCEDIMENTO'),
       { text: `PACIENTE: ${params.paciente.toUpperCase()}`, bold: true, decoration: 'underline', margin: [0, 0, 0, 5] },
       { text: `DATA: ${params.data}`, margin: [0, 0, 0, 20] },
-      ...htmlToPdfmake(`<p>${params.descricao}</p>`, { window }),
+      ...conteudoProcedimentos,
+      signatureBlock(params.medico, params.crm, params.especialidade)
+    ],
+    defaultStyle
+  }
+}
+
+export async function buildSolicitacaoOpme(params: {
+  paciente: string
+  data: string
+  opmeItens?: { codigo?: string, nome: string, quantidade?: number }[]
+  indicacaoClinica?: string
+  medico?: string
+  crm?: string
+  especialidade?: string
+}) {
+  const linhasOpme = (params.opmeItens ?? []).map((opme) => {
+    const codigo = opme.codigo ? `${opme.codigo} - ` : ''
+    const qtd = opme.quantidade && opme.quantidade > 1 ? `  (x${opme.quantidade})` : ''
+    return `\u2022 ${codigo}${opme.nome}${qtd}`
+  })
+
+  return {
+    pageSize: 'A4' as const,
+    pageMargins: [60, 40, 60, 60] as [number, number, number, number],
+    content: [
+      ...(await hospitalHeader()),
+      documentTitle('SOLICITA\u00C7\u00C3O DE OPME'),
+      { text: `PACIENTE: ${params.paciente.toUpperCase()}`, bold: true, decoration: 'underline', margin: [0, 0, 0, 5] },
+      { text: `DATA: ${params.data}`, margin: [0, 0, 0, 20] },
+      ...(params.indicacaoClinica?.trim()
+        ? [
+            { text: 'INDICA\u00C7\u00C3O CL\u00CDNICA:', bold: true, margin: [0, 0, 0, 5] },
+            { text: params.indicacaoClinica.trim(), margin: [0, 0, 0, 20] }
+          ]
+        : []),
+      ...linhasOpme.map(opme => ({ text: `\u2022 ${opme}`, margin: [0, 0, 0, 4] })),
       signatureBlock(params.medico, params.crm, params.especialidade)
     ],
     defaultStyle

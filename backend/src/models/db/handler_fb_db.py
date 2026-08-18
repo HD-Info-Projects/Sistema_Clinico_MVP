@@ -1,8 +1,11 @@
 import firebird.driver as fdb
 from dotenv import load_dotenv
+import logging
 import os
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 
 def _get_env(*names, default=None, required=False):
@@ -37,9 +40,6 @@ class ConnectionDBFireBird:
         else:
             database_url = f"{self.host}:{self.database}"
 
-        # print("Conectando no Firebird:", database_url)
-        # print("Charset:", self.charset)
-
         self._connection = fdb.connect(
             database_url,
             user=self.user,
@@ -69,11 +69,11 @@ def test_connection():
             result = cur.fetchone()
             cur.close()
 
-        print("Conexão Firebird OK:", result[0])
+        logger.info("Conexao Firebird OK: %s", result[0])
         return True
 
-    except Exception as e:
-        print("Erro ao conectar no Firebird:", e)
+    except Exception:
+        logger.exception("Erro ao conectar no Firebird")
         return False
 
 
