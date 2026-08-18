@@ -155,10 +155,11 @@ def especialidade_agenda(agenda, especialidades_por_medico):
 
 def montar_item(agenda, atendimento, status, situacao, especialidades_por_medico):
     telefone = normalizar_texto(agenda.celular) or normalizar_texto(agenda.telefone)
+    unidade_id = getattr(agenda, "unidade_id", None)
     return {
         "id": agenda.id,
-        "clinicaId": agenda.unidade_id,
-        "unidadeId": agenda.unidade_id,
+        "clinicaId": unidade_id,
+        "unidadeId": unidade_id,
         "spdataAgendaId": agenda.spdata_agenda_id,
         "medsystemAtendimentoId": atendimento.id if atendimento else None,
         "nome": normalizar_texto(agenda.paciente),

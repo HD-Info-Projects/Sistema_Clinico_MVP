@@ -652,6 +652,7 @@ def agenda_para_frontend(spdata, atendimento=None, convenios_por_codigo=None):
     horario = hora_hhmm(spdata.hora_entrada)
     paciente_id = spdata.id_paciente_spdata or spdata.id
     id_convenio_spdata = normalizar_int(spdata.id_convenio_spdata)
+    unidade_id = getattr(spdata, "unidade_id", None)
 
     return {
         "id": spdata.id,
@@ -660,7 +661,7 @@ def agenda_para_frontend(spdata, atendimento=None, convenios_por_codigo=None):
         "medsystemAtendimentoId": atendimento.id if atendimento else None,
         "pacienteId": paciente_id,
         "medicoId": spdata.id_medico_spdata or 0,
-        "clinicaId": spdata.unidade_id,
+        "clinicaId": unidade_id,
         "data": data_atendimento,
         "horario": horario,
         "prioridade": "normal",
@@ -693,6 +694,7 @@ def agenda_spdata_para_frontend(agenda, spdata_ref, atendimento=None, convenios_
     id_convenio_spdata = normalizar_int(agenda.id_convenio_spdata)
     paciente_id = agenda.id_paciente_spdata or agenda.id
     telefone = agenda.celular or agenda.telefone or ""
+    unidade_id = getattr(agenda, "unidade_id", None) or getattr(spdata_ref, "unidade_id", None)
 
     if id_convenio_spdata is not None and convenios_por_codigo:
         convenio = convenios_por_codigo.get(id_convenio_spdata) or agenda.convenio or ""
@@ -708,7 +710,7 @@ def agenda_spdata_para_frontend(agenda, spdata_ref, atendimento=None, convenios_
         "medsystemAtendimentoId": atendimento.id if atendimento else None,
         "pacienteId": paciente_id,
         "medicoId": spdata_ref.id_medico_spdata or 0,
-        "clinicaId": agenda.unidade_id or spdata_ref.unidade_id,
+        "clinicaId": unidade_id,
         "data": data_iso(agenda.data_agenda),
         "horario": hora_hhmm(agenda.hora_agenda),
         "prioridade": "normal",
