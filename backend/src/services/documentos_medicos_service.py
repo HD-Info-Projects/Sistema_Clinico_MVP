@@ -7,6 +7,7 @@ from src.models.documento_medico_model import (
     DocumentoMedico,
     TIPO_ATESTADO,
     TIPO_ENCAMINHAMENTO,
+    TIPO_SOLICITACAO_OPME,
     TIPO_SOLICITACAO_PROCEDIMENTO,
     TIPOS_DOCUMENTO_VALIDOS,
 )
@@ -31,6 +32,9 @@ TIPO_ALIASES = {
     "solicitacao-procedimento": TIPO_SOLICITACAO_PROCEDIMENTO,
     "solicitacao_procedimento": TIPO_SOLICITACAO_PROCEDIMENTO,
     "SOLICITACAO_PROCEDIMENTO": TIPO_SOLICITACAO_PROCEDIMENTO,
+    "solicitacao-opme": TIPO_SOLICITACAO_OPME,
+    "solicitacao_opme": TIPO_SOLICITACAO_OPME,
+    "SOLICITACAO_OPME": TIPO_SOLICITACAO_OPME,
 }
 
 
@@ -87,6 +91,94 @@ def descricao_procedimentos(procedimentos):
         linhas.append(f"{codigo} - {nome}" if codigo else nome)
 
     return "\n".join(linhas)
+
+
+def normalizar_cids_documento(valor):
+    if valor is None or valor == "":
+        return []
+    if isinstance(valor, dict):
+        itens = [valor]
+    elif isinstance(valor, (list, tuple)):
+        itens = valor
+    else:
+        raise ValueError("cids inválidos")
+
+    cids = []
+    vistos = set()
+
+    for item in itens:
+        if not isinstance(item, dict):
+            raise ValueError("cids inválidos")
+
+        cid = normalizar_texto(primeiro_valor(item, "cid", "codigo", "CID"), 20)
+        nome = normalizar_texto(primeiro_valor(item, "nome", "descricao"), 255)
+
+        if not cid:
+            continue
+        chave = cid.casefold()
+        if chave in vistos:
+            continue
+        vistos.add(chave)
+        cids.append({"cid": cid, "nome": nome})
+        if len(cids) >= 4:
+            break
+
+    return cids
+
+
+def normalizar_opme_documento(valor):
+    if valor is None or valor == "":
+        return []
+    if isinstance(valor, dict):
+        itens = [valor]
+    elif isinstance(valor, (list, tuple)):
+        itens = valor
+    elif isinstance(valor, str):
+        itens = [
+            {"nome": linha}
+            for linha in valor.splitlines()
+        ]
+    else:
+        raise ValueError("opmeItens inválidos")
+
+    opmes = []
+    nomes_vistos = set()
+
+    for item in itens:
+        if isinstance(item, str):
+            item = {"nome": item}
+
+        if not isinstance(item, dict):
+            raise ValueError("opmeItens inválidos")
+
+        nome = normalizar_texto(primeiro_valor(item, "nome", "descricao", "label"), 255)
+        if not nome:
+            continue
+
+        chave = nome.casefold()
+        if chave in nomes_vistos:
+            continue
+        nomes_vistos.add(chave)
+
+        codigo = normalizar_texto(primeiro_valor(item, "codigo", "codigoOpme", "codigoProcedimento"), 50)
+
+        quantidade = primeiro_valor(item, "quantidade", "qtde", "qtd", "quantidadeSolicitada")
+        if quantidade is None or quantidade == "":
+            quantidade = 1
+        try:
+            quantidade = int(quantidade)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("quantidade de OPME inválida") from exc
+        if quantidade <= 0:
+            quantidade = 1
+
+        opmes.append({
+            "codigo": codigo or None,
+            "nome": nome,
+            "quantidade": quantidade,
+        })
+
+    return opmes
 
 
 def normalizar_procedimentos_documento(valor):
@@ -348,6 +440,60 @@ def validar_dados_documento(tipo, dados):
         }
         if procedimentos:
             dados_normalizados["procedimentos"] = procedimentos
+
+        carater_internacao = dados.get("caraterInternacao")
+        if carater_internacao is not None:
+            dados_normalizados["caraterInternacao"] = bool(carater_internacao)
+
+        tipo_internacao = normalizar_texto(dados.get("tipoInternacao"), 50)
+        if tipo_internacao:
+            dados_normalizados["tipoInternacao"] = tipo_internacao
+
+        regime_internacao = normalizar_texto(dados.get("regimeInternacao"), 50)
+        if regime_internacao:
+            dados_normalizados["regimeInternacao"] = regime_internacao
+
+        diarias = dados.get("quantidadeDiarias")
+        if diarias is not None and diarias != "":
+            try:
+                diarias = int(diarias)
+            except (TypeError, ValueError) as exc:
+                raise ValueError("quantidadeDiarias inválida") from exc
+            if diarias <= 0:
+                raise ValueError("quantidadeDiarias deve ser maior que zero")
+            dados_normalizados["quantidadeDiarias"] = diarias
+
+        indicacao_clinica = normalizar_texto(dados.get("indicacaoClinica"))
+        if indicacao_clinica:
+            dados_normalizados["indicacaoClinica"] = indicacao_clinica
+
+        atendimento_rn = dados.get("atendimentoRN")
+        if atendimento_rn is not None:
+            dados_normalizados["atendimentoRN"] = bool(atendimento_rn)
+
+        cids = normalizar_cids_documento(dados.get("cids"))
+        if cids:
+            dados_normalizados["cids"] = cids
+
+        return dados_normalizados
+
+    if tipo == TIPO_SOLICITACAO_OPME:
+        opme_itens = normalizar_opme_documento(
+            dados.get("opmeItens") or dados.get("opmeSolicitados")
+        )
+        if not opme_itens:
+            raise ValueError("opmeSolicitados é obrigatório")
+
+        dados_normalizados = {
+            "data": parse_data_iso(dados.get("data"), "data"),
+            "opmeItens": opme_itens,
+            "opmeSolicitados": "\n".join(
+                item["nome"] for item in opme_itens
+            ),
+        }
+        indicacao_clinica = normalizar_texto(dados.get("indicacaoClinica"))
+        if indicacao_clinica:
+            dados_normalizados["indicacaoClinica"] = indicacao_clinica
 
         return dados_normalizados
 

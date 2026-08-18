@@ -108,6 +108,27 @@ export interface ExameSelecionado {
   orientacao?: string | null
 }
 
+export interface ProcedimentoCatalogo {
+  id: number
+  nome: string
+  codigo_procedimento: number | null
+  tipo_ato_codigo: number | null
+  tipo_ato_nome: string | null
+  apelido_procedimento?: string | null
+  exige_autorizacao?: number | null
+  qtde_max_guia?: number | null
+}
+
+export interface ProcedimentoSelecionado {
+  procedimento_id: number | null
+  nome: string
+  codigo_procedimento?: number | null
+  tipo_ato_codigo?: number | null
+  tipo_ato_nome?: string | null
+  exige_autorizacao?: number | null
+  qtde_max_guia?: number | null
+}
+
 export interface ExameConsultaPayload {
   nome: string
   exame_id: number | null
@@ -186,7 +207,7 @@ export interface Atendimento {
   observacoes?: string
 }
 
-export type DocumentoMedicoTipo = 'ATESTADO' | 'ENCAMINHAMENTO' | 'SOLICITACAO_PROCEDIMENTO'
+export type DocumentoMedicoTipo = 'ATESTADO' | 'ENCAMINHAMENTO' | 'SOLICITACAO_PROCEDIMENTO' | 'SOLICITACAO_OPME'
 
 export interface DocumentoMedicoDadosBase {
   medico?: string | null
@@ -208,9 +229,24 @@ export interface EncaminhamentoDocumentoDados extends DocumentoMedicoDadosBase {
 export interface SolicitacaoProcedimentoDocumentoDados extends DocumentoMedicoDadosBase {
   data: string
   descricao: string
+  procedimentos?: ProcedimentoSelecionado[]
+  caraterInternacao?: boolean
+  tipoInternacao?: string
+  regimeInternacao?: string
+  quantidadeDiarias?: number
+  indicacaoClinica?: string
+  atendimentoRN?: boolean
+  cids?: { cid: string, nome: string }[]
 }
 
-export type DocumentoMedicoDados = AtestadoDocumentoDados | EncaminhamentoDocumentoDados | SolicitacaoProcedimentoDocumentoDados
+export interface SolicitacaoOpmeDocumentoDados extends DocumentoMedicoDadosBase {
+  data: string
+  opmeSolicitados?: string
+  opmeItens?: { codigo?: string, nome: string, quantidade?: number }[]
+  indicacaoClinica?: string
+}
+
+export type DocumentoMedicoDados = AtestadoDocumentoDados | EncaminhamentoDocumentoDados | SolicitacaoProcedimentoDocumentoDados | SolicitacaoOpmeDocumentoDados
 
 export interface DocumentoMedico {
   id: number

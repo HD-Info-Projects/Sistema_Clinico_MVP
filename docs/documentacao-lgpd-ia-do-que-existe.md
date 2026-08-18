@@ -83,7 +83,7 @@ Arquivos e áreas usados como referência:
 | Logs de integração | Ação, método, endpoint, payload enviado, resposta recebida, status, erro | `logs_integracao` | Modelo existe. Não foi encontrado uso efetivo criando registros. |
 | Fila de sincronização | Tipo de evento, referência, payload, status, tentativas, erro | `fila_sincronizacao` | Modelo existe. Não foi encontrado uso efetivo criando registros. |
 | Auditoria | Usuário, médico, ação, entidade, IP, user agent, descrição | `auditorias` | Modelo existe. Não foi encontrado uso efetivo criando registros. |
-| Logs de aplicação | Exceções e mensagens no logger | stdout/container logs | Podem conter mensagens técnicas e, dependendo do erro, dados pessoais se incluídos. |
+| Logs de aplicação | Exceções, requisições e mensagens no logger | stdout/container logs | Logging centralizado com `X-Request-ID`, formato configurável, cores apenas em texto/local e sanitização de credenciais e identificadores sensíveis. |
 
 ### 2.6 Dados de IA/TTS
 
@@ -144,7 +144,7 @@ O sistema processa dados pessoais e dados pessoais sensíveis de saúde em conte
 | Exposição de dados em painel público | Médio/Alto | Painel público remove `pacienteId` e médico responsável, mas mantém nome do paciente | Médio/Alto, pois nome do paciente é exibido e anunciado. |
 | Envio de texto com dado pessoal para TTS externo | Médio/Alto | Limite de 240 caracteres, cache `no-store`, rate limit | Médio/Alto, falta contrato/avaliação do fornecedor TTS. |
 | Retenção excessiva no MySQL | Alto | Timestamps em tabelas e exclusões técnicas por cascata em alguns relacionamentos | Alto, não há rotina formal de expurgo por prazo. |
-| Logs com dados pessoais | Médio | Mensagens genéricas em algumas exceções | Médio, não há política de sanitização de logs. |
+| Logs com dados pessoais | Médio | Logging centralizado, `X-Request-ID`, mensagens genéricas em exceções e sanitização de credenciais/identificadores sensíveis | Médio, ainda exige disciplina para não registrar payloads clínicos completos em novos logs. |
 | Uso de dados reais em desenvolvimento | Alto | `.env` ignorado, alerta para remover credenciais locais | Alto, não há plano formal de dados de desenvolvimento. |
 | Exposição por CORS amplo | Médio | CORS inicializado no Flask | Médio, não há configuração restritiva visível por domínio. |
 | Dados sensíveis em modelos médicos | Médio | Modelos vinculados ao médico por `medico_id` | Médio, falta alerta/validação para impedir dados reais de paciente em modelos. |
