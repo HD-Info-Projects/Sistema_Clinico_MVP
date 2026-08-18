@@ -1,7 +1,9 @@
 import json
 import logging
 import logging.config
+import os
 import re
+import sys
 import uuid
 from datetime import datetime, timezone
 
@@ -11,6 +13,21 @@ from flask.logging import default_handler
 
 REQUEST_ID_HEADER = "X-Request-ID"
 REDACTED = "[REDACTED]"
+ANSI_PATTERN = re.compile(r"\x1b\[[0-9;]*m")
+ANSI_RESET = "\033[0m"
+LEVEL_COLORS = {
+    "DEBUG": "\033[90m",
+    "INFO": "\033[32m",
+    "WARNING": "\033[33m",
+    "ERROR": "\033[31m",
+    "CRITICAL": "\033[1;31m",
+}
+STATUS_COLORS = {
+    2: "\033[32m",
+    3: "\033[36m",
+    4: "\033[33m",
+    5: "\033[31m",
+}
 
 REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{8,128}$")
 EMAIL_PATTERN = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
@@ -55,6 +72,39 @@ def sanitize_text(value):
     text = CPF_PATTERN.sub(REDACTED, text)
     text = EMAIL_PATTERN.sub(REDACTED, text)
     return text
+
+
+def strip_ansi(value):
+    return ANSI_PATTERN.sub("", str(value))
+
+
+def _colorize(value, color):
+    if not color:
+        return value
+
+    return f"{color}{value}{ANSI_RESET}"
+
+
+def _status_color(status_code):
+    try:
+        status_group = int(status_code) // 100
+    except (TypeError, ValueError):
+        return None
+
+    return STATUS_COLORS.get(status_group)
+
+
+def should_color_logs(value, stream=None):
+    option = str(value or "auto").strip().lower()
+    if option in {"1", "true", "yes", "on", "always"}:
+        return True
+    if option in {"0", "false", "no", "off", "never"}:
+        return False
+    if os.getenv("NO_COLOR"):
+        return False
+
+    stream = stream or sys.stdout
+    return bool(getattr(stream, "isatty", lambda: False)())
 
 
 def sanitize_log_value(value):
@@ -119,12 +169,34 @@ class SanitizingFormatter(logging.Formatter):
             record.args = original_args
 
 
+class ColorizingFormatter(SanitizingFormatter):
+    def format(self, record):
+        original_levelname = record.levelname
+        original_status_code = getattr(record, "status_code", None)
+
+        try:
+            record.levelname = _colorize(
+                original_levelname,
+                LEVEL_COLORS.get(original_levelname),
+            )
+            if original_status_code is not None:
+                record.status_code = _colorize(
+                    original_status_code,
+                    _status_color(original_status_code),
+                )
+
+            return super().format(record)
+        finally:
+            record.levelname = original_levelname
+            record.status_code = original_status_code
+
+
 class JsonFormatter(logging.Formatter):
     def format(self, record):
         original_args = record.args
         record.args = sanitize_log_value(original_args)
         try:
-            message = sanitize_text(record.getMessage())
+            message = strip_ansi(sanitize_text(record.getMessage()))
         finally:
             record.args = original_args
 
@@ -151,7 +223,7 @@ class JsonFormatter(logging.Formatter):
             payload["duration_ms"] = duration_ms
 
         if record.exc_info:
-            payload["exception"] = sanitize_text(self.formatException(record.exc_info))
+            payload["exception"] = strip_ansi(sanitize_text(self.formatException(record.exc_info)))
 
         return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
 
@@ -159,7 +231,10 @@ class JsonFormatter(logging.Formatter):
 def configure_logging(app):
     log_level = str(app.config.get("LOG_LEVEL", "INFO")).upper()
     log_format = str(app.config.get("LOG_FORMAT", "text")).lower()
-    formatter = "json" if log_format == "json" else "text"
+    color_enabled = log_format != "json" and should_color_logs(
+        app.config.get("LOG_COLOR", "auto"),
+    )
+    formatter = "json" if log_format == "json" else "color" if color_enabled else "text"
 
     logging.config.dictConfig({
         "version": 1,
@@ -171,6 +246,14 @@ def configure_logging(app):
             "json": {"()": JsonFormatter},
             "text": {
                 "()": SanitizingFormatter,
+                "format": (
+                    "%(asctime)s %(levelname)s [%(name)s] "
+                    "request_id=%(request_id)s method=%(http_method)s path=%(path)s "
+                    "status=%(status_code)s duration_ms=%(duration_ms)s %(message)s"
+                ),
+            },
+            "color": {
+                "()": ColorizingFormatter,
                 "format": (
                     "%(asctime)s %(levelname)s [%(name)s] "
                     "request_id=%(request_id)s method=%(http_method)s path=%(path)s "
