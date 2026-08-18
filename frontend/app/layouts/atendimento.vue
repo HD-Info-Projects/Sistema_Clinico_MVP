@@ -5,6 +5,21 @@ import { formatarDataHistorico } from '~/utils/time'
 
 const { sanitizeHtml } = useSanitize()
 
+const open = ref(true)
+const isMobile = useMediaQuery('(max-width: 1023px)')
+const route = useRoute()
+
+watch(
+  () => route.fullPath,
+  () => {
+    if (isMobile.value) open.value = false
+  }
+)
+
+provide('openNav', () => {
+  open.value = !open.value
+})
+
 const agendamentosStore = useAgendamentosStore()
 
 const expandedContent = ref<Record<string, boolean>>({})
@@ -376,6 +391,7 @@ function voltarDashboard() {
     class="h-screen flex overflow-hidden"
   >
     <USidebar
+      v-model:open="open"
       collapsible="icon"
       :style="{ '--sidebar-width': '35rem' }"
     >

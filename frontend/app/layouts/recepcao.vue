@@ -1,6 +1,21 @@
 <script setup lang="ts">
 const auth = useAuthStore()
 
+const open = ref(true)
+const isMobile = useMediaQuery('(max-width: 1023px)')
+const route = useRoute()
+
+watch(
+  () => route.fullPath,
+  () => {
+    if (isMobile.value) open.value = false
+  }
+)
+
+provide('openNav', () => {
+  open.value = !open.value
+})
+
 const unidadeAtivaLabel = computed(() => auth.activeClinica?.nome || 'Sem unidade')
 const podeTrocarUnidade = computed(() => auth.clinicas.length > 1)
 
@@ -16,6 +31,7 @@ const navItems = [
 <template>
   <div class="flex">
     <USidebar
+      v-model:open="open"
       collapsible="icon"
       side="left"
     >

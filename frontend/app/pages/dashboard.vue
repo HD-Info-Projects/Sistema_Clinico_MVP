@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { AgendamentoComPaciente, AgendamentoStatus } from '~/types'
 
+const openNav = inject<() => void>('openNav', () => {})
 const auth = useAuthStore()
 const agendamentosStore = useAgendamentosStore()
 const chamadosStore = useChamadosStore()
@@ -228,7 +229,20 @@ const tempoMedioEspera = computed(() => {
 
 <template>
   <div>
-    <UHeader title="Dashboard">
+    <UHeader
+      title="Dashboard"
+      toggle-side="left"
+    >
+      <template #toggle>
+        <UButton
+          icon="i-lucide-panel-left"
+          color="neutral"
+          variant="ghost"
+          class="lg:hidden"
+          aria-label="Abrir menu"
+          @click="openNav()"
+        />
+      </template>
       <template #right>
         <div class="flex items-center gap-2">
           <UBadge
@@ -266,7 +280,7 @@ const tempoMedioEspera = computed(() => {
         </div>
       </template>
     </UHeader>
-    <div class="p-6 space-y-8 bg-neutral-100 dark:bg-neutral-950 min-h-screen">
+    <div class="p-4 sm:p-6 space-y-8 bg-neutral-100 dark:bg-neutral-950 min-h-screen">
       <div>
         <p class="text-3xl font-semibold text-foreground">
           {{ getSaudacao(agora) }}, Dr. {{ userName }}
@@ -286,7 +300,7 @@ const tempoMedioEspera = computed(() => {
           :atendidos="agendamentosStore.totalAtendidos"
           :faltas="agendamentosStore.totalFaltas"
         />
-        <div class="grid grid-cols-2 gap-2 items-center ">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center ">
           <UPageCard>
             <div class="flex flex-col gap-2 items-center">
               <div class="flex items-center gap-2">
@@ -351,7 +365,7 @@ const tempoMedioEspera = computed(() => {
             <USkeleton class="h-4 w-48" />
           </div>
         </UPageCard>
-        <div class="grid grid-cols-2 gap-2 items-center">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
           <UPageCard>
             <div class="flex flex-col gap-3 items-center">
               <USkeleton class="h-5 w-32" />

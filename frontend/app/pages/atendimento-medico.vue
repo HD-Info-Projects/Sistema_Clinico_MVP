@@ -13,6 +13,7 @@ import { usePdfMake } from '~/utils/pdf'
 import { buildSolicitacaoExames, buildReceita, buildReceitaEspecialDupla, buildAtestadoComparecimento } from '~/utils/pdf-documents'
 import { gerarHtmlGuiaTiss, imprimirGuiaTiss } from '~/utils/guia-tiss'
 
+const openNav = inject<() => void>('openNav', () => {})
 const auth = useAuthStore()
 const agendamentosStore = useAgendamentosStore()
 const padroesStore = usePadroesStore()
@@ -906,7 +907,20 @@ async function finalizarConsulta() {
 
 <template>
   <div class="h-screen flex flex-col">
-    <UHeader title="Consulta Atual">
+    <UHeader
+      title="Consulta Atual"
+      toggle-side="left"
+    >
+      <template #toggle>
+        <UButton
+          icon="i-lucide-panel-left"
+          color="neutral"
+          variant="ghost"
+          class="lg:hidden"
+          aria-label="Abrir menu"
+          @click="openNav()"
+        />
+      </template>
       <template #right>
         <div class="flex items-center gap-2">
           <UBadge
@@ -914,6 +928,7 @@ async function finalizarConsulta() {
             :color="draftRestaurado ? 'success' : 'neutral'"
             variant="soft"
             icon="i-lucide-save"
+            class="hidden sm:inline-flex"
           >
             Rascunho salvo às {{ draftSalvoHorario }}
           </UBadge>
@@ -1103,7 +1118,7 @@ async function finalizarConsulta() {
             </template>
 
             <div class="flex flex-col gap-4 grow p-4">
-              <div class="shrink-0 flex gap-2">
+              <div class="shrink-0 flex flex-col gap-2 sm:flex-row">
                 <UInputMenu
                   v-model="padraoReceitaSelected"
                   :items="padroesStore.receitas.map(p => ({ label: p.nome, value: p }))"
@@ -1120,7 +1135,7 @@ async function finalizarConsulta() {
                 />
               </div>
 
-              <div class="shrink-0 flex items-end gap-3 p-4 rounded-lg border border-muted bg-neutral-50 dark:bg-neutral-900">
+              <div class="shrink-0 flex flex-col sm:flex-row sm:items-end gap-3 p-4 rounded-lg border border-muted bg-neutral-50 dark:bg-neutral-900">
                 <UFormField
                   label="Nome do medicamento"
                   class="flex-1"
@@ -1133,7 +1148,7 @@ async function finalizarConsulta() {
                 </UFormField>
                 <UFormField
                   label="Dosagem"
-                  class="w-48"
+                  class="w-full sm:w-48"
                 >
                   <UInput
                     v-model="remedioDosagem"
@@ -1173,7 +1188,7 @@ async function finalizarConsulta() {
                 :ui="{ base: 'h-full min-h-0' }"
               />
 
-              <div class="grid grid-cols-2 gap-3 w-full">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
                 <UButton
                   icon="i-lucide-file-text"
                   label="Gerar Receita (PDF)"
@@ -1224,7 +1239,7 @@ async function finalizarConsulta() {
             </template>
 
             <div class="flex flex-col gap-4 grow p-4">
-              <div class="shrink-0 flex gap-2">
+              <div class="shrink-0 flex flex-col gap-2 sm:flex-row">
                 <UInputMenu
                   v-model="exameTemplateSelected"
                   :items="padroesStore.exames.map(p => ({ label: p.nome, value: p }))"
@@ -1245,7 +1260,7 @@ async function finalizarConsulta() {
                 label="Nome do exame"
                 class="w-full"
               >
-                <div class="flex gap-2">
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
                   <UInputMenu
                     v-model="exameSelecionado"
                     v-model:search-term="buscaTermoExame"
@@ -1366,7 +1381,7 @@ async function finalizarConsulta() {
                 </p>
               </div>
             </template>
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <UButton
                 icon="i-lucide-file-check"
                 label="Atestado de Comparecimento"
@@ -1414,14 +1429,14 @@ async function finalizarConsulta() {
             </div>
           </UCard>
           <UCard
-            :ui="{ body: 'flex justify-center gap-4' }"
+            :ui="{ body: 'flex flex-col sm:flex-row justify-center gap-4' }"
           >
             <UButton
               icon="i-lucide-x-circle"
               label="Cancelar atendimento"
               color="error"
               size="xl"
-              class="p-3 text-lg font-bold min-w-110"
+              class="w-full p-3 text-lg font-bold sm:w-auto"
               :loading="cancelandoConsulta"
               :disabled="cancelandoConsulta"
               @click="void (modalCancelarAberto = true)"
@@ -1431,7 +1446,7 @@ async function finalizarConsulta() {
               label="Finalizar Consulta"
               color="success"
               size="xl"
-              class="p-3 text-lg font-bold min-w-110"
+              class="w-full p-3 text-lg font-bold sm:w-auto"
               :loading="finalizandoConsulta"
               :disabled="finalizandoConsulta"
               @click="void finalizarConsulta()"

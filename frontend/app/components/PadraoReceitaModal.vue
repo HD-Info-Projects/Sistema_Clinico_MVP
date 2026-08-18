@@ -101,8 +101,8 @@ async function salvar() {
               :key="i"
               class="flex items-center gap-3 w-full p-3 rounded-lg border border-muted"
             >
-              <div class="grid grid-cols-6 gap-3 w-full">
-                <div class="space-y-1 flex flex-col col-span-2">
+              <div class="grid grid-cols-1 sm:grid-cols-6 gap-3 w-full">
+                <div class="space-y-1 flex flex-col col-span-1 sm:col-span-2">
                   <label class="text-xs font-medium text-muted">Medicamento</label>
                   <UInput
                     v-model="med.nome"
@@ -116,7 +116,7 @@ async function salvar() {
                     placeholder="Ex: 50mg"
                   />
                 </div>
-                <div class="space-y-1 flex flex-col col-span-3">
+                <div class="space-y-1 flex flex-col col-span-1 sm:col-span-3">
                   <label class="text-xs font-medium text-muted">Detalhes</label>
                   <UInput
                     v-model="med.detalhes"

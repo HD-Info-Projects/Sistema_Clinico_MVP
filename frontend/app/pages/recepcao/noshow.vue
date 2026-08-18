@@ -2,6 +2,7 @@
 import type { DropdownMenuItem } from '@nuxt/ui/'
 import { getPaginationRowModel } from '@tanstack/vue-table'
 
+const openNav = inject<() => void>('openNav', () => {})
 const auth = useAuthStore()
 
 const userName = computed(() => auth.user?.nome || 'Usuário')
@@ -424,7 +425,20 @@ onMounted(() => {
 
 <template>
   <div>
-    <UHeader title="No-show">
+    <UHeader
+      title="No-show"
+      toggle-side="left"
+    >
+      <template #toggle>
+        <UButton
+          icon="i-lucide-panel-left"
+          color="neutral"
+          variant="ghost"
+          class="lg:hidden"
+          aria-label="Abrir menu"
+          @click="openNav()"
+        />
+      </template>
       <template #right>
         <div class="flex items-center gap-2">
           <UBadge
@@ -436,7 +450,7 @@ onMounted(() => {
         </div>
       </template>
     </UHeader>
-    <div class="p-6 space-y-8 bg-neutral-100 dark:bg-neutral-950 min-h-screen">
+    <div class="p-4 sm:p-6 space-y-8 bg-neutral-100 dark:bg-neutral-950 min-h-screen">
       <div class="w-full gap-4">
         <UCard class="w-full">
           <template #title>
@@ -446,14 +460,14 @@ onMounted(() => {
           </template>
           <div class="space-y-4">
             <div class="flex flex-wrap items-end gap-4">
-              <div class="flex items-end gap-2">
+              <div class="grid grid-cols-2 items-end gap-2 sm:flex">
                 <UFormField label="Ano">
                   <UInputMenu
                     v-model="filtroAno"
                     :items="anosDisponiveis"
                     placeholder="Ano"
                     size="sm"
-                    class="w-24"
+                    class="w-full sm:w-24"
                   />
                 </UFormField>
                 <UFormField label="Mês início">
@@ -462,7 +476,7 @@ onMounted(() => {
                     :items="mesesOpcoes"
                     placeholder="Mês início"
                     size="sm"
-                    class="w-36"
+                    class="w-full sm:w-36"
                   />
                 </UFormField>
                 <span class="text-muted mb-1">até</span>
@@ -472,7 +486,7 @@ onMounted(() => {
                     :items="mesesOpcoes"
                     placeholder="Mês fim"
                     size="sm"
-                    class="w-36"
+                    class="w-full sm:w-36"
                   />
                 </UFormField>
               </div>
@@ -483,7 +497,7 @@ onMounted(() => {
                   :items="medicosOptions"
                   placeholder="Médico"
                   size="sm"
-                  class="w-48"
+                  class="w-full sm:w-48"
                 />
               </UFormField>
               <UFormField label="Especialidade">
@@ -492,7 +506,7 @@ onMounted(() => {
                   :items="especialidadesOptions"
                   placeholder="Especialidade"
                   size="sm"
-                  class="w-48"
+                  class="w-full sm:w-48"
                 />
               </UFormField>
               <UFormField label="Convênio">
@@ -501,7 +515,7 @@ onMounted(() => {
                   :items="conveniosOptions"
                   placeholder="Convênio"
                   size="sm"
-                  class="w-48"
+                  class="w-full sm:w-48"
                 />
               </UFormField>
               <UButton
@@ -524,7 +538,7 @@ onMounted(() => {
         icon="i-lucide-circle-alert"
       />
 
-      <div class="w-full grid grid-cols-5 items-center gap-4">
+      <div class="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 items-center gap-4">
         <CardNoShow
           titulo="Taxa de Recuperação"
           :valor="taxaRecuperacao"
@@ -557,7 +571,7 @@ onMounted(() => {
           icone="lucide:user-round-search"
         />
       </div>
-      <div class="w-full grid grid-cols-3 gap-4">
+      <div class="w-full grid grid-cols-1 lg:grid-cols-3 gap-4">
         <UCard class="col-span-1">
           <template #title>
             <p class="text-lg font-medium">
@@ -569,7 +583,7 @@ onMounted(() => {
             :items="motivosGrafico"
           />
         </UCard>
-        <UCard class="col-span-2">
+        <UCard class="col-span-1 lg:col-span-2">
           <template #title>
             <p class="text-lg font-medium">
               Tendência de No-Show
@@ -582,8 +596,8 @@ onMounted(() => {
           />
         </UCard>
       </div>
-      <div class="w-full grid grid-cols-3 gap-4">
-        <UCard class="col-span-2">
+      <div class="w-full grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <UCard class="col-span-1 lg:col-span-2">
           <template #title>
             <p class="text-lg font-medium">
               Taxa de no show por dia da semana
@@ -648,7 +662,7 @@ onMounted(() => {
           }"
           class="col-span-3"
         >
-          <div class="flex items-center justify-between w-full">
+          <div class="flex flex-col gap-3 items-center justify-between w-full sm:flex-row">
             <div class="flex items-center gap-2">
               <UIcon
                 name="i-lucide-download"

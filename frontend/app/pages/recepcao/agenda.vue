@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { CalendarDate } from '@internationalized/date'
 
+const openNav = inject<() => void>('openNav', () => {})
 interface ItemRecepcao {
   id: number | string
   horario: string
@@ -212,7 +213,20 @@ const statuses: { id: string, name: string, color: string }[] = [
 
 <template>
   <div>
-    <UHeader title="Agenda - Recepção">
+    <UHeader
+      title="Agenda - Recepção"
+      toggle-side="left"
+    >
+      <template #toggle>
+        <UButton
+          icon="i-lucide-panel-left"
+          color="neutral"
+          variant="ghost"
+          class="lg:hidden"
+          aria-label="Abrir menu"
+          @click="openNav()"
+        />
+      </template>
       <div class="flex gap-4">
         <div
           v-for="s in statuses"

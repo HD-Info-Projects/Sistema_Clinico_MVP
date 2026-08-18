@@ -2,6 +2,7 @@
 import type { DropdownMenuItem } from '@nuxt/ui/'
 import { getPaginationRowModel } from '@tanstack/vue-table'
 
+const openNav = inject<() => void>('openNav', () => {})
 interface ExameRetencao {
   id: number
   spdataExameId?: number
@@ -429,14 +430,27 @@ onMounted(() => {
 
 <template>
   <div>
-    <UHeader title="Conversão de Exames">
+    <UHeader
+      title="Conversão de Exames"
+      toggle-side="left"
+    >
+      <template #toggle>
+        <UButton
+          icon="i-lucide-panel-left"
+          color="neutral"
+          variant="ghost"
+          class="lg:hidden"
+          aria-label="Abrir menu"
+          @click="openNav()"
+        />
+      </template>
       <template #right>
         <div class="flex items-center gap-2">
           <UColorModeButton />
         </div>
       </template>
     </UHeader>
-    <div class="p-6 space-y-8 bg-neutral-100 dark:bg-neutral-950 min-h-screen">
+    <div class="p-4 sm:p-6 space-y-8 bg-neutral-100 dark:bg-neutral-950 min-h-screen">
       <UCard class="w-full">
         <template #title>
           <p class="text-lg font-medium">
@@ -445,14 +459,14 @@ onMounted(() => {
         </template>
         <div class="space-y-4">
           <div class="flex flex-wrap items-end gap-4">
-            <div class="flex items-end gap-2">
+            <div class="grid grid-cols-2 items-end gap-2 sm:flex">
               <UFormField label="Ano">
                 <UInputMenu
                   v-model="filtroAno"
                   :items="[anoAtual, String(Number(anoAtual) - 1)]"
                   placeholder="Ano"
                   size="sm"
-                  class="w-24"
+                  class="w-full sm:w-24"
                 />
               </UFormField>
               <UFormField label="Mês início">
@@ -461,7 +475,7 @@ onMounted(() => {
                   :items="mesesOpcoes"
                   placeholder="Mês início"
                   size="sm"
-                  class="w-36"
+                  class="w-full sm:w-36"
                 />
               </UFormField>
               <span class="text-muted mb-1">até</span>
@@ -471,7 +485,7 @@ onMounted(() => {
                   :items="mesesOpcoes"
                   placeholder="Mês fim"
                   size="sm"
-                  class="w-36"
+                  class="w-full sm:w-36"
                 />
               </UFormField>
             </div>
@@ -481,7 +495,7 @@ onMounted(() => {
                 :items="medicosDisponiveis"
                 placeholder="Médico"
                 size="sm"
-                class="w-48"
+                class="w-full sm:w-48"
               />
             </UFormField>
             <UFormField label="Especialidade">
@@ -490,7 +504,7 @@ onMounted(() => {
                 :items="especialidadesDisponiveis"
                 placeholder="Especialidade"
                 size="sm"
-                class="w-48"
+                class="w-full sm:w-48"
               />
             </UFormField>
             <UFormField label="Convênio">
@@ -499,7 +513,7 @@ onMounted(() => {
                 :items="conveniosDisponiveis"
                 placeholder="Convênio"
                 size="sm"
-                class="w-48"
+                class="w-full sm:w-48"
               />
             </UFormField>
             <UFormField label="Status">
@@ -508,7 +522,7 @@ onMounted(() => {
                 :items="statusDisponiveis"
                 placeholder="Status"
                 size="sm"
-                class="w-48"
+                class="w-full sm:w-48"
               />
             </UFormField>
             <UButton
@@ -525,7 +539,7 @@ onMounted(() => {
                 v-model="filtroExame"
                 placeholder="Buscar exame..."
                 size="sm"
-                class="w-48"
+                class="w-full sm:w-48"
               />
             </UFormField>
             <UFormField label="Paciente">
@@ -533,7 +547,7 @@ onMounted(() => {
                 v-model="filtroPaciente"
                 placeholder="Nome, CPF ou prontuário..."
                 size="sm"
-                class="w-64"
+                class="w-full sm:w-64"
               />
             </UFormField>
           </div>
@@ -548,7 +562,7 @@ onMounted(() => {
         icon="i-lucide-circle-alert"
       />
 
-      <div class="w-full grid grid-cols-3 items-center gap-4">
+      <div class="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 items-center gap-4">
         <CardRetencao
           titulo="Exames Solicitados"
           :valor="totalExamesSolicitados"
@@ -588,7 +602,7 @@ onMounted(() => {
         />
       </div>
 
-      <div class="w-full grid grid-cols-2 gap-4">
+      <div class="w-full grid grid-cols-1 lg:grid-cols-2 gap-4">
         <UCard>
           <template #title>
             <p class="text-lg font-medium">
@@ -613,7 +627,7 @@ onMounted(() => {
         </UCard>
       </div>
 
-      <div class="w-full grid grid-cols-2 gap-4">
+      <div class="w-full grid grid-cols-1 lg:grid-cols-2 gap-4">
         <UCard>
           <template #title>
             <p class="text-lg font-medium">
@@ -638,12 +652,12 @@ onMounted(() => {
         </UCard>
       </div>
 
-      <div class="grid grid-cols-5 gap-4 items-stretch">
+      <div class="grid grid-cols-1 lg:grid-cols-5 gap-4 items-stretch">
         <UCard
           :ui="{
             body: 'p-4 sm:p-4 sm:py-5 min-w-55 flex items-center h-full'
           }"
-          class="col-span-2"
+          class="col-span-1 lg:col-span-2"
         >
           <div class="flex items-center gap-3 w-full">
             <UBadge
@@ -670,9 +684,9 @@ onMounted(() => {
           :ui="{
             body: 'p-5 flex items-center h-full'
           }"
-          class="col-span-3"
+          class="col-span-1 lg:col-span-3"
         >
-          <div class="flex items-center justify-between w-full">
+          <div class="flex flex-col gap-3 items-center justify-between w-full sm:flex-row">
             <div class="flex items-center gap-2">
               <UIcon
                 name="i-lucide-download"

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const openNav = inject<() => void>('openNav', () => {})
 type AtendimentoStatus = 'agendado' | 'em-espera' | 'em-atendimento' | 'atendido' | 'faltou' | 'desconhecido'
 
 interface AtendimentoRecepcao {
@@ -266,7 +267,20 @@ onUnmounted(() => {
 
 <template>
   <div>
-    <UHeader title="Painel da Recepção">
+    <UHeader
+      title="Painel da Recepção"
+      toggle-side="left"
+    >
+      <template #toggle>
+        <UButton
+          icon="i-lucide-panel-left"
+          color="neutral"
+          variant="ghost"
+          class="lg:hidden"
+          aria-label="Abrir menu"
+          @click="openNav()"
+        />
+      </template>
       <template #right>
         <div class="flex items-center gap-2">
           <UBadge

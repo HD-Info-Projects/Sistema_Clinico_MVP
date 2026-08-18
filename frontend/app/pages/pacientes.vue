@@ -20,6 +20,7 @@ import {
 } from '~/utils/pdf-documents'
 import { gerarHtmlGuiaTiss, imprimirGuiaTiss } from '~/utils/guia-tiss'
 
+const openNav = inject<() => void>('openNav', () => {})
 const auth = useAuthStore()
 
 const df = new DateFormatter('pt-BR', {
@@ -476,8 +477,22 @@ function dropdownItems(ag: AgendamentoComPaciente) {
 
 <template>
   <div>
-    <UHeader title="Meus Pacientes" />
-    <div class="p-6 bg-neutral-100 dark:bg-neutral-950 min-h-screen space-y-6">
+    <UHeader
+      title="Meus Pacientes"
+      toggle-side="left"
+    >
+      <template #toggle>
+        <UButton
+          icon="i-lucide-panel-left"
+          color="neutral"
+          variant="ghost"
+          class="lg:hidden"
+          aria-label="Abrir menu"
+          @click="openNav()"
+        />
+      </template>
+    </UHeader>
+    <div class="p-4 sm:p-6 bg-neutral-100 dark:bg-neutral-950 min-h-screen space-y-6">
       <div class="flex flex-col sm:flex-row gap-3">
         <UInput
           v-model="buscaNome"

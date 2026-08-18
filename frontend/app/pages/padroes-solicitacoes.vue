@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { PadraoReceita, PadraoExame, PadraoAnamnese, PadraoOrientacaoExame } from '~/types'
 
+const openNav = inject<() => void>('openNav', () => {})
 const padroesStore = usePadroesStore()
 const padroesAnamneseStore = usePadroesAnamneseStore()
 const padroesOrientacoesStore = usePadroesOrientacoesStore()
@@ -139,13 +140,26 @@ function activeTabEmpty(): boolean {
 
 <template>
   <div>
-    <UHeader title="Padrões de Solicitações">
+    <UHeader
+      title="Padrões de Solicitações"
+      toggle-side="left"
+    >
+      <template #toggle>
+        <UButton
+          icon="i-lucide-panel-left"
+          color="neutral"
+          variant="ghost"
+          class="lg:hidden"
+          aria-label="Abrir menu"
+          @click="openNav()"
+        />
+      </template>
       <template #right>
         <UColorModeButton />
       </template>
     </UHeader>
 
-    <div class="p-6 space-y-6 bg-neutral-100 dark:bg-neutral-950 min-h-screen">
+    <div class="p-4 sm:p-6 space-y-6 bg-neutral-100 dark:bg-neutral-950 min-h-screen">
       <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         <UCard>
           <template #title>
