@@ -1,3 +1,8 @@
+function fetchStatus(error: unknown) {
+  const fetchError = error as { status?: number, statusCode?: number, response?: { status?: number } }
+  return fetchError.response?.status || fetchError.statusCode || fetchError.status
+}
+
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
   const { email, password } = body
@@ -10,8 +15,7 @@ export default defineEventHandler(async (event) => {
       body: { email, senha: password }
     })
   } catch (error: unknown) {
-    const fetchError = error as { status?: number, statusCode?: number, response?: { status?: number } }
-    const status = fetchError.response?.status || fetchError.statusCode || fetchError.status
+    const status = fetchStatus(error)
 
     if (status === 400 || status === 401 || status === 429) {
       throw createError({
@@ -20,7 +24,7 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    console.error('[auth] Falha ao autenticar no Flask', error)
+    console.error('[auth] Falha ao autenticar no Flask', { status })
     throw createError({
       statusCode: 502,
       statusMessage: 'Falha ao conectar com o backend Flask'
@@ -41,9 +45,9 @@ export default defineEventHandler(async (event) => {
     })
 
     return buildAuthPayload(rawUser as Parameters<typeof buildAuthPayload>[0])
-  } catch (error) {
+  } catch (error: unknown) {
     clearAuthTokenCookie(event)
-    console.error('[auth] Falha ao validar sessão recém-criada', error)
+    console.error('[auth] Falha ao validar sessão recém-criada', { status: fetchStatus(error) })
     throw createError({ statusCode: 502, statusMessage: 'Falha ao carregar sessão' })
   }
 })

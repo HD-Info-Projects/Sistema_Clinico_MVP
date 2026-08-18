@@ -62,10 +62,7 @@ export default defineEventHandler(async (event) => {
       // Mantém mensagem genérica se o Flask não retornar JSON.
     }
 
-    console.error('[tts] Falha ao gerar áudio no Flask', {
-      status: res.status,
-      message
-    })
+    console.error('[tts] Falha ao gerar áudio no Flask', { status: res.status })
 
     throw createError({ statusCode: res.status, statusMessage: message })
   }

@@ -7,6 +7,11 @@ from sqlalchemy import URL
 load_dotenv()
 
 
+def _env_bool(name, default=False):
+    default_value = 'true' if default else 'false'
+    return os.getenv(name, default_value).lower() == 'true'
+
+
 def _database_uri():
     explicit_uri = os.getenv('SQLALCHEMY_DATABASE_URI')
     if explicit_uri:
@@ -30,6 +35,10 @@ class Config:
     APP_ENV = os.getenv('APP_ENV', os.getenv('FLASK_ENV', 'development')).lower()
     IS_PRODUCTION = APP_ENV == 'production'
     FLASK_APP=os.getenv('FLASK_APP')
+    LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO').upper()
+    LOG_FORMAT = os.getenv('LOG_FORMAT', 'json' if IS_PRODUCTION else 'text').lower()
+    LOG_REQUESTS = _env_bool('LOG_REQUESTS', True)
+    LOG_HEALTHCHECKS = _env_bool('LOG_HEALTHCHECKS', False)
     SECRET_KEY = os.getenv('SECRET_KEY')
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
     JWT_ACCESS_TOKEN_EXPIRES_SECONDS = int(os.getenv('JWT_ACCESS_TOKEN_EXPIRES_SECONDS', 60 * 60 * 12))

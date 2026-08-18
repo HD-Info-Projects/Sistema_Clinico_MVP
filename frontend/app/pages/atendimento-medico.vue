@@ -75,8 +75,8 @@ async function carregarConsultaExistente() {
     examesSelecionados.value = (registro.exames ?? [])
       .map(e => normalizarExameSelecionado(e))
       .filter((e): e is ExameSelecionado => e !== null)
-  } catch (error) {
-    console.error('Erro ao carregar consulta para edição', error)
+  } catch {
+    console.error('Erro ao carregar consulta para edição')
   }
 }
 const documentosMedicos = shallowRef<Partial<Record<DocumentoMedicoTipo, DocumentoMedico>>>({})
@@ -849,8 +849,8 @@ async function cancelarAtendimento() {
     cronometro.stop()
     modalCancelarAberto.value = false
     await navigateTo('/dashboard', { replace: true })
-  } catch (error) {
-    console.error('Erro ao cancelar atendimento', error)
+  } catch {
+    console.error('Erro ao cancelar atendimento')
     toast.add({
       title: 'Erro ao cancelar atendimento',
       description: 'Não foi possível devolver o paciente à fila. Tente novamente.',
@@ -890,8 +890,8 @@ async function finalizarConsulta() {
     limparDraft()
     cronometro.stop()
     await navigateTo('/dashboard', { replace: true })
-  } catch (error) {
-    console.error('Erro ao finalizar consulta', error)
+  } catch {
+    console.error('Erro ao finalizar consulta')
     toast.add({
       title: 'Erro ao finalizar consulta',
       description: 'Não foi possível salvar os dados do atendimento. Tente novamente.',
