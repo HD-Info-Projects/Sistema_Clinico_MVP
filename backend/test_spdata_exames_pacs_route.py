@@ -1,8 +1,6 @@
 import importlib.util
 from pathlib import Path
 
-from flask import Flask
-
 
 def _load_route_module():
     path = Path(__file__).resolve().parent / "src/routes/spdata_exames_pacs_route.py"
@@ -21,16 +19,16 @@ class FakeResponse:
 
     def json(self):
         return {
-            "url": "https://exemplo.com/imagem",
+            "message": "https://exemplo.com/imagem",
             "treatmentId": "823525",
         }
 
 
-def test_busca_exames_pacs_envia_treatment_id_823525(monkeypatch):
+def test_chamar_viewer_exame_envia_treatment_id_823525(monkeypatch):
     route_module = _load_route_module()
-    app = Flask(__name__)
-    app.register_blueprint(route_module.exames_pacs_bp)
     chamadas = []
+    monkeypatch.setenv("URL_EXAMES_PACS", "https://pacs.exemplo.com/viewer")
+    monkeypatch.setenv("TOKEN_EXAMES_PACS", "token-teste")
 
     def post_fake(url, headers=None, json=None, timeout=None):
         chamadas.append({
@@ -43,20 +41,47 @@ def test_busca_exames_pacs_envia_treatment_id_823525(monkeypatch):
 
     monkeypatch.setattr(route_module.requests, "post", post_fake)
 
-    with app.test_client() as client:
-        response = client.post("/exames-pacs/823525")
+    payload, status_code = route_module._chamar_viewer_exame(823525)
 
-    assert response.status_code == 200
-    assert response.get_json() == {
-        "url": "https://exemplo.com/imagem",
+    assert status_code == 200
+    assert payload == {
+        "message": "https://exemplo.com/imagem",
         "treatmentId": "823525",
     }
     assert chamadas == [{
-        "url": route_module.URL,
+        "url": "https://pacs.exemplo.com/viewer",
         "headers": {
-            "Authorization": f"Bearer {route_module.TOKEN}",
+            "Authorization": "Bearer token-teste",
             "Content-Type": "application/json",
         },
         "json": {"treatmentId": "823525"},
         "timeout": 15,
     }]
+
+
+def test_normalizar_base64_pdf_remove_data_url_e_espacos():
+    route_module = _load_route_module()
+
+    assert route_module._normalizar_base64_pdf(
+        "data:application/pdf;base64, JVBERi0xLjQ=\n"
+    ) == "JVBERi0xLjQ="
+
+
+def test_extrair_viewer_url_usa_message():
+    route_module = _load_route_module()
+
+    assert route_module._extrair_viewer_url({
+        "message": " https://exemplo.com/viewer?aet=SP1972&token= "
+    }) == "https://exemplo.com/viewer?aet=SP1972&token="
+
+
+def test_exame_para_frontend_marca_tem_imagem(monkeypatch):
+    route_module = _load_route_module()
+    monkeypatch.setattr(route_module, "_tem_imagem_pacs", lambda id_lancamento: id_lancamento == 823525)
+
+    assert route_module._exame_para_frontend({
+        "ID_TOKEN_LANCAMENTO_EXAME": 823525,
+        "ID_PACIENTE_SPDATA": 10,
+        "NOME_EXAME": "Tomografia",
+        "TEM_LAUDO": 1,
+    })["temImagem"] is True
