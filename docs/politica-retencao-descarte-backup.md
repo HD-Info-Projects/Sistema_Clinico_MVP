@@ -427,7 +427,7 @@ docker compose ps -q | xargs -r docker inspect --format '{{.Name}} {{json .HostC
 
 Logs não devem conter senhas, tokens, chaves, strings de conexão, dumps, payloads clínicos completos ou dados pessoais além do estritamente necessário para diagnóstico autorizado.
 
-O backend deve manter logs operacionais em stdout/stderr, preferencialmente com `LOG_FORMAT=json` em produção. Cada resposta da API inclui `X-Request-ID`, que deve ser usado para correlação de incidentes sem copiar dados pessoais ou payloads clínicos para canais de suporte.
+O backend deve manter logs operacionais em stdout/stderr, preferencialmente com `LOG_FORMAT=json` e `LOG_COLOR=false` em produção. Cores ANSI devem ficar restritas a `LOG_FORMAT=text` em terminal local. Cada resposta da API inclui `X-Request-ID`, que deve ser usado para correlação de incidentes sem copiar dados pessoais ou payloads clínicos para canais de suporte.
 
 ## 14. Retenção no MySQL: dry-run e execute
 

@@ -99,6 +99,7 @@ GUNICORN_WORKERS=3
 GUNICORN_TIMEOUT=120
 LOG_LEVEL=INFO
 LOG_FORMAT=json
+LOG_COLOR=false
 LOG_REQUESTS=true
 LOG_HEALTHCHECKS=false
 
@@ -128,6 +129,7 @@ Observacoes:
 - `TZ=America/Sao_Paulo` mantem backend, frontend e MySQL no fuso esperado.
 - `GUNICORN_WORKERS` e `GUNICORN_TIMEOUT` controlam o Gunicorn do backend sem rebuild da imagem.
 - `LOG_FORMAT=json` mantem os logs do backend estruturados para coleta e filtro por `request_id`.
+- `LOG_COLOR=false` evita codigos ANSI nos logs de producao; use cores apenas com `LOG_FORMAT=text` em terminal local.
 - `LOG_HEALTHCHECKS=false` evita ruido do healthcheck `/` nos logs de aplicacao.
 - `FIREBIRD_HOST` nao pode ser `localhost`, porque dentro do container `localhost` aponta para o proprio container.
 
@@ -306,7 +308,7 @@ Ver logs do backend:
 docker compose logs --tail=200 backend
 ```
 
-Se o usuario informar um `X-Request-ID`, filtre por ele no coletor de logs ou na saida do container. Em producao, o backend usa `LOG_FORMAT=json` por padrao, facilitando a indexacao dos campos `request_id`, `path`, `status_code` e `duration_ms`.
+Se o usuario informar um `X-Request-ID`, filtre por ele no coletor de logs ou na saida do container. Em producao, o backend usa `LOG_FORMAT=json` e `LOG_COLOR=false` por padrao, facilitando a indexacao dos campos `request_id`, `path`, `status_code` e `duration_ms` sem codigos ANSI.
 
 Ver logs do Caddy e emissao do certificado HTTPS:
 

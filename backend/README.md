@@ -39,8 +39,11 @@ O backend gera logs em stdout/stderr para uso com Docker e Gunicorn. As principa
 ```env
 LOG_LEVEL=INFO
 LOG_FORMAT=text
+LOG_COLOR=auto
 LOG_REQUESTS=true
 LOG_HEALTHCHECKS=false
 ```
+
+Com `LOG_FORMAT=text`, `LOG_COLOR=auto` colore os logs quando a saida for um terminal interativo, como em `python run.py` ou `flask run`. Use `LOG_COLOR=true` para forcar cores e `LOG_COLOR=false` para desligar. O formato `json` nunca adiciona codigos ANSI.
 
 Cada resposta recebe `X-Request-ID`. Envie esse header a partir do cliente para correlacionar erros entre frontend, backend e logs do container. Logs tecnicos nao devem incluir senhas, tokens, cookies, CPF/CNPJ, telefones, payloads clinicos completos ou credenciais de integracao.

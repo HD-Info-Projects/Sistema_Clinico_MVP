@@ -83,7 +83,7 @@ Arquivos e áreas usados como referência:
 | Logs de integração | Ação, método, endpoint, payload enviado, resposta recebida, status, erro | `logs_integracao` | Modelo existe. Não foi encontrado uso efetivo criando registros. |
 | Fila de sincronização | Tipo de evento, referência, payload, status, tentativas, erro | `fila_sincronizacao` | Modelo existe. Não foi encontrado uso efetivo criando registros. |
 | Auditoria | Usuário, médico, ação, entidade, IP, user agent, descrição | `auditorias` | Modelo existe. Não foi encontrado uso efetivo criando registros. |
-| Logs de aplicação | Exceções, requisições e mensagens no logger | stdout/container logs | Logging centralizado com `X-Request-ID`, formato configurável e sanitização de credenciais e identificadores sensíveis. |
+| Logs de aplicação | Exceções, requisições e mensagens no logger | stdout/container logs | Logging centralizado com `X-Request-ID`, formato configurável, cores apenas em texto/local e sanitização de credenciais e identificadores sensíveis. |
 
 ### 2.6 Dados de IA/TTS
 

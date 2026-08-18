@@ -37,6 +37,7 @@ class Config:
     FLASK_APP=os.getenv('FLASK_APP')
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO').upper()
     LOG_FORMAT = os.getenv('LOG_FORMAT', 'json' if IS_PRODUCTION else 'text').lower()
+    LOG_COLOR = os.getenv('LOG_COLOR', 'auto').lower()
     LOG_REQUESTS = _env_bool('LOG_REQUESTS', True)
     LOG_HEALTHCHECKS = _env_bool('LOG_HEALTHCHECKS', False)
     SECRET_KEY = os.getenv('SECRET_KEY')
