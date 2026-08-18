@@ -481,3 +481,39 @@ export async function buildSolicitacaoProcedimento(params: {
     defaultStyle
   }
 }
+
+export async function buildSolicitacaoOpme(params: {
+  paciente: string
+  data: string
+  opmeItens?: { codigo?: string, nome: string, quantidade?: number }[]
+  indicacaoClinica?: string
+  medico?: string
+  crm?: string
+  especialidade?: string
+}) {
+  const linhasOpme = (params.opmeItens ?? []).map((opme) => {
+    const codigo = opme.codigo ? `${opme.codigo} - ` : ''
+    const qtd = opme.quantidade && opme.quantidade > 1 ? `  (x${opme.quantidade})` : ''
+    return `\u2022 ${codigo}${opme.nome}${qtd}`
+  })
+
+  return {
+    pageSize: 'A4' as const,
+    pageMargins: [60, 40, 60, 60] as [number, number, number, number],
+    content: [
+      ...(await hospitalHeader()),
+      documentTitle('SOLICITA\u00C7\u00C3O DE OPME'),
+      { text: `PACIENTE: ${params.paciente.toUpperCase()}`, bold: true, decoration: 'underline', margin: [0, 0, 0, 5] },
+      { text: `DATA: ${params.data}`, margin: [0, 0, 0, 20] },
+      ...(params.indicacaoClinica?.trim()
+        ? [
+            { text: 'INDICA\u00C7\u00C3O CL\u00CDNICA:', bold: true, margin: [0, 0, 0, 5] },
+            { text: params.indicacaoClinica.trim(), margin: [0, 0, 0, 20] }
+          ]
+        : []),
+      ...linhasOpme.map(opme => ({ text: `\u2022 ${opme}`, margin: [0, 0, 0, 4] })),
+      signatureBlock(params.medico, params.crm, params.especialidade)
+    ],
+    defaultStyle
+  }
+}
