@@ -40,6 +40,11 @@ const navItems = computed(() => [
     <USidebar
       v-model:open="open"
       collapsible="icon"
+      :menu="{
+        ui: {
+          content: 'w-64'
+        }
+      }"
       side="left"
     >
       <template #header>

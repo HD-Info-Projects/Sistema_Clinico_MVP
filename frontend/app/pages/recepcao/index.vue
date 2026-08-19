@@ -478,7 +478,7 @@ onUnmounted(() => {
           <UTable
             :columns="atendimentosColunas"
             :data="dados.items"
-            class="min-w-[760px]"
+            class="min-w-190"
           >
             <template #horario-cell="{ row }">
               <span class="font-mono text-sm">{{ row.original.horario || '-' }}</span>

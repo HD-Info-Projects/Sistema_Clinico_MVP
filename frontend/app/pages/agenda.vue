@@ -285,7 +285,7 @@ const statuses: { id: string, name: string, color: string }[] = [
           <UTable
             :columns="colunas"
             :data="atendimentosOrdenados"
-            class="min-w-[640px]"
+            class="min-w-160"
           >
             <template #horario-cell="{ row }">
               <span class="font-mono text-sm">{{ row.original.horario || '-' }}</span>
