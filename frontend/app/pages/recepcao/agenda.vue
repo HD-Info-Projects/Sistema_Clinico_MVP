@@ -194,14 +194,6 @@ function rotuloStatus(s: string) {
   }
 }
 
-const colunas = [
-  { accessorKey: 'horario', header: 'Horário' },
-  { accessorKey: 'paciente', header: 'Paciente' },
-  { accessorKey: 'contato', header: 'Contato' },
-  { accessorKey: 'medico', header: 'Médico' },
-  { accessorKey: 'status', header: 'Status' }
-]
-
 const statuses: { id: string, name: string, color: string }[] = [
   { id: 'agendado', name: 'Agendado', color: 'secondary' },
   { id: 'em-espera', name: 'Em espera', color: 'primary' },
@@ -365,10 +357,10 @@ const statuses: { id: string, name: string, color: string }[] = [
           <div
             v-for="linha in 5"
             :key="linha"
-            class="grid grid-cols-1 gap-3 rounded-lg border border-muted p-3 md:grid-cols-[80px_1.5fr_1fr_1fr_120px]"
+            class="grid grid-cols-1 gap-3 rounded-lg border border-muted p-3 md:grid-cols-6"
           >
             <USkeleton class="h-5 w-16" />
-            <div class="space-y-2">
+            <div class="col-span-2 space-y-2">
               <USkeleton class="h-5 w-48 max-w-full" />
               <USkeleton class="h-4 w-32 max-w-full" />
             </div>
@@ -387,64 +379,83 @@ const statuses: { id: string, name: string, color: string }[] = [
 
         <div
           v-else
-          class="overflow-x-auto"
+          class="flex flex-col gap-2"
         >
-          <UTable
-            :columns="colunas"
-            :data="atendimentosOrdenados"
-            class="min-w-190"
+          <UPageCard
+            v-for="item in atendimentosOrdenados"
+            :key="item.id"
+            :ui="{ container: 'p-1 sm:p-1' }"
           >
-            <template #horario-cell="{ row }">
-              <span class="font-mono text-sm">{{ row.original.horario || '-' }}</span>
-            </template>
+            <div class="grid grid-cols-2 md:grid-cols-6 gap-x-4 gap-y-3 items-start md:items-center">
+              <div class="col-span-2">
+                <p class="text-sm text-muted font-bold text-center sm:text-left">
+                  Paciente
+                </p>
+                <div class="flex items-center gap-3 justify-center">
+                  <UAvatar
+                    :alt="item.paciente"
+                    color="primary"
+                    size="sm"
+                  />
+                  <div>
+                    <p class="font-medium">
+                      {{ item.paciente || 'Paciente não informado' }}
+                    </p>
+                    <p class="text-xs text-muted">
+                      {{ textoInformado(idadePaciente(item.dataNascimento)) ? idadePaciente(item.dataNascimento) : '' }}
+                      {{ textoNaoInformado(item.convenio, '') ? `· ${item.convenio}` : '' }}
+                    </p>
+                  </div>
+                </div>
+              </div>
 
-            <template #paciente-cell="{ row }">
-              <div class="flex min-w-56 items-center gap-3">
-                <UAvatar
-                  :alt="row.original.paciente"
-                  color="primary"
-                  size="sm"
-                />
-                <div>
-                  <p class="font-medium">
-                    {{ row.original.paciente || 'Paciente não informado' }}
-                  </p>
+              <div class="md:col-span-1 text-center">
+                <p class="text-sm text-muted font-bold">
+                  Horário
+                </p>
+                <p class="whitespace-nowrap font-mono text-sm">
+                  {{ item.horario || '-' }}
+                </p>
+              </div>
+
+              <div class="md:col-span-1 text-center">
+                <p class="text-sm text-muted font-bold">
+                  Contato
+                </p>
+                <div class="text-sm">
+                  <p>{{ contatoPrincipal(item) }}</p>
                   <p class="text-xs text-muted">
-                    {{ textoInformado(idadePaciente(row.original.dataNascimento)) ? idadePaciente(row.original.dataNascimento) : '' }}
-                    {{ textoNaoInformado(row.original.convenio, '') ? `· ${row.original.convenio}` : '' }}
+                    {{ textoNaoInformado(item.email, '') || '' }}
                   </p>
                 </div>
               </div>
-            </template>
 
-            <template #contato-cell="{ row }">
-              <div class="min-w-40 text-sm">
-                <p>{{ contatoPrincipal(row.original) }}</p>
-                <p class="text-xs text-muted">
-                  {{ textoNaoInformado(row.original.email, '') || '' }}
+              <div class="md:col-span-1 text-center">
+                <p class="text-sm text-muted font-bold">
+                  Médico
                 </p>
+                <div class="text-sm">
+                  <p class="font-medium">
+                    {{ item.medico || '-' }}
+                  </p>
+                  <p class="text-xs text-muted">
+                    {{ textoNaoInformado(crmExibicao(item), 'CRM não informado') }}
+                  </p>
+                </div>
               </div>
-            </template>
 
-            <template #medico-cell="{ row }">
-              <div class="min-w-44 text-sm">
-                <p class="font-medium">
-                  {{ row.original.medico || '-' }}
+              <div class="md:col-span-1 text-center">
+                <p class="text-sm text-muted font-bold">
+                  Status
                 </p>
-                <p class="text-xs text-muted">
-                  {{ textoNaoInformado(crmExibicao(row.original), 'CRM não informado') }}
-                </p>
+                <UBadge
+                  :label="rotuloStatus(item.status)"
+                  :color="corStatus(item.status)"
+                  variant="subtle"
+                />
               </div>
-            </template>
-
-            <template #status-cell="{ row }">
-              <UBadge
-                :label="rotuloStatus(row.original.status)"
-                :color="corStatus(row.original.status)"
-                variant="subtle"
-              />
-            </template>
-          </UTable>
+            </div>
+          </UPageCard>
         </div>
       </UCard>
     </div>

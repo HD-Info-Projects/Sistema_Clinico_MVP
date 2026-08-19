@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui/'
-import { getPaginationRowModel } from '@tanstack/vue-table'
 
 const openNav = inject<() => void>('openNav', () => {})
 interface ExameRetencao {
@@ -123,7 +122,7 @@ function aplicarFiltros() {
   filtroEspecialidadeActive.value = filtroEspecialidade.value
   filtroConvenioActive.value = filtroConvenio.value
   filtroStatusActive.value = filtroStatus.value
-  pagination.value.pageIndex = 0
+  page.value = 1
   carregarRetencao()
 }
 
@@ -199,22 +198,13 @@ const faturamentoRealizado = computed(() => {
     .filter(e => e.status === 'realizado' && e.valorRealizado)
     .reduce((acc, e) => acc + (e.valorRealizado || 0), 0)
 })
-const table = useTemplateRef('table')
+const page = ref(1)
+const pageSize = 8
 
-const pagination = ref({
-  pageIndex: 0,
-  pageSize: 8
+const pacientesPaginados = computed(() => {
+  const inicio = (page.value - 1) * pageSize
+  return pacientesVisiveis.value.slice(inicio, inicio + pageSize)
 })
-
-const colunas = [
-  { accessorKey: 'paciente', header: 'Paciente' },
-  { accessorKey: 'medico', header: 'Médico' },
-  { accessorKey: 'exame', header: 'Exame' },
-  { accessorKey: 'dataSolicitacao', header: 'Data Solic.' },
-  { accessorKey: 'diasEmAberto', header: 'Dias' },
-  { accessorKey: 'status', header: 'Status' },
-  { accessorKey: 'valorEstimado', header: 'Valor Est.' }
-]
 
 function corStatus(status: string) {
   switch (status) {
@@ -751,91 +741,122 @@ onMounted(() => {
           Nenhum exame encontrado para conversão.
         </p>
 
-        <UTable
+        <div
           v-else
-          ref="table"
-          v-model:pagination="pagination"
-          :columns="colunas"
-          :data="pacientesVisiveis"
-          :pagination-options="{ getPaginationRowModel: getPaginationRowModel() }"
+          class="flex flex-col gap-2"
         >
-          <template #paciente-cell="{ row }">
-            <div class="flex items-center gap-3">
-              <UAvatar
-                :alt="row.original.paciente"
-                color="primary"
-                size="sm"
-              />
-              <div>
-                <p class="font-medium">
-                  {{ row.original.paciente }}
+          <UPageCard
+            v-for="item in pacientesPaginados"
+            :key="item.id"
+            :ui="{ container: 'p-1 sm:p-1' }"
+          >
+            <div class="grid grid-cols-2 md:grid-cols-8 gap-x-4 gap-y-3 items-start md:items-center">
+              <div class="col-span-2">
+                <p class="text-sm text-muted font-bold text-center sm:text-left">
+                  Paciente
                 </p>
-                <p class="text-xs text-muted">
-                  {{ row.original.convenio }}
+                <div class="flex items-center gap-3 justify-center">
+                  <UAvatar
+                    :alt="item.paciente"
+                    color="primary"
+                    size="sm"
+                  />
+                  <div>
+                    <p class="font-medium">
+                      {{ item.paciente }}
+                    </p>
+                    <p class="text-xs text-muted">
+                      {{ item.convenio }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="md:col-span-1 text-center">
+                <p class="text-sm text-muted font-bold">
+                  Médico
+                </p>
+                <div class="text-sm">
+                  <p class="font-medium">
+                    {{ item.medico }}
+                  </p>
+                  <p class="text-xs text-muted">
+                    {{ item.crm }}
+                  </p>
+                </div>
+              </div>
+
+              <div class="md:col-span-1 text-center">
+                <p class="text-sm text-muted font-bold">
+                  Data Solic.
+                </p>
+                <p class="text-sm">
+                  {{ formatarData(item.dataSolicitacao) }}
+                </p>
+              </div>
+
+              <div class="col-span-2 md:col-span-1 text-center">
+                <p class="text-sm text-muted font-bold">
+                  Exame
+                </p>
+                <div class="text-sm">
+                  <UTooltip :text="item.exame">
+                    <p class="mx-auto max-w-70 truncate cursor-default text-sm font-medium">
+                      {{ item.exame }}
+                    </p>
+                  </UTooltip>
+                  <p class="text-xs text-muted">
+                    {{ item.codigoTuss }}
+                  </p>
+                </div>
+              </div>
+
+              <div class="md:col-span-1 text-center">
+                <p class="text-sm text-muted font-bold">
+                  Dias
+                </p>
+                <UBadge
+                  :label="String(item.diasEmAberto)"
+                  :color="item.diasEmAberto > 60 ? 'error' : item.diasEmAberto > 30 ? 'warning' : 'neutral'"
+                  variant="soft"
+                  size="sm"
+                />
+              </div>
+
+              <div class="md:col-span-1 text-center">
+                <p class="text-sm text-muted font-bold">
+                  Status
+                </p>
+                <UBadge
+                  :label="rotuloStatus(item.status)"
+                  :color="corStatus(item.status)"
+                  variant="subtle"
+                />
+              </div>
+
+              <div class="col-span-2 md:col-span-1 text-center">
+                <p class="text-sm text-muted font-bold">
+                  Valor Est.
+                </p>
+                <p class="text-sm font-medium">
+                  {{ formatarMoeda(item.valorEstimado) }}
                 </p>
               </div>
             </div>
-          </template>
-
-          <template #medico-cell="{ row }">
-            <div>
-              <p class="text-sm font-medium">
-                {{ row.original.medico }}
-              </p>
-              <p class="text-xs text-muted">
-                {{ row.original.crm }}
-              </p>
-            </div>
-          </template>
-
-          <template #exame-cell="{ row }">
-            <div>
-              <UTooltip :text="row.original.exame">
-                <p class="text-sm font-medium truncate max-w-70 cursor-default">
-                  {{ row.original.exame }}
-                </p>
-              </UTooltip>
-              <p class="text-xs text-muted">
-                {{ row.original.codigoTuss }}
-              </p>
-            </div>
-          </template>
-
-          <template #dataSolicitacao-cell="{ row }">
-            <span class="text-sm">{{ formatarData(row.original.dataSolicitacao) }}</span>
-          </template>
-
-          <template #diasEmAberto-cell="{ row }">
-            <UBadge
-              :label="String(row.original.diasEmAberto)"
-              :color="row.original.diasEmAberto > 60 ? 'error' : row.original.diasEmAberto > 30 ? 'warning' : 'neutral'"
-              variant="soft"
-              size="sm"
-            />
-          </template>
-
-          <template #status-cell="{ row }">
-            <UBadge
-              :label="rotuloStatus(row.original.status)"
-              :color="corStatus(row.original.status)"
-              variant="subtle"
-            />
-          </template>
-
-          <template #valorEstimado-cell="{ row }">
-            <span class="text-sm">{{ formatarMoeda(row.original.valorEstimado) }}</span>
-          </template>
-        </UTable>
+          </UPageCard>
+        </div>
 
         <div
           v-if="pacientesVisiveis.length && !loading"
           class="flex justify-center pt-4"
         >
           <UPagination
-            :page="(table?.tableApi?.getState().pagination.pageIndex || 0) + 1"
-            :items-per-page="table?.tableApi?.getState().pagination.pageSize || pagination.pageSize"
-            :total="table?.tableApi?.getFilteredRowModel().rows.length || 0"
-            @update:page="(p) => table?.tableApi?.setPageIndex(p - 1)"
+            :page="page"
+            :items-per-page="pageSize"
+            :total="pacientesVisiveis.length"
+            :sibling-count="1"
+            :ui="{ list: 'flex flex-wrap items-center gap-1 justify-center' }"
+            @update:page="page = $event"
           />
         </div>
       </UCard>

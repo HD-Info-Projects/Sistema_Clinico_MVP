@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui/'
-import { getPaginationRowModel } from '@tanstack/vue-table'
 
 const openNav = inject<() => void>('openNav', () => {})
 const auth = useAuthStore()
@@ -131,7 +130,7 @@ function aplicarFiltros() {
   filtroMedicoActive.value = filtroMedico.value
   filtroEspecialidadeActive.value = filtroEspecialidade.value
   filtroConvenioActive.value = filtroConvenio.value
-  pagination.value.pageIndex = 0
+  page.value = 1
   carregarNoShow()
 }
 
@@ -303,21 +302,13 @@ const pacientesVisiveis = computed(() => {
   return lista
 })
 
-const table = useTemplateRef('table')
+const page = ref(1)
+const pageSize = 7
 
-const pagination = ref({
-  pageIndex: 0,
-  pageSize: 7
+const pacientesPaginados = computed(() => {
+  const inicio = (page.value - 1) * pageSize
+  return pacientesVisiveis.value.slice(inicio, inicio + pageSize)
 })
-
-const colunas = [
-  { accessorKey: 'paciente', header: 'Paciente' },
-  { accessorKey: 'telefone', header: 'Telefone' },
-  { accessorKey: 'dataFalta', header: 'Data da Falta' },
-  { accessorKey: 'motivo', header: 'Motivo' },
-  { accessorKey: 'status', header: 'Status' },
-  { id: 'acoes', header: 'Ações' }
-]
 
 function corStatus(status: string) {
   switch (status) {
@@ -433,7 +424,7 @@ onMounted(() => {
     >
       <template #toggle>
         <UButton
-          icon="i-lucide-panel-left"
+          icon="i-lucide-menu"
           color="neutral"
           variant="ghost"
           class="lg:hidden"
@@ -447,12 +438,13 @@ onMounted(() => {
             :label="userName"
             color="neutral"
             variant="soft"
+            class="hidden lg:inline-flex"
           />
           <UColorModeButton />
         </div>
       </template>
     </UHeader>
-    <div class="p-4 sm:p-6 space-y-8 bg-neutral-100 dark:bg-neutral-950 min-h-screen">
+    <div class="p-4 sm:p-6 space-y-8 bg-neutral-100 dark:bg-neutral-950 min-h-screen overflow-x-hidden">
       <div class="w-full gap-4">
         <UCard class="w-full">
           <template #title>
@@ -462,7 +454,7 @@ onMounted(() => {
           </template>
           <div class="space-y-4">
             <div class="flex flex-wrap items-end gap-4">
-              <div class="grid grid-cols-2 items-end gap-2 sm:flex">
+              <div class="grid grid-cols-1 md:grid-cols-2 items-end gap-2 sm:flex">
                 <UFormField label="Ano">
                   <UInputMenu
                     v-model="filtroAno"
@@ -624,14 +616,14 @@ onMounted(() => {
         </UCard>
       </div>
 
-      <div class="grid grid-cols-5 gap-4 items-stretch">
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-stretch">
         <UCard
           :ui="{
-            body: 'p-4 sm:p-4 sm:py-5 min-w-55 flex items-center h-full'
+            body: 'p-4 sm:p-4 sm:py-5 min-w-0 flex items-center h-full'
           }"
-          class="col-span-2"
+          class="md:col-span-2"
         >
-          <div class="flex items-center gap-3 w-full">
+          <div class="flex flex-wrap items-center gap-3 w-full">
             <UBadge
               class="aspect-square"
               variant="soft"
@@ -643,7 +635,7 @@ onMounted(() => {
               />
             </UBadge>
             <div class="flex flex-col">
-              <p class="text-sm font-bold text-nowrap">
+              <p class="text-sm font-bold">
                 Impacto Financeiro (estimado)
               </p>
               <p :class="`text-2xl font-black text-error`">
@@ -662,7 +654,7 @@ onMounted(() => {
           :ui="{
             body: 'p-5 flex items-center h-full'
           }"
-          class="col-span-3"
+          class="md:col-span-3"
         >
           <div class="flex flex-col gap-3 items-center justify-between w-full sm:flex-row">
             <div class="flex items-center gap-2">
@@ -692,7 +684,7 @@ onMounted(() => {
 
       <UCard class="w-full">
         <template #title>
-          <div class="flex items-center justify-between">
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p class="text-lg font-medium">
               Resgate de pacientes
             </p>
@@ -700,7 +692,7 @@ onMounted(() => {
               v-model="filtro"
               placeholder="Filtrar por paciente ou telefone..."
               size="sm"
-              class="w-72"
+              class="w-full sm:w-72"
             />
           </div>
         </template>
@@ -719,103 +711,128 @@ onMounted(() => {
           Nenhum paciente encontrado para resgate.
         </p>
 
-        <UTable
+        <div
           v-else
-          ref="table"
-          v-model:pagination="pagination"
-          :columns="colunas"
-          :data="pacientesVisiveis"
-          :pagination-options="{ getPaginationRowModel: getPaginationRowModel() }"
+          class="flex flex-col gap-2"
         >
-          <template #paciente-cell="{ row }">
-            <div class="flex items-center gap-3">
-              <UAvatar
-                :alt="row.original.nome"
-                color="primary"
-                size="sm"
-              />
-              <div>
-                <p class="font-medium">
-                  {{ row.original.nome }}
+          <UPageCard
+            v-for="item in pacientesPaginados"
+            :key="item.id"
+            :ui="{ container: 'p-1 sm:p-1' }"
+          >
+            <div class="grid grid-cols-2 md:grid-cols-8 gap-x-4 gap-y-3 items-start md:items-center">
+              <div class="col-span-2">
+                <p class="text-sm text-muted font-bold text-center sm:text-left">
+                  Paciente
                 </p>
-                <p class="text-xs text-muted">
-                  {{ row.original.convenio || 'Convênio não informado' }}
+                <div class="flex items-center gap-3 justify-center">
+                  <UAvatar
+                    :alt="item.nome"
+                    color="primary"
+                    size="sm"
+                  />
+                  <div>
+                    <p class="font-medium">
+                      {{ item.nome }}
+                    </p>
+                    <p class="text-xs text-muted">
+                      {{ item.convenio || 'Convênio não informado' }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="md:col-span-1 text-center">
+                <p class="text-sm text-muted font-bold">
+                  Telefone
+                </p>
+                <p class="text-sm">
+                  {{ item.telefone || 'Não informado' }}
                 </p>
               </div>
-            </div>
-          </template>
 
-          <template #telefone-cell="{ row }">
-            <span class="text-sm">{{ row.original.telefone || 'Não informado' }}</span>
-          </template>
+              <div class="md:col-span-1 text-center">
+                <p class="text-sm text-muted font-bold">
+                  Data da Falta
+                </p>
+                <p class="text-sm">
+                  {{ formatarData(item.dataFalta) }} {{ item.horario || '' }}
+                </p>
+              </div>
 
-          <template #dataFalta-cell="{ row }">
-            <span class="text-sm">{{ formatarData(row.original.dataFalta) }} {{ row.original.horario || '' }}</span>
-          </template>
-
-          <template #status-cell="{ row }">
-            <UBadge
-              :label="rotuloStatus(row.original.status)"
-              :color="corStatus(row.original.status)"
-              variant="subtle"
-            />
-          </template>
-
-          <template #motivo-cell="{ row }">
-            <UBadge
-              :label="rotuloMotivo(row.original.motivo)"
-              :color="row.original.motivo ? 'info' : 'neutral'"
-              variant="soft"
-            />
-          </template>
-
-          <template #acoes-cell="{ row }">
-            <div class="flex items-center gap-2">
-              <UButton
-                icon="i-lucide-phone"
-                label="Ligar"
-                size="sm"
-                color="primary"
-
-                @click="ligar(row.original)"
-              />
-              <UButton
-                icon="i-lucide-calendar-plus"
-                label="Reagendar"
-                size="sm"
-                color="warning"
-
-                @click="reagendar(row.original)"
-              />
-              <UButton
-                icon="i-lucide-x-circle"
-                label="Recusou"
-                size="sm"
-                color="error"
-
-                @click="pacienteRecusouSelecionado = row.original; modalRecusouAberto = true"
-              />
-              <UDropdownMenu :items="itensMais(row.original)">
-                <UButton
-                  icon="lucide:menu"
-                  label="Mais"
-                  size="sm"
-                  color="secondary"
+              <div class="md:col-span-1 text-center">
+                <p class="text-sm text-muted font-bold">
+                  Motivo
+                </p>
+                <UBadge
+                  :label="rotuloMotivo(item.motivo)"
+                  :color="item.motivo ? 'info' : 'neutral'"
+                  variant="soft"
                 />
-              </UDropdownMenu>
+              </div>
+
+              <div class="md:col-span-1 text-center">
+                <p class="text-sm text-muted font-bold">
+                  Status
+                </p>
+                <UBadge
+                  :label="rotuloStatus(item.status)"
+                  :color="corStatus(item.status)"
+                  variant="subtle"
+                />
+              </div>
+
+              <div class="col-span-2 md:col-span-2 text-center">
+                <p class="text-sm text-muted font-bold">
+                  Ações
+                </p>
+                <div class="flex flex-wrap justify-center gap-1">
+                  <UButton
+                    icon="i-lucide-phone"
+                    label="Ligar"
+                    size="sm"
+                    color="primary"
+                    @click="ligar(item)"
+                  />
+                  <UButton
+                    icon="i-lucide-calendar-plus"
+                    label="Reagendar"
+                    size="sm"
+                    color="warning"
+                    @click="reagendar(item)"
+                  />
+                  <UButton
+                    icon="i-lucide-x-circle"
+                    label="Recusou"
+                    size="sm"
+                    color="error"
+                    @click="pacienteRecusouSelecionado = item; modalRecusouAberto = true"
+                  />
+                  <UDropdownMenu :items="itensMais(item)">
+                    <UButton
+                      icon="lucide:menu"
+                      label="Mais"
+                      size="sm"
+                      color="secondary"
+                    />
+                  </UDropdownMenu>
+                </div>
+              </div>
             </div>
-          </template>
-        </UTable>
+          </UPageCard>
+        </div>
 
         <div
           v-if="!loading && pacientesVisiveis.length"
           class="flex justify-center pt-4"
         >
           <UPagination
-            :page="(table?.tableApi?.getState().pagination.pageIndex || 0) + 1"
-            :items-per-page="table?.tableApi?.getState().pagination.pageSize || pagination.pageSize"
-            :total="table?.tableApi?.getFilteredRowModel().rows.length || 0"
-            @update:page="(p) => table?.tableApi?.setPageIndex(p - 1)"
+            :page="page"
+            :items-per-page="pageSize"
+            :total="pacientesVisiveis.length"
+            :sibling-count="1"
+            :ui="{ list: 'flex flex-wrap items-center gap-1 justify-center' }"
+            @update:page="page = $event"
           />
         </div>
       </UCard>
@@ -878,7 +895,7 @@ onMounted(() => {
             color="neutral"
             variant="ghost"
             :disabled="salvandoMotivo"
-            @click="motivoModalAberto = false"
+            @click="void (motivoModalAberto = false)"
           />
           <UButton
             label="Salvar Motivo"

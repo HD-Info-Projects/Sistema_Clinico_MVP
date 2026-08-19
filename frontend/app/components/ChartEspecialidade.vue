@@ -43,15 +43,17 @@ const options: ChartOptions<'doughnut'> = {
 </script>
 
 <template>
-  <div class="relative flex items-center justify-center min-h-64">
+  <div class="relative h-64">
     <ClientOnly>
       <Doughnut
         :data="data"
         :options="options"
-        class="w-64 h-64"
+        class="h-full w-full"
       />
       <template #fallback>
-        <div class="size-48 rounded-full bg-neutral-200 dark:bg-neutral-800 animate-pulse" />
+        <div class="flex h-full items-center justify-center">
+          <div class="size-48 rounded-full bg-neutral-200 dark:bg-neutral-800 animate-pulse" />
+        </div>
       </template>
     </ClientOnly>
   </div>

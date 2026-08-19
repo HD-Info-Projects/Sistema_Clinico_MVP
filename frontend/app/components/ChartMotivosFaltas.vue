@@ -57,21 +57,21 @@ const options = {
 </script>
 
 <template>
-  <div class="relative flex items-center justify-center min-h-64">
+  <div class="relative h-64">
     <ClientOnly>
       <Doughnut
         :data="data"
         :options="options"
-        class="w-64 h-64"
+        class="h-full w-full"
       />
       <template #fallback>
-        <div class="flex items-center gap-8">
-          <div class="size-48 rounded-full bg-neutral-200 dark:bg-neutral-800 animate-pulse" />
+        <div class="flex h-full items-center justify-center gap-4 sm:gap-8">
+          <div class="size-40 sm:size-48 rounded-full bg-neutral-200 dark:bg-neutral-800 animate-pulse" />
           <div class="space-y-3">
             <div
               v-for="i in 3"
               :key="i"
-              class="h-4 w-24 bg-neutral-200 dark:bg-neutral-800 rounded animate-pulse"
+              class="h-4 w-16 sm:w-24 bg-neutral-200 dark:bg-neutral-800 rounded animate-pulse"
             />
           </div>
         </div>

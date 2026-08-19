@@ -92,19 +92,6 @@ const filtrosStatus: { label: string, value: AtendimentoStatus | '' }[] = [
   { label: 'Faltosos', value: 'faltou' }
 ]
 
-const medicosColunas = [
-  { accessorKey: 'nome', header: 'Médico' },
-  { accessorKey: 'pacientesCount', header: 'Pacientes' }
-]
-
-const atendimentosColunas = [
-  { accessorKey: 'horario', header: 'Horário' },
-  { accessorKey: 'paciente', header: 'Paciente' },
-  { accessorKey: 'contato', header: 'Contato' },
-  { accessorKey: 'medico', header: 'Médico' },
-  { accessorKey: 'status', header: 'Status' }
-]
-
 const especialidades = computed(() => {
   const all = new Set<string>()
   dados.value.medicos.forEach((m) => {
@@ -273,7 +260,7 @@ onUnmounted(() => {
     >
       <template #toggle>
         <UButton
-          icon="i-lucide-panel-left"
+          icon="i-lucide-menu"
           color="neutral"
           variant="ghost"
           class="lg:hidden"
@@ -287,6 +274,7 @@ onUnmounted(() => {
             :label="userName"
             color="neutral"
             variant="soft"
+            class="hidden lg:inline-flex"
           />
           <UColorModeButton />
         </div>
@@ -347,45 +335,49 @@ onUnmounted(() => {
             </div>
           </template>
 
-          <div class="overflow-x-auto max-h-55 overflow-y-auto">
-            <UTable
-              :columns="medicosColunas"
-              :data="medicosDoDia"
-              class="min-w-90 overflow-auto"
+          <div class="flex max-h-55 flex-col gap-2 overflow-y-auto">
+            <UPageCard
+              v-for="medico in medicosDoDia"
+              :key="medico.id"
+              class="cursor-pointer"
+              :ui="{ container: 'p-1 sm:p-1' }"
+              @click="selecionarMedico(medico.id)"
             >
-              <template #nome-cell="{ row }">
-                <div
-                  class="flex min-w-0 cursor-pointer items-center gap-3"
-                  @click="selecionarMedico(row.original.id)"
-                >
-                  <UAvatar
-                    :alt="row.original.nome"
-                    color="primary"
-                    size="sm"
-                    class="shrink-0"
-                  />
-                  <div class="min-w-0">
-                    <p
-                      class="max-w-48 font-medium text-sm sm:max-w-56"
-                      :class="selectedMedico === row.original.id ? 'text-primary' : ''"
-                    >
-                      {{ row.original.nome }}
-                    </p>
-                    <p class="max-w-48 truncate text-xs text-muted sm:max-w-56">
-                      {{ textoNaoInformado(row.original.especialidade, 'Especialidade não informada') }}
-                    </p>
+              <div class="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-3 items-center">
+                <div class="col-span-2">
+                  <div class="flex items-center gap-3">
+                    <UAvatar
+                      :alt="medico.nome"
+                      color="primary"
+                      size="sm"
+                      class="shrink-0"
+                    />
+                    <div class="min-w-0">
+                      <p
+                        class="max-w-48 truncate font-medium text-sm sm:max-w-56"
+                        :class="selectedMedico === medico.id ? 'text-primary' : ''"
+                      >
+                        {{ medico.nome }}
+                      </p>
+                      <p class="max-w-48 truncate text-xs text-muted sm:max-w-56">
+                        {{ textoNaoInformado(medico.especialidade, 'Especialidade não informada') }}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </template>
 
-              <template #pacientesCount-cell="{ row }">
-                <UBadge
-                  :label="String(row.original.pacientesCount)"
-                  color="neutral"
-                  variant="soft"
-                />
-              </template>
-            </UTable>
+                <div class="text-center">
+                  <p class="text-sm text-muted font-bold">
+                    Pacientes
+                  </p>
+                  <UBadge
+                    :label="String(medico.pacientesCount)"
+                    color="neutral"
+                    variant="soft"
+                  />
+                </div>
+              </div>
+            </UPageCard>
           </div>
         </UCard>
       </div>
@@ -393,8 +385,8 @@ onUnmounted(() => {
       <UCard class="w-full">
         <template #title>
           <div class="flex flex-col gap-4">
-            <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div>
+            <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between ">
+              <div class="text-center">
                 <p class="text-lg font-medium">
                   {{ tituloTabela }}
                 </p>
@@ -402,7 +394,7 @@ onUnmounted(() => {
                   {{ dados.total }} registro{{ dados.total !== 1 ? 's' : '' }} encontrado{{ dados.total !== 1 ? 's' : '' }}
                 </p>
               </div>
-              <div class="flex w-full flex-col gap-2 sm:flex-row sm:items-center lg:w-auto">
+              <div class="flex w-full flex-col gap-2 sm:flex-row sm:items-center  lg:w-auto">
                 <UButton
                   v-if="selectedMedico"
                   icon="i-lucide-x"
@@ -431,7 +423,8 @@ onUnmounted(() => {
                 :color="status.value ? corStatus(status.value) : 'neutral'"
                 :variant="selectedStatus === status.value ? 'solid' : 'soft'"
                 size="sm"
-                class="flex-1 sm:flex-none"
+                class="flex-1 sm:flex-none "
+                :ui="{ base: 'justify-center' }"
                 @click="selecionarStatus(status.value)"
               />
             </div>
@@ -445,10 +438,10 @@ onUnmounted(() => {
           <div
             v-for="linha in 6"
             :key="linha"
-            class="grid grid-cols-1 gap-3 rounded-lg border border-muted p-3 md:grid-cols-[80px_1.5fr_1fr_1fr_120px]"
+            class="grid grid-cols-1 gap-3 rounded-lg border border-muted p-3 md:grid-cols-6"
           >
             <USkeleton class="h-5 w-16" />
-            <div class="space-y-2">
+            <div class="col-span-2 space-y-2">
               <USkeleton class="h-5 w-48 max-w-full" />
               <USkeleton class="h-4 w-32 max-w-full" />
             </div>
@@ -473,66 +466,94 @@ onUnmounted(() => {
 
         <div
           v-else
-          class="overflow-x-auto"
+          class="flex flex-col gap-2"
         >
-          <UTable
-            :columns="atendimentosColunas"
-            :data="dados.items"
-            class="min-w-190"
+          <UPageCard
+            v-for="item in dados.items"
+            :key="item.id"
+            :ui="{ container: 'px-4 sm:p-1 sm:px-4' }"
           >
-            <template #horario-cell="{ row }">
-              <span class="font-mono text-sm">{{ row.original.horario || '-' }}</span>
-            </template>
+            <div class="grid grid-cols-2 md:grid-cols-6 gap-x-4 gap-y-3 items-start md:items-center">
+              <div class="col-span-2">
+                <p class="text-sm text-muted font-bold sm:text-left">
+                  Paciente
+                </p>
+                <div class="flex items-center gap-3">
+                  <UAvatar
+                    :alt="item.paciente"
+                    color="primary"
+                    size="sm"
+                  />
+                  <div>
+                    <p class="font-medium">
+                      {{ item.paciente || 'Paciente não informado' }}
+                    </p>
+                    <p class="text-xs text-muted">
+                      {{ idadePaciente(item.dataNascimento) }}
+                    </p>
+                    <p class="text-xs text-muted">
+                      {{ textoNaoInformado(item.convenio, 'Convênio não informado') }}
+                    </p>
+                  </div>
+                </div>
+              </div>
 
-            <template #paciente-cell="{ row }">
-              <div class="flex min-w-56 items-center gap-3">
-                <UAvatar
-                  :alt="row.original.paciente"
-                  color="primary"
-                  size="sm"
-                />
-                <div>
-                  <p class="font-medium">
-                    {{ row.original.paciente || 'Paciente não informado' }}
-                  </p>
+              <div class="md:col-span-1 hidden md:block">
+                <p class="text-sm text-muted font-bold">
+                  Horário
+                </p>
+                <p class="whitespace-nowrap font-mono text-sm">
+                  {{ item.horario || '-' }}
+                </p>
+              </div>
+
+              <div class="col-span-2 md:col-span-1 ">
+                <p class="text-sm text-muted font-bold">
+                  Contato
+                </p>
+                <div class="text-sm">
+                  <p>{{ contatoPrincipal(item) }}</p>
                   <p class="text-xs text-muted">
-                    {{ idadePaciente(row.original.dataNascimento) }}
-                  </p>
-                  <p class="text-xs text-muted">
-                    {{ textoNaoInformado(row.original.convenio, 'Convênio não informado') }}
+                    {{ textoNaoInformado(item.email, 'Email não informado') }}
                   </p>
                 </div>
               </div>
-            </template>
 
-            <template #contato-cell="{ row }">
-              <div class="min-w-44 text-sm">
-                <p>{{ contatoPrincipal(row.original) }}</p>
-                <p class="text-xs text-muted">
-                  {{ textoNaoInformado(row.original.email, 'Email não informado') }}
+              <div class="col-span-2 md:col-span-1">
+                <p class="text-sm text-muted font-bold">
+                  Médico
+                </p>
+                <div class="text-sm">
+                  <p class="font-bold">
+                    {{ item.medico || '-' }}
+                  </p>
+                  <p class="text-xs text-muted">
+                    {{ textoNaoInformado(item.especialidade, 'Especialidade não informada') }}
+                  </p>
+                </div>
+              </div>
+
+              <div class="md:col-span-1 block md:hidden">
+                <p class="text-sm text-muted font-bold">
+                  Horário
+                </p>
+                <p class="whitespace-nowrap font-mono text-sm">
+                  {{ item.horario || '-' }}
                 </p>
               </div>
-            </template>
 
-            <template #medico-cell="{ row }">
-              <div class="min-w-44 text-sm">
-                <p class="font-medium">
-                  {{ row.original.medico || '-' }}
+              <div class="md:col-span-1">
+                <p class="text-sm text-muted font-bold">
+                  Status
                 </p>
-                <p class="text-xs text-muted">
-                  {{ textoNaoInformado(row.original.especialidade, 'Especialidade não informada') }}
-                </p>
+                <UBadge
+                  :label="rotuloStatus(item.status)"
+                  :color="corStatus(item.status)"
+                  variant="subtle"
+                />
               </div>
-            </template>
-
-            <template #status-cell="{ row }">
-              <UBadge
-                :label="rotuloStatus(row.original.status)"
-                :color="corStatus(row.original.status)"
-                variant="subtle"
-              />
-            </template>
-          </UTable>
+            </div>
+          </UPageCard>
         </div>
 
         <div class="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between">
@@ -543,6 +564,8 @@ onUnmounted(() => {
             :page="page"
             :items-per-page="pageSize"
             :total="dados.total"
+            :sibling-count="1"
+            :ui="{ list: 'flex flex-wrap items-center gap-1 justify-center' }"
             @update:page="page = $event"
           />
         </div>

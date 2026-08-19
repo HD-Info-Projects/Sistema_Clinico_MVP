@@ -11,7 +11,7 @@ const props = defineProps<{
 <template>
   <UCard
     :ui="{
-      body: 'p-4 sm:p-4 sm:py-5 min-w-55'
+      body: 'p-4 sm:p-4 sm:py-5 min-w-0'
     }"
   >
     <div class="flex items-center gap-3">
