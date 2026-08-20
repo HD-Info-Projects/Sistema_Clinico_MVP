@@ -35,7 +35,7 @@ const destinoPrincipal = computed(() => {
             label="Voltar para início"
             icon="i-lucide-arrow-left"
             color="primary"
-            @click="navigateTo(destinoPrincipal)"
+            @click="void(navigateTo(destinoPrincipal))"
           />
           <UButton
             label="Sair"

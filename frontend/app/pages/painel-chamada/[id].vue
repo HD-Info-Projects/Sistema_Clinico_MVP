@@ -17,6 +17,8 @@ const clinicaId = computed(() => {
 const audioRef = ref<HTMLAudioElement | null>(null)
 const audioUrl = ref<string | null>(null)
 const audioAtivo = ref(false)
+const audioBloqueado = ref(false)
+const audioAtivando = ref(false)
 const ttsLoading = ref(false)
 const ttsError = ref(false)
 const ttsRequestId = ref(0)
@@ -78,8 +80,21 @@ function limparAudioAtual() {
 }
 
 async function ativarAudio() {
+  if (audioAtivando.value || audioAtivo.value) return
+
+  audioAtivando.value = true
   ttsError.value = false
-  audioAtivo.value = await testarAudioPermitido()
+  audioBloqueado.value = false
+
+  const permitido = await testarAudioPermitido()
+  audioAtivo.value = permitido
+  audioBloqueado.value = !permitido
+  audioAtivando.value = false
+}
+
+function ativarAudioPorInteracao() {
+  if (audioAtivo.value || audioAtivando.value) return
+  void ativarAudio()
 }
 
 async function falarChamado(chamadoId: number) {
@@ -135,6 +150,7 @@ async function falarChamado(chamadoId: number) {
 
     if (error instanceof DOMException && error.name === 'NotAllowedError') {
       audioAtivo.value = false
+      audioBloqueado.value = true
       ttsLoading.value = false
       ttsError.value = false
       limparAudioAtual()
@@ -155,12 +171,11 @@ onMounted(async () => {
 
   try {
     unidade.value = await $fetch<Clinica>(`/api/clinicas/${clinicaId.value}`)
-  } catch {
-    painelError.value = 'Unidade não encontrada'
-    return
+  } catch (error) {
+    console.error('Erro ao carregar unidade do painel de chamada', error)
   }
 
-  audioAtivo.value = await testarAudioPermitido()
+  await ativarAudio()
 
   chamadosStore.init({ public: true, clinicaId: clinicaId.value })
 
@@ -184,10 +199,21 @@ const { horaFormatada, dataFormatada } = useRelogio()
 
 const ultimoChamado = computed(() => chamadosStore.ultimoChamado)
 const ultimasChamadas = computed(() => chamadosStore.historicoChamados.slice(0, 4))
+const unidadeLabel = computed(() => unidade.value?.nome || (clinicaId.value ? `Unidade ${clinicaId.value}` : 'Unidade'))
+const mostrarDesbloqueioAudio = computed(() => !audioAtivo.value && !painelError.value)
+const mensagemAudio = computed(() => audioBloqueado.value
+  ? 'Áudio bloqueado pelo navegador'
+  : 'Tentando ativar áudio automaticamente')
 </script>
 
 <template>
-  <div class="flex h-screen flex-col gap-4 overflow-hidden p-6">
+  <div
+    class="relative flex h-screen flex-col gap-4 overflow-hidden p-6"
+    tabindex="0"
+    @pointerdown="ativarAudioPorInteracao"
+    @keydown.space.prevent="ativarAudioPorInteracao"
+    @keydown.enter.prevent="ativarAudioPorInteracao"
+  >
     <div
       v-if="painelError"
       class="flex h-full items-center justify-center"
@@ -206,20 +232,14 @@ const ultimasChamadas = computed(() => chamadosStore.historicoChamados.slice(0, 
       <header class="flex shrink-0 items-center justify-between">
         <div class="flex items-center gap-3">
           <LogoMed :isrecepcao="false" />
-          <UBadge
-            v-if="unidade"
-            :label="unidade.nome"
-            color="primary"
-            variant="soft"
-            size="lg"
-          />
           <UButton
             v-if="!audioAtivo"
             icon="i-lucide-volume-2"
-            label="Ativar áudio"
+            :label="audioBloqueado ? 'Ativar áudio' : 'Ativando áudio'"
             color="primary"
             variant="soft"
-            @click="ativarAudio"
+            :loading="audioAtivando"
+            @click.stop="ativarAudioPorInteracao"
           />
           <div
             v-else-if="ttsLoading"
@@ -241,7 +261,6 @@ const ultimasChamadas = computed(() => chamadosStore.historicoChamados.slice(0, 
           <UBadge
             v-else
             icon="i-lucide-volume-2"
-            label="Áudio ativo"
             color="success"
             variant="soft"
           />
@@ -372,6 +391,39 @@ const ultimasChamadas = computed(() => chamadosStore.historicoChamados.slice(0, 
               Nenhuma chamada realizada
             </p>
           </div>
+        </UCard>
+      </div>
+
+      <div
+        v-if="mostrarDesbloqueioAudio"
+        class="absolute inset-0 z-20 flex items-center justify-center bg-neutral-950/65 p-6 backdrop-blur-sm"
+        @click.stop="ativarAudioPorInteracao"
+      >
+        <UCard
+          class="max-w-xl text-center shadow-2xl"
+          :ui="{ body: 'p-8 sm:p-10' }"
+        >
+          <div class="mx-auto mb-5 flex size-20 items-center justify-center rounded-full bg-primary/10">
+            <UIcon
+              name="i-lucide-volume-2"
+              class="text-5xl text-primary"
+            />
+          </div>
+          <p class="mb-2 text-3xl font-bold text-foreground">
+            Iniciar painel com áudio
+          </p>
+          <p class="mb-6 text-lg text-muted">
+            {{ mensagemAudio }}. Toque ou clique uma vez para liberar as chamadas sonoras nesta tela.
+          </p>
+          <UButton
+            icon="i-lucide-volume-2"
+            label="Iniciar áudio"
+            color="primary"
+            size="xl"
+            class="justify-center"
+            :loading="audioAtivando"
+            @click.stop="ativarAudioPorInteracao"
+          />
         </UCard>
       </div>
     </template>
