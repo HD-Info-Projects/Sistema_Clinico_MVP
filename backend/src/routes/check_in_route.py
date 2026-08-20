@@ -153,9 +153,11 @@ def buscar_agendamentos_firebird(data_ref, unidade, medico=None, q=None):
     params = [data_ref]
 
     codigo_agenda = normalizar_texto(getattr(unidade, "codigo_spdata_agenda", None))
-    if codigo_agenda:
-        where.append("CAST(r.UNIDADE AS VARCHAR(50)) = ?")
-        params.append(codigo_agenda)
+    if not codigo_agenda:
+        raise ValueError("Unidade sem código SPDATA de agenda configurado")
+
+    where.append("CAST(r.UNIDADE AS VARCHAR(50)) = ?")
+    params.append(codigo_agenda)
 
     medico = normalizar_texto(medico)
     if medico:
