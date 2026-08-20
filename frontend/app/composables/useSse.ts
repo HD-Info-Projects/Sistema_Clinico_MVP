@@ -1,6 +1,7 @@
 type SseHandler = (data: unknown) => void
 type SseConnectOptions = {
   data?: string
+  clinicaId?: number | null
   public?: boolean
 }
 
@@ -10,6 +11,7 @@ let currentUrl = ''
 
 const handlers = new Map<string, Set<SseHandler>>()
 const SSE_EVENTS = [
+  'connected',
   'agenda:snapshot',
   'agenda:error',
   'agendamento:status',
@@ -21,6 +23,7 @@ const SSE_EVENTS = [
 function buildUrl(options?: SseConnectOptions) {
   const params = new URLSearchParams()
   if (options?.data) params.set('data', options.data)
+  if (options?.clinicaId) params.set('clinicaId', String(options.clinicaId))
 
   const qs = params.toString()
   const path = options?.public ? '/api/sse/tv' : '/api/sse'
@@ -42,7 +45,7 @@ function handleEvent(eventType: string, raw: string) {
 }
 
 let reconnectAttempts = 0
-const MAX_RECONNECT_ATTEMPTS = 5
+const MAX_RECONNECT_DELAY_MS = 60000
 
 function openConnection(url: string) {
   clearReconnectTimer()
@@ -54,8 +57,8 @@ function openConnection(url: string) {
     eventSource = null
     clearReconnectTimer()
     reconnectAttempts++
-    if (reconnectAttempts > MAX_RECONNECT_ATTEMPTS) return
-    const delay = Math.min(3000 * Math.pow(2, reconnectAttempts - 1), 60000)
+    const exponent = Math.min(reconnectAttempts - 1, 5)
+    const delay = Math.min(3000 * Math.pow(2, exponent), MAX_RECONNECT_DELAY_MS)
     reconnectTimer = setTimeout(() => {
       if (currentUrl === url) openConnection(url)
     }, delay)

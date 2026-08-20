@@ -1,5 +1,6 @@
 export default defineEventHandler(async (event) => {
   const user = await requireRole(event, ['medico', 'recepcao'])
+  const clinicaId = requireClinicaUsuario(event, user)
   const body = await readBody<{ pacienteId: number, pacienteNome: string, localAtendimento: string, medicoResponsavel: string }>(event)
 
   if (!body.pacienteId || !body.pacienteNome || !body.localAtendimento) {
@@ -7,6 +8,7 @@ export default defineEventHandler(async (event) => {
   }
 
   return criarChamado({
+    clinicaId,
     pacienteId: body.pacienteId,
     pacienteNome: body.pacienteNome,
     localAtendimento: body.localAtendimento,

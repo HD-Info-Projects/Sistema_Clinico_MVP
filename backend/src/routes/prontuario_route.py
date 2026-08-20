@@ -8,9 +8,11 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import selectinload
 
 from src.security.decorators import roles_required
+from src.models.auditoria_model import AcaoAuditoria
 from src.models.db.handler_fb_db import ConnectionDBFireBird
 from src.models.db.handler_sql_server import ConnectionSqlServer
 from src.models.db.handler_redis_db import ConnectionDBRedis
+from src.services.auditoria_service import registrar_auditoria
 from src.settings.extensions import db
 from src.models.atendimentos_model import Atendimento
 from src.models.anamnese_model import Anamnese
@@ -21,6 +23,8 @@ from src.models.evolucoes_medicas_model import EvolucaoMedica
 from src.models.model_mydsystem.med_spdata_atendimentos_model import MedSpdataAtendimento
 from src.models.model_mydsystem.med_spdata_agenda_model import MedSpdataAgenda
 from src.services.spdata_atendimentos_service import get_crm_medico_usuario
+from src.security.unidades import unidade_id_request
+from src.services.unidades_service import resolver_unidade_usuario
 from src.utils.normalizar import normalizar_cpf
 
 
@@ -105,8 +109,13 @@ def _referencia_autorizada_paciente(
     cpf=None,
     nome=None,
     spdata_atendimento_id=None,
+    unidade_id=None,
 ):
     crm_medico = get_crm_medico_usuario(usuario_id)
+    unidade = resolver_unidade_usuario(usuario_id, unidade_id)
+    filtros_unidade_agenda = [MedSpdataAgenda.unidade_id == unidade.id]
+    if unidade.codigo_spdata_agenda:
+        filtros_unidade_agenda.append(MedSpdataAgenda.codigo_unidade_spdata == unidade.codigo_spdata_agenda)
     cpf = _cpf_valido(cpf)
     nome = _texto_ou_none(nome)
 
@@ -126,12 +135,17 @@ def _referencia_autorizada_paciente(
             select(MedSpdataAtendimento)
             .where(
                 MedSpdataAtendimento.crm_medico == crm_medico,
+                or_(
+                    MedSpdataAtendimento.unidade_id == unidade.id,
+                    MedSpdataAtendimento.id_centro_custo_spdata == unidade.codigo_spdata_centro_custo,
+                ),
                 or_(*filtros_spdata),
             )
             .order_by(MedSpdataAtendimento.data_hora_entrada.desc())
         ).scalars().first()
         if registro:
             return {
+                "paciente_id": registro.id_paciente_spdata or paciente_id,
                 "cpf": _cpf_valido(registro.cpf) or cpf,
                 "nome": _texto_ou_none(registro.paciente) or nome,
             }
@@ -150,12 +164,14 @@ def _referencia_autorizada_paciente(
                     MedSpdataAgenda.crm_atend == crm_medico,
                     MedSpdataAgenda.crm == crm_medico,
                 ),
+                or_(*filtros_unidade_agenda),
                 or_(*filtros_agenda),
             )
             .order_by(MedSpdataAgenda.data_agenda.desc())
         ).scalars().first()
         if agenda:
             return {
+                "paciente_id": agenda.id_paciente_spdata or paciente_id,
                 "cpf": _cpf_valido(agenda.cpf) or cpf,
                 "nome": _texto_ou_none(agenda.paciente) or nome,
             }
@@ -174,12 +190,17 @@ def _referencia_autorizada_paciente(
             .join(EvolucaoMedica, EvolucaoMedica.atendimento_id == Atendimento.id)
             .where(
                 EvolucaoMedica.medico_id == usuario_id,
+                or_(
+                    Atendimento.unidade_id == unidade.id,
+                    Atendimento.unidade_id.is_(None),
+                ),
                 or_(*filtros_local),
             )
             .order_by(Atendimento.data_atendimento.desc())
         ).scalars().first()
         if atendimento:
             return {
+                "paciente_id": atendimento.spdata_paciente_id or paciente_id,
                 "cpf": _cpf_valido(atendimento.paciente_cpf) or cpf,
                 "nome": _texto_ou_none(atendimento.paciente_nome) or nome,
             }
@@ -322,6 +343,7 @@ def _referencia_paciente_biodata(paciente_id, usuario_id):
         paciente_id=paciente_id,
         cpf=request.args.get("cpf"),
         nome=request.args.get("nome"),
+        unidade_id=unidade_id_request(),
     )
     return referencia["cpf"], referencia["nome"]
 
@@ -519,8 +541,9 @@ def doenca_cid():
 
         return jsonify(response), 200
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    except Exception:
+        current_app.logger.exception("Erro ao buscar CID")
+        return jsonify({"error": "Erro interno ao buscar CID"}), 500
 
 
 @prontuario_bp.route("/historico-local/<int:paciente_id>")
@@ -541,7 +564,9 @@ def historico_paciente_local(paciente_id):
             cpf=request.args.get("cpf"),
             nome=request.args.get("nome"),
             spdata_atendimento_id=spdata_atendimento_id,
+            unidade_id=unidade_id_request(),
         )
+        paciente_id_autorizado = referencia.get("paciente_id")
         cpf = referencia["cpf"]
         nome = referencia["nome"]
         data = request.args.get("data")
@@ -554,10 +579,8 @@ def historico_paciente_local(paciente_id):
                 return jsonify({"error": "Data inválida"}), 400
 
         identificadores = []
-        if spdata_atendimento_id:
-            identificadores.append(Atendimento.spdata_atendimento_id == spdata_atendimento_id)
-        if paciente_id:
-            identificadores.append(Atendimento.spdata_paciente_id == paciente_id)
+        if paciente_id_autorizado:
+            identificadores.append(Atendimento.spdata_paciente_id == paciente_id_autorizado)
         if cpf:
             identificadores.append(Atendimento.paciente_cpf == cpf)
         if nome:
@@ -625,12 +648,21 @@ def historico_paciente_local(paciente_id):
                 ],
             })
 
+        registrar_auditoria(
+            AcaoAuditoria.VISUALIZOU_PRONTUARIO,
+            entidade="paciente",
+            entidade_id=paciente_id,
+            usuario_id=usuario_id,
+            descricao=f"Acesso ao histórico local do paciente. total={len(result)}",
+        )
+
         return jsonify(result), 200
 
     except PermissionError:
         return jsonify({"error": "Paciente não encontrado"}), 404
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    except Exception:
+        current_app.logger.exception("Erro ao buscar histórico local do paciente")
+        return jsonify({"error": "Erro interno ao buscar histórico local"}), 500
 
 
 @prontuario_bp.route("/historico-paciente/<int:id>")
@@ -645,10 +677,19 @@ def historico_paciente(id:int):
         limit = min(max(limit or 10, 1), 50)
         offset = max(offset or 0, 0)
 
-        return jsonify(_historico_biodata(id, usuario_id, limit, offset)), 200
+        resultado = _historico_biodata(id, usuario_id, limit, offset)
+        registrar_auditoria(
+            AcaoAuditoria.VISUALIZOU_HISTORICO_BIODATA,
+            entidade="paciente",
+            entidade_id=id,
+            usuario_id=usuario_id,
+            descricao=f"Acesso ao histórico BioData do paciente. limit={limit} offset={offset}",
+        )
+
+        return jsonify(resultado), 200
 
     except PermissionError:
         return jsonify({"error": "Paciente não encontrado"}), 404
-    except Exception as e:
+    except Exception:
         current_app.logger.exception("Erro ao buscar histórico do paciente no BioData")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Erro interno ao buscar histórico BioData"}), 500

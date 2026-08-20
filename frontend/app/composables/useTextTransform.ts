@@ -6,25 +6,29 @@ export function useTextTransform() {
     const { from, to } = state.selection
     if (from === to) return
 
-    const text = state.doc.textBetween(from, to)
-    if (!text) return
+    type Edit = { from: number, to: number, text: string }
+    const edits: Edit[] = []
 
-    const transformed = fn(text)
-    if (transformed === text) return
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let firstMark: any = null
-    state.doc.nodesBetween(from, to, (node) => {
-      if (node.isText && !firstMark) {
-        firstMark = node.marks
+    state.doc.nodesBetween(from, to, (node, pos) => {
+      if (!node.isText) return
+      const start = Math.max(from, pos)
+      const end = Math.min(to, pos + node.nodeSize)
+      const slice = node.text?.slice(start - pos, end - pos) ?? ''
+      const newText = fn(slice)
+      if (newText !== slice) {
+        edits.push({ from: start, to: end, text: newText })
       }
     })
+
+    if (edits.length === 0) return
 
     editor
       .chain()
       .focus()
       .command(({ tr }) => {
-        tr.replaceWith(from, to, state.schema.text(transformed, firstMark ?? undefined))
+        for (const edit of edits.sort((a, b) => b.from - a.from)) {
+          tr.insertText(edit.text, edit.from, edit.to)
+        }
         return true
       })
       .run()

@@ -15,6 +15,7 @@ export interface HistoricoItem {
 export interface Paciente {
   id: number
   nome: string
+  nomeSocial?: string | null
   encaixado: boolean
   sexo: 'masculino' | 'feminino'
   dataNascimento: string
@@ -36,8 +37,11 @@ export interface Paciente {
 export interface Clinica {
   id: number
   nome: string
+  slug?: string
   endereco: string
   telefone: string
+  codigoSpdataCentroCusto?: number | null
+  codigoSpdataAgenda?: string | null
 }
 
 export type AgendamentoStatus = 'agendado' | 'em-espera' | 'em-atendimento' | 'atendido' | 'faltou' | 'cancelado'
@@ -83,7 +87,7 @@ export interface AuthUser {
   id: number
   nome: string
   email: string
-  role: 'medico' | 'recepcao' | 'admin'
+  role: 'medico' | 'recepcao' | 'admin' | 'dpo' | 'ti'
   especialidades?: string[]
   crm?: string
   clinicaIds: number[]
@@ -102,6 +106,27 @@ export interface ExameSelecionado {
   codigo_amb?: string | null
   codigo_alfanumerico?: string | null
   orientacao?: string | null
+}
+
+export interface ProcedimentoCatalogo {
+  id: number
+  nome: string
+  codigo_procedimento: number | null
+  tipo_ato_codigo: number | null
+  tipo_ato_nome: string | null
+  apelido_procedimento?: string | null
+  exige_autorizacao?: number | null
+  qtde_max_guia?: number | null
+}
+
+export interface ProcedimentoSelecionado {
+  procedimento_id: number | null
+  nome: string
+  codigo_procedimento?: number | null
+  tipo_ato_codigo?: number | null
+  tipo_ato_nome?: string | null
+  exige_autorizacao?: number | null
+  qtde_max_guia?: number | null
 }
 
 export interface ExameConsultaPayload {
@@ -124,6 +149,7 @@ export interface HistoricoExame {
 
 export interface Chamado {
   id: number
+  clinicaId: number
   pacienteId: number
   pacienteNome: string
   dataChamada: string
@@ -181,7 +207,7 @@ export interface Atendimento {
   observacoes?: string
 }
 
-export type DocumentoMedicoTipo = 'ATESTADO' | 'ENCAMINHAMENTO' | 'SOLICITACAO_PROCEDIMENTO'
+export type DocumentoMedicoTipo = 'ATESTADO' | 'ENCAMINHAMENTO' | 'SOLICITACAO_PROCEDIMENTO' | 'SOLICITACAO_OPME'
 
 export interface DocumentoMedicoDadosBase {
   medico?: string | null
@@ -203,9 +229,24 @@ export interface EncaminhamentoDocumentoDados extends DocumentoMedicoDadosBase {
 export interface SolicitacaoProcedimentoDocumentoDados extends DocumentoMedicoDadosBase {
   data: string
   descricao: string
+  procedimentos?: ProcedimentoSelecionado[]
+  caraterInternacao?: boolean
+  tipoInternacao?: string
+  regimeInternacao?: string
+  quantidadeDiarias?: number
+  indicacaoClinica?: string
+  atendimentoRN?: boolean
+  cids?: { cid: string, nome: string }[]
 }
 
-export type DocumentoMedicoDados = AtestadoDocumentoDados | EncaminhamentoDocumentoDados | SolicitacaoProcedimentoDocumentoDados
+export interface SolicitacaoOpmeDocumentoDados extends DocumentoMedicoDadosBase {
+  data: string
+  opmeSolicitados?: string
+  opmeItens?: { codigo?: string, nome: string, quantidade?: number }[]
+  indicacaoClinica?: string
+}
+
+export type DocumentoMedicoDados = AtestadoDocumentoDados | EncaminhamentoDocumentoDados | SolicitacaoProcedimentoDocumentoDados | SolicitacaoOpmeDocumentoDados
 
 export interface DocumentoMedico {
   id: number

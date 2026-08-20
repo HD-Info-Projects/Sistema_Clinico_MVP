@@ -6,28 +6,27 @@ ChartJS.register(ArcElement, Tooltip, Legend, DoughnutController)
 
 const props = defineProps<{
   total: number
-  esquecimento: number
-  transporte: number
-  outros: number
+  items: Array<{ label: string, total: number, color?: string }>
 }>()
 
-const colors = ref<string[]>(['#0ea5e9', '#d97706', '#5f7198'])
+const colors = ref<string[]>(['#0ea5e9', '#d97706', '#5f7198', '#737373'])
 
 onMounted(() => {
   const el = document.documentElement
   colors.value = [
     getComputedStyle(el).getPropertyValue('--color-info-500').trim() || '#0ea5e9',
     getComputedStyle(el).getPropertyValue('--color-warning-500').trim() || '#d97706',
-    getComputedStyle(el).getPropertyValue('--color-secondary-500').trim() || '#5f7198'
+    getComputedStyle(el).getPropertyValue('--color-secondary-500').trim() || '#5f7198',
+    getComputedStyle(el).getPropertyValue('--color-neutral-500').trim() || '#737373'
   ]
 })
 
 const data = computed(() => ({
-  labels: ['Esquecimento', 'Transporte', 'Outros'],
+  labels: props.items.map(item => item.label),
   datasets: [
     {
-      data: [props.esquecimento, props.transporte, props.outros],
-      backgroundColor: colors.value,
+      data: props.items.map(item => item.total),
+      backgroundColor: props.items.map((item, index) => item.color || colors.value[index % colors.value.length]),
       borderWidth: 0
     }
   ]

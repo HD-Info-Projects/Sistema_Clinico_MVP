@@ -6,6 +6,7 @@ from src.services.medicos_spdata_service import (
     buscar_medicos_spdata,
     upsert_usuario_medico_spdata,
 )
+from src.services.unidades_service import vincular_usuario_unidade
 from src.settings.extensions import db
 
 
@@ -39,8 +40,14 @@ def exibir_opcoes_medicos(medicos):
     confirmation_prompt=True,
     help="Senha inicial do usuário local.",
 )
+@click.option(
+    "--unidade-id",
+    multiple=True,
+    type=int,
+    help="ID local da unidade vinculada ao médico. Pode ser repetido.",
+)
 @with_appcontext
-def registrar_medico_spdata_command(spdata_id, cpf, nome, email, crm_atendimento_spdata, senha):
+def registrar_medico_spdata_command(spdata_id, cpf, nome, email, crm_atendimento_spdata, senha, unidade_id):
     """Registra no banco local um médico existente no SPDATA."""
 
     filtros = [bool(spdata_id), bool(cpf), bool(nome)]
@@ -72,6 +79,11 @@ def registrar_medico_spdata_command(spdata_id, cpf, nome, email, crm_atendimento
         usuario_criado = resultado["usuario_criado"]
         medico_criado = resultado["medico_criado"]
         dados = resultado["dados"]
+
+        for indice, unidade in enumerate(unidade_id):
+            vincular_usuario_unidade(usuario.id, int(unidade), principal=indice == 0)
+        if unidade_id:
+            db.session.commit()
 
     except Exception as exc:
         db.session.rollback()

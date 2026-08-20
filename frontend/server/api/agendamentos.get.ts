@@ -16,10 +16,6 @@ export default defineEventHandler(async (event) => {
   try {
     return await flaskFetch(event, `/agenda-medica/${params.toString() ? `?${params.toString()}` : ''}`)
   } catch (error) {
-    throw createError({
-      statusCode: 502,
-      statusMessage: 'Falha ao carregar agenda médica no backend Flask',
-      data: String(error)
-    })
+    throwProxyError(error, 'Falha ao carregar agenda médica no backend Flask')
   }
 })

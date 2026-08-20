@@ -17,7 +17,10 @@ const emit = defineEmits<{
 
 const { transformUpperCase, transformLowerCase, transformCapitalize } = useTextTransform()
 
-const mergedUi = computed(() => defu(props.ui ?? {}, { base: 'min-h-full' }))
+const mergedUi = computed(() => {
+  const merged = defu(props.ui ?? {}, { base: 'min-h-full max-h-100 overflow-auto' })
+  return { ...merged, base: `${merged.base} *:my-2 [&_p]:leading-6` }
+})
 
 const editorRef = ref<{ editor: import('@tiptap/core').Editor | undefined }>()
 let cleanupListener: (() => void) | undefined

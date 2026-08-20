@@ -13,13 +13,19 @@ class Unidade(db.Model):
     codigo_spdata_agenda = db.Column(db.String(50), nullable=True, index=True)
     endereco = db.Column(db.String(500), nullable=True)
     telefone = db.Column(db.String(50), nullable=True)
-    ativa = db.Column(db.Boolean, nullable=False, default=True)
+    ativa = db.Column(db.Boolean, nullable=False, default=True, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(
         db.DateTime,
         default=datetime.utcnow,
         onupdate=datetime.utcnow,
         nullable=False,
+    )
+
+    usuarios = db.relationship(
+        "UsuarioUnidade",
+        back_populates="unidade",
+        cascade="all, delete-orphan",
     )
 
     def _to_dict(self):
@@ -34,4 +40,15 @@ class Unidade(db.Model):
             "ativa": self.ativa,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+    def _to_frontend_dict(self):
+        return {
+            "id": self.id,
+            "nome": self.nome,
+            "slug": self.slug,
+            "codigoSpdataCentroCusto": self.codigo_spdata_centro_custo,
+            "codigoSpdataAgenda": self.codigo_spdata_agenda,
+            "endereco": self.endereco or "",
+            "telefone": self.telefone or "",
         }

@@ -4,6 +4,7 @@ import type { AgendamentoComPaciente, AgendamentoStatus } from '~/types'
 const auth = useAuthStore()
 const agendamentosStore = useAgendamentosStore()
 const chamadosStore = useChamadosStore()
+const toast = useToast()
 const { sala, precisaSelecionar, definirSala } = useSalaAtendimento()
 
 const showSalaModal = ref(false)
@@ -23,7 +24,7 @@ function confirmarSala() {
 onMounted(() => {
   const hoje = formatarDataISO(new Date())
   agendamentosStore.init(auth.activeClinicaId ?? undefined, hoje, auth.user?.id)
-  chamadosStore.init()
+  chamadosStore.init({ clinicaId: auth.activeClinicaId, data: hoje })
   if (precisaSelecionar.value) {
     showSalaModal.value = true
   }
@@ -71,6 +72,7 @@ function rotuloStatus(status: string) {
 }
 
 const callingState = ref<{ pacienteId: number, secondsLeft: number } | null>(null)
+const chamadaEmEnvio = ref<number | null>(null)
 let callingInterval: ReturnType<typeof setInterval> | null = null
 
 onUnmounted(() => {
@@ -85,14 +87,69 @@ function isCalling(pacienteId: number) {
   return callingState.value?.pacienteId === pacienteId
 }
 
+function isChamadaBloqueada(pacienteId: number) {
+  return chamadaEmEnvio.value === pacienteId || isCalling(pacienteId)
+}
+
+function rotuloChamada(pacienteId: number) {
+  if (chamadaEmEnvio.value === pacienteId) return 'Chamando'
+  if (callingState.value?.pacienteId === pacienteId) return String(callingState.value.secondsLeft)
+  return 'Chamar'
+}
+
 const temPacienteEmAtendimento = computed(() => !!agendamentosStore.emAtendimento)
 
-function chamarPaciente(ag: AgendamentoComPaciente) {
+function nomePacienteChamada(ag: AgendamentoComPaciente) {
+  return ag.paciente.nomeSocial || ag.paciente.nome
+}
+
+function mensagemErroChamada(error: unknown) {
+  const fetchError = error as {
+    data?: { statusMessage?: string, message?: string }
+    statusMessage?: string
+    message?: string
+  }
+
+  return fetchError.data?.statusMessage
+    || fetchError.data?.message
+    || fetchError.statusMessage
+    || fetchError.message
+    || 'Não foi possível chamar o paciente. Verifique a unidade ativa e tente novamente.'
+}
+
+async function chamarPaciente(ag: AgendamentoComPaciente) {
   if (!sala.value) {
     showSalaModal.value = true
     return
   }
-  chamadosStore.chamarPaciente(ag.paciente.id, ag.paciente.nome, sala.value, auth.user?.nome ?? 'Dr.')
+
+  const clinicaId = ag.clinicaId ?? auth.activeClinicaId
+  if (!clinicaId) {
+    toast.add({
+      title: 'Unidade não selecionada',
+      description: 'Selecione uma unidade antes de chamar o paciente.',
+      color: 'error',
+      icon: 'i-lucide-alert-circle'
+    })
+    return
+  }
+
+  chamadaEmEnvio.value = ag.paciente.id
+
+  try {
+    await chamadosStore.chamarPaciente(ag.paciente.id, nomePacienteChamada(ag), sala.value, auth.user?.nome ?? 'Dr.', clinicaId)
+  } catch (error) {
+    toast.add({
+      title: 'Erro ao chamar paciente',
+      description: mensagemErroChamada(error),
+      color: 'error',
+      icon: 'i-lucide-alert-circle'
+    })
+    return
+  } finally {
+    chamadaEmEnvio.value = null
+  }
+
   if (callingInterval) clearInterval(callingInterval)
   callingState.value = { pacienteId: ag.paciente.id, secondsLeft: 5 }
   callingInterval = setInterval(() => {
@@ -110,7 +167,7 @@ function chamarPaciente(ag: AgendamentoComPaciente) {
 
 async function faltouAgendamento(ag: AgendamentoComPaciente) {
   try {
-    await agendamentosStore.atualizarStatus(ag.id, 'faltou')
+    await agendamentosStore.atualizarStatus(ag.id, 'faltou', undefined, ag.clinicaId)
   } catch {
     console.error('Erro ao marcar falta')
   }
@@ -118,10 +175,54 @@ async function faltouAgendamento(ag: AgendamentoComPaciente) {
 
 async function atenderAgendamento(ag: AgendamentoComPaciente) {
   try {
-    await agendamentosStore.atualizarStatus(ag.id, 'em-atendimento')
+    await agendamentosStore.atualizarStatus(ag.id, 'em-atendimento', undefined, ag.clinicaId)
     await navigateTo('/atendimento-medico')
   } catch {
     console.error('Erro ao iniciar atendimento')
+  }
+}
+
+async function editarAtendimento(ag: AgendamentoComPaciente) {
+  try {
+    await agendamentosStore.atualizarStatus(ag.id, 'em-atendimento', undefined, ag.clinicaId)
+    await navigateTo(`/atendimento-medico?id=${ag.id}`)
+  } catch {
+    console.error('Erro ao reabrir atendimento')
+  }
+}
+
+async function desfazerFalta(ag: AgendamentoComPaciente) {
+  try {
+    await agendamentosStore.atualizarStatus(ag.id, 'em-espera', undefined, ag.clinicaId)
+  } catch {
+    console.error('Erro ao desfazer falta')
+  }
+}
+
+const modalConfirma = ref<{
+  titulo: string
+  descricao: string
+  cor?: 'error' | 'success' | 'warning' | 'info' | 'neutral'
+  onConfirm: () => void
+} | null>(null)
+
+function abrirModalFalta(ag: AgendamentoComPaciente) {
+  const executar = () => faltouAgendamento(ag)
+  modalConfirma.value = {
+    titulo: 'Marcar como faltou?',
+    descricao: `Tem certeza que deseja marcar "${ag.paciente.nome}" como faltou?`,
+    cor: 'error',
+    onConfirm: executar
+  }
+}
+
+function abrirModalDesfazerFalta(ag: AgendamentoComPaciente) {
+  const executar = () => desfazerFalta(ag)
+  modalConfirma.value = {
+    titulo: 'Desfazer falta?',
+    descricao: `O paciente "${ag.paciente.nome}" voltará para a fila de espera.`,
+    cor: 'warning',
+    onConfirm: executar
   }
 }
 
@@ -140,6 +241,8 @@ const pacientesFinalizados = computed(() =>
 const totalPacientesDashboard = computed(() =>
   pacientesNaFila.value.length + pacientesFinalizados.value.length
 )
+
+const temPacientesDashboard = computed(() => totalPacientesDashboard.value > 0)
 
 function statusLabel(status: AgendamentoStatus) {
   switch (status) {
@@ -225,7 +328,10 @@ const tempoMedioEspera = computed(() => {
           {{ dataFormatada }}. Veja o resumo do dia.
         </p>
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div
+        v-if="!agendamentosStore.loading && temPacientesDashboard"
+        class="grid grid-cols-1 md:grid-cols-2 gap-6"
+      >
         <ChartResumo
           :total="totalPacientesDashboard"
           :fila="agendamentosStore.fila.length"
@@ -288,6 +394,60 @@ const tempoMedioEspera = computed(() => {
           </UPageCard>
         </div>
       </div>
+      <div
+        v-else-if="agendamentosStore.loading"
+        class="grid grid-cols-1 md:grid-cols-2 gap-6"
+      >
+        <UPageCard>
+          <div class="flex flex-col gap-4 items-center justify-center h-full">
+            <USkeleton class="h-40 w-40" />
+            <USkeleton class="h-4 w-48" />
+          </div>
+        </UPageCard>
+        <div class="grid grid-cols-2 gap-2 items-center">
+          <UPageCard>
+            <div class="flex flex-col gap-3 items-center">
+              <USkeleton class="h-5 w-32" />
+              <USkeleton class="h-8 w-20" />
+            </div>
+          </UPageCard>
+          <UPageCard>
+            <div class="flex flex-col gap-3 items-center">
+              <USkeleton class="h-5 w-32" />
+              <USkeleton class="h-8 w-20" />
+            </div>
+          </UPageCard>
+          <UPageCard>
+            <div class="flex flex-col gap-3 items-center">
+              <USkeleton class="h-5 w-32" />
+              <USkeleton class="h-8 w-20" />
+            </div>
+          </UPageCard>
+          <UPageCard>
+            <div class="flex flex-col gap-3 items-center">
+              <USkeleton class="h-5 w-32" />
+              <USkeleton class="h-8 w-20" />
+            </div>
+          </UPageCard>
+        </div>
+      </div>
+      <div
+        v-else
+      >
+        <UPageCard>
+          <div class="flex flex-col gap-2 items-center">
+            <div class="flex items-center gap-2 text-muted ">
+              <p class="text-xl font-medium">
+                Nenhum Paciente na fila de espera nesse momento.
+              </p>
+            </div>
+            <UIcon
+              class="size-15"
+              name="lucide:user-round-x"
+            />
+          </div>
+        </UPageCard>
+      </div>
       <UCard class="w-full">
         <template #title>
           <p class="text-lg font-medium">
@@ -337,13 +497,13 @@ const tempoMedioEspera = computed(() => {
             <div class="flex items-center gap-1">
               <UButton
                 icon="i-lucide-phone"
-                :label="isCalling(row.original.paciente.id) ? String(callingState!.secondsLeft) : 'Chamar'"
+                :label="rotuloChamada(row.original.paciente.id)"
                 size="sm"
                 class="min-w-20"
                 :color="isTerminal(row.original.status) ? 'neutral' : 'primary'"
                 :variant="isTerminal(row.original.status) ? 'soft' : 'solid'"
-                :loading="isCalling(row.original.paciente.id)"
-                :disabled="temPacienteEmAtendimento || isTerminal(row.original.status) || isCalling(row.original.paciente.id)"
+                :loading="isChamadaBloqueada(row.original.paciente.id)"
+                :disabled="temPacienteEmAtendimento || isTerminal(row.original.status) || isChamadaBloqueada(row.original.paciente.id)"
                 @click="chamarPaciente(row.original as AgendamentoComPaciente)"
               />
               <UButton
@@ -352,8 +512,8 @@ const tempoMedioEspera = computed(() => {
                 size="sm"
                 :color="row.original.status === 'faltou' ? 'error' : (isTerminal(row.original.status) ? 'neutral' : 'error')"
                 :variant="isTerminal(row.original.status) ? 'soft' : 'solid'"
-                :disabled="temPacienteEmAtendimento || isTerminal(row.original.status) || isCalling(row.original.paciente.id)"
-                @click="faltouAgendamento(row.original as AgendamentoComPaciente)"
+                :disabled="temPacienteEmAtendimento || isTerminal(row.original.status) || isChamadaBloqueada(row.original.paciente.id)"
+                @click="abrirModalFalta(row.original as AgendamentoComPaciente)"
               />
               <UButton
                 :icon="row.original.status === 'atendido' ? 'i-lucide-check-circle' : 'i-lucide-user-check'"
@@ -361,7 +521,7 @@ const tempoMedioEspera = computed(() => {
                 size="sm"
                 :color="statusColor(row.original.status)"
                 :variant="atendimentoVariant(row.original.status)"
-                :disabled="temPacienteEmAtendimento || atendimentoDisabled(row.original.status) || isCalling(row.original.paciente.id)"
+                :disabled="temPacienteEmAtendimento || atendimentoDisabled(row.original.status) || isChamadaBloqueada(row.original.paciente.id)"
                 @click="atenderAgendamento(row.original as AgendamentoComPaciente)"
               />
             </div>
@@ -377,7 +537,7 @@ const tempoMedioEspera = computed(() => {
         </template>
 
         <UTable
-          :columns="colunas.filter(c => c.id !== 'acoes')"
+          :columns="colunas"
           :data="pacientesFinalizados"
         >
           <template #nome-cell="{ row }">
@@ -412,6 +572,27 @@ const tempoMedioEspera = computed(() => {
               :color="corStatus(row.original.status)"
               variant="subtle"
             />
+          </template>
+
+          <template #acoes-cell="{ row }">
+            <div class="flex items-center gap-1">
+              <UButton
+                v-if="row.original.status === 'atendido'"
+                icon="i-lucide-pencil"
+                label="Editar atendimento"
+                size="sm"
+                color="primary"
+                @click="editarAtendimento(row.original as AgendamentoComPaciente)"
+              />
+              <UButton
+                v-else-if="row.original.status === 'faltou'"
+                icon="i-lucide-undo-2"
+                label="Desfazer falta"
+                size="sm"
+                color="neutral"
+                @click="abrirModalDesfazerFalta(row.original as AgendamentoComPaciente)"
+              />
+            </div>
           </template>
         </UTable>
       </UCard>
@@ -449,5 +630,14 @@ const tempoMedioEspera = computed(() => {
         </div>
       </template>
     </UModal>
+    <ModalConfirmacao
+      :abrir="!!modalConfirma"
+      :titulo="modalConfirma?.titulo ?? ''"
+      :descricao="modalConfirma?.descricao ?? ''"
+      :cor-confirma="modalConfirma?.cor ?? 'error'"
+      texto-confirma="Confirmar"
+      @fechar="modalConfirma = null"
+      @confirmar="modalConfirma?.onConfirm(); modalConfirma = null"
+    />
   </div>
 </template>

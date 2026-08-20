@@ -52,9 +52,9 @@ def create_padrao_medico_orientacao_exame():
 
         return jsonify(novo_padrao._to_dict()), 201
 
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Erro interno"}), 500
 
 
 @padrao_medico_orientacao_exame_bp.route("/lista", methods=["GET"])
@@ -76,8 +76,8 @@ def lista_padroes_medicos_orientacao_exame():
             ]
         }), 200
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    except Exception:
+        return jsonify({"error": "Erro interno"}), 500
 
 
 @padrao_medico_orientacao_exame_bp.route("/<int:id>", methods=["GET"])
@@ -93,8 +93,8 @@ def detalhes_padrao_medico_orientacao_exame(id: int):
 
         return jsonify(padrao._to_dict()), 200
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    except Exception:
+        return jsonify({"error": "Erro interno"}), 500
 
 
 @padrao_medico_orientacao_exame_bp.route("/editar/<int:id>", methods=["PUT", "PATCH"])
@@ -126,9 +126,9 @@ def editar_padrao_medico_orientacao_exame(id: int):
 
         return jsonify(padrao._to_dict()), 200
 
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Erro interno"}), 500
 
 
 @padrao_medico_orientacao_exame_bp.route("/deletar/<int:id>", methods=["DELETE"])
@@ -147,6 +147,6 @@ def deletar_padrao_medico_orientacao_exame(id: int):
 
         return jsonify({"message": "Padrão médico de orientação deletado com sucesso"}), 200
 
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Erro interno"}), 500

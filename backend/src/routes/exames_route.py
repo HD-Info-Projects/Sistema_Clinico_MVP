@@ -4,6 +4,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 
 from src.models.model_mydsystem.med_exames_model import Exame
+from src.security.decorators import roles_required
 from src.settings.extensions import db
 
 
@@ -12,6 +13,7 @@ exames_bp = Blueprint("exames", __name__, url_prefix="/exames")
 
 @exames_bp.route("", methods=["GET"])
 @jwt_required()
+@roles_required("medico")
 def listar_exames():
     resultados = (
         db.session.query(Exame)
@@ -34,6 +36,7 @@ def listar_exames():
 
 @exames_bp.route("/buscar", methods=["GET"])
 @jwt_required()
+@roles_required("medico")
 def buscar_exames():
     q = (request.args.get("q") or "").strip()
 

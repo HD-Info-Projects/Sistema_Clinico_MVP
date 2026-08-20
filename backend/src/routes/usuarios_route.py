@@ -247,7 +247,7 @@ def atualizar_usuario(usuario_id):
     if "cnpj_cpf" in data:
         usuario.cnpj_cpf = normalizar_texto(data.get("cnpj_cpf"), 255) or usuario.cnpj_cpf
     if "senha" in data and data.get("senha"):
-        usuario.senha = data["senha"]
+        usuario.set_senha(data["senha"])
     if "ativo" in data:
         usuario.ativo = _bool_payload(data["ativo"])
 

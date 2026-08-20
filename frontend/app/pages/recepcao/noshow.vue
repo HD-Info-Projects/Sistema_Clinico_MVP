@@ -6,6 +6,14 @@ const auth = useAuthStore()
 
 const userName = computed(() => auth.user?.nome || 'Usuário')
 
+const motivosNoShow = [
+  { value: 'esquecimento', label: 'Esquecimento', description: 'Paciente esqueceu a consulta.', icon: 'i-lucide-brain' },
+  { value: 'transporte', label: 'Transporte', description: 'Paciente teve dificuldade de deslocamento.', icon: 'i-lucide-bus' },
+  { value: 'outros', label: 'Outros', description: 'Motivo não classificado nas opções anteriores.', icon: 'i-lucide-message-square' }
+] as const
+
+type MotivoNoShow = typeof motivosNoShow[number]['value']
+
 interface PacienteNoShow {
   id: number
   spdataAgendaId: number
@@ -53,54 +61,16 @@ interface NoShowResponse {
 type NoShowResumo = NoShowResponse['resumo']
 type NoShowGraficos = NoShowResponse['graficos']
 
-const itensMais = ref<DropdownMenuItem[][]>([
-  /* Grupo: Histórico e Ficha
-  [
-    {
-      label: 'Histórico do Paciente',
-      icon: 'i-lucide-clock'
-    },
-    {
-      label: 'Ficha do Paciente',
-      icon: 'i-lucide-file-text'
-    }
-  ],
-  */
-
-  // Grupo: Ações da Consulta
-  [
-    {
-      label: 'Registrar Motivo da Falta',
-      icon: 'i-lucide-message-square'
-    }
-  ],
-
-  // Grupo: Classificação e Bloqueio
-  [
-    {
-      label: 'Bloquear Agendamento Futuro',
-      icon: 'i-lucide-ban'
-    }
-  ],
-
-  // Grupo: Indicadores
-  [
-    {
-      label: 'Impacto Financeiro',
-      icon: 'i-lucide-dollar-sign'
-    },
-    {
-      label: 'Indicadores do Paciente',
-      icon: 'i-lucide-bar-chart-3'
-    }
-  ]
-])
-
 const pacientesNoShow = ref<PacienteNoShow[]>([])
 const loading = ref(false)
 const modalRecusouAberto = ref(false)
 const pacienteRecusouSelecionado = ref<PacienteNoShow | null>(null)
 const errorMsg = ref('')
+const motivoErrorMsg = ref('')
+const motivoModalAberto = ref(false)
+const pacienteMotivo = ref<PacienteNoShow | null>(null)
+const motivoSelecionado = ref<MotivoNoShow | undefined>()
+const salvandoMotivo = ref(false)
 const totalNoShow = ref(0)
 const resumoNoShow = ref<NoShowResumo>({
   totalResgate: 0,
@@ -121,6 +91,8 @@ const filtrosDisponiveis = ref<NoShowResponse['filtros']>({
   convenios: [],
   anos: []
 })
+
+const motivosNoShowItems = computed(() => motivosNoShow.map(item => ({ ...item })))
 
 const hoje = new Date()
 const anoAtual = String(hoje.getFullYear())
@@ -305,9 +277,14 @@ const totalFiltrado = computed(() => resumoNoShow.value.totalResgate || totalNoS
 const totalFaltou = computed(() => resumoNoShow.value.faltou)
 const totalNaoConfirmado = computed(() => resumoNoShow.value.naoConfirmado)
 const totalSemContato = computed(() => resumoNoShow.value.semContato)
-const totalEsquecimento = computed(() => dadosFiltrados.value.filter(p => p.motivo === 'esquecimento').length)
-const totalTransporte = computed(() => dadosFiltrados.value.filter(p => p.motivo === 'transporte').length)
-const totalOutros = computed(() => dadosFiltrados.value.filter(p => p.motivo === 'outros').length)
+const totalNaoInformado = computed(() => dadosFiltrados.value.filter(p => !p.motivo).length)
+const motivosGrafico = computed(() => [
+  ...motivosNoShow.map(motivo => ({
+    label: motivo.label,
+    total: dadosFiltrados.value.filter(p => p.motivo === motivo.value).length
+  })),
+  { label: 'Não informado', total: totalNaoInformado.value }
+])
 
 const agendamentosRecuperados = computed(() => resumoNoShow.value.recuperados)
 
@@ -336,6 +313,7 @@ const colunas = [
   { accessorKey: 'paciente', header: 'Paciente' },
   { accessorKey: 'telefone', header: 'Telefone' },
   { accessorKey: 'dataFalta', header: 'Data da Falta' },
+  { accessorKey: 'motivo', header: 'Motivo' },
   { accessorKey: 'status', header: 'Status' },
   { id: 'acoes', header: 'Ações' }
 ]
@@ -356,21 +334,89 @@ function rotuloStatus(status: string) {
   }
 }
 
+function rotuloMotivo(motivo: PacienteNoShow['motivo']) {
+  if (!motivo) return 'Não informado'
+  return motivosNoShow.find(item => item.value === motivo)?.label ?? motivo
+}
+
 function formatarData(iso: string) {
   const [ano, mes, dia] = iso.split('-')
   return `${dia}/${mes}/${ano}`
 }
 
 function ligar(paciente: PacienteNoShow) {
-  console.log('Ligar para', paciente.nome, paciente.telefone)
+  const tel = paciente.telefone.replace(/\D/g, '')
+  if (!tel) return
+  window.location.href = `tel:${tel}`
 }
 
 function reagendar(paciente: PacienteNoShow) {
-  console.log('Reagendar', paciente.nome)
+  void paciente
 }
 
 function recusou(paciente: PacienteNoShow) {
   pacientesNoShow.value = pacientesNoShow.value.filter(p => p.id !== paciente.id)
+}
+
+function abrirModalMotivo(paciente: PacienteNoShow) {
+  pacienteMotivo.value = paciente
+  motivoSelecionado.value = paciente.motivo ?? undefined
+  motivoErrorMsg.value = ''
+  motivoModalAberto.value = true
+}
+
+function itensMais(paciente: PacienteNoShow): DropdownMenuItem[][] {
+  return [
+    [
+      {
+        label: 'Registrar Motivo da Falta',
+        icon: 'i-lucide-message-square',
+        onSelect: () => abrirModalMotivo(paciente)
+      }
+    ],
+    [
+      {
+        label: 'Bloquear Agendamento Futuro',
+        icon: 'i-lucide-ban'
+      }
+    ],
+    [
+      {
+        label: 'Impacto Financeiro',
+        icon: 'i-lucide-dollar-sign'
+      },
+      {
+        label: 'Indicadores do Paciente',
+        icon: 'i-lucide-bar-chart-3'
+      }
+    ]
+  ]
+}
+
+async function salvarMotivoFalta() {
+  if (!pacienteMotivo.value || !motivoSelecionado.value) return
+
+  salvandoMotivo.value = true
+  motivoErrorMsg.value = ''
+
+  try {
+    const response = await $fetch<{ id: number, motivo: MotivoNoShow }>(`/api/no-show/${pacienteMotivo.value.id}/motivo`, {
+      method: 'PATCH',
+      body: { motivo: motivoSelecionado.value }
+    })
+
+    const idx = pacientesNoShow.value.findIndex(p => p.id === response.id)
+    if (idx >= 0) {
+      pacientesNoShow.value[idx] = { ...pacientesNoShow.value[idx]!, motivo: response.motivo }
+      pacienteMotivo.value = pacientesNoShow.value[idx]!
+    }
+
+    motivoModalAberto.value = false
+  } catch {
+    motivoErrorMsg.value = 'Erro ao registrar motivo da falta'
+  } finally {
+    salvandoMotivo.value = false
+  }
 }
 
 onMounted(() => {
@@ -522,9 +568,7 @@ onMounted(() => {
           </template>
           <ChartMotivosFaltas
             :total="totalFiltrado"
-            :esquecimento="totalEsquecimento"
-            :transporte="totalTransporte"
-            :outros="totalOutros"
+            :items="motivosGrafico"
           />
         </UCard>
         <UCard class="col-span-2">
@@ -703,6 +747,14 @@ onMounted(() => {
             />
           </template>
 
+          <template #motivo-cell="{ row }">
+            <UBadge
+              :label="rotuloMotivo(row.original.motivo)"
+              :color="row.original.motivo ? 'info' : 'neutral'"
+              variant="soft"
+            />
+          </template>
+
           <template #acoes-cell="{ row }">
             <div class="flex items-center gap-2">
               <UButton
@@ -729,7 +781,7 @@ onMounted(() => {
 
                 @click="pacienteRecusouSelecionado = row.original; modalRecusouAberto = true"
               />
-              <UDropdownMenu :items="itensMais">
+              <UDropdownMenu :items="itensMais(row.original)">
                 <UButton
                   icon="lucide:menu"
                   label="Mais"
@@ -764,5 +816,65 @@ onMounted(() => {
         @confirmar="recusou(pacienteRecusouSelecionado!); modalRecusouAberto = false; pacienteRecusouSelecionado = null"
       />
     </div>
+
+    <UModal v-model:open="motivoModalAberto">
+      <template #header>
+        <div>
+          <h2 class="text-lg font-semibold">
+            Registrar Motivo da Falta
+          </h2>
+          <p class="text-sm text-muted mt-0.5">
+            {{ pacienteMotivo?.nome || 'Paciente não selecionado' }}
+          </p>
+        </div>
+      </template>
+
+      <template #body>
+        <div class="space-y-4">
+          <UAlert
+            v-if="motivoErrorMsg"
+            :title="motivoErrorMsg"
+            color="error"
+            variant="subtle"
+            icon="i-lucide-circle-alert"
+          />
+
+          <UFormField
+            label="Motivo da falta"
+            description="Selecione uma opção cadastrada para classificar o no-show."
+          >
+            <USelectMenu
+              v-model="motivoSelecionado"
+              :items="motivosNoShowItems"
+              value-key="value"
+              label-key="label"
+              description-key="description"
+              placeholder="Selecione o motivo"
+              :search-input="{ placeholder: 'Buscar motivo...' }"
+              class="w-full"
+            />
+          </UFormField>
+        </div>
+      </template>
+
+      <template #footer>
+        <div class="flex justify-end gap-2 w-full">
+          <UButton
+            label="Cancelar"
+            color="neutral"
+            variant="ghost"
+            :disabled="salvandoMotivo"
+            @click="motivoModalAberto = false"
+          />
+          <UButton
+            label="Salvar Motivo"
+            icon="i-lucide-save"
+            :loading="salvandoMotivo"
+            :disabled="!pacienteMotivo || !motivoSelecionado"
+            @click="salvarMotivoFalta"
+          />
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>

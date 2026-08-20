@@ -2,16 +2,19 @@ import re
 import unicodedata
 
 from flask import Blueprint, jsonify, request
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import get_jwt_identity, jwt_required
 from sqlalchemy import select
 
 from src.models.unidade_model import Unidade
 from src.security.decorators import roles_required
+from src.services.unidades_service import (
+    buscar_unidade_publica,
+    listar_unidades_usuario_frontend,
+)
 from src.settings.extensions import db
 
 
 unidades_bp = Blueprint("unidades", __name__, url_prefix="/unidades")
-
 
 def _normalizar_texto(valor, limite=None):
     if valor is None:
@@ -146,3 +149,19 @@ def inativar_unidade(unidade_id):
         "message": "Unidade inativada com sucesso.",
         "unidade": unidade._to_dict(),
     }), 200
+
+
+@unidades_bp.route("/minhas", methods=["GET"])
+@jwt_required()
+def minhas_unidades():
+    usuario_id = int(get_jwt_identity())
+    return jsonify(listar_unidades_usuario_frontend(usuario_id)), 200
+
+
+@unidades_bp.route("/<identificador>/publica", methods=["GET"])
+def unidade_publica(identificador):
+    unidade = buscar_unidade_publica(identificador)
+    if not unidade:
+        return jsonify({"error": "Unidade não encontrada"}), 404
+
+    return jsonify(unidade._to_frontend_dict()), 200

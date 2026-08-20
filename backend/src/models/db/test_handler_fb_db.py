@@ -1,13 +1,14 @@
 from src.models.db.handler_fb_db import ConnectionDBFireBird
 
-with ConnectionDBFireBird() as con:
-    cur = con.cursor()
 
-    cur.execute("SELECT * FROM RICADPAC WHERE id <= 5")
+def conexao_firebird_manual():
+    with ConnectionDBFireBird() as con:
+        cur = con.cursor()
+        cur.execute("SELECT 1 FROM RDB$DATABASE")
+        result = cur.fetchone()
+        cur.close()
+        return bool(result)
 
-    rows = cur.fetchall()
 
-    for row in rows:
-        print(row)
-
-    cur.close()
+if __name__ == "__main__":
+    raise SystemExit(0 if conexao_firebird_manual() else 1)

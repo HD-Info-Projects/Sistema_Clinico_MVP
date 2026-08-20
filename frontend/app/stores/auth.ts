@@ -13,11 +13,22 @@ export const useAuthStore = defineStore('auth', () => {
   const _activeClinicaCookie = useCookie('active_clinica_id', {
     maxAge: authCookieMaxAgeSeconds
   })
+
+  function normalizarClinicaId(value: unknown) {
+    const id = Number(value)
+    return Number.isInteger(id) && id > 0 ? id : null
+  }
+
   const activeClinicaId = ref<number | null>(
-    _activeClinicaCookie.value ? Number(_activeClinicaCookie.value) : null
+    normalizarClinicaId(_activeClinicaCookie.value)
   )
+  if (_activeClinicaCookie.value && activeClinicaId.value === null) {
+    _activeClinicaCookie.value = null
+  }
+
   watch(activeClinicaId, (val) => {
-    _activeClinicaCookie.value = val !== null ? String(val) : null
+    const id = normalizarClinicaId(val)
+    _activeClinicaCookie.value = id !== null ? String(id) : null
   })
 
   const activeClinica = computed(() => {
@@ -70,10 +81,12 @@ export const useAuthStore = defineStore('auth', () => {
         if (primeira) {
           activeClinicaId.value = primeira.id
         }
-        if (response.user.role === 'recepcao') {
-          navigateTo('/recepcao')
-        } else if (response.user.role === 'admin') {
+        if (response.user.role === 'admin') {
           navigateTo('/admin')
+        } else if (['dpo', 'ti'].includes(response.user.role)) {
+          navigateTo('/lgpd/auditoria')
+        } else if (response.user.role === 'recepcao') {
+          navigateTo('/recepcao')
         } else {
           navigateTo('/dashboard')
         }
@@ -128,8 +141,9 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function setActiveClinica(id: number) {
-    if (!clinicas.value.some(c => c.id === id)) return
-    activeClinicaId.value = id
+    const clinicaId = normalizarClinicaId(id)
+    if (!clinicaId || !clinicas.value.some(c => c.id === clinicaId)) return
+    activeClinicaId.value = clinicaId
   }
 
   return {

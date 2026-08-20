@@ -1,4 +1,13 @@
 VPS - Acesso.md
+.mysql-maintenance.lock
+../.vscode/
+
+# Documentacao local
+/docs/
+!/docs/
+/docs/*
+!/docs/politica-retencao-descarte-backup.md
+!/docs/politica-retencao-descarte-backup.pdf
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -213,3 +222,4 @@ __marimo__/
 
 backend/.env
 frontend/.env
+docker-compose.override.yml

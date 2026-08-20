@@ -1,5 +1,6 @@
 export default defineEventHandler(async (event) => {
   try {
+    const clinicaId = getActiveClinicaId(event) ?? 0
     const raw = await flaskFetch<Record<string, unknown>[]>(event, '/dashboard/pacientes')
 
     return raw.map((item: Record<string, unknown>) => {
@@ -11,7 +12,7 @@ export default defineEventHandler(async (event) => {
         id: Number(item.COD_ATENDIMENTO) || 0,
         pacienteId: Number(item.ID_PACIENTE) || 0,
         medicoId: Number(item.ID_MEDICO) || 0,
-        clinicaId: 0,
+        clinicaId,
         data: dataStr,
         horario: horarioStr,
         prioridade: 'normal',
@@ -36,10 +37,6 @@ export default defineEventHandler(async (event) => {
       }
     })
   } catch (error) {
-    throw createError({
-      statusCode: 502,
-      statusMessage: 'Falha ao conectar com o backend Flask',
-      data: String(error)
-    })
+    throwProxyError(error, 'Falha ao carregar pacientes no backend Flask')
   }
 })

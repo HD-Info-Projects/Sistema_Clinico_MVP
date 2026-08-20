@@ -25,6 +25,9 @@ class TipoEventoSincronizacao(Enum):
 
 class FilaSincronizacao(db.Model):
     __tablename__ = "fila_sincronizacao"
+    __table_args__ = (
+        db.Index("ix_fila_sincronizacao_status_updated_id", "status", "updated_at", "id"),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
 

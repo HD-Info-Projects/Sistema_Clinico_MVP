@@ -8,13 +8,26 @@ from src.settings.extensions import db
 """
 
 class AcaoAuditoria(Enum):
+    LOGIN_SUCESSO = "LOGIN_SUCESSO"
+    LOGIN_FALHA = "LOGIN_FALHA"
+    LOGOUT = "LOGOUT"
+    ACESSO_NEGADO = "ACESSO_NEGADO"
     VISUALIZOU_PRONTUARIO = "VISUALIZOU_PRONTUARIO"
+    VISUALIZOU_HISTORICO_BIODATA = "VISUALIZOU_HISTORICO_BIODATA"
+    VISUALIZOU_AGENDA = "VISUALIZOU_AGENDA"
+    VISUALIZOU_CHECK_IN = "VISUALIZOU_CHECK_IN"
+    VISUALIZOU_NO_SHOW = "VISUALIZOU_NO_SHOW"
+    VISUALIZOU_RETENCAO_EXAMES = "VISUALIZOU_RETENCAO_EXAMES"
+    VISUALIZOU_DOCUMENTOS_MEDICOS = "VISUALIZOU_DOCUMENTOS_MEDICOS"
+    SALVOU_DOCUMENTO_MEDICO = "SALVOU_DOCUMENTO_MEDICO"
     INICIOU_ATENDIMENTO = "INICIOU_ATENDIMENTO"
     EDITOU_EVOLUCAO = "EDITOU_EVOLUCAO"
     FINALIZOU_ATENDIMENTO = "FINALIZOU_ATENDIMENTO"
     GEROU_RECEITA = "GEROU_RECEITA"
     GEROU_ATESTADO = "GEROU_ATESTADO"
+    EXPORTOU_DADOS = "EXPORTOU_DADOS"
     SINCRONIZOU_SPDATA = "SINCRONIZOU_SPData"
+    RETENCAO_DESCARTE_EXECUTADA = "RETENCAO_DESCARTE_EXECUTADA"
 
 
 class Auditoria(db.Model):
@@ -27,7 +40,7 @@ class Auditoria(db.Model):
     medico_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=True)
 
     acao = db.Column(
-        db.Enum(AcaoAuditoria),
+        db.String(100),
         nullable=False
     )
 
@@ -59,7 +72,8 @@ class Auditoria(db.Model):
     created_at = db.Column(
         db.DateTime,
         nullable=False,
-        default=datetime.utcnow
+        default=datetime.utcnow,
+        index=True,
     )
 
     usuario = db.relationship(
@@ -75,8 +89,29 @@ class Auditoria(db.Model):
     )
 
     def __repr__(self):
+        acao = self.acao.value if hasattr(self.acao, "value") else self.acao
         return (
-            f"<Auditoria acao={self.acao.value} "
+            f"<Auditoria acao={acao} "
             f"entidade={self.entidade} "
             f"entidade_id={self.entidade_id}>"
         )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "usuario_id": self.usuario_id,
+            "medico_id": self.medico_id,
+            "acao": self.acao.value if hasattr(self.acao, "value") else self.acao,
+            "entidade": self.entidade,
+            "entidade_id": self.entidade_id,
+            "descricao": self.descricao,
+            "ip": self.ip,
+            "user_agent": self.user_agent,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "usuario": {
+                "id": self.usuario.id,
+                "nome_completo": self.usuario.nome_completo,
+                "email": self.usuario.email,
+                "role": self.usuario.role,
+            } if self.usuario else None,
+        }
