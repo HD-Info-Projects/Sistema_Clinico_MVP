@@ -199,7 +199,6 @@ const { horaFormatada, dataFormatada } = useRelogio()
 
 const ultimoChamado = computed(() => chamadosStore.ultimoChamado)
 const ultimasChamadas = computed(() => chamadosStore.historicoChamados.slice(0, 4))
-const unidadeLabel = computed(() => unidade.value?.nome || (clinicaId.value ? `Unidade ${clinicaId.value}` : 'Unidade'))
 const mostrarDesbloqueioAudio = computed(() => !audioAtivo.value && !painelError.value)
 const mensagemAudio = computed(() => audioBloqueado.value
   ? 'Áudio bloqueado pelo navegador'
