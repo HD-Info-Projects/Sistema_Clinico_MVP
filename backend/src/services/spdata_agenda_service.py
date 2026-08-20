@@ -148,6 +148,7 @@ def buscar_agenda_spdata(data_ini, data_fim, unidade=None):
             r.CPF AS CPF,
             r.PRONT AS PRONTUARIO,
             r.CONV AS ID_CONVENIO_SPDATA,
+            r.PROCED AS COD_PROCEDIMENTO_SPDATA,
             CASE
                 WHEN r.ESPEC IS NOT NULL AND r.ESPEC <> 0 THEN esp_agenda.NOME
                 WHEN prof.ESP_PRINC IS NOT NULL AND prof.ESP_PRINC <> 0 THEN esp_princ.NOME
@@ -250,6 +251,8 @@ def sincronizar_agenda_spdata(data_ini, data_fim, unidade=None):
         registro.id_convenio_spdata = id_convenio
         registro.convenio = convenios_por_codigo.get(id_convenio)
         registro.especialidade = normalizar_especialidade(item.get("ESPECIALIDADE"), 120)
+        cod_procedimento = normalizar_int(item.get("COD_PROCEDIMENTO_SPDATA"))
+        registro.cod_procedimento_spdata = str(cod_procedimento) if cod_procedimento is not None else None
         registro.telefone = normalizar_texto(item.get("TELEFONE"), 30)
         registro.celular = normalizar_texto(item.get("CELULAR"), 30)
         registro.email = normalizar_texto(item.get("EMAIL"), 255)

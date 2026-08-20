@@ -32,6 +32,9 @@ class MedSpdataAgenda(db.Model):
     especialidade = db.Column(db.String(120), nullable=True)
     atendido_spdata = db.Column(db.String(1), nullable=True, index=True)
 
+    cod_procedimento_spdata = db.Column(db.String(20), nullable=True, index=True)
+    procedimento_spdata = db.Column(db.String(255), nullable=True)
+
     data_nascimento = db.Column(db.Date, nullable=True)
     telefone = db.Column(db.String(30), nullable=True)
     celular = db.Column(db.String(30), nullable=True)
@@ -68,6 +71,8 @@ class MedSpdataAgenda(db.Model):
         convenio=None,
         especialidade=None,
         atendido_spdata=None,
+        cod_procedimento_spdata=None,
+        procedimento_spdata=None,
         data_nascimento=None,
         telefone=None,
         celular=None,
@@ -94,6 +99,8 @@ class MedSpdataAgenda(db.Model):
         self.convenio = convenio
         self.especialidade = especialidade
         self.atendido_spdata = atendido_spdata
+        self.cod_procedimento_spdata = cod_procedimento_spdata
+        self.procedimento_spdata = procedimento_spdata
         self.data_nascimento = data_nascimento
         self.telefone = telefone
         self.celular = celular
@@ -123,6 +130,8 @@ class MedSpdataAgenda(db.Model):
             "convenio": self.convenio,
             "especialidade": self.especialidade,
             "atendido_spdata": self.atendido_spdata,
+            "cod_procedimento_spdata": self.cod_procedimento_spdata,
+            "procedimento_spdata": self.procedimento_spdata,
             "data_nascimento": self.data_nascimento.isoformat() if self.data_nascimento else None,
             "telefone": self.telefone,
             "celular": self.celular,
