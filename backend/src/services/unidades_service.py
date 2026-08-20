@@ -84,11 +84,13 @@ def resolver_unidade_usuario(usuario_id, unidade_id=None):
             raise PermissionError("Usuário não possui acesso à unidade informada")
         return vinculo.unidade
 
-    vinculo = query.order_by(UsuarioUnidade.principal.desc(), Unidade.nome).first()
-    if not vinculo:
+    vinculos = query.order_by(UsuarioUnidade.principal.desc(), Unidade.nome).all()
+    if not vinculos:
         raise PermissionError("Usuário não possui unidade vinculada")
+    if len(vinculos) > 1:
+        raise PermissionError("Unidade ativa obrigatória")
 
-    return vinculo.unidade
+    return vinculos[0].unidade
 
 
 def vincular_usuario_unidade(usuario_id, unidade_id, principal=False):
