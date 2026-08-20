@@ -4,6 +4,7 @@ import type { AgendamentoComPaciente, AgendamentoStatus } from '~/types'
 const auth = useAuthStore()
 const agendamentosStore = useAgendamentosStore()
 const chamadosStore = useChamadosStore()
+const toast = useToast()
 const { sala, precisaSelecionar, definirSala } = useSalaAtendimento()
 
 const showSalaModal = ref(false)
@@ -71,6 +72,7 @@ function rotuloStatus(status: string) {
 }
 
 const callingState = ref<{ pacienteId: number, secondsLeft: number } | null>(null)
+const chamadaEmEnvio = ref<number | null>(null)
 let callingInterval: ReturnType<typeof setInterval> | null = null
 
 onUnmounted(() => {
@@ -85,18 +87,69 @@ function isCalling(pacienteId: number) {
   return callingState.value?.pacienteId === pacienteId
 }
 
+function isChamadaBloqueada(pacienteId: number) {
+  return chamadaEmEnvio.value === pacienteId || isCalling(pacienteId)
+}
+
+function rotuloChamada(pacienteId: number) {
+  if (chamadaEmEnvio.value === pacienteId) return 'Chamando'
+  if (callingState.value?.pacienteId === pacienteId) return String(callingState.value.secondsLeft)
+  return 'Chamar'
+}
+
 const temPacienteEmAtendimento = computed(() => !!agendamentosStore.emAtendimento)
 
 function nomePacienteChamada(ag: AgendamentoComPaciente) {
   return ag.paciente.nomeSocial || ag.paciente.nome
 }
 
-function chamarPaciente(ag: AgendamentoComPaciente) {
+function mensagemErroChamada(error: unknown) {
+  const fetchError = error as {
+    data?: { statusMessage?: string, message?: string }
+    statusMessage?: string
+    message?: string
+  }
+
+  return fetchError.data?.statusMessage
+    || fetchError.data?.message
+    || fetchError.statusMessage
+    || fetchError.message
+    || 'Não foi possível chamar o paciente. Verifique a unidade ativa e tente novamente.'
+}
+
+async function chamarPaciente(ag: AgendamentoComPaciente) {
   if (!sala.value) {
     showSalaModal.value = true
     return
   }
-  chamadosStore.chamarPaciente(ag.paciente.id, nomePacienteChamada(ag), sala.value, auth.user?.nome ?? 'Dr.', auth.activeClinicaId)
+
+  const clinicaId = ag.clinicaId ?? auth.activeClinicaId
+  if (!clinicaId) {
+    toast.add({
+      title: 'Unidade não selecionada',
+      description: 'Selecione uma unidade antes de chamar o paciente.',
+      color: 'error',
+      icon: 'i-lucide-alert-circle'
+    })
+    return
+  }
+
+  chamadaEmEnvio.value = ag.paciente.id
+
+  try {
+    await chamadosStore.chamarPaciente(ag.paciente.id, nomePacienteChamada(ag), sala.value, auth.user?.nome ?? 'Dr.', clinicaId)
+  } catch (error) {
+    toast.add({
+      title: 'Erro ao chamar paciente',
+      description: mensagemErroChamada(error),
+      color: 'error',
+      icon: 'i-lucide-alert-circle'
+    })
+    return
+  } finally {
+    chamadaEmEnvio.value = null
+  }
+
   if (callingInterval) clearInterval(callingInterval)
   callingState.value = { pacienteId: ag.paciente.id, secondsLeft: 5 }
   callingInterval = setInterval(() => {
@@ -444,13 +497,13 @@ const tempoMedioEspera = computed(() => {
             <div class="flex items-center gap-1">
               <UButton
                 icon="i-lucide-phone"
-                :label="isCalling(row.original.paciente.id) ? String(callingState!.secondsLeft) : 'Chamar'"
+                :label="rotuloChamada(row.original.paciente.id)"
                 size="sm"
                 class="min-w-20"
                 :color="isTerminal(row.original.status) ? 'neutral' : 'primary'"
                 :variant="isTerminal(row.original.status) ? 'soft' : 'solid'"
-                :loading="isCalling(row.original.paciente.id)"
-                :disabled="temPacienteEmAtendimento || isTerminal(row.original.status) || isCalling(row.original.paciente.id)"
+                :loading="isChamadaBloqueada(row.original.paciente.id)"
+                :disabled="temPacienteEmAtendimento || isTerminal(row.original.status) || isChamadaBloqueada(row.original.paciente.id)"
                 @click="chamarPaciente(row.original as AgendamentoComPaciente)"
               />
               <UButton
@@ -459,7 +512,7 @@ const tempoMedioEspera = computed(() => {
                 size="sm"
                 :color="row.original.status === 'faltou' ? 'error' : (isTerminal(row.original.status) ? 'neutral' : 'error')"
                 :variant="isTerminal(row.original.status) ? 'soft' : 'solid'"
-                :disabled="temPacienteEmAtendimento || isTerminal(row.original.status) || isCalling(row.original.paciente.id)"
+                :disabled="temPacienteEmAtendimento || isTerminal(row.original.status) || isChamadaBloqueada(row.original.paciente.id)"
                 @click="abrirModalFalta(row.original as AgendamentoComPaciente)"
               />
               <UButton
@@ -468,7 +521,7 @@ const tempoMedioEspera = computed(() => {
                 size="sm"
                 :color="statusColor(row.original.status)"
                 :variant="atendimentoVariant(row.original.status)"
-                :disabled="temPacienteEmAtendimento || atendimentoDisabled(row.original.status) || isCalling(row.original.paciente.id)"
+                :disabled="temPacienteEmAtendimento || atendimentoDisabled(row.original.status) || isChamadaBloqueada(row.original.paciente.id)"
                 @click="atenderAgendamento(row.original as AgendamentoComPaciente)"
               />
             </div>

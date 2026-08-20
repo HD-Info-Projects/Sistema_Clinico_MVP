@@ -27,6 +27,10 @@ function localPublico(local: string) {
   return String(local || '').trim().slice(0, 80) || 'sala de atendimento'
 }
 
+function medicoPublico(nome: string) {
+  return String(nome || '').trim().slice(0, 80)
+}
+
 export function chamadoPublico(chamado: Chamado | null) {
   if (!chamado) return null
 
@@ -38,7 +42,7 @@ export function chamadoPublico(chamado: Chamado | null) {
     dataChamada: chamado.dataChamada,
     status: chamado.status,
     localAtendimento: localPublico(chamado.localAtendimento),
-    medicoResponsavel: ''
+    medicoResponsavel: medicoPublico(chamado.medicoResponsavel)
   }
 }
 

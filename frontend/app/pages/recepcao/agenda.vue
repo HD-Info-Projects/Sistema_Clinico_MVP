@@ -21,6 +21,8 @@ interface CheckInResponse {
   items: ItemRecepcao[]
 }
 
+const auth = useAuthStore()
+
 const selectedDate = ref(new Date())
 const isPopoverOpen = ref(false)
 const agendamentos = ref<ItemRecepcao[]>([])
@@ -29,6 +31,7 @@ const errorMsg = ref('')
 const selectedMedico = ref('Todos')
 const selectedEspecialidade = ref('Todos')
 const selectedStatus = ref('')
+let requestId = 0
 
 const formattedDate = computed(() => {
   const d = selectedDate.value
@@ -71,22 +74,43 @@ function isToday(date: Date) {
 }
 
 async function loadAgendamentos() {
+  const currentRequest = ++requestId
   const dataStr = formatarDataISO(selectedDate.value)
+  const unidadeId = auth.activeClinicaId
   loading.value = true
   errorMsg.value = ''
 
-  try {
-    const response = await $fetch<CheckInResponse>(`/api/check-in?data=${dataStr}&pageSize=100`)
-    agendamentos.value = response.items ?? []
-  } catch {
+  if (!unidadeId) {
     agendamentos.value = []
-    errorMsg.value = 'Erro ao carregar agendamentos'
-  } finally {
+    errorMsg.value = 'Selecione uma unidade para carregar agendamentos'
     loading.value = false
+    return
+  }
+
+  const params = new URLSearchParams()
+  params.set('data', dataStr)
+  params.set('pageSize', '100')
+  params.set('unidadeId', String(unidadeId))
+
+  try {
+    const response = await $fetch<CheckInResponse>(`/api/check-in?${params.toString()}`)
+    if (currentRequest === requestId) agendamentos.value = response.items ?? []
+  } catch {
+    if (currentRequest === requestId) {
+      agendamentos.value = []
+      errorMsg.value = 'Erro ao carregar agendamentos'
+    }
+  } finally {
+    if (currentRequest === requestId) loading.value = false
   }
 }
 
 watch(selectedDate, loadAgendamentos)
+watch(() => auth.activeClinicaId, () => {
+  selectedMedico.value = 'Todos'
+  selectedEspecialidade.value = 'Todos'
+  loadAgendamentos()
+})
 
 onMounted(() => {
   loadAgendamentos()

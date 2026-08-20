@@ -205,13 +205,22 @@ function resetPageAndFetch() {
 
 async function carregarAtendimentos() {
   const currentRequest = ++requestId
+  const unidadeId = auth.activeClinicaId
   loading.value = true
   errorMsg.value = ''
+
+  if (!unidadeId) {
+    dados.value = respostaVazia()
+    errorMsg.value = 'Selecione uma unidade para carregar atendimentos'
+    loading.value = false
+    return
+  }
 
   const params = new URLSearchParams()
   params.set('page', String(page.value))
   params.set('pageSize', String(pageSize.value))
   params.set('data', formatarDataISO(new Date()))
+  params.set('unidadeId', String(unidadeId))
   if (selectedStatus.value) params.set('status', selectedStatus.value)
   if (selectedMedico.value) params.set('medico', selectedMedico.value)
   if (busca.value.trim()) params.set('q', busca.value.trim())
@@ -246,6 +255,12 @@ function selecionarStatus(status: AtendimentoStatus | '') {
 
 watch(page, () => {
   carregarAtendimentos()
+})
+
+watch(() => auth.activeClinicaId, () => {
+  selectedMedico.value = null
+  selectedEspecialidade.value = 'Todas as especialidades'
+  resetPageAndFetch()
 })
 
 watch(busca, () => {
