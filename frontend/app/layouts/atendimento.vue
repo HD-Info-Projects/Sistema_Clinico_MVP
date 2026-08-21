@@ -192,7 +192,8 @@ async function buscarHistoricoLocal(pacienteId: number): Promise<HistoricoLocalR
 }
 
 async function buscarHistoricoBiodata(offset: number): Promise<HistoricoResponse> {
-  const paciente = agendamento.value?.paciente
+  const ag = agendamento.value
+  const paciente = ag?.paciente
   const pacienteId = paciente?.id
   if (!pacienteId) {
     return { items: [], limit: HISTORICO_BIODATA_LIMIT, offset, has_more: false }
@@ -202,6 +203,7 @@ async function buscarHistoricoBiodata(offset: number): Promise<HistoricoResponse
     query: {
       cpf: cpfHistorico(paciente.cpf),
       nome: paciente.nome || undefined,
+      spdataAtendimentoId: ag?.spdataAtendimentoId || undefined,
       limit: HISTORICO_BIODATA_LIMIT,
       offset
     }

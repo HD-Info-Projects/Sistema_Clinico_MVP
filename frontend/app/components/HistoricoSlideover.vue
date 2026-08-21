@@ -279,6 +279,7 @@ async function buscarHistoricoBiodata(offset: number): Promise<HistoricoResponse
     query: {
       cpf: cpfHistorico(paciente.cpf),
       nome: paciente.nome || undefined,
+      spdataAtendimentoId: props.agendamento?.spdataAtendimentoId || undefined,
       limit: HISTORICO_BIODATA_LIMIT,
       offset
     }

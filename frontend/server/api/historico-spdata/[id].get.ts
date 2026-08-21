@@ -12,6 +12,18 @@ function normalizarCpf(valor: unknown): string | undefined {
   return cpf
 }
 
+type FetchLikeError = {
+  status?: number
+  statusCode?: number
+  response?: { status?: number }
+}
+
+function statusFetch(error: unknown): number | undefined {
+  if (!error || typeof error !== 'object') return undefined
+  const fetchError = error as FetchLikeError
+  return fetchError.statusCode ?? fetchError.status ?? fetchError.response?.status
+}
+
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
   const query = getQuery(event)
@@ -27,5 +39,12 @@ export default defineEventHandler(async (event) => {
   params.set('offset', String(Number.isFinite(offset) ? Math.max(offset, 0) : 0))
 
   const qs = params.toString()
-  return await flaskFetch(event, `/prontuario/historico-spdata/${id}${qs ? `?${qs}` : ''}`)
+  try {
+    return await flaskFetch(event, `/prontuario/historico-spdata/${id}${qs ? `?${qs}` : ''}`)
+  } catch (error) {
+    if (statusFetch(error) === 404) {
+      return { items: [], limit: Number.isFinite(limit) ? Math.min(Math.max(limit, 1), 50) : 10, offset: Number.isFinite(offset) ? Math.max(offset, 0) : 0, has_more: false }
+    }
+    throw error
+  }
 })

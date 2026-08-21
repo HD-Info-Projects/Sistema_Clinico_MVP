@@ -20,6 +20,7 @@ from src.models.diagnostico_model import Diagnostico
 from src.models.prescricao_model import Prescricao
 from src.models.solicitacao_exame_model import SolicitacaoExame
 from src.models.evolucoes_medicas_model import EvolucaoMedica
+from src.models.unidade_model import Unidade
 from src.models.model_mydsystem.med_spdata_atendimentos_model import MedSpdataAtendimento
 from src.models.model_mydsystem.med_spdata_agenda_model import MedSpdataAgenda
 from src.services.spdata_atendimentos_service import get_crm_medico_usuario
@@ -94,6 +95,22 @@ def _normalizar_prontuario(valor):
     return texto
 
 
+def _int_ou_none(valor):
+    if valor is None or valor == "":
+        return None
+
+    try:
+        return int(valor)
+    except (TypeError, ValueError):
+        texto = str(valor).strip()
+        if not texto:
+            return None
+        try:
+            return int(float(texto.replace(",", ".")))
+        except (TypeError, ValueError):
+            return None
+
+
 def _normalizar_sql_value(valor):
     if isinstance(valor, (datetime, date, time)):
         return valor.isoformat()
@@ -110,6 +127,50 @@ def _normalizar_sql_value(valor):
     return valor
 
 
+def _mesmo_texto(valor_a, valor_b):
+    texto_a = _texto_ou_none(valor_a)
+    texto_b = _texto_ou_none(valor_b)
+    if texto_a is None or texto_b is None:
+        return False
+    return texto_a.casefold() == texto_b.casefold()
+
+
+def _referencia_paciente_valida(referencia, paciente_id=None, cpf=None, nome=None):
+    validacoes = []
+    if paciente_id:
+        validacoes.append(referencia.get("paciente_id") == paciente_id)
+    if cpf:
+        validacoes.append(referencia.get("cpf") == cpf)
+    if nome:
+        validacoes.append(_mesmo_texto(referencia.get("nome"), nome))
+
+    return not validacoes or any(validacoes)
+
+
+def _unidade_por_centro_custo(codigo_centro_custo):
+    codigo_centro_custo = _int_ou_none(codigo_centro_custo)
+    if codigo_centro_custo is None:
+        return None
+
+    return db.session.execute(
+        select(Unidade).where(
+            Unidade.ativa.is_(True),
+            Unidade.codigo_spdata_centro_custo == codigo_centro_custo,
+        )
+    ).scalars().first()
+
+
+def _resolver_unidade_atendimento(usuario_id, unidade_id=None, centro_custo=None):
+    if unidade_id:
+        return resolver_unidade_usuario(usuario_id, unidade_id)
+
+    unidade = _unidade_por_centro_custo(centro_custo)
+    if unidade:
+        return resolver_unidade_usuario(usuario_id, unidade.id)
+
+    raise PermissionError("Usuário não possui acesso à unidade do atendimento")
+
+
 def _normalizar_texto_linhas(texto):
     if texto is None:
         return None
@@ -117,6 +178,119 @@ def _normalizar_texto_linhas(texto):
     linhas = [linha.strip() for linha in str(texto).splitlines()]
     texto = "\n".join(linha for linha in linhas if linha)
     return texto or None
+
+
+def _referencia_firebird_atendimento(
+    spdata_atendimento_id,
+    usuario_id,
+    crm_medico,
+    paciente_id=None,
+    cpf=None,
+    nome=None,
+):
+    spdata_atendimento_id = _int_ou_none(spdata_atendimento_id)
+    if not spdata_atendimento_id:
+        return None
+
+    sql = """
+        SELECT FIRST 1
+            a.ID AS SPDATA_ATENDIMENTO_ID,
+            a.ID_RICADPAC AS ID_PACIENTE_SPDATA,
+            a.ID_TBCENCUS AS ID_CENTRO_CUSTO_SPDATA,
+            paciente.PRONT AS PRONTUARIO,
+            paciente.NOME AS PACIENTE,
+            paciente.CPF AS CPF
+        FROM ATCABECATEND a
+        INNER JOIN RICADPAC paciente
+            ON paciente.ID = a.ID_RICADPAC
+        INNER JOIN TBCBOPRO tb
+            ON a.ID_TBCBOPRO_ATENDIMENTO = tb.ID
+        WHERE a.ID = ?
+          AND CAST(tb.COD AS VARCHAR(50)) = CAST(? AS VARCHAR(50))
+    """
+
+    with ConnectionDBFireBird() as con:
+        cursor = con.cursor()
+        try:
+            cursor.execute(
+                sql,
+                (
+                    spdata_atendimento_id,
+                    crm_medico,
+                ),
+            )
+            row = cursor.fetchone()
+            if not row:
+                return None
+
+            colunas = [desc[0].strip().upper() for desc in cursor.description]
+            item = {
+                coluna: _normalizar_sql_value(valor)
+                for coluna, valor in zip(colunas, row)
+            }
+        finally:
+            cursor.close()
+
+    unidade_atendimento = _resolver_unidade_atendimento(
+        usuario_id,
+        centro_custo=item.get("ID_CENTRO_CUSTO_SPDATA"),
+    )
+
+    referencia = {
+        "paciente_id": _int_ou_none(item.get("ID_PACIENTE_SPDATA")) or paciente_id,
+        "cpf": _cpf_valido(item.get("CPF")) or cpf,
+        "nome": _texto_ou_none(item.get("PACIENTE")) or nome,
+        "prontuario": _normalizar_prontuario(item.get("PRONTUARIO")),
+        "unidade_id": unidade_atendimento.id,
+        "centro_custo": _int_ou_none(item.get("ID_CENTRO_CUSTO_SPDATA")),
+    }
+
+    if not _referencia_paciente_valida(referencia, paciente_id=paciente_id, cpf=cpf, nome=nome):
+        return None
+
+    return referencia
+
+
+def _referencia_spdata_atendimento_local(
+    usuario_id,
+    crm_medico,
+    spdata_atendimento_id,
+    paciente_id=None,
+    cpf=None,
+    nome=None,
+):
+    spdata_atendimento_id = _int_ou_none(spdata_atendimento_id)
+    if not spdata_atendimento_id:
+        return None
+
+    registro = db.session.execute(
+        select(MedSpdataAtendimento)
+        .where(MedSpdataAtendimento.spdata_atendimento_id == spdata_atendimento_id)
+        .order_by(MedSpdataAtendimento.data_hora_entrada.desc())
+    ).scalars().first()
+
+    if not registro or not _mesmo_texto(registro.crm_medico, crm_medico):
+        return None
+
+    unidade_atendimento = _resolver_unidade_atendimento(
+        usuario_id,
+        unidade_id=registro.unidade_id,
+        centro_custo=registro.id_centro_custo_spdata,
+    )
+
+    referencia = {
+        "paciente_id": registro.id_paciente_spdata or paciente_id,
+        "cpf": _cpf_valido(registro.cpf) or cpf,
+        "nome": _texto_ou_none(registro.paciente) or nome,
+        "prontuario": _normalizar_prontuario(registro.prontuario),
+        "unidade_id": unidade_atendimento.id,
+        "centro_custo": _int_ou_none(registro.id_centro_custo_spdata),
+    }
+
+    if not _referencia_paciente_valida(referencia, paciente_id=paciente_id, cpf=cpf, nome=nome):
+        return None
+
+    return referencia
 
 
 def _referencia_autorizada_paciente(
@@ -128,12 +302,36 @@ def _referencia_autorizada_paciente(
     unidade_id=None,
 ):
     crm_medico = get_crm_medico_usuario(usuario_id)
+    cpf = _cpf_valido(cpf)
+    nome = _texto_ou_none(nome)
+
+    if spdata_atendimento_id:
+        referencia_spdata_atendimento = _referencia_spdata_atendimento_local(
+            usuario_id,
+            crm_medico,
+            spdata_atendimento_id,
+            paciente_id=paciente_id,
+            cpf=cpf,
+            nome=nome,
+        )
+        if referencia_spdata_atendimento:
+            return referencia_spdata_atendimento
+
+        referencia_firebird = _referencia_firebird_atendimento(
+            spdata_atendimento_id,
+            usuario_id,
+            crm_medico,
+            paciente_id=paciente_id,
+            cpf=cpf,
+            nome=nome,
+        )
+        if referencia_firebird:
+            return referencia_firebird
+
     unidade = resolver_unidade_usuario(usuario_id, unidade_id)
     filtros_unidade_agenda = [MedSpdataAgenda.unidade_id == unidade.id]
     if unidade.codigo_spdata_agenda:
         filtros_unidade_agenda.append(MedSpdataAgenda.codigo_unidade_spdata == unidade.codigo_spdata_agenda)
-    cpf = _cpf_valido(cpf)
-    nome = _texto_ou_none(nome)
 
     filtros_spdata = []
     if spdata_atendimento_id:
@@ -357,11 +555,16 @@ def _rtf_para_texto(valor):
 
 
 def _referencia_paciente_biodata(paciente_id, usuario_id):
+    spdata_atendimento_id = (
+        request.args.get("spdataAtendimentoId", type=int)
+        or request.args.get("spdata_atendimento_id", type=int)
+    )
     referencia = _referencia_autorizada_paciente(
         usuario_id,
         paciente_id=paciente_id,
         cpf=request.args.get("cpf"),
         nome=request.args.get("nome"),
+        spdata_atendimento_id=spdata_atendimento_id,
         unidade_id=unidade_id_request(),
     )
     return referencia["cpf"], referencia["nome"]
@@ -595,12 +798,13 @@ def _prontuario_firebird_referencia(referencia):
 
 
 def _prontuario_spdata_referencia(referencia, usuario_id, spdata_atendimento_id=None, unidade_id=None):
+    unidade_referencia_id = referencia.get("unidade_id") or unidade_id
     return (
         _prontuario_local_referencia(
             referencia,
             usuario_id,
             spdata_atendimento_id=spdata_atendimento_id,
-            unidade_id=unidade_id,
+            unidade_id=unidade_referencia_id,
         )
         or _prontuario_firebird_referencia(referencia)
     )
