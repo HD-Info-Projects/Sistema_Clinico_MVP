@@ -15,5 +15,6 @@ export default defineEventHandler(async (event) => {
   }
 
   clearAuthTokenCookie(event)
+  clearActiveClinicaIdCookie(event)
   return { ok: true }
 })
