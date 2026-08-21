@@ -216,8 +216,7 @@ def register_medic():
                 int(unidade_id),
                 principal=indice == 0,
             )
-        if unidade_ids:
-            db.session.commit()
+        db.session.commit()
 
         return jsonify({
             "msg": "Médico cadastrado com sucesso!",

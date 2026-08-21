@@ -210,14 +210,33 @@ def upsert_usuario_medico_spdata(medico_spdata, email=None, senha=None, crm_aten
         crm_atendimento_spdata=crm_atendimento_spdata,
     )
 
-    usuario = db.session.execute(
+    usuarios = db.session.execute(
         select(Usuario).where(
             or_(
                 Usuario.email == dados["email"],
                 Usuario.cnpj_cpf == dados["documento"],
             )
         )
+    ).scalars().all()
+    usuarios_por_id = {usuario.id: usuario for usuario in usuarios}
+
+    if len(usuarios_por_id) > 1:
+        raise ValueError("E-mail e CPF/CNPJ pertencem a usuários diferentes")
+
+    usuario_encontrado = next(iter(usuarios_por_id.values()), None)
+    medico = db.session.execute(
+        select(Medico).where(Medico.spdata_id == dados["spdata_id"])
     ).scalars().first()
+
+    if medico is not None:
+        usuario = medico.usuario
+        if usuario_encontrado is not None and usuario_encontrado.id != usuario.id:
+            raise ValueError("Médico SPDATA já vinculado a outro usuário")
+    else:
+        usuario = usuario_encontrado
+
+    if usuario is not None and usuario.role != "medico":
+        raise ValueError("CPF/CNPJ ou e-mail já cadastrado para outro perfil")
 
     if usuario is None:
         usuario = Usuario(
@@ -240,14 +259,12 @@ def upsert_usuario_medico_spdata(medico_spdata, email=None, senha=None, crm_aten
         usuario.ativo = True
         usuario_criado = False
 
-    medico = db.session.execute(
-        select(Medico).where(
-            or_(
-                Medico.spdata_id == dados["spdata_id"],
-                Medico.usuario_id == usuario.id,
-            )
-        )
-    ).scalars().first()
+    if medico is None:
+        medico = db.session.execute(
+            select(Medico).where(Medico.usuario_id == usuario.id)
+        ).scalars().first()
+        if medico is not None and medico.spdata_id != dados["spdata_id"]:
+            raise ValueError("Usuário já vinculado a outro médico SPDATA")
 
     if medico is None:
         medico = Medico(
@@ -270,8 +287,6 @@ def upsert_usuario_medico_spdata(medico_spdata, email=None, senha=None, crm_aten
         medico.especialidade = dados["especialidade"]
         medico.ativo = True
         medico_criado = False
-
-    db.session.commit()
 
     return {
         "usuario": usuario,
@@ -337,7 +352,6 @@ def criar_usuario_medico_spdata(medico_spdata, email=None, senha=None, crm_atend
     )
 
     db.session.add(medico)
-    db.session.commit()
 
 
     return {

@@ -315,6 +315,8 @@ export interface Usuario {
   created_at: string
   updated_at: string
   medico?: Medico
+  unidades?: Clinica[]
+  unidade_ids?: number[]
 }
 
 export interface Medico {
@@ -336,6 +338,7 @@ export interface UsuarioForm {
   senha?: string
   role: 'medico' | 'recepcao' | 'admin'
   ativo?: boolean
+  unidade_ids?: number[]
   medico?: {
     spdata_id?: number | null
     crm?: string

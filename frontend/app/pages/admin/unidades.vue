@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { Unidade } from '~/types'
 
+definePageMeta({ layout: 'admin' })
+
 const unidadesStore = useUnidadesStore()
 
 const busca = ref('')

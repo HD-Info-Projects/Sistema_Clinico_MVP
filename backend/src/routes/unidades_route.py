@@ -49,7 +49,7 @@ def _slug_base(nome):
     texto = unicodedata.normalize("NFKD", nome)
     texto = texto.encode("ascii", "ignore").decode("ascii")
     texto = re.sub(r"[^a-zA-Z0-9]+", "-", texto).strip("-").lower()
-    return texto or "unidade"
+    return (texto or "unidade")[:120].strip("-") or "unidade"
 
 
 def _slug_unico(nome, unidade_id=None):
@@ -65,22 +65,34 @@ def _slug_unico(nome, unidade_id=None):
         if not existente:
             return slug
 
-        slug = f"{base}-{contador}"
+        sufixo = f"-{contador}"
+        slug = f"{base[:120 - len(sufixo)].rstrip('-')}{sufixo}"
         contador += 1
 
 
-def _aplicar_payload(unidade, data):
+def _aplicar_payload(unidade, data, criar=False):
     nome = _normalizar_texto(data.get("nome"), 255)
     if not nome:
         return jsonify({"error": "Campos obrigatórios ausentes.", "fields": ["nome"]}), 400
 
+    codigo_spdata_centro_custo = _normalizar_int(data.get("codigo_spdata_centro_custo"))
+    codigo_spdata_agenda = _normalizar_texto(data.get("codigo_spdata_agenda"), 50)
+    campos_invalidos = []
+    if codigo_spdata_centro_custo is None:
+        campos_invalidos.append("codigo_spdata_centro_custo")
+    if not codigo_spdata_agenda:
+        campos_invalidos.append("codigo_spdata_agenda")
+    if campos_invalidos:
+        return jsonify({"error": "Campos obrigatórios ausentes ou inválidos.", "fields": campos_invalidos}), 400
+
     unidade.nome = nome
     unidade.slug = _slug_unico(nome, unidade_id=unidade.id)
-    unidade.codigo_spdata_centro_custo = _normalizar_int(data.get("codigo_spdata_centro_custo"))
-    unidade.codigo_spdata_agenda = _normalizar_texto(data.get("codigo_spdata_agenda"), 50)
+    unidade.codigo_spdata_centro_custo = codigo_spdata_centro_custo
+    unidade.codigo_spdata_agenda = codigo_spdata_agenda
     unidade.endereco = _normalizar_texto(data.get("endereco"), 500)
     unidade.telefone = _normalizar_texto(data.get("telefone"), 50)
-    unidade.ativa = _bool_payload(data.get("ativa", True))
+    if criar or "ativa" in data:
+        unidade.ativa = _bool_payload(data.get("ativa", True))
     return None
 
 
@@ -100,7 +112,7 @@ def listar_unidades():
 def criar_unidade():
     data = request.get_json(silent=True) or {}
     unidade = Unidade()
-    erro = _aplicar_payload(unidade, data)
+    erro = _aplicar_payload(unidade, data, criar=True)
     if erro:
         return erro
 

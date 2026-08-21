@@ -82,8 +82,7 @@ def registrar_medico_spdata_command(spdata_id, cpf, nome, email, crm_atendimento
 
         for indice, unidade in enumerate(unidade_id):
             vincular_usuario_unidade(usuario.id, int(unidade), principal=indice == 0)
-        if unidade_id:
-            db.session.commit()
+        db.session.commit()
 
     except Exception as exc:
         db.session.rollback()

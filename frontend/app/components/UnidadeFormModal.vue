@@ -23,6 +23,13 @@ const form = ref<UnidadeForm>({
 const saving = ref(false)
 
 const titulo = computed(() => props.unidade ? 'Editar Unidade' : 'Nova Unidade')
+const centroCustoValido = computed(() => /^\d+$/.test(form.value.codigo_spdata_centro_custo.trim()))
+const agendaValida = computed(() => Boolean(form.value.codigo_spdata_agenda.trim()))
+const podeSalvar = computed(() => Boolean(
+  form.value.nome.trim()
+  && centroCustoValido.value
+  && agendaValida.value
+))
 
 watch(open, (isOpen) => {
   if (isOpen) {
@@ -49,7 +56,7 @@ watch(open, (isOpen) => {
 })
 
 async function salvar() {
-  if (!form.value.nome.trim()) return
+  if (!podeSalvar.value) return
   saving.value = true
   try {
     if (props.unidade) {
@@ -102,6 +109,12 @@ async function salvar() {
               v-model="form.codigo_spdata_centro_custo"
               placeholder="Centro de Custo"
             />
+            <p
+              v-if="form.codigo_spdata_centro_custo && !centroCustoValido"
+              class="text-xs text-error"
+            >
+              Informe apenas números.
+            </p>
           </div>
           <div class="space-y-1">
             <label class="text-sm font-medium">Agenda SPDATA</label>
@@ -109,6 +122,12 @@ async function salvar() {
               v-model="form.codigo_spdata_agenda"
               placeholder="Agenda"
             />
+            <p
+              v-if="!agendaValida"
+              class="text-xs text-muted"
+            >
+              Campo obrigatório para integrações SPDATA.
+            </p>
           </div>
         </div>
 
@@ -146,7 +165,7 @@ async function salvar() {
         <UButton
           label="Salvar"
           :loading="saving"
-          :disabled="!form.nome.trim()"
+          :disabled="!podeSalvar"
           @click="salvar"
         />
       </div>

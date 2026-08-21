@@ -10,6 +10,7 @@ const open = defineModel<boolean>('open', { default: false })
 const emit = defineEmits<{ saved: [] }>()
 
 const usuariosStore = useUsuariosStore()
+const unidadesStore = useUnidadesStore()
 const toast = useToast()
 
 const form = ref<UsuarioForm>({
@@ -19,6 +20,7 @@ const form = ref<UsuarioForm>({
   senha: '',
   role: props.role,
   ativo: true,
+  unidade_ids: [],
   medico: props.role === 'medico' ? { ativo: true } : undefined
 })
 
@@ -42,15 +44,30 @@ const titulo = computed(() => {
   return `${acao} ${tipo[props.role]}`
 })
 
+const roleAtual = computed(() => form.value.role || props.role)
+const exigeUnidade = computed(() => ['medico', 'recepcao'].includes(roleAtual.value))
+const unidadesAtivas = computed(() => unidadesStore.unidades.filter(unidade => unidade.ativa !== false))
+const unidadesSelecionadas = computed(() => form.value.unidade_ids ?? [])
+
 const podeSalvar = computed(() => {
-  const camposBase = form.value.nome_completo.trim() && form.value.email.trim()
-  if (props.role !== 'medico') return Boolean(camposBase)
-  return Boolean(camposBase && form.value.medico?.spdata_id)
+  const camposBase = Boolean(
+    form.value.nome_completo.trim()
+    && form.value.cnpj_cpf.trim()
+    && form.value.email.trim()
+  )
+  const senhaValida = Boolean(props.usuario || (form.value.senha?.trim().length ?? 0) >= 8)
+  const unidadesValidas = !exigeUnidade.value || unidadesSelecionadas.value.length > 0
+  const medicoValido = roleAtual.value !== 'medico' || Boolean(form.value.medico?.spdata_id)
+
+  return camposBase && senhaValida && unidadesValidas && medicoValido
 })
 
 watch(open, (isOpen) => {
   if (isOpen) {
     usuariosStore.limparMedicosSpdata()
+    if (props.role !== 'admin' && unidadesStore.unidades.length === 0) {
+      void unidadesStore.fetchAll()
+    }
     form.value.role = props.role
     if (props.usuario) {
       form.value = {
@@ -60,6 +77,7 @@ watch(open, (isOpen) => {
         senha: '',
         role: props.usuario.role,
         ativo: props.usuario.ativo ?? true,
+        unidade_ids: props.usuario.unidade_ids ?? props.usuario.unidades?.map(unidade => unidade.id) ?? [],
         medico: props.usuario.role === 'medico'
           ? {
               spdata_id: props.usuario.medico?.spdata_id ?? null,
@@ -81,6 +99,7 @@ watch(open, (isOpen) => {
         senha: '',
         role: props.role,
         ativo: true,
+        unidade_ids: [],
         medico: props.role === 'medico' ? { ativo: true } : undefined
       }
       spdataBusca.value = ''
@@ -124,12 +143,27 @@ function selecionarMedicoSpdata(medico: MedicoSpdata) {
   toast.add({ title: 'Médico SPDATA selecionado', color: 'success' })
 }
 
+function unidadeSelecionada(unidadeId: number) {
+  return unidadesSelecionadas.value.includes(unidadeId)
+}
+
+function onToggleUnidade(unidadeId: number, event: Event) {
+  const checked = event.target instanceof HTMLInputElement && event.target.checked
+  const selecionadas = new Set(form.value.unidade_ids ?? [])
+
+  if (checked) selecionadas.add(unidadeId)
+  else selecionadas.delete(unidadeId)
+
+  form.value.unidade_ids = Array.from(selecionadas)
+}
+
 async function salvar() {
   if (!podeSalvar.value) return
   saving.value = true
   try {
     const dados = { ...form.value, medico: form.value.medico ? { ...form.value.medico } : undefined }
     if (!dados.senha?.trim()) delete dados.senha
+    if (!exigeUnidade.value) delete dados.unidade_ids
 
     if (props.usuario) {
       const res = await usuariosStore.atualizar(props.usuario.id, dados)
@@ -203,7 +237,71 @@ async function salvar() {
             type="password"
             placeholder="Senha"
           />
+          <p
+            v-if="!usuario && (form.senha?.trim().length ?? 0) > 0 && (form.senha?.trim().length ?? 0) < 8"
+            class="text-xs text-error"
+          >
+            A senha deve ter pelo menos 8 caracteres.
+          </p>
         </div>
+
+        <template v-if="exigeUnidade">
+          <USeparator label="Unidades de atendimento" />
+
+          <div
+            v-if="unidadesStore.loading"
+            class="flex items-center gap-2 text-sm text-muted"
+          >
+            <UIcon
+              name="i-lucide-loader-circle"
+              class="animate-spin"
+            />
+            Carregando unidades...
+          </div>
+
+          <UAlert
+            v-else-if="unidadesStore.error"
+            :title="unidadesStore.error || 'Erro ao carregar unidades'"
+            color="error"
+            variant="subtle"
+            icon="i-lucide-circle-alert"
+          />
+
+          <UAlert
+            v-else-if="unidadesAtivas.length === 0"
+            title="Nenhuma unidade ativa cadastrada"
+            description="Cadastre uma unidade ativa antes de criar médicos ou recepcionistas."
+            color="warning"
+            variant="subtle"
+            icon="i-lucide-building"
+          />
+
+          <div
+            v-else
+            class="grid grid-cols-1 sm:grid-cols-2 gap-2"
+          >
+            <label
+              v-for="unidade in unidadesAtivas"
+              :key="unidade.id"
+              class="flex items-center gap-2 rounded-md border border-default p-3 text-sm"
+            >
+              <input
+                type="checkbox"
+                class="size-4 accent-primary"
+                :checked="unidadeSelecionada(unidade.id)"
+                @change="onToggleUnidade(unidade.id, $event)"
+              >
+              <span>{{ unidade.nome }}</span>
+            </label>
+          </div>
+
+          <p
+            v-if="unidadesAtivas.length > 0 && unidadesSelecionadas.length === 0"
+            class="text-sm text-error"
+          >
+            Selecione ao menos uma unidade.
+          </p>
+        </template>
 
         <template v-if="role === 'medico'">
           <USeparator label="Vínculo SPDATA" />

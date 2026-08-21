@@ -44,6 +44,77 @@ def listar_unidades_usuario_frontend(usuario_id):
     return [unidade._to_frontend_dict() for unidade in listar_unidades_usuario(usuario_id)]
 
 
+def normalizar_unidade_ids(unidade_ids):
+    if unidade_ids is None or unidade_ids == "":
+        return []
+
+    if isinstance(unidade_ids, (str, int)):
+        unidade_ids = [unidade_ids]
+
+    ids_normalizados = []
+    for unidade_id in unidade_ids:
+        try:
+            unidade_id = int(unidade_id)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Unidade inválida") from exc
+
+        if unidade_id <= 0:
+            raise ValueError("Unidade inválida")
+        if unidade_id not in ids_normalizados:
+            ids_normalizados.append(unidade_id)
+
+    return ids_normalizados
+
+
+def validar_unidades_ativas(unidade_ids):
+    unidade_ids = normalizar_unidade_ids(unidade_ids)
+    if not unidade_ids:
+        return []
+
+    unidades = db.session.execute(
+        select(Unidade).where(
+            Unidade.id.in_(unidade_ids),
+            Unidade.ativa.is_(True),
+        )
+    ).scalars().all()
+    unidades_por_id = {unidade.id: unidade for unidade in unidades}
+
+    if any(unidade_id not in unidades_por_id for unidade_id in unidade_ids):
+        raise ValueError("Unidade inválida")
+
+    return [unidades_por_id[unidade_id] for unidade_id in unidade_ids]
+
+
+def sincronizar_unidades_usuario(usuario_id, unidade_ids):
+    unidade_ids = normalizar_unidade_ids(unidade_ids)
+    validar_unidades_ativas(unidade_ids)
+
+    vinculos = db.session.execute(
+        select(UsuarioUnidade).where(UsuarioUnidade.usuario_id == usuario_id)
+    ).scalars().all()
+    vinculos_por_unidade = {vinculo.unidade_id: vinculo for vinculo in vinculos}
+    ids_selecionados = set(unidade_ids)
+
+    for vinculo in vinculos:
+        if vinculo.unidade_id not in ids_selecionados:
+            vinculo.ativo = False
+            vinculo.principal = False
+
+    for indice, unidade_id in enumerate(unidade_ids):
+        vinculo = vinculos_por_unidade.get(unidade_id)
+        if vinculo is None:
+            vinculo = UsuarioUnidade(
+                usuario_id=usuario_id,
+                unidade_id=unidade_id,
+            )
+            db.session.add(vinculo)
+
+        vinculo.ativo = True
+        vinculo.principal = indice == 0
+
+    return unidade_ids
+
+
 def buscar_unidade_publica(identificador):
     if identificador is None:
         return None
@@ -115,7 +186,7 @@ def vincular_usuario_unidade(usuario_id, unidade_id, principal=False):
         db.session.add(vinculo)
     else:
         vinculo.ativo = True
-        vinculo.principal = principal or vinculo.principal
+        vinculo.principal = bool(principal)
 
     if principal:
         db.session.query(UsuarioUnidade).filter(
