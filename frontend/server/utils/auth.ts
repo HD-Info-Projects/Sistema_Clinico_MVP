@@ -1,7 +1,7 @@
 import type { H3Event } from 'h3'
 import { createError, deleteCookie, getCookie, setCookie } from 'h3'
 import type { ServerClinica } from './clinicas'
-import { clinicasFromBackend } from './clinicas'
+import { clearActiveClinicaIdCookie, clinicasFromBackend, resolveActiveClinicaIdCookie, setActiveClinicaIdCookie } from './clinicas'
 
 export const AUTH_COOKIE_NAME = 'auth_token'
 
@@ -50,8 +50,7 @@ export function requireAuthToken(event: H3Event) {
   return token
 }
 
-export function buildAuthPayload(raw: BackendAuthUser) {
-  const clinicas = clinicasFromBackend(raw)
+function buildAuthPayloadFromClinicas(raw: BackendAuthUser, clinicas: ServerClinica[], activeClinicaId: number | null) {
   const clinicaIds = clinicas.map(c => c.id)
 
   return {
@@ -64,8 +63,33 @@ export function buildAuthPayload(raw: BackendAuthUser) {
       especialidades: raw.especialidade ? [raw.especialidade] : [],
       clinicaIds
     },
-    clinicas
+    clinicas,
+    activeClinicaId
   }
+}
+
+export function buildAuthPayload(raw: BackendAuthUser, activeClinicaId: number | null = null) {
+  return buildAuthPayloadFromClinicas(raw, clinicasFromBackend(raw), activeClinicaId)
+}
+
+export function buildAuthSessionPayload(event: H3Event, raw: BackendAuthUser) {
+  const clinicas = clinicasFromBackend(raw)
+  const activeClinicaId = resolveActiveClinicaIdCookie(event, clinicas)
+
+  return buildAuthPayloadFromClinicas(raw, clinicas, activeClinicaId)
+}
+
+export function buildLoginSessionPayload(event: H3Event, raw: BackendAuthUser) {
+  const clinicas = clinicasFromBackend(raw)
+  const activeClinicaId = clinicas.length === 1 ? clinicas[0]!.id : null
+
+  if (activeClinicaId) {
+    setActiveClinicaIdCookie(event, activeClinicaId)
+  } else {
+    clearActiveClinicaIdCookie(event)
+  }
+
+  return buildAuthPayloadFromClinicas(raw, clinicas, activeClinicaId)
 }
 
 export async function getAuthenticatedUser(event: H3Event) {
@@ -80,6 +104,7 @@ export async function getAuthenticatedUser(event: H3Event) {
     })
   } catch {
     clearAuthTokenCookie(event)
+    clearActiveClinicaIdCookie(event)
     throw createError({ statusCode: 401, statusMessage: 'Não autorizado' })
   }
 }
