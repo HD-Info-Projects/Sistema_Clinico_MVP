@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Unidade } from '~/types'
+import { formatarTelefone } from '~/utils/masks'
 
 definePageMeta({ layout: 'admin' })
 
@@ -11,6 +12,7 @@ const editingUnidade = ref<Unidade | null>(null)
 const confirmDeleteId = ref<number | null>(null)
 
 const colunas = [
+  { accessorKey: 'id', header: 'ID' },
   { accessorKey: 'nome', header: 'Nome' },
   { accessorKey: 'codigo_spdata_centro_custo', header: 'Centro de Custo' },
   { accessorKey: 'codigo_spdata_agenda', header: 'Agenda' },
@@ -23,10 +25,11 @@ const listaFiltrada = computed(() => {
   const lista = unidadesStore.unidades
   const termo = busca.value.trim().toLowerCase()
   if (!termo) return lista
+  const termoDigitos = termo.replace(/\D/g, '')
   return lista.filter(u =>
     u.nome.toLowerCase().includes(termo)
     || u.endereco.toLowerCase().includes(termo)
-    || u.telefone.toLowerCase().includes(termo)
+    || (termoDigitos.length > 0 && u.telefone.replace(/\D/g, '').includes(termoDigitos))
     || u.codigo_spdata_centro_custo.toLowerCase().includes(termo)
     || u.codigo_spdata_agenda.toLowerCase().includes(termo)
   )
@@ -150,6 +153,12 @@ function onSaved() {
                 {{ row.original.endereco }}
               </p>
             </div>
+          </template>
+
+          <template #telefone-cell="{ row }">
+            <span class="text-sm whitespace-nowrap">
+              {{ row.original.telefone ? formatarTelefone(row.original.telefone) : '-' }}
+            </span>
           </template>
 
           <template #ativa-cell="{ row }">

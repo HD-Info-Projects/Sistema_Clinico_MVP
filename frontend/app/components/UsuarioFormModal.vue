@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Usuario, UsuarioForm, RoleUsuario, MedicoSpdata } from '~/types'
+import { formatarCpfCnpj } from '~/utils/masks'
 
 const props = defineProps<{
   usuario?: Usuario | null
@@ -72,7 +73,7 @@ watch(open, (isOpen) => {
     if (props.usuario) {
       form.value = {
         nome_completo: props.usuario.nome_completo,
-        cnpj_cpf: props.usuario.cnpj_cpf,
+        cnpj_cpf: formatarCpfCnpj(props.usuario.cnpj_cpf),
         email: props.usuario.email,
         senha: '',
         role: props.usuario.role,
@@ -128,7 +129,7 @@ async function buscarSpdata() {
 
 function selecionarMedicoSpdata(medico: MedicoSpdata) {
   form.value.nome_completo = medico.nome || ''
-  form.value.cnpj_cpf = medico.documento || ''
+  form.value.cnpj_cpf = formatarCpfCnpj(medico.documento || '')
   if (!form.value.email && medico.email) form.value.email = medico.email
   form.value.medico = {
     ...form.value.medico,
@@ -143,25 +144,12 @@ function selecionarMedicoSpdata(medico: MedicoSpdata) {
   toast.add({ title: 'Médico SPDATA selecionado', color: 'success' })
 }
 
-function unidadeSelecionada(unidadeId: number) {
-  return unidadesSelecionadas.value.includes(unidadeId)
-}
-
-function onToggleUnidade(unidadeId: number, event: Event) {
-  const checked = event.target instanceof HTMLInputElement && event.target.checked
-  const selecionadas = new Set(form.value.unidade_ids ?? [])
-
-  if (checked) selecionadas.add(unidadeId)
-  else selecionadas.delete(unidadeId)
-
-  form.value.unidade_ids = Array.from(selecionadas)
-}
-
 async function salvar() {
   if (!podeSalvar.value) return
   saving.value = true
   try {
     const dados = { ...form.value, medico: form.value.medico ? { ...form.value.medico } : undefined }
+    dados.cnpj_cpf = dados.cnpj_cpf.replace(/\D/g, '')
     if (!dados.senha?.trim()) delete dados.senha
     if (!exigeUnidade.value) delete dados.unidade_ids
 
@@ -202,107 +190,6 @@ async function salvar() {
 
     <template #body>
       <div class="space-y-4">
-        <div class="space-y-1">
-          <label class="text-sm font-medium">Nome Completo</label>
-          <UInput
-            v-model="form.nome_completo"
-            placeholder="Nome completo"
-          />
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div class="space-y-1">
-            <label class="text-sm font-medium">CPF</label>
-            <UInput
-              v-model="form.cnpj_cpf"
-              placeholder="000.000.000-00"
-            />
-          </div>
-          <div class="space-y-1">
-            <label class="text-sm font-medium">Email</label>
-            <UInput
-              v-model="form.email"
-              type="email"
-              placeholder="email@exemplo.com"
-            />
-          </div>
-        </div>
-
-        <div class="space-y-1">
-          <label class="text-sm font-medium">
-            Senha {{ usuario ? '(deixe vazio para manter)' : '' }}
-          </label>
-          <UInput
-            v-model="form.senha"
-            type="password"
-            placeholder="Senha"
-          />
-          <p
-            v-if="!usuario && (form.senha?.trim().length ?? 0) > 0 && (form.senha?.trim().length ?? 0) < 8"
-            class="text-xs text-error"
-          >
-            A senha deve ter pelo menos 8 caracteres.
-          </p>
-        </div>
-
-        <template v-if="exigeUnidade">
-          <USeparator label="Unidades de atendimento" />
-
-          <div
-            v-if="unidadesStore.loading"
-            class="flex items-center gap-2 text-sm text-muted"
-          >
-            <UIcon
-              name="i-lucide-loader-circle"
-              class="animate-spin"
-            />
-            Carregando unidades...
-          </div>
-
-          <UAlert
-            v-else-if="unidadesStore.error"
-            :title="unidadesStore.error || 'Erro ao carregar unidades'"
-            color="error"
-            variant="subtle"
-            icon="i-lucide-circle-alert"
-          />
-
-          <UAlert
-            v-else-if="unidadesAtivas.length === 0"
-            title="Nenhuma unidade ativa cadastrada"
-            description="Cadastre uma unidade ativa antes de criar médicos ou recepcionistas."
-            color="warning"
-            variant="subtle"
-            icon="i-lucide-building"
-          />
-
-          <div
-            v-else
-            class="grid grid-cols-1 sm:grid-cols-2 gap-2"
-          >
-            <label
-              v-for="unidade in unidadesAtivas"
-              :key="unidade.id"
-              class="flex items-center gap-2 rounded-md border border-default p-3 text-sm"
-            >
-              <input
-                type="checkbox"
-                class="size-4 accent-primary"
-                :checked="unidadeSelecionada(unidade.id)"
-                @change="onToggleUnidade(unidade.id, $event)"
-              >
-              <span>{{ unidade.nome }}</span>
-            </label>
-          </div>
-
-          <p
-            v-if="unidadesAtivas.length > 0 && unidadesSelecionadas.length === 0"
-            class="text-sm text-error"
-          >
-            Selecione ao menos uma unidade.
-          </p>
-        </template>
-
         <template v-if="role === 'medico'">
           <USeparator label="Vínculo SPDATA" />
 
@@ -355,18 +242,121 @@ async function salvar() {
               </button>
             </div>
           </div>
+        </template>
 
-          <USeparator label="Dados Medicos" />
+        <div class="flex flex-col gap-1">
+          <label class="text-sm font-medium">Nome Completo</label>
+          <UInput
+            v-model="form.nome_completo"
+            placeholder="Nome completo"
+          />
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="flex flex-col gap-1">
+            <label class="text-sm font-medium w-full">CPF/CNPJ</label>
+            <UInput
+              :model-value="form.cnpj_cpf"
+              placeholder="000.000.000-00"
+              @update:model-value="form.cnpj_cpf = formatarCpfCnpj($event)"
+            />
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-sm font-medium">Email</label>
+            <UInput
+              v-model="form.email"
+              type="email"
+              placeholder="email@exemplo.com"
+            />
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-1">
+          <label class="text-sm font-medium">
+            Senha
+          </label>
+          <UInput
+            v-model="form.senha"
+            type="password"
+            placeholder="Senha"
+          />
+          <p
+            v-if="usuario"
+            class="text-xs text-muted"
+          >
+            Deixe vazio para manter a senha atual.
+          </p>
+          <p
+            v-if="!usuario && (form.senha?.trim().length ?? 0) > 0 && (form.senha?.trim().length ?? 0) < 8"
+            class="text-xs text-error"
+          >
+            A senha deve ter pelo menos 8 caracteres.
+          </p>
+        </div>
+
+        <template v-if="exigeUnidade">
+          <USeparator label="Unidades de atendimento" />
+
+          <div
+            v-if="unidadesStore.loading"
+            class="flex items-center gap-2 text-sm text-muted"
+          >
+            <UIcon
+              name="i-lucide-loader-circle"
+              class="animate-spin"
+            />
+            Carregando unidades...
+          </div>
+
+          <UAlert
+            v-else-if="unidadesStore.error"
+            :title="unidadesStore.error || 'Erro ao carregar unidades'"
+            color="error"
+            variant="subtle"
+            icon="i-lucide-circle-alert"
+          />
+
+          <UAlert
+            v-else-if="unidadesAtivas.length === 0"
+            title="Nenhuma unidade ativa cadastrada"
+            description="Cadastre uma unidade ativa antes de criar médicos ou recepcionistas."
+            color="warning"
+            variant="subtle"
+            icon="i-lucide-building"
+          />
+
+          <USelectMenu
+            v-else
+            v-model="form.unidade_ids"
+            :items="unidadesAtivas"
+            value-key="id"
+            label-key="nome"
+            multiple
+            placeholder="Selecione as unidades de atendimento"
+            :search-input="{ placeholder: 'Buscar unidade...' }"
+            class="w-full"
+          />
+
+          <p
+            v-if="unidadesAtivas.length > 0 && unidadesSelecionadas.length === 0"
+            class="text-xs text-error"
+          >
+            Selecione ao menos uma unidade.
+          </p>
+        </template>
+
+        <template v-if="role === 'medico'">
+          <USeparator label="Dados Médicos" />
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div class="space-y-1">
+            <div class="flex flex-col gap-1">
               <label class="text-sm font-medium">CRM</label>
               <UInput
                 v-model="form.medico!.crm"
                 placeholder="CRM"
               />
             </div>
-            <div class="space-y-1">
+            <div class="flex flex-col gap-1">
               <label class="text-sm font-medium">CRM UF</label>
               <UInputMenu
                 v-model="form.medico!.crm_uf"
@@ -374,31 +364,27 @@ async function salvar() {
                 placeholder="UF"
               />
             </div>
-          </div>
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div class="space-y-1">
+            <div class="flex flex-col gap-1">
               <label class="text-sm font-medium">CRM Atendimento SPDATA</label>
               <UInput
                 v-model="form.medico!.crm_atendimento_spdata"
                 placeholder="CRM Atendimento"
               />
             </div>
-            <div class="space-y-1">
+            <div class="flex flex-col gap-1">
               <label class="text-sm font-medium">RQE</label>
               <UInput
                 v-model="form.medico!.rqe"
                 placeholder="RQE"
               />
             </div>
-          </div>
-
-          <div class="space-y-1">
-            <label class="text-sm font-medium">Especialidade</label>
-            <UInput
-              v-model="form.medico!.especialidade"
-              placeholder="Especialidade"
-            />
+            <div class="flex flex-col gap-1 sm:col-span-2">
+              <label class="text-sm font-medium">Especialidade</label>
+              <UInput
+                v-model="form.medico!.especialidade"
+                placeholder="Especialidade"
+              />
+            </div>
           </div>
         </template>
 

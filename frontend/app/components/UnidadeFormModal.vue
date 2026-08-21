@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Unidade, UnidadeForm } from '~/types'
+import { formatarTelefone } from '~/utils/masks'
 
 const props = defineProps<{
   unidade?: Unidade | null
@@ -39,7 +40,7 @@ watch(open, (isOpen) => {
         codigo_spdata_centro_custo: props.unidade.codigo_spdata_centro_custo,
         codigo_spdata_agenda: props.unidade.codigo_spdata_agenda,
         endereco: props.unidade.endereco,
-        telefone: props.unidade.telefone,
+        telefone: formatarTelefone(props.unidade.telefone),
         ativa: props.unidade.ativa
       }
     } else {
@@ -94,7 +95,7 @@ async function salvar() {
 
     <template #body>
       <div class="space-y-4">
-        <div class="space-y-1">
+        <div class="flex flex-col gap1">
           <label class="text-sm font-medium">Nome</label>
           <UInput
             v-model="form.nome"
@@ -103,7 +104,7 @@ async function salvar() {
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div class="space-y-1">
+          <div class="flex flex-col gap-1">
             <label class="text-sm font-medium">Centro de Custo SPDATA</label>
             <UInput
               v-model="form.codigo_spdata_centro_custo"
@@ -116,7 +117,7 @@ async function salvar() {
               Informe apenas números.
             </p>
           </div>
-          <div class="space-y-1">
+          <div class="flex flex-col gap-1">
             <label class="text-sm font-medium">Agenda SPDATA</label>
             <UInput
               v-model="form.codigo_spdata_agenda"
@@ -131,20 +132,22 @@ async function salvar() {
           </div>
         </div>
 
-        <div class="space-y-1">
-          <label class="text-sm font-medium">Endereco</label>
-          <UInput
-            v-model="form.endereco"
-            placeholder="Endereco completo"
-          />
-        </div>
-
-        <div class="space-y-1">
-          <label class="text-sm font-medium">Telefone</label>
-          <UInput
-            v-model="form.telefone"
-            placeholder="(00) 0000-0000"
-          />
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="flex flex-col gap-1">
+            <label class="text-sm font-medium">Endereco</label>
+            <UInput
+              v-model="form.endereco"
+              placeholder="Endereco completo"
+            />
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-sm font-medium">Telefone</label>
+            <UInput
+              :model-value="form.telefone"
+              placeholder="(00) 00000-0000"
+              @update:model-value="form.telefone = formatarTelefone($event)"
+            />
+          </div>
         </div>
 
         <div class="flex items-center gap-3">

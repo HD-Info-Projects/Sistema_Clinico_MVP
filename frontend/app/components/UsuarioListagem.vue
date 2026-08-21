@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Usuario, RoleUsuario } from '~/types'
+import { formatarCpfCnpj } from '~/utils/masks'
 
 const props = defineProps<{
   role: RoleUsuario
@@ -20,7 +21,6 @@ const colunas = computed(() => {
   const base = [
     { accessorKey: 'nome', header: 'Nome' },
     { accessorKey: 'email', header: 'Email' },
-    { accessorKey: 'cnpj_cpf', header: 'CPF/CNPJ' },
     { accessorKey: 'ativo', header: 'Status' },
     { id: 'acoes', header: 'Acoes' }
   ]
@@ -37,10 +37,11 @@ const listaFiltrada = computed(() => {
   const lista = usuariosStore.porRole(props.role)
   const termo = busca.value.trim().toLowerCase()
   if (!termo) return lista
+  const termoDigitos = termo.replace(/\D/g, '')
   return lista.filter(u =>
     u.nome_completo.toLowerCase().includes(termo)
     || u.email.toLowerCase().includes(termo)
-    || u.cnpj_cpf.toLowerCase().includes(termo)
+    || (termoDigitos.length > 0 && u.cnpj_cpf.includes(termoDigitos))
     || (u.medico?.crm?.toLowerCase().includes(termo))
     || (u.medico?.especialidade?.toLowerCase().includes(termo))
   )
@@ -174,7 +175,7 @@ function onSaved() {
                   {{ row.original.nome_completo }}
                 </p>
                 <p class="text-xs text-muted">
-                  {{ row.original.cnpj_cpf }}
+                  {{ formatarCpfCnpj(row.original.cnpj_cpf) }}
                 </p>
               </div>
             </div>
@@ -182,7 +183,7 @@ function onSaved() {
 
           <template #crm-cell="{ row }">
             <span class="font-mono text-sm">
-              {{ row.original.medico?.crm || '-' }}
+              {{ row.original.medico?.crm || row.original.medico?.crm_atendimento_spdata || '-' }}
             </span>
           </template>
 
