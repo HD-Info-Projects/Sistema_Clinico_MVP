@@ -26,6 +26,9 @@ class MedSpdataAtendimento(db.Model):
     id_centro_custo_spdata = db.Column(db.Integer, nullable=True, index=True)
     obs_atendimento = db.Column(db.Text, nullable=True)
 
+    cod_procedimento_spdata = db.Column(db.String(20), nullable=True, index=True)
+    procedimento_spdata = db.Column(db.String(255), nullable=True)
+
     paciente = db.Column(db.String(255), nullable=False, index=True)
     paciente_nome_social = db.Column(db.String(255), nullable=True)
     cpf = db.Column(db.String(20), nullable=True, index=True)
@@ -69,6 +72,8 @@ class MedSpdataAtendimento(db.Model):
             "id_convenio_spdata": self.id_convenio_spdata,
             "id_centro_custo_spdata": self.id_centro_custo_spdata,
             "obs_atendimento": self.obs_atendimento,
+            "cod_procedimento_spdata": self.cod_procedimento_spdata,
+            "procedimento_spdata": self.procedimento_spdata,
             "paciente": self.paciente,
             "paciente_nome_social": self.paciente_nome_social,
             "cpf": self.cpf,

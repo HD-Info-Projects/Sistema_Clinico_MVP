@@ -49,6 +49,7 @@ def listar_agenda():
             status=status,
             search=search,
             unidade_id=unidade_id_request(),
+            somente_consultas=True,
         )
         registrar_auditoria(
             AcaoAuditoria.VISUALIZOU_AGENDA,

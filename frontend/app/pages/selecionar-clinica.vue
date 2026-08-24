@@ -3,9 +3,14 @@ const auth = useAuthStore()
 
 const loading = ref(false)
 
-function selecionar(id: number) {
+async function selecionar(id: number) {
   loading.value = true
-  auth.setActiveClinica(id)
+  const selecionou = await auth.setActiveClinica(id)
+  if (!selecionou) {
+    loading.value = false
+    return
+  }
+
   if (auth.isRecepcao) {
     navigateTo('/recepcao')
   } else if (auth.isAdmin) {

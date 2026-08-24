@@ -159,6 +159,7 @@ export interface Chamado {
 }
 
 export interface HistoricoRecord {
+  ORIGEM?: 'BIODATA' | 'SPDATA' | null
   ANAMNESE?: string | null
   CID_PRINCIPAL: string | null
   CID_SECUNDARIO?: string | null
@@ -175,6 +176,7 @@ export interface HistoricoRecord {
   ID_SOLICITACAO_EXAME: string | null
   ID_PACIENTE: number
   MEDICO: string | null
+  MODELO_EVOLUCAO?: string | null
   OBS_ATENDIMENTO: string | null
   PACIENTE: string | null
   QUEIXA_PRINCIPAL?: string | null

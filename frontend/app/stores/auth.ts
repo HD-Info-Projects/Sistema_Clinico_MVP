@@ -1,35 +1,49 @@
 import { defineStore } from 'pinia'
 import type { AuthUser, Clinica } from '~/types'
 
+type AuthSessionResponse = {
+  user: AuthUser
+  clinicas: Clinica[]
+  activeClinicaId?: number | null
+}
+
 export const useAuthStore = defineStore('auth', () => {
-  const config = useRuntimeConfig()
-  const authCookieMaxAgeSeconds = Number(config.public.authCookieMaxAgeSeconds) || 60 * 60 * 24 * 7
   const user = ref<AuthUser | null>(null)
   const clinicas = ref<Clinica[]>([])
   const sessionChecked = ref(false)
 
   const isLoggedIn = computed(() => !!user.value)
 
-  const _activeClinicaCookie = useCookie('active_clinica_id', {
-    maxAge: authCookieMaxAgeSeconds
-  })
-
   function normalizarClinicaId(value: unknown) {
     const id = Number(value)
     return Number.isInteger(id) && id > 0 ? id : null
   }
 
-  const activeClinicaId = ref<number | null>(
-    normalizarClinicaId(_activeClinicaCookie.value)
-  )
-  if (_activeClinicaCookie.value && activeClinicaId.value === null) {
-    _activeClinicaCookie.value = null
+  const activeClinicaId = ref<number | null>(null)
+
+  function selecionarClinicaAtiva(id: number | null) {
+    activeClinicaId.value = normalizarClinicaId(id)
   }
 
-  watch(activeClinicaId, (val) => {
-    const id = normalizarClinicaId(val)
-    _activeClinicaCookie.value = id !== null ? String(id) : null
-  })
+  function clinicaExisteNaLista(id: number | null, lista = clinicas.value) {
+    return !!id && lista.some(c => c.id === id)
+  }
+
+  function aplicarSessao(response: AuthSessionResponse) {
+    user.value = response.user
+    clinicas.value = response.clinicas
+
+    const clinicaId = normalizarClinicaId(response.activeClinicaId)
+    if (clinicaExisteNaLista(clinicaId, response.clinicas)) {
+      selecionarClinicaAtiva(clinicaId)
+    } else if (response.clinicas.length === 1) {
+      selecionarClinicaAtiva(response.clinicas[0]!.id)
+    } else {
+      selecionarClinicaAtiva(null)
+    }
+
+    sessionChecked.value = true
+  }
 
   const activeClinica = computed(() => {
     if (!activeClinicaId.value) return null
@@ -38,7 +52,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   watch(clinicas, (lista) => {
     if (activeClinicaId.value && !lista.some(c => c.id === activeClinicaId.value)) {
-      activeClinicaId.value = null
+      selecionarClinicaAtiva(null)
     }
   })
 
@@ -60,36 +74,23 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function login(credentials: Record<string, unknown>) {
     try {
-      const response = await $fetch<{ user: AuthUser, clinicas: Clinica[] }>('/api/auth/login', {
+      const response = await $fetch<AuthSessionResponse>('/api/auth/login', {
         method: 'POST',
         body: credentials
       })
 
-      user.value = response.user
-      clinicas.value = response.clinicas
-      sessionChecked.value = true
+      aplicarSessao(response)
 
-      if (response.clinicas.length > 1) {
-        activeClinicaId.value = null
-        if (response.user.role === 'recepcao') {
-          navigateTo('/selecionar-clinica')
-        } else {
-          navigateTo('/selecionar-clinica')
-        }
+      if (response.clinicas.length > 1 && !activeClinicaId.value) {
+        navigateTo('/selecionar-clinica')
+      } else if (response.user.role === 'admin') {
+        navigateTo('/admin')
+      } else if (['dpo', 'ti'].includes(response.user.role)) {
+        navigateTo('/lgpd/auditoria')
+      } else if (response.user.role === 'recepcao') {
+        navigateTo('/recepcao')
       } else {
-        const primeira = response.clinicas[0]
-        if (primeira) {
-          activeClinicaId.value = primeira.id
-        }
-        if (response.user.role === 'admin') {
-          navigateTo('/admin')
-        } else if (['dpo', 'ti'].includes(response.user.role)) {
-          navigateTo('/lgpd/auditoria')
-        } else if (response.user.role === 'recepcao') {
-          navigateTo('/recepcao')
-        } else {
-          navigateTo('/dashboard')
-        }
+        navigateTo('/dashboard')
       }
 
       return { success: true }
@@ -114,7 +115,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     user.value = null
     clinicas.value = []
-    activeClinicaId.value = null
+    selecionarClinicaAtiva(null)
     sessionChecked.value = true
     navigateTo('/login')
   }
@@ -123,27 +124,35 @@ export const useAuthStore = defineStore('auth', () => {
     if (user.value) return true
 
     try {
-      const response = await $fetch<{ user: AuthUser, clinicas: Clinica[] }>('/api/auth/me')
-      user.value = response.user
-      clinicas.value = response.clinicas
-      if (response.clinicas.length === 1) {
-        activeClinicaId.value = response.clinicas[0]!.id
-      }
-      sessionChecked.value = true
+      const response = await $fetch<AuthSessionResponse>('/api/auth/me')
+      aplicarSessao(response)
       return true
     } catch {
       user.value = null
       clinicas.value = []
-      activeClinicaId.value = null
+      selecionarClinicaAtiva(null)
       sessionChecked.value = true
       return false
     }
   }
 
-  function setActiveClinica(id: number) {
+  async function setActiveClinica(id: number) {
     const clinicaId = normalizarClinicaId(id)
-    if (!clinicaId || !clinicas.value.some(c => c.id === clinicaId)) return
-    activeClinicaId.value = clinicaId
+    if (!clinicaId || !clinicaExisteNaLista(clinicaId)) return false
+
+    try {
+      const response = await $fetch<{ activeClinicaId: number }>('/api/clinicas/ativa', {
+        method: 'POST',
+        body: { unidadeId: clinicaId }
+      })
+      const activeId = normalizarClinicaId(response.activeClinicaId)
+      if (!activeId || !clinicaExisteNaLista(activeId)) return false
+
+      selecionarClinicaAtiva(activeId)
+      return true
+    } catch {
+      return false
+    }
   }
 
   return {

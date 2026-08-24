@@ -68,6 +68,7 @@ def dashboard_paciente_lista():
             data_ref,
             data_ref,
             unidade_id=unidade.id,
+            somente_consultas=True,
         )
         result = [_item_dashboard(item, crm_medico) for item in items]
 
