@@ -46,6 +46,28 @@ export interface Clinica {
 
 export type AgendamentoStatus = 'agendado' | 'em-espera' | 'em-atendimento' | 'atendido' | 'faltou' | 'cancelado'
 
+export type TipoProcedimentoTuss
+  = 'consulta'
+    | 'procedimento-ambulatorial'
+    | 'cirurgia'
+    | 'metodos-eletrofisiologicos'
+    | 'endoscopia'
+    | 'medicina-laboratorial'
+    | 'medicina-transfusional'
+    | 'genetica'
+    | 'anatomia-patologica-citopatologia'
+    | 'medicina-nuclear'
+    | 'radiologia-rx'
+    | 'ultrassonografia-us'
+    | 'tomografia-computadorizada'
+    | 'ressonancia-magnetica'
+    | 'radioterapia'
+    | 'exames-procedimentos-especificos'
+    | 'testes-diagnostico'
+    | 'outros-diagnosticos-terapeuticos'
+    | 'outros'
+    | 'nao-informado'
+
 export interface Agendamento {
   id: number
   spdataAtendimentoId?: number | null
@@ -62,6 +84,10 @@ export interface Agendamento {
   descricao: string
   criadoEm: string
   duracao?: number
+  codigoProcedimentoSpdata?: string | null
+  procedimentoSpdata?: string | null
+  tipoProcedimento?: TipoProcedimentoTuss
+  tipoProcedimentoLabel?: string
 }
 
 export interface AgendamentoComPaciente extends Agendamento {

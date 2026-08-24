@@ -4,6 +4,8 @@ from types import SimpleNamespace
 from src.services.spdata_atendimentos_service import (
     agenda_para_frontend,
     agenda_spdata_para_frontend,
+    filtrar_agenda_frontend,
+    tipo_procedimento_frontend,
 )
 
 
@@ -70,3 +72,27 @@ def test_agenda_spdata_para_frontend_expoe_nome_social_sem_substituir_nome_civil
 
     assert item["paciente"]["nome"] == "JOAO NOME CIVIL"
     assert item["paciente"]["nomeSocial"] == "JOAO NOME SOCIAL"
+
+
+def test_filtro_consultas_medico_inclui_faixa_consulta_e_codigo_5001():
+    def item(codigo):
+        tipo, label = tipo_procedimento_frontend(codigo)
+        return {
+            "codigoProcedimentoSpdata": codigo,
+            "tipoProcedimento": tipo,
+            "tipoProcedimentoLabel": label,
+            "paciente": {"nome": "Paciente"},
+        }
+
+    filtrados = filtrar_agenda_frontend(
+        [
+            item("10101012"),
+            item("5001"),
+            item("40901300"),
+            item("40100000"),
+            item("41500000"),
+        ],
+        tipo="consulta",
+    )
+
+    assert [item["codigoProcedimentoSpdata"] for item in filtrados] == ["10101012", "5001"]

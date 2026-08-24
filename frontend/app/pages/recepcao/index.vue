@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import type { TipoProcedimentoTuss } from '~/types'
+import { TUSS_PROCEDIMENTO_FILTROS, corTipoProcedimento, rotuloTipoProcedimento } from '~/utils/tuss'
+
 type AtendimentoStatus = 'agendado' | 'em-espera' | 'em-atendimento' | 'atendido' | 'faltou' | 'desconhecido'
-type TipoProcedimento = 'consulta' | 'exame' | 'nao-informado'
 
 interface AtendimentoRecepcao {
   id: number | string
@@ -16,7 +18,7 @@ interface AtendimentoRecepcao {
   medico: string
   especialidade: string
   codigoProcedimentoSpdata: string | null
-  tipoProcedimento: TipoProcedimento
+  tipoProcedimento: TipoProcedimentoTuss
   tipoProcedimentoLabel: string
   dataNascimento: string | null
   status: AtendimentoStatus
@@ -59,7 +61,7 @@ const loading = ref(true)
 const errorMsg = ref('')
 const busca = ref('')
 const selectedStatus = ref<AtendimentoStatus | ''>('')
-const selectedTipo = ref<TipoProcedimento | ''>('')
+const selectedTipo = ref<TipoProcedimentoTuss | ''>('')
 const selectedMedico = ref<string | null>(null)
 const selectedEspecialidade = ref<string | undefined>('Todas as especialidades')
 
@@ -96,12 +98,7 @@ const filtrosStatus: { label: string, value: AtendimentoStatus | '' }[] = [
   { label: 'Faltosos', value: 'faltou' }
 ]
 
-const filtrosTipo: { label: string, value: TipoProcedimento | '' }[] = [
-  { label: 'Todos os tipos', value: '' },
-  { label: 'Consultas', value: 'consulta' },
-  { label: 'Exames', value: 'exame' },
-  { label: 'Não informado', value: 'nao-informado' }
-]
+const filtrosTipo = TUSS_PROCEDIMENTO_FILTROS
 
 const medicosColunas = [
   { accessorKey: 'nome', header: 'Médico' },
@@ -183,15 +180,11 @@ function rotuloStatus(s: string) {
 }
 
 function corTipo(tipo: string) {
-  switch (tipo) {
-    case 'consulta': return 'primary'
-    case 'exame': return 'warning'
-    default: return 'neutral'
-  }
+  return corTipoProcedimento(tipo)
 }
 
 function rotuloTipo(item: AtendimentoRecepcao) {
-  return item.tipoProcedimentoLabel || 'Não informado'
+  return rotuloTipoProcedimento(item.tipoProcedimento, item.tipoProcedimentoLabel)
 }
 
 function textoInformado(valor: string | number | null | undefined) {
@@ -281,7 +274,7 @@ function selecionarStatus(status: AtendimentoStatus | '') {
   resetPageAndFetch()
 }
 
-function selecionarTipo(tipo: TipoProcedimento | '') {
+function selecionarTipo(tipo: TipoProcedimentoTuss | '') {
   selectedTipo.value = tipo
   resetPageAndFetch()
 }
@@ -575,11 +568,19 @@ onUnmounted(() => {
             </template>
 
             <template #tipoProcedimento-cell="{ row }">
-              <UBadge
-                :label="rotuloTipo(row.original)"
-                :color="corTipo(row.original.tipoProcedimento)"
-                variant="subtle"
-              />
+              <div class="min-w-40">
+                <UBadge
+                  :label="rotuloTipo(row.original)"
+                  :color="corTipo(row.original.tipoProcedimento)"
+                  variant="subtle"
+                />
+                <p
+                  v-if="row.original.codigoProcedimentoSpdata"
+                  class="mt-1 text-xs text-muted"
+                >
+                  TUSS {{ row.original.codigoProcedimentoSpdata }}
+                </p>
+              </div>
             </template>
 
             <template #status-cell="{ row }">

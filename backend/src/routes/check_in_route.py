@@ -14,28 +14,17 @@ from src.security.decorators import roles_required
 from src.security.unidades import unidade_atual_required
 from src.services.auditoria_service import registrar_auditoria
 from src.settings.extensions import db
+from src.utils.tuss import (
+    TIPOS_PROCEDIMENTO_VALIDOS,
+    label_tipo_procedimento,
+    normalizar_codigo_tuss,
+    tipo_procedimento_codigo,
+)
 
 
 check_in_bp = Blueprint("check_in", __name__, url_prefix="/check_in")
 
 MAX_PAGE_SIZE = 100
-COD_PROCEDIMENTO_CONSULTA = "10101012"
-
-TIPO_PROCEDIMENTO_CONSULTA = "consulta"
-TIPO_PROCEDIMENTO_EXAME = "exame"
-TIPO_PROCEDIMENTO_NAO_INFORMADO = "nao-informado"
-
-TIPOS_PROCEDIMENTO_VALIDOS = {
-    TIPO_PROCEDIMENTO_CONSULTA,
-    TIPO_PROCEDIMENTO_EXAME,
-    TIPO_PROCEDIMENTO_NAO_INFORMADO,
-}
-
-TIPO_PROCEDIMENTO_LABELS = {
-    TIPO_PROCEDIMENTO_CONSULTA: "Consulta",
-    TIPO_PROCEDIMENTO_EXAME: "Exame",
-    TIPO_PROCEDIMENTO_NAO_INFORMADO: "Não informado",
-}
 
 STATUS_VALIDOS = {
     "agendado",
@@ -102,11 +91,7 @@ def normalizar_int(valor):
 
 
 def normalizar_codigo_procedimento(valor):
-    codigo = normalizar_int(valor)
-    if not codigo:
-        return ""
-
-    return str(codigo)
+    return normalizar_codigo_tuss(valor)
 
 
 def codigo_procedimento_row(row):
@@ -116,21 +101,8 @@ def codigo_procedimento_row(row):
     return normalizar_codigo_procedimento(row.get("PROCEDIMENTO"))
 
 
-def tipo_procedimento_codigo(codigo):
-    codigo = normalizar_codigo_procedimento(codigo)
-    if not codigo:
-        return TIPO_PROCEDIMENTO_NAO_INFORMADO
-    if codigo == COD_PROCEDIMENTO_CONSULTA:
-        return TIPO_PROCEDIMENTO_CONSULTA
-    return TIPO_PROCEDIMENTO_EXAME
-
-
 def tipo_procedimento_row(row):
     return tipo_procedimento_codigo(codigo_procedimento_row(row))
-
-
-def label_tipo_procedimento(tipo):
-    return TIPO_PROCEDIMENTO_LABELS.get(tipo, TIPO_PROCEDIMENTO_LABELS[TIPO_PROCEDIMENTO_NAO_INFORMADO])
 
 
 def normalizar_identificador_medico(valor):

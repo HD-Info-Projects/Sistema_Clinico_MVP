@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { AgendamentoComPaciente, AgendamentoStatus } from '~/types'
+import { corTipoProcedimento, rotuloTipoProcedimento } from '~/utils/tuss'
 
 const auth = useAuthStore()
 const agendamentosStore = useAgendamentosStore()
@@ -38,6 +39,7 @@ const colunas = [
   { accessorKey: 'nome', header: 'Paciente', enableSorting: true },
   { accessorKey: 'horario', header: 'Horário' },
   { accessorKey: 'prioridade', header: 'Prioridade' },
+  { accessorKey: 'tipoProcedimento', header: 'Tipo' },
   { accessorKey: 'status', header: 'Status' },
   { id: 'acoes', header: 'Ações' }
 ]
@@ -69,6 +71,14 @@ function rotuloStatus(status: string) {
     case 'faltou': return 'Faltou'
     default: return status
   }
+}
+
+function corTipo(tipo: string | null | undefined) {
+  return corTipoProcedimento(tipo)
+}
+
+function rotuloTipo(ag: AgendamentoComPaciente) {
+  return rotuloTipoProcedimento(ag.tipoProcedimento, ag.tipoProcedimentoLabel)
 }
 
 const callingState = ref<{ pacienteId: number, secondsLeft: number } | null>(null)
@@ -438,7 +448,7 @@ const tempoMedioEspera = computed(() => {
           <div class="flex flex-col gap-2 items-center">
             <div class="flex items-center gap-2 text-muted ">
               <p class="text-xl font-medium">
-                Nenhum Paciente na fila de espera nesse momento.
+                Nenhum paciente na fila de espera nesse momento.
               </p>
             </div>
             <UIcon
@@ -483,6 +493,22 @@ const tempoMedioEspera = computed(() => {
               :color="corPrioridade(row.original.prioridade)"
               variant="subtle"
             />
+          </template>
+
+          <template #tipoProcedimento-cell="{ row }">
+            <div class="min-w-40">
+              <UBadge
+                :label="rotuloTipo(row.original as AgendamentoComPaciente)"
+                :color="corTipo(row.original.tipoProcedimento)"
+                variant="subtle"
+              />
+              <p
+                v-if="row.original.codigoProcedimentoSpdata"
+                class="mt-1 text-xs text-muted"
+              >
+                TUSS {{ row.original.codigoProcedimentoSpdata }}
+              </p>
+            </div>
           </template>
 
           <template #status-cell="{ row }">
@@ -564,6 +590,22 @@ const tempoMedioEspera = computed(() => {
               :color="corPrioridade(row.original.prioridade)"
               variant="subtle"
             />
+          </template>
+
+          <template #tipoProcedimento-cell="{ row }">
+            <div class="min-w-40">
+              <UBadge
+                :label="rotuloTipo(row.original as AgendamentoComPaciente)"
+                :color="corTipo(row.original.tipoProcedimento)"
+                variant="subtle"
+              />
+              <p
+                v-if="row.original.codigoProcedimentoSpdata"
+                class="mt-1 text-xs text-muted"
+              >
+                TUSS {{ row.original.codigoProcedimentoSpdata }}
+              </p>
+            </div>
           </template>
 
           <template #status-cell="{ row }">

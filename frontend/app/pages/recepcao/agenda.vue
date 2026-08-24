@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import type { TipoProcedimentoTuss } from '~/types'
 import { CalendarDate } from '@internationalized/date'
-
-type TipoProcedimento = 'consulta' | 'exame' | 'nao-informado'
+import { TUSS_PROCEDIMENTO_FILTROS, corTipoProcedimento, rotuloTipoProcedimento } from '~/utils/tuss'
 
 interface ItemRecepcao {
   id: number | string
@@ -17,7 +17,7 @@ interface ItemRecepcao {
   crmAtendimento: string
   especialidade: string
   codigoProcedimentoSpdata: string | null
-  tipoProcedimento: TipoProcedimento
+  tipoProcedimento: TipoProcedimentoTuss
   tipoProcedimentoLabel: string
   status: string
 }
@@ -36,7 +36,7 @@ const errorMsg = ref('')
 const selectedMedico = ref('Todos')
 const selectedEspecialidade = ref('Todos')
 const selectedStatus = ref('')
-const selectedTipo = ref<TipoProcedimento | ''>('')
+const selectedTipo = ref<TipoProcedimentoTuss | ''>('')
 let requestId = 0
 
 const formattedDate = computed(() => {
@@ -147,12 +147,7 @@ const filtrosStatus = [
   { label: 'Faltosos', value: 'faltou' }
 ]
 
-const filtrosTipo: { label: string, value: TipoProcedimento | '' }[] = [
-  { label: 'Todos os tipos', value: '' },
-  { label: 'Consultas', value: 'consulta' },
-  { label: 'Exames', value: 'exame' },
-  { label: 'Não informado', value: 'nao-informado' }
-]
+const filtrosTipo = TUSS_PROCEDIMENTO_FILTROS
 
 const atendimentosFiltrados = computed(() => {
   return agendamentos.value.filter((a) => {
@@ -234,18 +229,14 @@ function rotuloStatus(s: string) {
 }
 
 function corTipo(tipo: string) {
-  switch (tipo) {
-    case 'consulta': return 'primary'
-    case 'exame': return 'warning'
-    default: return 'neutral'
-  }
+  return corTipoProcedimento(tipo)
 }
 
 function rotuloTipo(item: ItemRecepcao) {
-  return item.tipoProcedimentoLabel || 'Não informado'
+  return rotuloTipoProcedimento(item.tipoProcedimento, item.tipoProcedimentoLabel)
 }
 
-function selecionarTipo(tipo: TipoProcedimento | '') {
+function selecionarTipo(tipo: TipoProcedimentoTuss | '') {
   selectedTipo.value = tipo
   loadAgendamentos()
 }
@@ -494,11 +485,19 @@ const statuses: { id: string, name: string, color: string }[] = [
             </template>
 
             <template #tipoProcedimento-cell="{ row }">
-              <UBadge
-                :label="rotuloTipo(row.original)"
-                :color="corTipo(row.original.tipoProcedimento)"
-                variant="subtle"
-              />
+              <div class="min-w-40">
+                <UBadge
+                  :label="rotuloTipo(row.original)"
+                  :color="corTipo(row.original.tipoProcedimento)"
+                  variant="subtle"
+                />
+                <p
+                  v-if="row.original.codigoProcedimentoSpdata"
+                  class="mt-1 text-xs text-muted"
+                >
+                  TUSS {{ row.original.codigoProcedimentoSpdata }}
+                </p>
+              </div>
             </template>
 
             <template #status-cell="{ row }">
