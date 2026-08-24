@@ -2,6 +2,7 @@ from datetime import date, datetime, time
 from decimal import Decimal
 
 from sqlalchemy import and_, func, or_, select
+from sqlalchemy.exc import IntegrityError
 
 from src.models.anamnese_model import Anamnese
 from src.models.atendimentos_model import Atendimento
@@ -112,7 +113,13 @@ def normalizar_int(valor):
     try:
         return int(valor)
     except (TypeError, ValueError):
-        return None
+        texto = normalizar_texto(valor)
+        if not texto:
+            return None
+        try:
+            return int(float(texto.replace(",", ".")))
+        except (TypeError, ValueError):
+            return None
 
 
 def normalizar_data(valor):
@@ -333,23 +340,59 @@ def buscar_atendimentos_spdata(data_ini, data_fim, crm_medico, unidade):
         return [row_para_dict(row, nomes_colunas) for row in cursor.fetchall()]
 
 
-def sincronizar_atendimentos_spdata(data_ini, data_fim, crm_medico, unidade):
-    dados_spdata = buscar_atendimentos_spdata(data_ini, data_fim, crm_medico, unidade)
-    ids_spdata = [
-        normalizar_int(item.get("SPDATA_ATENDIMENTO_ID"))
-        for item in dados_spdata
-        if item.get("SPDATA_ATENDIMENTO_ID") is not None
+def _ids_atendimentos_spdata(dados_spdata):
+    return [
+        spdata_atendimento_id
+        for spdata_atendimento_id in {
+            normalizar_int(item.get("SPDATA_ATENDIMENTO_ID"))
+            for item in dados_spdata
+            if item.get("SPDATA_ATENDIMENTO_ID") is not None
+        }
+        if spdata_atendimento_id is not None
     ]
 
-    existentes = {}
-    if ids_spdata:
-        registros = db.session.execute(
-            select(MedSpdataAtendimento).where(
-                MedSpdataAtendimento.spdata_atendimento_id.in_(ids_spdata)
-            )
-        ).scalars().all()
-        existentes = {registro.spdata_atendimento_id: registro for registro in registros}
 
+def _atendimentos_spdata_por_id(ids_spdata):
+    if not ids_spdata:
+        return {}
+
+    registros = db.session.execute(
+        select(MedSpdataAtendimento).where(
+            MedSpdataAtendimento.spdata_atendimento_id.in_(ids_spdata)
+        )
+    ).scalars().all()
+    return {registro.spdata_atendimento_id: registro for registro in registros}
+
+
+def _preencher_atendimento_spdata(registro, item, unidade, data_hora_entrada, paciente):
+    registro.cod_atendimento = normalizar_texto(item.get("COD_ATENDIMENTO"), 50)
+    registro.unidade_id = unidade.id
+    registro.id_paciente_spdata = normalizar_int(item.get("ID_PACIENTE_SPDATA"))
+    registro.id_medico_spdata = normalizar_int(item.get("ID_MEDICO_SPDATA"))
+    registro.medico = normalizar_texto(item.get("MEDICO"), 255)
+    registro.crm_medico = normalizar_texto(item.get("CRM_MEDICO"), 50)
+    registro.data_hora_entrada = data_hora_entrada
+    registro.data_atendimento = data_hora_entrada.date()
+    registro.hora_entrada = data_hora_entrada.time().replace(microsecond=0)
+    registro.data_hora_alta_medica = normalizar_datetime(item.get("DATA_HORA_ALTA_MEDICA"))
+    registro.id_convenio_spdata = normalizar_int(item.get("ID_CONVENIO_SPDATA"))
+    registro.id_centro_custo_spdata = normalizar_int(item.get("ID_CENTRO_CUSTO_SPDATA"))
+    registro.obs_atendimento = normalizar_texto(item.get("OBS_ATENDIMENTO"))
+    registro.cod_procedimento_spdata = normalizar_codigo_procedimento(item.get("COD_PROCEDIMENTO_SPDATA"))
+    registro.procedimento_spdata = normalizar_texto(item.get("PROCEDIMENTO_SPDATA"), 255)
+    registro.paciente = paciente
+    registro.paciente_nome_social = normalizar_texto(item.get("PACIENTE_NOME_SOCIAL"), 255)
+    registro.cpf = normalizar_cpf(item.get("CPF"))
+    registro.prontuario = normalizar_texto(item.get("PRONTUARIO"), 50)
+    registro.data_nascimento = normalizar_data(item.get("DATA_NASCIMENTO"))
+    registro.sexo = normalizar_texto(item.get("SEXO"), 20)
+    registro.celular = normalizar_texto(item.get("CELULAR"), 30)
+    registro.email = normalizar_texto(item.get("EMAIL"), 255)
+    registro.endereco = normalizar_texto(item.get("ENDERECO"), 500)
+    registro.dados_spdata = item
+
+
+def _aplicar_atendimentos_spdata(dados_spdata, existentes, unidade, criar_faltantes=True):
     total_criados = 0
     total_atualizados = 0
 
@@ -363,6 +406,8 @@ def sincronizar_atendimentos_spdata(data_ini, data_fim, crm_medico, unidade):
 
         registro = existentes.get(spdata_atendimento_id)
         if registro is None:
+            if not criar_faltantes:
+                continue
             registro = MedSpdataAtendimento(
                 spdata_atendimento_id=spdata_atendimento_id,
                 data_hora_entrada=data_hora_entrada,
@@ -375,33 +420,35 @@ def sincronizar_atendimentos_spdata(data_ini, data_fim, crm_medico, unidade):
         else:
             total_atualizados += 1
 
-        registro.cod_atendimento = normalizar_texto(item.get("COD_ATENDIMENTO"), 50)
-        registro.unidade_id = unidade.id
-        registro.id_paciente_spdata = normalizar_int(item.get("ID_PACIENTE_SPDATA"))
-        registro.id_medico_spdata = normalizar_int(item.get("ID_MEDICO_SPDATA"))
-        registro.medico = normalizar_texto(item.get("MEDICO"), 255)
-        registro.crm_medico = normalizar_texto(item.get("CRM_MEDICO"), 50)
-        registro.data_hora_entrada = data_hora_entrada
-        registro.data_atendimento = data_hora_entrada.date()
-        registro.hora_entrada = data_hora_entrada.time().replace(microsecond=0)
-        registro.data_hora_alta_medica = normalizar_datetime(item.get("DATA_HORA_ALTA_MEDICA"))
-        registro.id_convenio_spdata = normalizar_int(item.get("ID_CONVENIO_SPDATA"))
-        registro.id_centro_custo_spdata = normalizar_int(item.get("ID_CENTRO_CUSTO_SPDATA"))
-        registro.obs_atendimento = normalizar_texto(item.get("OBS_ATENDIMENTO"))
-        registro.cod_procedimento_spdata = normalizar_codigo_procedimento(item.get("COD_PROCEDIMENTO_SPDATA"))
-        registro.procedimento_spdata = normalizar_texto(item.get("PROCEDIMENTO_SPDATA"), 255)
-        registro.paciente = paciente
-        registro.paciente_nome_social = normalizar_texto(item.get("PACIENTE_NOME_SOCIAL"), 255)
-        registro.cpf = normalizar_cpf(item.get("CPF"))
-        registro.prontuario = normalizar_texto(item.get("PRONTUARIO"), 50)
-        registro.data_nascimento = normalizar_data(item.get("DATA_NASCIMENTO"))
-        registro.sexo = normalizar_texto(item.get("SEXO"), 20)
-        registro.celular = normalizar_texto(item.get("CELULAR"), 30)
-        registro.email = normalizar_texto(item.get("EMAIL"), 255)
-        registro.endereco = normalizar_texto(item.get("ENDERECO"), 500)
-        registro.dados_spdata = item
+        _preencher_atendimento_spdata(registro, item, unidade, data_hora_entrada, paciente)
 
-    db.session.commit()
+    return total_criados, total_atualizados
+
+
+def sincronizar_atendimentos_spdata(data_ini, data_fim, crm_medico, unidade):
+    dados_spdata = buscar_atendimentos_spdata(data_ini, data_fim, crm_medico, unidade)
+    ids_spdata = _ids_atendimentos_spdata(dados_spdata)
+    existentes = _atendimentos_spdata_por_id(ids_spdata)
+    total_criados, total_atualizados = _aplicar_atendimentos_spdata(dados_spdata, existentes, unidade)
+
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        existentes = _atendimentos_spdata_por_id(ids_spdata)
+        total_criados, total_atualizados = _aplicar_atendimentos_spdata(dados_spdata, existentes, unidade)
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            existentes = _atendimentos_spdata_por_id(ids_spdata)
+            total_criados, total_atualizados = _aplicar_atendimentos_spdata(
+                dados_spdata,
+                existentes,
+                unidade,
+                criar_faltantes=False,
+            )
+            db.session.commit()
 
     return {
         "lidos": len(dados_spdata),

@@ -3,6 +3,7 @@ import re
 from sqlalchemy import or_, select
 
 from src.models.unidade_model import Unidade
+from src.models.usuario_model import Usuario
 from src.models.usuario_unidade_model import UsuarioUnidade
 from src.settings.extensions import db
 
@@ -44,6 +45,90 @@ def listar_unidades_usuario_frontend(usuario_id):
     return [unidade._to_frontend_dict() for unidade in listar_unidades_usuario(usuario_id)]
 
 
+def listar_unidades_ativas_frontend():
+    unidades = (
+        db.session.execute(
+            select(Unidade)
+            .where(Unidade.ativa.is_(True))
+            .order_by(Unidade.nome.asc())
+        )
+        .scalars()
+        .all()
+    )
+    return [unidade._to_frontend_dict() for unidade in unidades]
+
+
+def normalizar_unidade_ids(unidade_ids):
+    if unidade_ids is None or unidade_ids == "":
+        return []
+
+    if isinstance(unidade_ids, (str, int)):
+        unidade_ids = [unidade_ids]
+
+    ids_normalizados = []
+    for unidade_id in unidade_ids:
+        try:
+            unidade_id = int(unidade_id)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Unidade inválida") from exc
+
+        if unidade_id <= 0:
+            raise ValueError("Unidade inválida")
+        if unidade_id not in ids_normalizados:
+            ids_normalizados.append(unidade_id)
+
+    return ids_normalizados
+
+
+def validar_unidades_ativas(unidade_ids):
+    unidade_ids = normalizar_unidade_ids(unidade_ids)
+    if not unidade_ids:
+        return []
+
+    unidades = db.session.execute(
+        select(Unidade).where(
+            Unidade.id.in_(unidade_ids),
+            Unidade.ativa.is_(True),
+        )
+    ).scalars().all()
+    unidades_por_id = {unidade.id: unidade for unidade in unidades}
+
+    if any(unidade_id not in unidades_por_id for unidade_id in unidade_ids):
+        raise ValueError("Unidade inválida")
+
+    return [unidades_por_id[unidade_id] for unidade_id in unidade_ids]
+
+
+def sincronizar_unidades_usuario(usuario_id, unidade_ids):
+    unidade_ids = normalizar_unidade_ids(unidade_ids)
+    validar_unidades_ativas(unidade_ids)
+
+    vinculos = db.session.execute(
+        select(UsuarioUnidade).where(UsuarioUnidade.usuario_id == usuario_id)
+    ).scalars().all()
+    vinculos_por_unidade = {vinculo.unidade_id: vinculo for vinculo in vinculos}
+    ids_selecionados = set(unidade_ids)
+
+    for vinculo in vinculos:
+        if vinculo.unidade_id not in ids_selecionados:
+            vinculo.ativo = False
+            vinculo.principal = False
+
+    for indice, unidade_id in enumerate(unidade_ids):
+        vinculo = vinculos_por_unidade.get(unidade_id)
+        if vinculo is None:
+            vinculo = UsuarioUnidade(
+                usuario_id=usuario_id,
+                unidade_id=unidade_id,
+            )
+            db.session.add(vinculo)
+
+        vinculo.ativo = True
+        vinculo.principal = indice == 0
+
+    return unidade_ids
+
+
 def buscar_unidade_publica(identificador):
     if identificador is None:
         return None
@@ -67,6 +152,24 @@ def buscar_unidade_publica(identificador):
 
 
 def resolver_unidade_usuario(usuario_id, unidade_id=None):
+    usuario = db.session.get(Usuario, usuario_id)
+
+    if usuario is not None and usuario.role == "admin":
+        if unidade_id is None:
+            raise PermissionError("Unidade ativa obrigatória")
+
+        unidade_admin = db.session.execute(
+            select(Unidade).where(
+                Unidade.id == unidade_id,
+                Unidade.ativa.is_(True),
+            )
+        ).scalar_one_or_none()
+
+        if not unidade_admin:
+            raise PermissionError("Usuário não possui acesso à unidade informada")
+
+        return unidade_admin
+
     query = (
         db.session.query(UsuarioUnidade)
         .join(Unidade, Unidade.id == UsuarioUnidade.unidade_id)
@@ -115,7 +218,7 @@ def vincular_usuario_unidade(usuario_id, unidade_id, principal=False):
         db.session.add(vinculo)
     else:
         vinculo.ativo = True
-        vinculo.principal = principal or vinculo.principal
+        vinculo.principal = bool(principal)
 
     if principal:
         db.session.query(UsuarioUnidade).filter(

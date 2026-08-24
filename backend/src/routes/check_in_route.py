@@ -622,7 +622,7 @@ def calcular_medicos(rows, especialidades_por_medico):
 
 @check_in_bp.route("/", methods=["GET"])
 @jwt_required()
-@roles_required("recepcao")
+@roles_required("recepcao", "admin")
 def home_check_in():
     try:
         data_ref = parse_data_param()

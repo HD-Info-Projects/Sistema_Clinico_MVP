@@ -5,6 +5,7 @@ export default defineEventHandler(async (event) => {
   }
 
   await flaskFetch(event, `/padrao_medico_orientacao_exame/deletar/${id}`, {
+    params: medicoAlvoParams(event),
     method: 'DELETE'
   })
 

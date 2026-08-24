@@ -1,5 +1,7 @@
 import type { H3Event } from 'h3'
-import { createError, deleteCookie, getCookie, getHeader, getQuery } from 'h3'
+import { createError, deleteCookie, getCookie, getHeader, getQuery, setCookie } from 'h3'
+
+export const ACTIVE_CLINICA_COOKIE_NAME = 'active_clinica_id'
 
 export interface ServerClinica {
   id: number
@@ -43,6 +45,38 @@ function parseClinicaId(raw: unknown) {
   return Number.isInteger(id) && id > 0 ? id : null
 }
 
+function activeClinicaCookieMaxAgeSeconds() {
+  const config = useRuntimeConfig()
+  return Number(config.public.authCookieMaxAgeSeconds) || 60 * 60 * 24 * 7
+}
+
+function activeClinicaCookieOptions(maxAge = activeClinicaCookieMaxAgeSeconds()) {
+  return {
+    httpOnly: true,
+    secure: process.env.NUXT_AUTH_COOKIE_SECURE === 'true',
+    sameSite: 'strict' as const,
+    path: '/',
+    maxAge
+  }
+}
+
+export function setActiveClinicaIdCookie(event: H3Event, id: number) {
+  const clinicaId = requireValidClinicaId(id)
+  setCookie(event, ACTIVE_CLINICA_COOKIE_NAME, String(clinicaId), activeClinicaCookieOptions())
+}
+
+export function clearActiveClinicaIdCookie(event: H3Event) {
+  deleteCookie(event, ACTIVE_CLINICA_COOKIE_NAME, activeClinicaCookieOptions(0))
+}
+
+export function getActiveClinicaCookieId(event: H3Event) {
+  const cookieUnidade = getCookie(event, ACTIVE_CLINICA_COOKIE_NAME)
+  const idCookie = parseClinicaId(cookieUnidade)
+  if (cookieUnidade && !idCookie) clearActiveClinicaIdCookie(event)
+
+  return idCookie
+}
+
 function requireValidClinicaId(raw: unknown) {
   const id = parseClinicaId(raw)
   if (!id) {
@@ -79,13 +113,25 @@ export function getActiveClinicaId(event: H3Event) {
   if (queryUnidade !== undefined && queryUnidade !== null && String(queryUnidade).trim() !== '') return requireValidClinicaId(queryUnidade)
   if (queryClinica !== undefined && queryClinica !== null && String(queryClinica).trim() !== '') return requireValidClinicaId(queryClinica)
 
-  const cookieUnidade = getCookie(event, 'active_clinica_id')
-  const idCookie = parseClinicaId(cookieUnidade)
-  if (cookieUnidade && !idCookie) {
-    deleteCookie(event, 'active_clinica_id', { path: '/' })
+  return getActiveClinicaCookieId(event)
+}
+
+export function resolveActiveClinicaIdCookie(event: H3Event, clinicas: ServerClinica[]) {
+  const activeId = getActiveClinicaCookieId(event)
+
+  if (activeId && clinicas.some(c => c.id === activeId)) {
+    setActiveClinicaIdCookie(event, activeId)
+    return activeId
   }
 
-  return idCookie
+  if (clinicas.length === 1) {
+    const unica = clinicas[0]!.id
+    setActiveClinicaIdCookie(event, unica)
+    return unica
+  }
+
+  clearActiveClinicaIdCookie(event)
+  return null
 }
 
 export function requireClinicaUsuario(event: H3Event, rawUser: BackendUserWithClinicas) {

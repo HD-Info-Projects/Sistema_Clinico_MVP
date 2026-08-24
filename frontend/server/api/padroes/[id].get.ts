@@ -7,7 +7,7 @@ export default defineEventHandler(async (event) => {
   const tipo = query.tipo === 'exame' ? 'exame' : 'receita'
 
   if (tipo === 'exame') {
-    const raw = await flaskFetch<any>(event, `/padrao_medico_exame/${id}`)
+    const raw = await flaskFetch<any>(event, `/padrao_medico_exame/${id}`, { params: medicoAlvoParams(event) })
     return {
       id: String(raw.id),
       medicoId: Number(raw.medico_id) || 0,
@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  const raw = await flaskFetch<any>(event, `/padrao_medico_receita/${id}`)
+  const raw = await flaskFetch<any>(event, `/padrao_medico_receita/${id}`, { params: medicoAlvoParams(event) })
 
   return {
     id: String(raw.id),

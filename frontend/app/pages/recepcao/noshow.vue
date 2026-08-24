@@ -147,15 +147,41 @@ function dataFimFiltro() {
   return `${filtroAno.value}-${mes}-${String(ultimoDiaMes(filtroAno.value, filtroMesFim.value)).padStart(2, '0')}`
 }
 
+function limparDadosNoShow() {
+  pacientesNoShow.value = []
+  totalNoShow.value = 0
+  resumoNoShow.value = {
+    totalResgate: 0,
+    faltou: 0,
+    naoConfirmado: 0,
+    recuperados: 0,
+    semContato: 0
+  }
+  graficosNoShow.value = {
+    porMes: [],
+    porEspecialidade: [],
+    porDiaSemana: []
+  }
+}
+
 async function carregarNoShow() {
+  const unidadeId = auth.activeClinicaId
   loading.value = true
   errorMsg.value = ''
+
+  if (!unidadeId) {
+    limparDadosNoShow()
+    errorMsg.value = 'Selecione uma unidade para carregar no-show'
+    loading.value = false
+    return
+  }
 
   const params = new URLSearchParams()
   params.set('dataIni', dataInicioFiltro())
   params.set('dataFim', dataFimFiltro())
   params.set('page', '1')
   params.set('pageSize', '500')
+  params.set('unidadeId', String(unidadeId))
 
   if (filtroMedico.value !== 'Todos') params.set('medico', filtroMedico.value)
   if (filtroEspecialidade.value !== 'Todos') params.set('especialidade', filtroEspecialidade.value)
@@ -169,20 +195,7 @@ async function carregarNoShow() {
     graficosNoShow.value = response.graficos
     filtrosDisponiveis.value = response.filtros
   } catch {
-    pacientesNoShow.value = []
-    totalNoShow.value = 0
-    resumoNoShow.value = {
-      totalResgate: 0,
-      faltou: 0,
-      naoConfirmado: 0,
-      recuperados: 0,
-      semContato: 0
-    }
-    graficosNoShow.value = {
-      porMes: [],
-      porEspecialidade: [],
-      porDiaSemana: []
-    }
+    limparDadosNoShow()
     errorMsg.value = 'Erro ao carregar lista de resgate'
   } finally {
     loading.value = false
@@ -396,11 +409,20 @@ function itensMais(paciente: PacienteNoShow): DropdownMenuItem[][] {
 async function salvarMotivoFalta() {
   if (!pacienteMotivo.value || !motivoSelecionado.value) return
 
+  const unidadeId = auth.activeClinicaId
+  if (!unidadeId) {
+    motivoErrorMsg.value = 'Selecione uma unidade para registrar o motivo da falta'
+    return
+  }
+
   salvandoMotivo.value = true
   motivoErrorMsg.value = ''
 
+  const params = new URLSearchParams()
+  params.set('unidadeId', String(unidadeId))
+
   try {
-    const response = await $fetch<{ id: number, motivo: MotivoNoShow }>(`/api/no-show/${pacienteMotivo.value.id}/motivo`, {
+    const response = await $fetch<{ id: number, motivo: MotivoNoShow }>(`/api/no-show/${pacienteMotivo.value.id}/motivo?${params.toString()}`, {
       method: 'PATCH',
       body: { motivo: motivoSelecionado.value }
     })
@@ -420,6 +442,10 @@ async function salvarMotivoFalta() {
 }
 
 onMounted(() => {
+  carregarNoShow()
+})
+
+watch(() => auth.activeClinicaId, () => {
   carregarNoShow()
 })
 </script>
@@ -527,32 +553,32 @@ onMounted(() => {
       />
 
       <div class="w-full grid grid-cols-5 items-center gap-4">
-        <CardNoShow
+        <CardInformativo
           titulo="Taxa de Recuperação"
           :valor="taxaRecuperacao"
           medida="%"
           cor="primary"
           icone="i-lucide-trending-up"
         />
-        <CardNoShow
+        <CardInformativo
           titulo="Desistentes"
           :valor="totalNaoConfirmado"
           cor="quinary"
           icone="lucide:user-round-x"
         />
-        <CardNoShow
+        <CardInformativo
           titulo="Faltou"
           :valor="totalFaltou"
           cor="error"
           icone="i-lucide-calendar-x"
         />
-        <CardNoShow
+        <CardInformativo
           titulo="Sem contato"
           :valor="totalSemContato"
           cor="secondary"
           icone="i-lucide-clock"
         />
-        <CardNoShow
+        <CardInformativo
           titulo="Lista de resgate"
           :valor="totalFiltrado"
           cor="tertiary"
@@ -801,7 +827,7 @@ onMounted(() => {
             :page="(table?.tableApi?.getState().pagination.pageIndex || 0) + 1"
             :items-per-page="table?.tableApi?.getState().pagination.pageSize || pagination.pageSize"
             :total="table?.tableApi?.getFilteredRowModel().rows.length || 0"
-            @update:page="(p) => table?.tableApi?.setPageIndex(p - 1)"
+            @update:page="(p: number) => table?.tableApi?.setPageIndex(p - 1)"
           />
         </div>
       </UCard>

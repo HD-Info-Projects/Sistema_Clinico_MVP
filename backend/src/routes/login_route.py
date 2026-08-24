@@ -14,7 +14,7 @@ from src.security.passwords import validate_password_strength
 from src.controllers.login_controller import LoginController
 from src.models.auditoria_model import AcaoAuditoria
 from src.models.usuario_model import Usuario
-from src.services.unidades_service import listar_unidades_usuario_frontend, vincular_usuario_unidade
+from src.services.unidades_service import listar_unidades_ativas_frontend, listar_unidades_usuario_frontend, vincular_usuario_unidade
 
 from src.settings.extensions import db, limiter
 from src.services.auditoria_service import registrar_auditoria
@@ -112,7 +112,11 @@ def me():
             "role": usuario.role,
             "crm": usuario.medico.crm_atendimento_spdata if usuario.medico else None,
             "especialidade": usuario.medico.especialidade if usuario.medico else None,
-            "unidades": listar_unidades_usuario_frontend(usuario.id),
+            "unidades": (
+                listar_unidades_ativas_frontend()
+                if usuario.role == "admin"
+                else listar_unidades_usuario_frontend(usuario.id)
+            ),
         }), 200
 
     except Exception:
@@ -216,8 +220,7 @@ def register_medic():
                 int(unidade_id),
                 principal=indice == 0,
             )
-        if unidade_ids:
-            db.session.commit()
+        db.session.commit()
 
         return jsonify({
             "msg": "Médico cadastrado com sucesso!",
