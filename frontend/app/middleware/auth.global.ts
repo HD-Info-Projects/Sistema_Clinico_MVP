@@ -1,4 +1,4 @@
-import { useAuthStore } from '~/stores/auth'
+import { useAuthStore, paginaInicialPorModo } from '~/stores/auth'
 
 export default defineNuxtRouteMiddleware(async (to) => {
   const auth = useAuthStore()
@@ -22,7 +22,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   // Rota raiz - redirecionar baseado no role
   if (to.path === '/') {
-    if (auth.isAdmin) return navigateTo('/admin')
+    if (auth.isAdmin) return navigateTo(paginaInicialPorModo(auth.accessMode))
     if (['dpo', 'ti'].includes(auth.user?.role || '')) return navigateTo('/lgpd/auditoria')
     if (auth.isRecepcao) return navigateTo('/recepcao')
     return navigateTo('/dashboard')
@@ -30,10 +30,9 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   if (to.path === '/acesso-negado') return
 
-  // Rota de seleção de clínica — permitir se não tiver clínica ativa
-  if (to.path === '/selecionar-clinica') {
-    if (auth.activeClinicaId) {
-      if (auth.isAdmin) return navigateTo('/admin')
+  // Seleção de modo de acesso — exclusiva de admins
+  if (to.path === '/selecionar-acesso') {
+    if (!auth.isAdmin) {
       if (['dpo', 'ti'].includes(auth.user?.role || '')) return navigateTo('/lgpd/auditoria')
       if (auth.isRecepcao) return navigateTo('/recepcao')
       return navigateTo('/dashboard')
@@ -41,9 +40,26 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return
   }
 
+  // Seleção de unidade — admins podem acessar sempre; demais apenas sem clínica ativa
+  if (to.path === '/selecionar-clinica') {
+    if (!auth.isAdmin && auth.activeClinicaId) {
+      if (['dpo', 'ti'].includes(auth.user?.role || '')) return navigateTo('/lgpd/auditoria')
+      if (auth.isRecepcao) return navigateTo('/recepcao')
+      return navigateTo('/dashboard')
+    }
+    return
+  }
+
+  // Admin sem modo definido deve escolher o acesso antes de navegar
+  if (auth.isAdmin && !auth.accessMode) {
+    return navigateTo('/selecionar-acesso')
+  }
+
   // Se tem múltiplas clínicas mas nenhuma selecionada, forçar seleção
   if (auth.clinicas.length > 1 && !auth.activeClinicaId) {
-    return navigateTo('/selecionar-clinica')
+    if (!auth.isAdmin || auth.accessMode === 'recepcionista') {
+      return navigateTo('/selecionar-clinica')
+    }
   }
 
   // Role-based routing - proteger rotas por role
@@ -61,13 +77,24 @@ export default defineNuxtRouteMiddleware(async (to) => {
     || to.path.startsWith('/pacientes')
     || to.path.startsWith('/padroes')
 
-  // Admin acessa o painel administrativo e as telas LGPD liberadas para admin.
-  if (auth.isAdmin && !isAdminRoute && !isLgpdRoute) {
-    return navigateTo('/admin')
+  // Guardas por modo de acesso do admin
+  if (auth.isAdmin) {
+    if (auth.accessMode === 'recepcionista') {
+      if (!isRecepcaoRoute) return navigateTo('/recepcao')
+      if (!auth.activeClinicaId) return navigateTo('/selecionar-clinica')
+      return
+    }
+    if (auth.accessMode === 'logs') {
+      if (!isLgpdRoute) return navigateTo('/lgpd/auditoria')
+      return
+    }
+    // Modo administrador: painel admin + telas LGPD liberadas para admin.
+    if (!isAdminRoute && !isLgpdRoute) return navigateTo('/admin')
+    return
   }
 
   // Não-admin não pode acessar rotas /admin
-  if (!auth.isAdmin && isAdminRoute) {
+  if (isAdminRoute) {
     if (auth.isRecepcao) return navigateTo('/recepcao')
     if (canAccessLgpd) return navigateTo('/lgpd/auditoria')
     return navigateTo('/dashboard')

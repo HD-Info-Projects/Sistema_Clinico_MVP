@@ -8,6 +8,11 @@ const navItems = [
   { label: 'Administradores', icon: 'i-lucide-shield', to: '/admin/admins' },
   { label: 'Unidades', icon: 'i-lucide-building', to: '/admin/unidades' }
 ]
+
+function trocarAcesso() {
+  auth.limparAccessMode()
+  navigateTo('/selecionar-acesso')
+}
 </script>
 
 <template>
@@ -28,14 +33,26 @@ const navItems = [
       />
 
       <template #footer>
-        <UButton
-          icon="i-lucide-log-out"
-          label="Sair"
-          color="neutral"
-          variant="ghost"
-          class="w-full justify-start"
-          @click="auth.logout()"
-        />
+        <div class="felx flex-col gap-2 w-full">
+          <div class="mb-2 flex flex-col gap-2 px-2">
+            <UButton
+              icon="i-lucide-repeat"
+              label="Trocar acesso"
+              color="neutral"
+              variant="ghost"
+              class="w-full justify-start"
+              @click="trocarAcesso()"
+            />
+          </div>
+          <UButton
+            icon="i-lucide-log-out"
+            label="Sair"
+            color="neutral"
+            variant="ghost"
+            class="w-full justify-start"
+            @click="auth.logout()"
+          />
+        </div>
       </template>
     </USidebar>
 

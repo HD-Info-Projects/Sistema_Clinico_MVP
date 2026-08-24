@@ -22,7 +22,7 @@ def parse_data(valor, default=None):
 
 @retencao_exames_bp.route("/", methods=["GET"])
 @jwt_required()
-@roles_required("recepcao")
+@roles_required("recepcao", "admin")
 def index():
     try:
         hoje = date.today()

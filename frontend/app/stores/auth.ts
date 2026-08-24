@@ -7,7 +7,27 @@ type AuthSessionResponse = {
   activeClinicaId?: number | null
 }
 
+export type AccessMode = 'recepcionista' | 'administrador' | 'logs'
+
+const MODOS_ACESSO: AccessMode[] = ['recepcionista', 'administrador', 'logs']
+
+function modoValido(valor: unknown): AccessMode | null {
+  return MODOS_ACESSO.includes(valor as AccessMode) ? (valor as AccessMode) : null
+}
+
+export function paginaInicialPorModo(modo: AccessMode | null) {
+  switch (modo) {
+    case 'recepcionista': return '/recepcao'
+    case 'administrador': return '/admin'
+    case 'logs': return '/lgpd/auditoria'
+    default: return '/selecionar-acesso'
+  }
+}
+
 export const useAuthStore = defineStore('auth', () => {
+  const config = useRuntimeConfig()
+  const accessModeCookieMaxAgeSeconds = Number(config.public.authCookieMaxAgeSeconds) || 60 * 60 * 24 * 7
+
   const user = ref<AuthUser | null>(null)
   const clinicas = ref<Clinica[]>([])
   const sessionChecked = ref(false)
@@ -17,6 +37,22 @@ export const useAuthStore = defineStore('auth', () => {
   function normalizarClinicaId(value: unknown) {
     const id = Number(value)
     return Number.isInteger(id) && id > 0 ? id : null
+  }
+
+  const _accessModeCookie = useCookie<string | null>('access_mode', {
+    maxAge: accessModeCookieMaxAgeSeconds,
+    sameSite: 'strict',
+    path: '/'
+  })
+
+  const accessMode = computed<AccessMode | null>(() => modoValido(_accessModeCookie.value))
+
+  function setAccessMode(modo: AccessMode) {
+    _accessModeCookie.value = modo
+  }
+
+  function limparAccessMode() {
+    _accessModeCookie.value = null
   }
 
   const activeClinicaId = ref<number | null>(null)
@@ -81,10 +117,10 @@ export const useAuthStore = defineStore('auth', () => {
 
       aplicarSessao(response)
 
-      if (response.clinicas.length > 1 && !activeClinicaId.value) {
+      if (response.user.role === 'admin') {
+        navigateTo('/selecionar-acesso')
+      } else if (response.clinicas.length > 1 && !activeClinicaId.value) {
         navigateTo('/selecionar-clinica')
-      } else if (response.user.role === 'admin') {
-        navigateTo('/admin')
       } else if (['dpo', 'ti'].includes(response.user.role)) {
         navigateTo('/lgpd/auditoria')
       } else if (response.user.role === 'recepcao') {
@@ -116,6 +152,7 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = null
     clinicas.value = []
     selecionarClinicaAtiva(null)
+    limparAccessMode()
     sessionChecked.value = true
     navigateTo('/login')
   }
@@ -165,6 +202,9 @@ export const useAuthStore = defineStore('auth', () => {
     isMedico,
     isRecepcao,
     isAdmin,
+    accessMode,
+    setAccessMode,
+    limparAccessMode,
     login,
     logout,
     fetchUser,

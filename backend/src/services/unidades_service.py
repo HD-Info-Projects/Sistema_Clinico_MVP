@@ -3,6 +3,7 @@ import re
 from sqlalchemy import or_, select
 
 from src.models.unidade_model import Unidade
+from src.models.usuario_model import Usuario
 from src.models.usuario_unidade_model import UsuarioUnidade
 from src.settings.extensions import db
 
@@ -42,6 +43,19 @@ def listar_unidades_usuario(usuario_id):
 
 def listar_unidades_usuario_frontend(usuario_id):
     return [unidade._to_frontend_dict() for unidade in listar_unidades_usuario(usuario_id)]
+
+
+def listar_unidades_ativas_frontend():
+    unidades = (
+        db.session.execute(
+            select(Unidade)
+            .where(Unidade.ativa.is_(True))
+            .order_by(Unidade.nome.asc())
+        )
+        .scalars()
+        .all()
+    )
+    return [unidade._to_frontend_dict() for unidade in unidades]
 
 
 def normalizar_unidade_ids(unidade_ids):
@@ -138,6 +152,24 @@ def buscar_unidade_publica(identificador):
 
 
 def resolver_unidade_usuario(usuario_id, unidade_id=None):
+    usuario = db.session.get(Usuario, usuario_id)
+
+    if usuario is not None and usuario.role == "admin":
+        if unidade_id is None:
+            raise PermissionError("Unidade ativa obrigatória")
+
+        unidade_admin = db.session.execute(
+            select(Unidade).where(
+                Unidade.id == unidade_id,
+                Unidade.ativa.is_(True),
+            )
+        ).scalar_one_or_none()
+
+        if not unidade_admin:
+            raise PermissionError("Usuário não possui acesso à unidade informada")
+
+        return unidade_admin
+
     query = (
         db.session.query(UsuarioUnidade)
         .join(Unidade, Unidade.id == UsuarioUnidade.unidade_id)
