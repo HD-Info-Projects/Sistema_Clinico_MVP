@@ -864,7 +864,7 @@ onMounted(() => {
             color="neutral"
             variant="ghost"
             :disabled="salvandoMotivo"
-            @click="motivoModalAberto = false"
+            @click="void(motivoModalAberto = false)"
           />
           <UButton
             label="Salvar Motivo"

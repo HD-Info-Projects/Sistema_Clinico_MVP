@@ -236,8 +236,8 @@ function rotuloTipo(item: ItemRecepcao) {
   return rotuloTipoProcedimento(item.tipoProcedimento, item.tipoProcedimentoLabel)
 }
 
-function selecionarTipo(tipo: TipoProcedimentoTuss | '') {
-  selectedTipo.value = tipo
+function selecionarTipo(tipo: TipoProcedimentoTuss | '' | null | undefined) {
+  selectedTipo.value = tipo ?? ''
   loadAgendamentos()
 }
 
@@ -302,17 +302,17 @@ const statuses: { id: string, name: string, color: string }[] = [
             @click="selectedStatus = status.value"
           />
         </div>
-        <div class="flex flex-wrap gap-2">
-          <UButton
-            v-for="tipo in filtrosTipo"
-            :key="tipo.value || 'todos-tipos'"
-            :label="tipo.label"
-            :color="tipo.value ? corTipo(tipo.value) : 'neutral'"
-            :variant="selectedTipo === tipo.value ? 'solid' : 'soft'"
-            size="sm"
-            @click="selecionarTipo(tipo.value)"
-          />
-        </div>
+        <USelectMenu
+          :model-value="selectedTipo || undefined"
+          :items="filtrosTipo"
+          value-key="value"
+          label-key="label"
+          placeholder="Filtrar por tipo"
+          clearable
+          size="sm"
+          class="w-full sm:w-56"
+          @update:model-value="selecionarTipo"
+        />
       </div>
 
       <div class="flex items-center justify-between">

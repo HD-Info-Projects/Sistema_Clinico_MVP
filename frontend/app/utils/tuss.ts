@@ -25,8 +25,7 @@ export const TUSS_PROCEDIMENTO_TIPOS: Array<{ value: TipoProcedimentoTuss, label
   { value: 'nao-informado', label: 'Não informado', color: 'neutral' }
 ]
 
-export const TUSS_PROCEDIMENTO_FILTROS: Array<{ label: string, value: TipoProcedimentoTuss | '' }> = [
-  { label: 'Todos os tipos', value: '' },
+export const TUSS_PROCEDIMENTO_FILTROS: Array<{ label: string, value: TipoProcedimentoTuss }> = [
   ...TUSS_PROCEDIMENTO_TIPOS.map(tipo => ({ label: tipo.label, value: tipo.value }))
 ]
 

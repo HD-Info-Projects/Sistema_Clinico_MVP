@@ -274,8 +274,8 @@ function selecionarStatus(status: AtendimentoStatus | '') {
   resetPageAndFetch()
 }
 
-function selecionarTipo(tipo: TipoProcedimentoTuss | '') {
-  selectedTipo.value = tipo
+function selecionarTipo(tipo: TipoProcedimentoTuss | '' | null | undefined) {
+  selectedTipo.value = tipo ?? ''
   resetPageAndFetch()
 }
 
@@ -464,18 +464,17 @@ onUnmounted(() => {
               />
             </div>
 
-            <div class="flex flex-wrap gap-2">
-              <UButton
-                v-for="tipo in filtrosTipo"
-                :key="tipo.value || 'todos-tipos'"
-                :label="tipo.label"
-                :color="tipo.value ? corTipo(tipo.value) : 'neutral'"
-                :variant="selectedTipo === tipo.value ? 'solid' : 'soft'"
-                size="sm"
-                class="flex-1 sm:flex-none"
-                @click="selecionarTipo(tipo.value)"
-              />
-            </div>
+            <USelectMenu
+              :model-value="selectedTipo || undefined"
+              :items="filtrosTipo"
+              value-key="value"
+              label-key="label"
+              placeholder="Filtrar por tipo"
+              clearable
+              size="sm"
+              class="w-full sm:w-56"
+              @update:model-value="selecionarTipo"
+            />
           </div>
         </template>
 
@@ -520,7 +519,7 @@ onUnmounted(() => {
           <UTable
             :columns="atendimentosColunas"
             :data="dados.items"
-            class="min-w-[880px]"
+            class="min-w-220"
           >
             <template #horario-cell="{ row }">
               <span class="font-mono text-sm">{{ row.original.horario || '-' }}</span>
