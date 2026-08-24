@@ -10,6 +10,7 @@ export default defineEventHandler(async (event): Promise<PadraoAnamnese> => {
   const body = await readBody(event)
 
   const raw = await flaskFetch<any>(event, `/padrao_medico_anamnese/editar/${id}`, {
+    params: medicoAlvoParams(event),
     method: 'PUT',
     body: { nome_modelo: body.nome, conteudo: body.conteudo }
   })

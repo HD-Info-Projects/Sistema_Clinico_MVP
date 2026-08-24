@@ -7,6 +7,7 @@ export default defineEventHandler(async (event) => {
 
   if (body.tipo === 'exame') {
     const template = await flaskFetch<any>(event, '/padrao_medico_exame/criar', {
+      params: medicoAlvoParams(event),
       method: 'POST',
       body: { nome_modelo: body.nome }
     })
@@ -17,6 +18,7 @@ export default defineEventHandler(async (event) => {
       if (!examePayload) continue
 
       const exame = await flaskFetch<any>(event, `/padrao_medico_exame/add_exame/${template.id}`, {
+        params: medicoAlvoParams(event),
         method: 'POST',
         body: { nome_exame: examePayload.nome, exame_id: examePayload.exame_id }
       })
@@ -35,6 +37,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const template = await flaskFetch<any>(event, '/padrao_medico_receita/criar', {
+    params: medicoAlvoParams(event),
     method: 'POST',
     body: { nome_modelo: body.nome }
   })
@@ -42,6 +45,7 @@ export default defineEventHandler(async (event) => {
   const medicamentosCriados: any[] = []
   for (const m of (body.medicamentos || [])) {
     const med = await flaskFetch<any>(event, `/padrao_medico_receita/add_medicamento/${template.id}`, {
+      params: medicoAlvoParams(event),
       method: 'POST',
       body: { nome_medicamento: m.nome, dosagem: m.dosagem, detalhes: m.detalhes || '' }
     })

@@ -213,6 +213,16 @@ function onSaved() {
           <template #acoes-cell="{ row }">
             <div class="flex items-center gap-1">
               <UButton
+                v-if="role === 'medico'"
+                icon="i-lucide-notebook-pen"
+                color="neutral"
+                variant="ghost"
+                size="sm"
+                aria-label="Padroes"
+                title="Padrões"
+                @click="void(navigateTo(`/admin/padroes-medico/${row.original.id}`))"
+              />
+              <UButton
                 icon="i-lucide-pencil"
                 color="neutral"
                 variant="ghost"

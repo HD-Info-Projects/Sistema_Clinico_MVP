@@ -2,8 +2,8 @@
 export default defineEventHandler(async (event) => {
   try {
     const [receitasRaw, examesRaw] = await Promise.all([
-      flaskFetch<{ padroes_receitas: any[] }>(event, '/padrao_medico_receita/lista'),
-      flaskFetch<{ padroes_exames: any[] }>(event, '/padrao_medico_exame/lista')
+      flaskFetch<{ padroes_receitas: any[] }>(event, '/padrao_medico_receita/lista', { params: medicoAlvoParams(event) }),
+      flaskFetch<{ padroes_exames: any[] }>(event, '/padrao_medico_exame/lista', { params: medicoAlvoParams(event) })
     ])
 
     const receitas = (receitasRaw.padroes_receitas || []).map(p => ({

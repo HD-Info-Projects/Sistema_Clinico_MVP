@@ -8,6 +8,7 @@ export default defineEventHandler(async (event): Promise<PadraoAnamnese> => {
   }
 
   const raw = await flaskFetch<any>(event, '/padrao_medico_anamnese/criar', {
+    params: medicoAlvoParams(event),
     method: 'POST',
     body: { nome_modelo: body.nome, conteudo: body.conteudo }
   })
