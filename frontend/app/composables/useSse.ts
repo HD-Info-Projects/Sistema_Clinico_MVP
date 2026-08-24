@@ -17,7 +17,8 @@ const SSE_EVENTS = [
   'agendamento:status',
   'paciente:status',
   'chamado:novo',
-  'chamado:concluido'
+  'chamado:concluido',
+  'chamado:reset'
 ]
 
 function buildUrl(options?: SseConnectOptions) {

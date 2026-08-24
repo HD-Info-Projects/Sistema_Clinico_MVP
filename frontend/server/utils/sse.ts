@@ -11,7 +11,7 @@ function clientsFor(channel: SseChannel) {
 }
 
 function publicEventData(type: string, data: unknown) {
-  if (!type.startsWith('chamado:') || !data || typeof data !== 'object') return data
+  if ((type !== 'chamado:novo' && type !== 'chamado:concluido') || !data || typeof data !== 'object') return data
 
   const chamado = data as Record<string, unknown>
   const pacienteNome = String(chamado.pacienteNome || '').trim().split(/\s+/)[0] || 'Paciente'

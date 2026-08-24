@@ -16,7 +16,69 @@ type Chamado = {
 type CriarChamadoPayload = Pick<Chamado, 'clinicaId' | 'pacienteId' | 'pacienteNome' | 'localAtendimento' | 'medicoResponsavel'>
 
 const chamados: Chamado[] = []
+const clinicasComChamadas = new Set<number>()
 const MAX_CHAMADOS = 100
+
+let dataAtualChamadas = dataLocalAtual()
+let resetTimer: ReturnType<typeof setTimeout> | null = null
+
+function dataLocalAtual(data = new Date()) {
+  const ano = data.getFullYear()
+  const mes = String(data.getMonth() + 1).padStart(2, '0')
+  const dia = String(data.getDate()).padStart(2, '0')
+
+  return `${ano}-${mes}-${dia}`
+}
+
+function milissegundosAteProximaMeiaNoite(data = new Date()) {
+  const proximaMeiaNoite = new Date(data)
+  proximaMeiaNoite.setDate(proximaMeiaNoite.getDate() + 1)
+  proximaMeiaNoite.setHours(0, 0, 1, 0)
+
+  return Math.max(proximaMeiaNoite.getTime() - data.getTime(), 1000)
+}
+
+function registrarClinica(clinicaId: number) {
+  if (Number.isInteger(clinicaId) && clinicaId > 0) clinicasComChamadas.add(clinicaId)
+}
+
+function clinicasParaReset() {
+  for (const chamado of chamados) registrarClinica(chamado.clinicaId)
+  return Array.from(clinicasComChamadas)
+}
+
+function resetarChamadosSeNecessario() {
+  const hoje = dataLocalAtual()
+  if (hoje === dataAtualChamadas) return
+
+  const clinicaIds = clinicasParaReset()
+  chamados.splice(0, chamados.length)
+  dataAtualChamadas = hoje
+
+  for (const clinicaId of clinicaIds) {
+    broadcastSse({ type: 'chamado:reset', data: { clinicaId, data: hoje } }, clinicaId)
+  }
+}
+
+function prepararClinica(clinicaId: number) {
+  registrarClinica(clinicaId)
+  resetarChamadosSeNecessario()
+}
+
+function agendarResetDiario() {
+  if (resetTimer) clearTimeout(resetTimer)
+
+  resetTimer = setTimeout(() => {
+    resetarChamadosSeNecessario()
+    agendarResetDiario()
+  }, milissegundosAteProximaMeiaNoite())
+
+  if (typeof resetTimer === 'object' && resetTimer && 'unref' in resetTimer) {
+    (resetTimer as { unref: () => void }).unref()
+  }
+}
+
+agendarResetDiario()
 
 function nomePublicoPaciente(nome: string) {
   const primeiroNome = String(nome || '').trim().split(/\s+/)[0]
@@ -47,6 +109,7 @@ export function chamadoPublico(chamado: Chamado | null) {
 }
 
 export function getChamadoPorId(id: number) {
+  resetarChamadosSeNecessario()
   return chamados.find(chamado => chamado.id === id) ?? null
 }
 
@@ -58,10 +121,12 @@ export function textoChamadoParaTts(id: number) {
 }
 
 export function getChamadoAtivo(clinicaId: number) {
+  prepararClinica(clinicaId)
   return chamados.find(chamado => chamado.clinicaId === clinicaId && chamado.status === 'chamando') ?? null
 }
 
 export function getHistoricoChamados(clinicaId: number, limit = 10) {
+  prepararClinica(clinicaId)
   const safeLimit = Number.isFinite(limit) ? Math.min(Math.max(Math.trunc(limit), 1), 100) : 10
 
   return chamados
@@ -72,6 +137,7 @@ export function getHistoricoChamados(clinicaId: number, limit = 10) {
 }
 
 export function criarChamado(data: CriarChamadoPayload) {
+  prepararClinica(data.clinicaId)
   const chamadoAtivo = chamados.find(chamado => chamado.clinicaId === data.clinicaId && chamado.status === 'chamando')
 
   if (chamadoAtivo?.pacienteId === data.pacienteId) {
@@ -108,6 +174,7 @@ export function criarChamado(data: CriarChamadoPayload) {
 }
 
 export function atualizarChamadoStatus(id: number, clinicaId: number, status: ChamadoStatus) {
+  prepararClinica(clinicaId)
   const chamado = chamados.find(chamado => chamado.id === id && chamado.clinicaId === clinicaId)
   if (!chamado) return null
 

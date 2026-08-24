@@ -70,6 +70,9 @@ export const useChamadosStore = defineStore('chamados', () => {
       const idx = chamados.value.findIndex(c => c.id === chamado.id)
       if (idx >= 0) chamados.value[idx] = chamado
     })
+    sse.on('chamado:reset', () => {
+      chamados.value = []
+    })
     sseHandlersRegistrados = true
     sse.connect({ public: options?.public, clinicaId: options?.clinicaId, data: options?.data })
   }
