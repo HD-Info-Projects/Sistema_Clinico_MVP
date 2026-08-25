@@ -2,6 +2,7 @@
 import { CalendarDate } from '@internationalized/date'
 
 const openNav = inject<() => void>('openNav', () => {})
+type TipoProcedimento = 'consulta' | 'exame' | 'nao-informado'
 interface ItemRecepcao {
   id: number | string
   horario: string
@@ -15,6 +16,9 @@ interface ItemRecepcao {
   crm: string
   crmAtendimento: string
   especialidade: string
+  codigoProcedimentoSpdata: string | null
+  tipoProcedimento: TipoProcedimento
+  tipoProcedimentoLabel: string
   status: string
 }
 
@@ -32,6 +36,7 @@ const errorMsg = ref('')
 const selectedMedico = ref('Todos')
 const selectedEspecialidade = ref('Todos')
 const selectedStatus = ref('')
+const selectedTipo = ref<TipoProcedimento | ''>('')
 let requestId = 0
 
 const formattedDate = computed(() => {
@@ -92,6 +97,7 @@ async function loadAgendamentos() {
   params.set('data', dataStr)
   params.set('pageSize', '100')
   params.set('unidadeId', String(unidadeId))
+  if (selectedTipo.value) params.set('tipo', selectedTipo.value)
 
   try {
     const response = await $fetch<CheckInResponse>(`/api/check-in?${params.toString()}`)
@@ -110,6 +116,7 @@ watch(selectedDate, loadAgendamentos)
 watch(() => auth.activeClinicaId, () => {
   selectedMedico.value = 'Todos'
   selectedEspecialidade.value = 'Todos'
+  selectedTipo.value = ''
   loadAgendamentos()
 })
 
@@ -140,11 +147,19 @@ const filtrosStatus = [
   { label: 'Faltosos', value: 'faltou' }
 ]
 
+const filtrosTipo: { label: string, value: TipoProcedimento | '' }[] = [
+  { label: 'Todos os tipos', value: '' },
+  { label: 'Consultas', value: 'consulta' },
+  { label: 'Exames', value: 'exame' },
+  { label: 'Não informado', value: 'nao-informado' }
+]
+
 const atendimentosFiltrados = computed(() => {
   return agendamentos.value.filter((a) => {
     if (selectedMedico.value !== 'Todos' && a.medico !== selectedMedico.value) return false
     if (selectedEspecialidade.value !== 'Todos' && a.especialidade !== selectedEspecialidade.value) return false
     if (selectedStatus.value && a.status !== selectedStatus.value) return false
+    if (selectedTipo.value && a.tipoProcedimento !== selectedTipo.value) return false
     return true
   })
 })
@@ -218,6 +233,23 @@ function rotuloStatus(s: string) {
   }
 }
 
+function corTipo(tipo: string) {
+  switch (tipo) {
+    case 'consulta': return 'primary'
+    case 'exame': return 'warning'
+    default: return 'neutral'
+  }
+}
+
+function rotuloTipo(item: ItemRecepcao) {
+  return item.tipoProcedimentoLabel || 'Não informado'
+}
+
+function selecionarTipo(tipo: TipoProcedimento | '') {
+  selectedTipo.value = tipo
+  loadAgendamentos()
+}
+
 const statuses: { id: string, name: string, color: string }[] = [
   { id: 'agendado', name: 'Agendado', color: 'secondary' },
   { id: 'em-espera', name: 'Em espera', color: 'primary' },
@@ -281,6 +313,17 @@ const statuses: { id: string, name: string, color: string }[] = [
             :variant="selectedStatus === status.value ? 'solid' : 'soft'"
             size="sm"
             @click="void (selectedStatus = status.value)"
+          />
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <UButton
+            v-for="tipo in filtrosTipo"
+            :key="tipo.value || 'todos-tipos'"
+            :label="tipo.label"
+            :color="tipo.value ? corTipo(tipo.value) : 'neutral'"
+            :variant="selectedTipo === tipo.value ? 'solid' : 'soft'"
+            size="sm"
+            @click="selecionarTipo(tipo.value)"
           />
         </div>
       </div>
@@ -381,7 +424,7 @@ const statuses: { id: string, name: string, color: string }[] = [
           <div
             v-for="linha in 5"
             :key="linha"
-            class="grid grid-cols-1 gap-3 rounded-lg border border-muted p-3 md:grid-cols-6"
+            class="grid grid-cols-1 gap-3 rounded-lg border border-muted p-3 md:grid-cols-[80px_1.5fr_1fr_1fr_120px_120px]"
           >
             <USkeleton class="h-5 w-16" />
             <div class="col-span-2 space-y-2">
@@ -390,6 +433,7 @@ const statuses: { id: string, name: string, color: string }[] = [
             </div>
             <USkeleton class="h-5 w-36 max-w-full" />
             <USkeleton class="h-5 w-40 max-w-full" />
+            <USkeleton class="h-6 w-24 rounded-full" />
             <USkeleton class="h-6 w-24 rounded-full" />
           </div>
         </div>
@@ -410,7 +454,7 @@ const statuses: { id: string, name: string, color: string }[] = [
             :key="item.id"
             :ui="{ container: 'p-1 sm:p-1' }"
           >
-            <div class="grid grid-cols-2 md:grid-cols-6 gap-x-4 gap-y-3 items-start md:items-center">
+            <div class="grid grid-cols-2 md:grid-cols-7 gap-x-4 gap-y-3 items-start md:items-center">
               <div class="col-span-2">
                 <p class="text-sm text-muted font-bold text-center sm:text-left">
                   Paciente
@@ -466,6 +510,17 @@ const statuses: { id: string, name: string, color: string }[] = [
                     {{ textoNaoInformado(crmExibicao(item), 'CRM não informado') }}
                   </p>
                 </div>
+              </div>
+
+              <div class="md:col-span-1 text-center">
+                <p class="text-sm text-muted font-bold">
+                  Tipo
+                </p>
+                <UBadge
+                  :label="rotuloTipo(item)"
+                  :color="corTipo(item.tipoProcedimento)"
+                  variant="subtle"
+                />
               </div>
 
               <div class="md:col-span-1 text-center">

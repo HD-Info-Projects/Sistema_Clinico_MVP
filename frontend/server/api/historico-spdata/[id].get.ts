@@ -40,7 +40,7 @@ export default defineEventHandler(async (event) => {
 
   const qs = params.toString()
   try {
-    return await flaskFetch(event, `/prontuario/historico-paciente/${id}${qs ? `?${qs}` : ''}`)
+    return await flaskFetch(event, `/prontuario/historico-spdata/${id}${qs ? `?${qs}` : ''}`)
   } catch (error) {
     if (statusFetch(error) === 404) {
       return { items: [], limit: Number.isFinite(limit) ? Math.min(Math.max(limit, 1), 50) : 10, offset: Number.isFinite(offset) ? Math.max(offset, 0) : 0, has_more: false }

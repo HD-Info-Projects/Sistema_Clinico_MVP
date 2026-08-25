@@ -2,7 +2,7 @@ export default defineEventHandler(async (event) => {
   const query = getQuery(event)
   const params = new URLSearchParams()
 
-  for (const key of ['page', 'pageSize', 'status', 'medico', 'q', 'data', 'unidadeId']) {
+  for (const key of ['page', 'pageSize', 'status', 'medico', 'q', 'data', 'unidadeId', 'tipo']) {
     const value = query[key]
     if (value !== undefined && value !== null && String(value).trim()) {
       params.set(key, String(value))

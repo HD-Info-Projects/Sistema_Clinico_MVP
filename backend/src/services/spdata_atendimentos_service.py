@@ -2,6 +2,7 @@ from datetime import date, datetime, time
 from decimal import Decimal
 
 from sqlalchemy import and_, or_, select
+from sqlalchemy.exc import IntegrityError
 
 from src.models.anamnese_model import Anamnese
 from src.models.atendimentos_model import Atendimento
@@ -31,6 +32,10 @@ from src.utils.normalizar import normalizar_cpf
 # 340 - Natus
 # 350 - Centro AMI
 UNIDADE_PADRAO_SPDATA = 340
+
+# Procedimento TUSS de consulta em consultório (TBPROCTO.COD_PROCEDIMENTO).
+# Atendimentos com outro procedimento (ou sem procedimento) são exames.
+COD_PROCEDIMENTO_CONSULTA = "10101012"
 
 STATUS_VALIDOS = {
     "em-espera",
@@ -103,7 +108,13 @@ def normalizar_int(valor):
     try:
         return int(valor)
     except (TypeError, ValueError):
-        return None
+        texto = normalizar_texto(valor)
+        if not texto:
+            return None
+        try:
+            return int(float(texto.replace(",", ".")))
+        except (TypeError, ValueError):
+            return None
 
 
 def normalizar_data(valor):
@@ -218,6 +229,13 @@ def codigo_centro_custo_unidade(unidade):
     return codigo if codigo is not None else UNIDADE_PADRAO_SPDATA
 
 
+def normalizar_codigo_procedimento(valor):
+    codigo = normalizar_int(valor)
+    if codigo is None:
+        return None
+    return str(codigo)
+
+
 def filtro_spdata_unidade(model, unidade):
     codigo = codigo_centro_custo_unidade(unidade)
     return or_(
@@ -234,6 +252,13 @@ def filtro_agenda_unidade(unidade):
     return or_(*filtros)
 
 
+def filtro_consulta_agenda():
+    return or_(
+        MedSpdataAgenda.cod_procedimento_spdata.is_(None),
+        MedSpdataAgenda.cod_procedimento_spdata.in_(["0", COD_PROCEDIMENTO_CONSULTA]),
+    )
+
+
 def buscar_atendimentos_spdata(data_ini, data_fim, crm_medico, unidade):
     sql = """
         SELECT
@@ -246,6 +271,8 @@ def buscar_atendimentos_spdata(data_ini, data_fim, crm_medico, unidade):
             a.ID_TBCONVEN AS ID_CONVENIO_SPDATA,
             convenio.NOME AS CONVENIO_NOME,
             a.ID_TBCENCUS AS ID_CENTRO_CUSTO_SPDATA,
+            procedimento.COD_PROCEDIMENTO AS COD_PROCEDIMENTO_SPDATA,
+            procedimento.NOME AS PROCEDIMENTO_SPDATA,
 
             paciente.PRONT AS PRONTUARIO,
             paciente.NOME AS PACIENTE,
@@ -269,6 +296,8 @@ def buscar_atendimentos_spdata(data_ini, data_fim, crm_medico, unidade):
             ON tb.ID_TBPROFIS = medico.ID
         LEFT JOIN TBCONVEN convenio
             ON convenio.COD = a.ID_TBCONVEN
+        LEFT JOIN TBPROCTO procedimento
+            ON procedimento.ID = a.ID_TBPROCTO
         WHERE a.ID_TBCENCUS = ?
           AND tb.COD = ?
           AND CAST(a.DATA_HORA_ENTRADA AS DATE) BETWEEN ? AND ?
@@ -290,23 +319,59 @@ def buscar_atendimentos_spdata(data_ini, data_fim, crm_medico, unidade):
         return [row_para_dict(row, nomes_colunas) for row in cursor.fetchall()]
 
 
-def sincronizar_atendimentos_spdata(data_ini, data_fim, crm_medico, unidade):
-    dados_spdata = buscar_atendimentos_spdata(data_ini, data_fim, crm_medico, unidade)
-    ids_spdata = [
-        normalizar_int(item.get("SPDATA_ATENDIMENTO_ID"))
-        for item in dados_spdata
-        if item.get("SPDATA_ATENDIMENTO_ID") is not None
+def _ids_atendimentos_spdata(dados_spdata):
+    return [
+        spdata_atendimento_id
+        for spdata_atendimento_id in {
+            normalizar_int(item.get("SPDATA_ATENDIMENTO_ID"))
+            for item in dados_spdata
+            if item.get("SPDATA_ATENDIMENTO_ID") is not None
+        }
+        if spdata_atendimento_id is not None
     ]
 
-    existentes = {}
-    if ids_spdata:
-        registros = db.session.execute(
-            select(MedSpdataAtendimento).where(
-                MedSpdataAtendimento.spdata_atendimento_id.in_(ids_spdata)
-            )
-        ).scalars().all()
-        existentes = {registro.spdata_atendimento_id: registro for registro in registros}
 
+def _atendimentos_spdata_por_id(ids_spdata):
+    if not ids_spdata:
+        return {}
+
+    registros = db.session.execute(
+        select(MedSpdataAtendimento).where(
+            MedSpdataAtendimento.spdata_atendimento_id.in_(ids_spdata)
+        )
+    ).scalars().all()
+    return {registro.spdata_atendimento_id: registro for registro in registros}
+
+
+def _preencher_atendimento_spdata(registro, item, unidade, data_hora_entrada, paciente):
+    registro.cod_atendimento = normalizar_texto(item.get("COD_ATENDIMENTO"), 50)
+    registro.unidade_id = unidade.id
+    registro.id_paciente_spdata = normalizar_int(item.get("ID_PACIENTE_SPDATA"))
+    registro.id_medico_spdata = normalizar_int(item.get("ID_MEDICO_SPDATA"))
+    registro.medico = normalizar_texto(item.get("MEDICO"), 255)
+    registro.crm_medico = normalizar_texto(item.get("CRM_MEDICO"), 50)
+    registro.data_hora_entrada = data_hora_entrada
+    registro.data_atendimento = data_hora_entrada.date()
+    registro.hora_entrada = data_hora_entrada.time().replace(microsecond=0)
+    registro.data_hora_alta_medica = normalizar_datetime(item.get("DATA_HORA_ALTA_MEDICA"))
+    registro.id_convenio_spdata = normalizar_int(item.get("ID_CONVENIO_SPDATA"))
+    registro.id_centro_custo_spdata = normalizar_int(item.get("ID_CENTRO_CUSTO_SPDATA"))
+    registro.obs_atendimento = normalizar_texto(item.get("OBS_ATENDIMENTO"))
+    registro.cod_procedimento_spdata = normalizar_codigo_procedimento(item.get("COD_PROCEDIMENTO_SPDATA"))
+    registro.procedimento_spdata = normalizar_texto(item.get("PROCEDIMENTO_SPDATA"), 255)
+    registro.paciente = paciente
+    registro.paciente_nome_social = normalizar_texto(item.get("PACIENTE_NOME_SOCIAL"), 255)
+    registro.cpf = normalizar_cpf(item.get("CPF"))
+    registro.prontuario = normalizar_texto(item.get("PRONTUARIO"), 50)
+    registro.data_nascimento = normalizar_data(item.get("DATA_NASCIMENTO"))
+    registro.sexo = normalizar_texto(item.get("SEXO"), 20)
+    registro.celular = normalizar_texto(item.get("CELULAR"), 30)
+    registro.email = normalizar_texto(item.get("EMAIL"), 255)
+    registro.endereco = normalizar_texto(item.get("ENDERECO"), 500)
+    registro.dados_spdata = item
+
+
+def _aplicar_atendimentos_spdata(dados_spdata, existentes, unidade, criar_faltantes=True):
     total_criados = 0
     total_atualizados = 0
 
@@ -320,6 +385,8 @@ def sincronizar_atendimentos_spdata(data_ini, data_fim, crm_medico, unidade):
 
         registro = existentes.get(spdata_atendimento_id)
         if registro is None:
+            if not criar_faltantes:
+                continue
             registro = MedSpdataAtendimento(
                 spdata_atendimento_id=spdata_atendimento_id,
                 data_hora_entrada=data_hora_entrada,
@@ -332,31 +399,35 @@ def sincronizar_atendimentos_spdata(data_ini, data_fim, crm_medico, unidade):
         else:
             total_atualizados += 1
 
-        registro.cod_atendimento = normalizar_texto(item.get("COD_ATENDIMENTO"), 50)
-        registro.unidade_id = unidade.id
-        registro.id_paciente_spdata = normalizar_int(item.get("ID_PACIENTE_SPDATA"))
-        registro.id_medico_spdata = normalizar_int(item.get("ID_MEDICO_SPDATA"))
-        registro.medico = normalizar_texto(item.get("MEDICO"), 255)
-        registro.crm_medico = normalizar_texto(item.get("CRM_MEDICO"), 50)
-        registro.data_hora_entrada = data_hora_entrada
-        registro.data_atendimento = data_hora_entrada.date()
-        registro.hora_entrada = data_hora_entrada.time().replace(microsecond=0)
-        registro.data_hora_alta_medica = normalizar_datetime(item.get("DATA_HORA_ALTA_MEDICA"))
-        registro.id_convenio_spdata = normalizar_int(item.get("ID_CONVENIO_SPDATA"))
-        registro.id_centro_custo_spdata = normalizar_int(item.get("ID_CENTRO_CUSTO_SPDATA"))
-        registro.obs_atendimento = normalizar_texto(item.get("OBS_ATENDIMENTO"))
-        registro.paciente = paciente
-        registro.paciente_nome_social = normalizar_texto(item.get("PACIENTE_NOME_SOCIAL"), 255)
-        registro.cpf = normalizar_cpf(item.get("CPF"))
-        registro.prontuario = normalizar_texto(item.get("PRONTUARIO"), 50)
-        registro.data_nascimento = normalizar_data(item.get("DATA_NASCIMENTO"))
-        registro.sexo = normalizar_texto(item.get("SEXO"), 20)
-        registro.celular = normalizar_texto(item.get("CELULAR"), 30)
-        registro.email = normalizar_texto(item.get("EMAIL"), 255)
-        registro.endereco = normalizar_texto(item.get("ENDERECO"), 500)
-        registro.dados_spdata = item
+        _preencher_atendimento_spdata(registro, item, unidade, data_hora_entrada, paciente)
 
-    db.session.commit()
+    return total_criados, total_atualizados
+
+
+def sincronizar_atendimentos_spdata(data_ini, data_fim, crm_medico, unidade):
+    dados_spdata = buscar_atendimentos_spdata(data_ini, data_fim, crm_medico, unidade)
+    ids_spdata = _ids_atendimentos_spdata(dados_spdata)
+    existentes = _atendimentos_spdata_por_id(ids_spdata)
+    total_criados, total_atualizados = _aplicar_atendimentos_spdata(dados_spdata, existentes, unidade)
+
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        existentes = _atendimentos_spdata_por_id(ids_spdata)
+        total_criados, total_atualizados = _aplicar_atendimentos_spdata(dados_spdata, existentes, unidade)
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            existentes = _atendimentos_spdata_por_id(ids_spdata)
+            total_criados, total_atualizados = _aplicar_atendimentos_spdata(
+                dados_spdata,
+                existentes,
+                unidade,
+                criar_faltantes=False,
+            )
+            db.session.commit()
 
     return {
         "lidos": len(dados_spdata),
@@ -738,11 +809,22 @@ def agenda_spdata_para_frontend(agenda, spdata_ref, atendimento=None, convenios_
     }
 
 
-def listar_atendimentos_medsystem_para_frontend(crm_medico, unidade, data_ini=None, data_fim=None, status=None, search=None):
+def listar_atendimentos_medsystem_para_frontend(
+    crm_medico,
+    unidade,
+    data_ini=None,
+    data_fim=None,
+    status=None,
+    search=None,
+    somente_consultas=False,
+):
     filtros = [
         MedSpdataAtendimento.crm_medico == crm_medico,
         filtro_spdata_unidade(MedSpdataAtendimento, unidade),
     ]
+
+    if somente_consultas:
+        filtros.append(MedSpdataAtendimento.cod_procedimento_spdata == COD_PROCEDIMENTO_CONSULTA)
 
     if data_ini:
         filtros.append(MedAtendimentos.data_agenda >= data_ini)
@@ -780,7 +862,15 @@ def listar_atendimentos_medsystem_para_frontend(crm_medico, unidade, data_ini=No
     ]
 
 
-def listar_agenda_medica(usuario_id, data_ini, data_fim, status=None, search=None, unidade_id=None):
+def listar_agenda_medica(
+    usuario_id,
+    data_ini,
+    data_fim,
+    status=None,
+    search=None,
+    unidade_id=None,
+    somente_consultas=False,
+):
     crm_medico = get_crm_medico_usuario(usuario_id)
     unidade = resolver_unidade_usuario(usuario_id, unidade_id)
     status = normalizar_status(status)
@@ -795,6 +885,7 @@ def listar_agenda_medica(usuario_id, data_ini, data_fim, status=None, search=Non
             unidade,
             status=status,
             search=search,
+            somente_consultas=somente_consultas,
         )
 
     if data_fim < data_ini:
@@ -814,6 +905,7 @@ def listar_agenda_medica(usuario_id, data_ini, data_fim, status=None, search=Non
                 MedSpdataAgenda.crm_atend == crm_medico,
                 MedSpdataAgenda.crm == crm_medico,
             ),
+            filtro_consulta_agenda() if somente_consultas else True,
         )
         .order_by(MedSpdataAgenda.data_agenda, MedSpdataAgenda.hora_agenda, MedSpdataAgenda.paciente)
         .all()
@@ -854,6 +946,9 @@ def listar_agenda_medica(usuario_id, data_ini, data_fim, status=None, search=Non
             MedSpdataAtendimento.data_atendimento <= data_fim,
             MedSpdataAtendimento.crm_medico == crm_medico,
             filtro_spdata_unidade(MedSpdataAtendimento, unidade),
+            MedSpdataAtendimento.cod_procedimento_spdata == COD_PROCEDIMENTO_CONSULTA
+            if somente_consultas
+            else True,
         )
         .order_by(MedSpdataAtendimento.data_hora_entrada, MedSpdataAtendimento.paciente)
         .all()

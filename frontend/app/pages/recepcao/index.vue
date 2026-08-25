@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const openNav = inject<() => void>('openNav', () => {})
 type AtendimentoStatus = 'agendado' | 'em-espera' | 'em-atendimento' | 'atendido' | 'faltou' | 'desconhecido'
+type TipoProcedimento = 'consulta' | 'exame' | 'nao-informado'
 
 interface AtendimentoRecepcao {
   id: number | string
@@ -15,6 +16,9 @@ interface AtendimentoRecepcao {
   email: string
   medico: string
   especialidade: string
+  codigoProcedimentoSpdata: string | null
+  tipoProcedimento: TipoProcedimento
+  tipoProcedimentoLabel: string
   dataNascimento: string | null
   status: AtendimentoStatus
 }
@@ -56,6 +60,7 @@ const loading = ref(true)
 const errorMsg = ref('')
 const busca = ref('')
 const selectedStatus = ref<AtendimentoStatus | ''>('')
+const selectedTipo = ref<TipoProcedimento | ''>('')
 const selectedMedico = ref<string | null>(null)
 const selectedEspecialidade = ref<string | undefined>('Todas as especialidades')
 
@@ -92,6 +97,13 @@ const filtrosStatus: { label: string, value: AtendimentoStatus | '' }[] = [
   { label: 'Faltosos', value: 'faltou' }
 ]
 
+const filtrosTipo: { label: string, value: TipoProcedimento | '' }[] = [
+  { label: 'Todos os tipos', value: '' },
+  { label: 'Consultas', value: 'consulta' },
+  { label: 'Exames', value: 'exame' },
+  { label: 'Não informado', value: 'nao-informado' }
+]
+
 const especialidades = computed(() => {
   const all = new Set<string>()
   dados.value.medicos.forEach((m) => {
@@ -124,6 +136,8 @@ const tituloTabela = computed(() => {
   if (selectedMedicoNome.value) partes.push(selectedMedicoNome.value)
   const status = filtrosStatus.find(s => s.value === selectedStatus.value)
   if (status?.value) partes.push(status.label)
+  const tipo = filtrosTipo.find(t => t.value === selectedTipo.value)
+  if (tipo?.value) partes.push(tipo.label)
   return partes.join(' - ')
 })
 
@@ -153,6 +167,18 @@ function rotuloStatus(s: string) {
     case 'faltou': return 'Faltou'
     default: return 'Desconhecido'
   }
+}
+
+function corTipo(tipo: string) {
+  switch (tipo) {
+    case 'consulta': return 'primary'
+    case 'exame': return 'warning'
+    default: return 'neutral'
+  }
+}
+
+function rotuloTipo(item: AtendimentoRecepcao) {
+  return item.tipoProcedimentoLabel || 'Não informado'
 }
 
 function textoInformado(valor: string | number | null | undefined) {
@@ -210,6 +236,7 @@ async function carregarAtendimentos() {
   params.set('data', formatarDataISO(new Date()))
   params.set('unidadeId', String(unidadeId))
   if (selectedStatus.value) params.set('status', selectedStatus.value)
+  if (selectedTipo.value) params.set('tipo', selectedTipo.value)
   if (selectedMedico.value) params.set('medico', selectedMedico.value)
   if (busca.value.trim()) params.set('q', busca.value.trim())
 
@@ -241,6 +268,11 @@ function selecionarStatus(status: AtendimentoStatus | '') {
   resetPageAndFetch()
 }
 
+function selecionarTipo(tipo: TipoProcedimento | '') {
+  selectedTipo.value = tipo
+  resetPageAndFetch()
+}
+
 watch(page, () => {
   carregarAtendimentos()
 })
@@ -248,6 +280,7 @@ watch(page, () => {
 watch(() => auth.activeClinicaId, () => {
   selectedMedico.value = null
   selectedEspecialidade.value = 'Todas as especialidades'
+  selectedTipo.value = ''
   resetPageAndFetch()
 })
 
@@ -443,6 +476,19 @@ onUnmounted(() => {
                 @click="selecionarStatus(status.value)"
               />
             </div>
+
+            <div class="flex flex-wrap gap-2">
+              <UButton
+                v-for="tipo in filtrosTipo"
+                :key="tipo.value || 'todos-tipos'"
+                :label="tipo.label"
+                :color="tipo.value ? corTipo(tipo.value) : 'neutral'"
+                :variant="selectedTipo === tipo.value ? 'solid' : 'soft'"
+                size="sm"
+                class="flex-1 sm:flex-none"
+                @click="selecionarTipo(tipo.value)"
+              />
+            </div>
           </div>
         </template>
 
@@ -453,7 +499,7 @@ onUnmounted(() => {
           <div
             v-for="linha in 6"
             :key="linha"
-            class="grid grid-cols-1 gap-3 rounded-lg border border-muted p-3 md:grid-cols-6"
+            class="grid grid-cols-1 gap-3 rounded-lg border border-muted p-3 md:grid-cols-[80px_1.5fr_1fr_1fr_120px_120px]"
           >
             <USkeleton class="h-5 w-16" />
             <div class="col-span-2 space-y-2">
@@ -468,6 +514,7 @@ onUnmounted(() => {
               <USkeleton class="h-5 w-40 max-w-full" />
               <USkeleton class="h-4 w-28 max-w-full" />
             </div>
+            <USkeleton class="h-6 w-24 rounded-full" />
             <USkeleton class="h-6 w-24 rounded-full" />
           </div>
         </div>
@@ -488,7 +535,7 @@ onUnmounted(() => {
             :key="item.id"
             :ui="{ container: 'px-4 sm:p-1 sm:px-4' }"
           >
-            <div class="grid grid-cols-2 md:grid-cols-6 gap-x-4 gap-y-3 items-start md:items-center">
+            <div class="grid grid-cols-2 md:grid-cols-7 gap-x-4 gap-y-3 items-start md:items-center">
               <div class="col-span-2">
                 <p class="text-sm text-muted font-bold sm:text-left">
                   Paciente
@@ -555,6 +602,17 @@ onUnmounted(() => {
                 <p class="whitespace-nowrap font-mono text-sm">
                   {{ item.horario || '-' }}
                 </p>
+              </div>
+
+              <div class="md:col-span-1">
+                <p class="text-sm text-muted font-bold">
+                  Tipo
+                </p>
+                <UBadge
+                  :label="rotuloTipo(item)"
+                  :color="corTipo(item.tipoProcedimento)"
+                  variant="subtle"
+                />
               </div>
 
               <div class="md:col-span-1">

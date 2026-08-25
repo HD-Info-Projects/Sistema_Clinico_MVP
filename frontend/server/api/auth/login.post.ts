@@ -44,7 +44,7 @@ export default defineEventHandler(async (event) => {
       }
     })
 
-    return buildAuthPayload(rawUser as Parameters<typeof buildAuthPayload>[0])
+    return buildLoginSessionPayload(event, rawUser as Parameters<typeof buildLoginSessionPayload>[1])
   } catch (error: unknown) {
     clearAuthTokenCookie(event)
     console.error('[auth] Falha ao validar sessão recém-criada', { status: fetchStatus(error) })

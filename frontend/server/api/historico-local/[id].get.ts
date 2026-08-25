@@ -1,4 +1,16 @@
 // Proxy para o endpoint do backend que retorna histórico do banco local
+type FetchLikeError = {
+  status?: number
+  statusCode?: number
+  response?: { status?: number }
+}
+
+function statusFetch(error: unknown): number | undefined {
+  if (!error || typeof error !== 'object') return undefined
+  const fetchError = error as FetchLikeError
+  return fetchError.statusCode ?? fetchError.status ?? fetchError.response?.status
+}
+
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
   const query = getQuery(event)
@@ -10,5 +22,10 @@ export default defineEventHandler(async (event) => {
   if (query.data) params.set('data', String(query.data))
 
   const qs = params.toString()
-  return await flaskFetch(event, `/prontuario/historico-local/${id}${qs ? `?${qs}` : ''}`)
+  try {
+    return await flaskFetch(event, `/prontuario/historico-local/${id}${qs ? `?${qs}` : ''}`)
+  } catch (error) {
+    if (statusFetch(error) === 404) return []
+    throw error
+  }
 })

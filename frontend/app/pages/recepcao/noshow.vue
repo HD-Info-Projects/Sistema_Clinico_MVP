@@ -147,15 +147,41 @@ function dataFimFiltro() {
   return `${filtroAno.value}-${mes}-${String(ultimoDiaMes(filtroAno.value, filtroMesFim.value)).padStart(2, '0')}`
 }
 
+function limparDadosNoShow() {
+  pacientesNoShow.value = []
+  totalNoShow.value = 0
+  resumoNoShow.value = {
+    totalResgate: 0,
+    faltou: 0,
+    naoConfirmado: 0,
+    recuperados: 0,
+    semContato: 0
+  }
+  graficosNoShow.value = {
+    porMes: [],
+    porEspecialidade: [],
+    porDiaSemana: []
+  }
+}
+
 async function carregarNoShow() {
+  const unidadeId = auth.activeClinicaId
   loading.value = true
   errorMsg.value = ''
+
+  if (!unidadeId) {
+    limparDadosNoShow()
+    errorMsg.value = 'Selecione uma unidade para carregar no-show'
+    loading.value = false
+    return
+  }
 
   const params = new URLSearchParams()
   params.set('dataIni', dataInicioFiltro())
   params.set('dataFim', dataFimFiltro())
   params.set('page', '1')
   params.set('pageSize', '500')
+  params.set('unidadeId', String(unidadeId))
 
   if (filtroMedico.value !== 'Todos') params.set('medico', filtroMedico.value)
   if (filtroEspecialidade.value !== 'Todos') params.set('especialidade', filtroEspecialidade.value)
@@ -169,20 +195,7 @@ async function carregarNoShow() {
     graficosNoShow.value = response.graficos
     filtrosDisponiveis.value = response.filtros
   } catch {
-    pacientesNoShow.value = []
-    totalNoShow.value = 0
-    resumoNoShow.value = {
-      totalResgate: 0,
-      faltou: 0,
-      naoConfirmado: 0,
-      recuperados: 0,
-      semContato: 0
-    }
-    graficosNoShow.value = {
-      porMes: [],
-      porEspecialidade: [],
-      porDiaSemana: []
-    }
+    limparDadosNoShow()
     errorMsg.value = 'Erro ao carregar lista de resgate'
   } finally {
     loading.value = false
@@ -388,11 +401,20 @@ function itensMais(paciente: PacienteNoShow): DropdownMenuItem[][] {
 async function salvarMotivoFalta() {
   if (!pacienteMotivo.value || !motivoSelecionado.value) return
 
+  const unidadeId = auth.activeClinicaId
+  if (!unidadeId) {
+    motivoErrorMsg.value = 'Selecione uma unidade para registrar o motivo da falta'
+    return
+  }
+
   salvandoMotivo.value = true
   motivoErrorMsg.value = ''
 
+  const params = new URLSearchParams()
+  params.set('unidadeId', String(unidadeId))
+
   try {
-    const response = await $fetch<{ id: number, motivo: MotivoNoShow }>(`/api/no-show/${pacienteMotivo.value.id}/motivo`, {
+    const response = await $fetch<{ id: number, motivo: MotivoNoShow }>(`/api/no-show/${pacienteMotivo.value.id}/motivo?${params.toString()}`, {
       method: 'PATCH',
       body: { motivo: motivoSelecionado.value }
     })
@@ -412,6 +434,10 @@ async function salvarMotivoFalta() {
 }
 
 onMounted(() => {
+  carregarNoShow()
+})
+
+watch(() => auth.activeClinicaId, () => {
   carregarNoShow()
 })
 </script>

@@ -2,6 +2,8 @@
 import type { DropdownMenuItem } from '@nuxt/ui/'
 
 const openNav = inject<() => void>('openNav', () => {})
+const auth = useAuthStore()
+
 interface ExameRetencao {
   id: number
   spdataExameId?: number
@@ -96,12 +98,21 @@ function dataFimFiltro() {
 }
 
 async function carregarRetencao() {
+  const unidadeId = auth.activeClinicaId
   loading.value = true
   errorMsg.value = ''
+
+  if (!unidadeId) {
+    examesRetencao.value = []
+    errorMsg.value = 'Selecione uma unidade para carregar conversão de exames'
+    loading.value = false
+    return
+  }
 
   const params = new URLSearchParams()
   params.set('dataIni', dataInicioFiltro())
   params.set('dataFim', dataFimFiltro())
+  params.set('unidadeId', String(unidadeId))
 
   try {
     const response = await $fetch<RetencaoExamesResponse>(`/api/retencao-exames?${params.toString()}`)
@@ -416,6 +427,10 @@ const chartEspecialidadeLabels = computed(() => rankingEspecialidade.value.map(e
 const chartEspecialidadeDados = computed(() => rankingEspecialidade.value.map(e => e.total))
 
 onMounted(() => {
+  carregarRetencao()
+})
+
+watch(() => auth.activeClinicaId, () => {
   carregarRetencao()
 })
 </script>

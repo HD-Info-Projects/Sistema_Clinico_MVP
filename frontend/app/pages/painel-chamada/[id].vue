@@ -21,8 +21,13 @@ const audioBloqueado = ref(false)
 const audioAtivando = ref(false)
 const ttsLoading = ref(false)
 const ttsError = ref(false)
+const ttsErrorMensagem = ref('')
 const ttsRequestId = ref(0)
 const ttsAbortController = ref<AbortController | null>(null)
+
+function revogarObjectUrl(url: string) {
+  window.setTimeout(() => URL.revokeObjectURL(url), 0)
+}
 
 function criarAudioSilenciosoUrl() {
   const sampleRate = 8000
@@ -65,16 +70,22 @@ async function testarAudioPermitido() {
     return false
   } finally {
     audio.pause()
-    URL.revokeObjectURL(url)
+    audio.removeAttribute('src')
+    audio.load()
+    revogarObjectUrl(url)
   }
 }
 
 function limparAudioAtual() {
-  audioRef.value?.pause()
+  if (audioRef.value) {
+    audioRef.value.pause()
+    audioRef.value.removeAttribute('src')
+    audioRef.value.load()
+  }
   audioRef.value = null
 
   if (audioUrl.value) {
-    URL.revokeObjectURL(audioUrl.value)
+    revogarObjectUrl(audioUrl.value)
     audioUrl.value = null
   }
 }
@@ -84,6 +95,7 @@ async function ativarAudio() {
 
   audioAtivando.value = true
   ttsError.value = false
+  ttsErrorMensagem.value = ''
   audioBloqueado.value = false
 
   const permitido = await testarAudioPermitido()
@@ -110,6 +122,7 @@ async function falarChamado(chamadoId: number) {
   limparAudioAtual()
   ttsLoading.value = true
   ttsError.value = false
+  ttsErrorMensagem.value = ''
 
   try {
     const res = await fetch('/api/tts/speak', {
@@ -119,7 +132,18 @@ async function falarChamado(chamadoId: number) {
       signal: abortController.signal
     })
 
-    if (!res.ok) throw new Error('Erro ao gerar áudio')
+    if (!res.ok) {
+      let message = 'Erro ao gerar áudio'
+
+      try {
+        const body = await res.json() as { statusMessage?: string, message?: string }
+        message = body.statusMessage || body.message || message
+      } catch {
+        // Mantém a mensagem padrão quando a resposta não é JSON.
+      }
+
+      throw new Error(message)
+    }
     if (requestId !== ttsRequestId.value) return
 
     const blob = await res.blob()
@@ -153,12 +177,14 @@ async function falarChamado(chamadoId: number) {
       audioBloqueado.value = true
       ttsLoading.value = false
       ttsError.value = false
+      ttsErrorMensagem.value = ''
       limparAudioAtual()
       return
     }
 
     ttsLoading.value = false
     ttsError.value = true
+    ttsErrorMensagem.value = error instanceof Error ? error.message : 'Erro ao gerar áudio'
     limparAudioAtual()
   }
 }
@@ -231,6 +257,12 @@ const mensagemAudio = computed(() => audioBloqueado.value
       <header class="flex shrink-0 items-center justify-between">
         <div class="flex items-center gap-3">
           <LogoMed :isrecepcao="false" />
+          <UBadge
+            :label="unidadeLabel"
+            color="primary"
+            variant="soft"
+            size="lg"
+          />
           <UButton
             v-if="!audioAtivo"
             icon="i-lucide-volume-2"
@@ -255,7 +287,7 @@ const mensagemAudio = computed(() => audioBloqueado.value
             class="flex items-center gap-1 text-sm text-error"
           >
             <UIcon name="i-lucide-volume-x" />
-            Erro no áudio
+            {{ ttsErrorMensagem || 'Erro no áudio' }}
           </div>
           <UBadge
             v-else
