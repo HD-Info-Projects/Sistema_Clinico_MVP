@@ -459,34 +459,5 @@ function activeTabEmpty(): boolean {
         </div>
       </UCard>
     </div>
-
-    <PadraoReceitaModal
-      v-model:open="showReceitaModal"
-      :padrao="editingReceita"
-    />
-
-    <PadraoExameModal
-      v-model:open="showExameModal"
-      :padrao="editingExame"
-    />
-
-    <PadraoAnamneseModal
-      v-model:open="showAnamneseModal"
-      :padrao="editingAnamnese"
-    />
-
-    <PadraoOrientacaoModal
-      v-model:open="showOrientacaoModal"
-      :padrao="editingOrientacao"
-    />
-
-    <ModalConfirmacao
-      :abrir="confirmDeleteId !== null"
-      titulo="Deletar Padrão?"
-      descricao="Tem certeza que deseja deletar este padrão?"
-      texto-confirma="Deletar"
-      @fechar="confirmDeleteId = null"
-      @confirmar="executarDeletar"
-    />
   </div>
 </template>

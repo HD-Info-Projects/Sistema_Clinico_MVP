@@ -46,6 +46,28 @@ export interface Clinica {
 
 export type AgendamentoStatus = 'agendado' | 'em-espera' | 'em-atendimento' | 'atendido' | 'faltou' | 'cancelado'
 
+export type TipoProcedimentoTuss
+  = 'consulta'
+    | 'procedimento-ambulatorial'
+    | 'cirurgia'
+    | 'metodos-eletrofisiologicos'
+    | 'endoscopia'
+    | 'medicina-laboratorial'
+    | 'medicina-transfusional'
+    | 'genetica'
+    | 'anatomia-patologica-citopatologia'
+    | 'medicina-nuclear'
+    | 'radiologia-rx'
+    | 'ultrassonografia-us'
+    | 'tomografia-computadorizada'
+    | 'ressonancia-magnetica'
+    | 'radioterapia'
+    | 'exames-procedimentos-especificos'
+    | 'testes-diagnostico'
+    | 'outros-diagnosticos-terapeuticos'
+    | 'outros'
+    | 'nao-informado'
+
 export interface Agendamento {
   id: number
   spdataAtendimentoId?: number | null
@@ -62,6 +84,10 @@ export interface Agendamento {
   descricao: string
   criadoEm: string
   duracao?: number
+  codigoProcedimentoSpdata?: string | null
+  procedimentoSpdata?: string | null
+  tipoProcedimento?: TipoProcedimentoTuss
+  tipoProcedimentoLabel?: string
 }
 
 export interface AgendamentoComPaciente extends Agendamento {
@@ -306,3 +332,83 @@ export interface PadraoOrientacaoExame {
 }
 
 export type Padrao = PadraoReceita | PadraoExame
+
+export interface Usuario {
+  id: number
+  nome_completo: string
+  cnpj_cpf: string
+  email: string
+  role: 'medico' | 'recepcao' | 'admin'
+  ativo?: boolean
+  created_at: string
+  updated_at: string
+  medico?: Medico
+  unidades?: Clinica[]
+  unidade_ids?: number[]
+}
+
+export interface Medico {
+  id: number
+  usuario_id: number
+  spdata_id?: number | null
+  crm?: string | null
+  crm_atendimento_spdata?: string | null
+  crm_uf?: string | null
+  rqe?: string | null
+  especialidade?: string | null
+  ativo: boolean
+}
+
+export interface UsuarioForm {
+  nome_completo: string
+  cnpj_cpf: string
+  email: string
+  senha?: string
+  role: 'medico' | 'recepcao' | 'admin'
+  ativo?: boolean
+  unidade_ids?: number[]
+  medico?: {
+    spdata_id?: number | null
+    crm?: string
+    crm_uf?: string
+    crm_atendimento_spdata?: string
+    rqe?: string
+    especialidade?: string
+    ativo?: boolean
+  }
+}
+
+export type RoleUsuario = 'medico' | 'recepcao' | 'admin'
+
+export interface MedicoSpdata {
+  spdata_id: number
+  nome: string
+  documento: string
+  email?: string | null
+  crm?: string | null
+  crm_uf?: string | null
+  crm_atendimento_spdata?: string | null
+  especialidade?: string | null
+}
+
+export interface Unidade {
+  id: number
+  nome: string
+  slug: string
+  codigo_spdata_centro_custo: string
+  codigo_spdata_agenda: string
+  endereco: string
+  telefone: string
+  ativa: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface UnidadeForm {
+  nome: string
+  codigo_spdata_centro_custo: string
+  codigo_spdata_agenda: string
+  endereco: string
+  telefone: string
+  ativa: boolean
+}

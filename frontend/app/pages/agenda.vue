@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { AgendamentoComPaciente } from '~/types'
 import { CalendarDate } from '@internationalized/date'
+import { corTipoProcedimento, rotuloTipoProcedimento } from '~/utils/tuss'
 
 const openNav = inject<() => void>('openNav', () => {})
 const agendamentosStore = useAgendamentosStore()
@@ -60,16 +61,18 @@ onMounted(() => {
   loadAgendamentos()
 })
 
+const atendimentosFiltrados = computed(() => agendamentosStore.agendamentos)
+
 const atendimentosOrdenados = computed(() => {
-  return [...agendamentosStore.agendamentos].sort((a, b) => a.horario.localeCompare(b.horario))
+  return [...atendimentosFiltrados.value].sort((a, b) => a.horario.localeCompare(b.horario))
 })
 
 const resumo = computed(() => ({
-  agendados: agendamentosStore.agendamentos.filter(a => a.status === 'agendado').length,
-  emEspera: agendamentosStore.agendamentos.filter(a => a.status === 'em-espera').length,
-  emAtendimento: agendamentosStore.agendamentos.filter(a => a.status === 'em-atendimento').length,
-  atendidos: agendamentosStore.agendamentos.filter(a => a.status === 'atendido').length,
-  faltas: agendamentosStore.agendamentos.filter(a => a.status === 'faltou').length
+  agendados: atendimentosFiltrados.value.filter(a => a.status === 'agendado').length,
+  emEspera: atendimentosFiltrados.value.filter(a => a.status === 'em-espera').length,
+  emAtendimento: atendimentosFiltrados.value.filter(a => a.status === 'em-atendimento').length,
+  atendidos: atendimentosFiltrados.value.filter(a => a.status === 'atendido').length,
+  faltas: atendimentosFiltrados.value.filter(a => a.status === 'faltou').length
 }))
 
 function idadePaciente(dataNascimento: string | null | undefined) {
@@ -122,6 +125,23 @@ function rotuloStatus(s: string) {
     default: return 'Desconhecido'
   }
 }
+
+function corTipo(tipo: string | null | undefined) {
+  return corTipoProcedimento(tipo)
+}
+
+function rotuloTipo(item: AgendamentoComPaciente) {
+  return rotuloTipoProcedimento(item.tipoProcedimento, item.tipoProcedimentoLabel)
+}
+
+const colunas = [
+  { accessorKey: 'horario', header: 'Horário' },
+  { accessorKey: 'paciente', header: 'Paciente' },
+  { accessorKey: 'contato', header: 'Contato' },
+  { accessorKey: 'tipoProcedimento', header: 'Tipo' },
+  { accessorKey: 'status', header: 'Status' }
+]
+
 
 const statuses: { id: string, name: string, color: string }[] = [
   { id: 'agendado', name: 'Agendado', color: 'secondary' },
@@ -240,7 +260,7 @@ const statuses: { id: string, name: string, color: string }[] = [
               Pacientes do Dia
             </p>
             <p class="text-sm text-muted">
-              {{ agendamentosStore.agendamentos.length }} registro{{ agendamentosStore.agendamentos.length !== 1 ? 's' : '' }}
+              {{ atendimentosFiltrados.length }} registro{{ atendimentosFiltrados.length !== 1 ? 's' : '' }}
             </p>
           </div>
         </template>
@@ -252,7 +272,7 @@ const statuses: { id: string, name: string, color: string }[] = [
           <div
             v-for="linha in 5"
             :key="linha"
-            class="grid grid-cols-1 gap-3 rounded-lg border border-muted p-3 md:grid-cols-5"
+            class="grid grid-cols-1 gap-3 rounded-lg border border-muted p-3 md:grid-cols-[80px_1.5fr_1fr_150px_120px]"
           >
             <USkeleton class="h-5 w-16" />
             <div class="col-span-2 space-y-2">
@@ -260,12 +280,13 @@ const statuses: { id: string, name: string, color: string }[] = [
               <USkeleton class="h-4 w-32 max-w-full" />
             </div>
             <USkeleton class="h-5 w-36 max-w-full" />
+            <USkeleton class="h-6 w-32 rounded-full" />
             <USkeleton class="h-6 w-24 rounded-full" />
           </div>
         </div>
 
         <p
-          v-else-if="!agendamentosStore.agendamentos.length"
+          v-else-if="!atendimentosFiltrados.length"
           class="text-sm text-muted py-4"
         >
           Nenhum paciente agendado para esta data.
@@ -280,7 +301,7 @@ const statuses: { id: string, name: string, color: string }[] = [
             :key="item.id"
             :ui="{ container: 'p-1 sm:p-1' }"
           >
-            <div class="grid grid-cols-2 md:grid-cols-5 gap-x-4 gap-y-3 items-start md:items-center">
+            <div class="grid grid-cols-2 md:grid-cols-6 gap-x-4 gap-y-3 items-start md:items-center">
               <div class="col-span-2">
                 <p class="text-sm text-muted font-bold text-center sm:text-left">
                   Paciente
@@ -322,6 +343,17 @@ const statuses: { id: string, name: string, color: string }[] = [
                     {{ textoNaoInformado(item.paciente.email, '') || '' }}
                   </p>
                 </div>
+              </div>
+
+              <div class="col-span-2 md:col-span-1 text-center">
+                <p class="text-sm text-muted font-bold">
+                  Tipo
+                </p>
+                <UBadge
+                  :label="rotuloTipo(item)"
+                  :color="corTipo(item.tipoProcedimento)"
+                  variant="subtle"
+                />
               </div>
 
               <div class="col-span-2 md:col-span-1 text-center">

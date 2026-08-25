@@ -451,7 +451,7 @@ const tempoMedioEspera = computed(() => {
           <div class="flex flex-col gap-2 items-center">
             <div class="flex items-center gap-2 text-muted ">
               <p class="text-xl font-medium">
-                Nenhum Paciente na fila de espera nesse momento.
+                Nenhum paciente na fila de espera nesse momento.
               </p>
             </div>
             <UIcon

@@ -11,10 +11,11 @@ onMounted(() => {
 
 const layoutName = computed(() => {
   const path = route.path
-  if (path === '/login' || path === '/selecionar-clinica') return 'auth'
+  if (path === '/login' || path === '/selecionar-clinica' || path === '/selecionar-acesso') return 'auth'
   if (path.startsWith('/painel-chamada')) return 'tv'
   if (path === '/atendimento-medico') return 'atendimento'
   if (path.startsWith('/recepcao')) return 'recepcao'
+  if (path.startsWith('/admin')) return 'admin'
   return 'default'
 })
 

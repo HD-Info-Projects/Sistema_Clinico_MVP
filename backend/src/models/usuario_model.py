@@ -24,7 +24,7 @@ class Usuario(db.Model):
     forcar_troca_senha = Column(Boolean, nullable=False, default=False)
     
     created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relações
     evolucoes_medicas = db.relationship(
@@ -124,6 +124,9 @@ class Usuario(db.Model):
             "role": self.role,
             "ativo": self.ativo,
             "bloqueado": self.bloqueado_em is not None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "medico": self.medico._to_dict() if self.medico else None,
         }
 
     def _to_dict_(self):

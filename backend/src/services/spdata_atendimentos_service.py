@@ -1,7 +1,7 @@
 from datetime import date, datetime, time
 from decimal import Decimal
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.exc import IntegrityError
 
 from src.models.anamnese_model import Anamnese
@@ -26,16 +26,21 @@ from src.services.spdata_agenda_service import sincronizar_agenda_spdata
 from src.services.unidades_service import resolver_unidade_usuario
 from src.settings.extensions import db
 from src.utils.normalizar import normalizar_cpf
+from src.utils.tuss import (
+    CODIGOS_TUSS_CONSULTA_EXATOS,
+    FAIXAS_TUSS_CONSULTA,
+    TIPO_PROCEDIMENTO_CONSULTA,
+    TIPOS_PROCEDIMENTO_VALIDOS,
+    label_tipo_procedimento,
+    normalizar_codigo_tuss,
+    tipo_procedimento_codigo,
+)
 
 
 # Códigos conhecidos no SPDATA. A seleção real vem da tabela local `unidades`.
 # 340 - Natus
 # 350 - Centro AMI
 UNIDADE_PADRAO_SPDATA = 340
-
-# Procedimento TUSS de consulta em consultório (TBPROCTO.COD_PROCEDIMENTO).
-# Atendimentos com outro procedimento (ou sem procedimento) são exames.
-COD_PROCEDIMENTO_CONSULTA = "10101012"
 
 STATUS_VALIDOS = {
     "em-espera",
@@ -177,10 +182,14 @@ def valores_status_medsystem(status):
     return list(STATUS_MEDSYSTEM_VALUES.get(status, []))
 
 
-def filtrar_agenda_frontend(items, status=None, search=None):
+def filtrar_agenda_frontend(items, status=None, search=None, tipo=None):
     status = normalizar_status(status)
     if status and status not in STATUS_VALIDOS:
         raise ValueError("Status inválido")
+
+    tipo = normalizar_texto(tipo, 80)
+    if tipo and tipo not in TIPOS_PROCEDIMENTO_VALIDOS:
+        raise ValueError("Tipo inválido")
 
     termo = normalizar_texto(search, 255)
     termo_casefold = termo.casefold() if termo else None
@@ -188,6 +197,8 @@ def filtrar_agenda_frontend(items, status=None, search=None):
     filtrados = items
     if status:
         filtrados = [item for item in filtrados if item.get("status") == status]
+    if tipo:
+        filtrados = [item for item in filtrados if item.get("tipoProcedimento") == tipo]
     if termo_casefold:
         filtrados = [
             item for item in filtrados
@@ -230,10 +241,8 @@ def codigo_centro_custo_unidade(unidade):
 
 
 def normalizar_codigo_procedimento(valor):
-    codigo = normalizar_int(valor)
-    if codigo is None:
-        return None
-    return str(codigo)
+    codigo = normalizar_codigo_tuss(valor)
+    return codigo or None
 
 
 def filtro_spdata_unidade(model, unidade):
@@ -253,10 +262,22 @@ def filtro_agenda_unidade(unidade):
 
 
 def filtro_consulta_agenda():
-    return or_(
-        MedSpdataAgenda.cod_procedimento_spdata.is_(None),
-        MedSpdataAgenda.cod_procedimento_spdata.in_(["0", COD_PROCEDIMENTO_CONSULTA]),
-    )
+    return filtro_consulta_spdata(MedSpdataAgenda)
+
+
+def filtro_consulta_spdata(model):
+    campo = model.cod_procedimento_spdata
+    filtros = [campo.in_(CODIGOS_TUSS_CONSULTA_EXATOS)]
+
+    for inicio, fim in FAIXAS_TUSS_CONSULTA:
+        inicio_texto = str(inicio)
+        filtros.append(and_(
+            func.length(campo) == len(inicio_texto),
+            campo >= inicio_texto,
+            campo <= str(fim),
+        ))
+
+    return or_(*filtros)
 
 
 def buscar_atendimentos_spdata(data_ini, data_fim, crm_medico, unidade):
@@ -604,6 +625,8 @@ def buscar_spdata_atendimento_para_agenda(agenda, atendimento=None, unidade=None
     spdata.unidade_id = agenda.unidade_id or getattr(unidade, "id", None)
     spdata.id_centro_custo_spdata = codigo_centro_custo_unidade(unidade) if unidade else UNIDADE_PADRAO_SPDATA
     spdata.obs_atendimento = agenda.obs
+    spdata.cod_procedimento_spdata = normalizar_codigo_procedimento(agenda.cod_procedimento_spdata)
+    spdata.procedimento_spdata = normalizar_texto(agenda.procedimento_spdata, 255)
     spdata.paciente = agenda.paciente
     spdata.paciente_nome_social = agenda.paciente_nome_social
     spdata.cpf = agenda.cpf
@@ -717,6 +740,11 @@ def spdata_agenda_id_do_atendimento(spdata):
     )
 
 
+def tipo_procedimento_frontend(codigo):
+    tipo = tipo_procedimento_codigo(codigo)
+    return tipo, label_tipo_procedimento(tipo)
+
+
 def agenda_para_frontend(spdata, atendimento=None, convenios_por_codigo=None):
     status = normalizar_status(atendimento.status) if atendimento else "em-espera"
     data_atendimento = data_iso(spdata.data_atendimento)
@@ -724,6 +752,8 @@ def agenda_para_frontend(spdata, atendimento=None, convenios_por_codigo=None):
     paciente_id = spdata.id_paciente_spdata or spdata.id
     id_convenio_spdata = normalizar_int(spdata.id_convenio_spdata)
     unidade_id = getattr(spdata, "unidade_id", None)
+    codigo_procedimento = normalizar_codigo_procedimento(getattr(spdata, "cod_procedimento_spdata", None))
+    tipo_procedimento, tipo_procedimento_label = tipo_procedimento_frontend(codigo_procedimento)
 
     return {
         "id": spdata.id,
@@ -739,6 +769,10 @@ def agenda_para_frontend(spdata, atendimento=None, convenios_por_codigo=None):
         "status": status,
         "descricao": spdata.obs_atendimento or "",
         "criadoEm": spdata.data_hora_entrada.isoformat() if spdata.data_hora_entrada else None,
+        "codigoProcedimentoSpdata": codigo_procedimento,
+        "procedimentoSpdata": getattr(spdata, "procedimento_spdata", None),
+        "tipoProcedimento": tipo_procedimento,
+        "tipoProcedimentoLabel": tipo_procedimento_label,
         "paciente": {
             "id": paciente_id,
             "nome": spdata.paciente,
@@ -766,6 +800,15 @@ def agenda_spdata_para_frontend(agenda, spdata_ref, atendimento=None, convenios_
     paciente_id = agenda.id_paciente_spdata or agenda.id
     telefone = agenda.celular or agenda.telefone or ""
     unidade_id = getattr(agenda, "unidade_id", None) or getattr(spdata_ref, "unidade_id", None)
+    codigo_procedimento = normalizar_codigo_procedimento(
+        getattr(agenda, "cod_procedimento_spdata", None)
+        or getattr(spdata_ref, "cod_procedimento_spdata", None)
+    )
+    procedimento_spdata = (
+        getattr(agenda, "procedimento_spdata", None)
+        or getattr(spdata_ref, "procedimento_spdata", None)
+    )
+    tipo_procedimento, tipo_procedimento_label = tipo_procedimento_frontend(codigo_procedimento)
 
     if id_convenio_spdata is not None and convenios_por_codigo:
         convenio = convenios_por_codigo.get(id_convenio_spdata) or agenda.convenio or ""
@@ -788,6 +831,10 @@ def agenda_spdata_para_frontend(agenda, spdata_ref, atendimento=None, convenios_
         "status": status,
         "descricao": agenda.obs or "",
         "criadoEm": data_hora_agenda(agenda).isoformat(),
+        "codigoProcedimentoSpdata": codigo_procedimento,
+        "procedimentoSpdata": procedimento_spdata,
+        "tipoProcedimento": tipo_procedimento,
+        "tipoProcedimentoLabel": tipo_procedimento_label,
         "paciente": {
             "id": paciente_id,
             "nome": agenda.paciente,
@@ -816,6 +863,7 @@ def listar_atendimentos_medsystem_para_frontend(
     data_fim=None,
     status=None,
     search=None,
+    tipo=None,
     somente_consultas=False,
 ):
     filtros = [
@@ -824,7 +872,7 @@ def listar_atendimentos_medsystem_para_frontend(
     ]
 
     if somente_consultas:
-        filtros.append(MedSpdataAtendimento.cod_procedimento_spdata == COD_PROCEDIMENTO_CONSULTA)
+        filtros.append(filtro_consulta_spdata(MedSpdataAtendimento))
 
     if data_ini:
         filtros.append(MedAtendimentos.data_agenda >= data_ini)
@@ -856,10 +904,13 @@ def listar_atendimentos_medsystem_para_frontend(
         spdata.id_convenio_spdata for spdata, _ in registros
     )
 
-    return [
+    items = [
         agenda_para_frontend(spdata, atendimento, convenios_por_codigo)
         for spdata, atendimento in registros
     ]
+
+    tipo_filtro = TIPO_PROCEDIMENTO_CONSULTA if somente_consultas else tipo
+    return filtrar_agenda_frontend(items, tipo=tipo_filtro)
 
 
 def listar_agenda_medica(
@@ -868,6 +919,7 @@ def listar_agenda_medica(
     data_fim,
     status=None,
     search=None,
+    tipo=None,
     unidade_id=None,
     somente_consultas=False,
 ):
@@ -877,6 +929,10 @@ def listar_agenda_medica(
     if status and status not in STATUS_VALIDOS:
         raise ValueError("Status inválido")
 
+    tipo = TIPO_PROCEDIMENTO_CONSULTA if somente_consultas else normalizar_texto(tipo, 80)
+    if tipo and tipo not in TIPOS_PROCEDIMENTO_VALIDOS:
+        raise ValueError("Tipo inválido")
+
     search = normalizar_texto(search, 255)
 
     if data_ini is None and data_fim is None:
@@ -885,6 +941,7 @@ def listar_agenda_medica(
             unidade,
             status=status,
             search=search,
+            tipo=tipo,
             somente_consultas=somente_consultas,
         )
 
@@ -946,9 +1003,7 @@ def listar_agenda_medica(
             MedSpdataAtendimento.data_atendimento <= data_fim,
             MedSpdataAtendimento.crm_medico == crm_medico,
             filtro_spdata_unidade(MedSpdataAtendimento, unidade),
-            MedSpdataAtendimento.cod_procedimento_spdata == COD_PROCEDIMENTO_CONSULTA
-            if somente_consultas
-            else True,
+            filtro_consulta_spdata(MedSpdataAtendimento) if somente_consultas else True,
         )
         .order_by(MedSpdataAtendimento.data_hora_entrada, MedSpdataAtendimento.paciente)
         .all()
@@ -977,7 +1032,7 @@ def listar_agenda_medica(
 
     db.session.commit()
 
-    items = filtrar_agenda_frontend(items, status=status, search=search)
+    items = filtrar_agenda_frontend(items, status=status, search=search, tipo=tipo)
 
     return sorted(items, key=lambda item: (item.get("data") or "", item.get("horario") or "", item["paciente"]["nome"] or ""))
 

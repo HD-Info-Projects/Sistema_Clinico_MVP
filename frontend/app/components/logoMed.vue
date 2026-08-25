@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const props = defineProps<{
-  isrecepcao: boolean
+  tipo: number
 }>()
 </script>
 
@@ -17,7 +17,8 @@ const props = defineProps<{
         MedSystem
       </p>
       <p class="text-sm font-light text-muted">
-        {{ props.isrecepcao? 'Gestão clínica' : 'Gestão médica' }}
+        {{ props.tipo === 0 ? 'Gestão clínica'
+          :props.tipo === 1 ? 'Gestão médica' : 'ADMINISTRAÇÃO' }}
       </p>
     </div>
   </div>

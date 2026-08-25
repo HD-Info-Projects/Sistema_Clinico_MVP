@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import type { TipoProcedimentoTuss } from '~/types'
 import { CalendarDate } from '@internationalized/date'
+import { TUSS_PROCEDIMENTO_FILTROS, corTipoProcedimento, rotuloTipoProcedimento } from '~/utils/tuss'
 
 const openNav = inject<() => void>('openNav', () => {})
-type TipoProcedimento = 'consulta' | 'exame' | 'nao-informado'
+
 interface ItemRecepcao {
   id: number | string
   horario: string
@@ -17,7 +19,7 @@ interface ItemRecepcao {
   crmAtendimento: string
   especialidade: string
   codigoProcedimentoSpdata: string | null
-  tipoProcedimento: TipoProcedimento
+  tipoProcedimento: TipoProcedimentoTuss
   tipoProcedimentoLabel: string
   status: string
 }
@@ -36,7 +38,7 @@ const errorMsg = ref('')
 const selectedMedico = ref('Todos')
 const selectedEspecialidade = ref('Todos')
 const selectedStatus = ref('')
-const selectedTipo = ref<TipoProcedimento | ''>('')
+const selectedTipo = ref<TipoProcedimentoTuss | ''>('')
 let requestId = 0
 
 const formattedDate = computed(() => {
@@ -147,12 +149,7 @@ const filtrosStatus = [
   { label: 'Faltosos', value: 'faltou' }
 ]
 
-const filtrosTipo: { label: string, value: TipoProcedimento | '' }[] = [
-  { label: 'Todos os tipos', value: '' },
-  { label: 'Consultas', value: 'consulta' },
-  { label: 'Exames', value: 'exame' },
-  { label: 'Não informado', value: 'nao-informado' }
-]
+const filtrosTipo = TUSS_PROCEDIMENTO_FILTROS
 
 const atendimentosFiltrados = computed(() => {
   return agendamentos.value.filter((a) => {
@@ -234,19 +231,15 @@ function rotuloStatus(s: string) {
 }
 
 function corTipo(tipo: string) {
-  switch (tipo) {
-    case 'consulta': return 'primary'
-    case 'exame': return 'warning'
-    default: return 'neutral'
-  }
+  return corTipoProcedimento(tipo)
 }
 
 function rotuloTipo(item: ItemRecepcao) {
-  return item.tipoProcedimentoLabel || 'Não informado'
+  return rotuloTipoProcedimento(item.tipoProcedimento, item.tipoProcedimentoLabel)
 }
 
-function selecionarTipo(tipo: TipoProcedimento | '') {
-  selectedTipo.value = tipo
+function selecionarTipo(tipo: TipoProcedimentoTuss | '' | null | undefined) {
+  selectedTipo.value = tipo ?? ''
   loadAgendamentos()
 }
 
@@ -315,17 +308,17 @@ const statuses: { id: string, name: string, color: string }[] = [
             @click="void (selectedStatus = status.value)"
           />
         </div>
-        <div class="flex flex-wrap gap-2">
-          <UButton
-            v-for="tipo in filtrosTipo"
-            :key="tipo.value || 'todos-tipos'"
-            :label="tipo.label"
-            :color="tipo.value ? corTipo(tipo.value) : 'neutral'"
-            :variant="selectedTipo === tipo.value ? 'solid' : 'soft'"
-            size="sm"
-            @click="selecionarTipo(tipo.value)"
-          />
-        </div>
+        <USelectMenu
+          :model-value="selectedTipo || undefined"
+          :items="filtrosTipo"
+          value-key="value"
+          label-key="label"
+          placeholder="Filtrar por tipo"
+          clearable
+          size="sm"
+          class="w-full sm:w-56"
+          @update:model-value="selecionarTipo"
+        />
       </div>
 
       <div class="flex items-center justify-between">
@@ -521,6 +514,12 @@ const statuses: { id: string, name: string, color: string }[] = [
                   :color="corTipo(item.tipoProcedimento)"
                   variant="subtle"
                 />
+                <p
+                  v-if="item.codigoProcedimentoSpdata"
+                  class="mt-1 text-xs text-muted"
+                >
+                  TUSS {{ item.codigoProcedimentoSpdata }}
+                </p>
               </div>
 
               <div class="md:col-span-1 text-center">

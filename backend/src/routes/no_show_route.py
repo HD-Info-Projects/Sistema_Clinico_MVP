@@ -31,7 +31,7 @@ def parse_int(nome, default, minimo=1, maximo=None):
 
 @no_show_bp.route("/", methods=["GET"])
 @jwt_required()
-@roles_required("recepcao")
+@roles_required("recepcao", "admin")
 def index():
     try:
         hoje = date.today()
@@ -73,7 +73,7 @@ def index():
 
 @no_show_bp.route("/<int:agenda_id>/motivo", methods=["PATCH"])
 @jwt_required()
-@roles_required("recepcao")
+@roles_required("recepcao", "admin")
 def atualizar_motivo(agenda_id):
     try:
         body = request.get_json() or {}

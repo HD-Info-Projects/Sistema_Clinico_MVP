@@ -33,6 +33,11 @@ const navItems = computed(() => [
     ? [{ label: 'Auditoria LGPD', icon: 'i-lucide-shield-check', to: '/lgpd/auditoria' }]
     : [])
 ])
+
+function trocarAcesso() {
+  auth.limparAccessMode()
+  navigateTo('/selecionar-acesso')
+}
 </script>
 
 <template>
@@ -49,7 +54,7 @@ const navItems = computed(() => [
     >
       <template #header>
         <NuxtLink to="/">
-          <logoMed :isrecepcao="false" />
+          <logoMed :tipo="0" />
         </NuxtLink>
       </template>
 
@@ -75,6 +80,15 @@ const navItems = computed(() => [
               variant="ghost"
               class="w-full justify-start"
               to="/selecionar-clinica"
+            />
+            <UButton
+              v-if="auth.isAdmin"
+              icon="i-lucide-repeat"
+              label="Trocar acesso"
+              color="neutral"
+              variant="ghost"
+              class="w-full justify-start"
+              @click="trocarAcesso()"
             />
           </div>
           <UButton

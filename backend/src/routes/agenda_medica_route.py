@@ -55,7 +55,7 @@ def listar_agenda():
             AcaoAuditoria.VISUALIZOU_AGENDA,
             entidade="agenda_medica",
             usuario_id=usuario_id,
-            descricao=f"Listagem de agenda médica. data_ini={data_ini} data_fim={data_fim} status={status or ''}",
+            descricao=f"Listagem de agenda médica. data_ini={data_ini} data_fim={data_fim} status={status or ''} somente_consultas=true",
         )
         return jsonify(resultado), 200
 

@@ -256,7 +256,7 @@ const mensagemAudio = computed(() => audioBloqueado.value
     <template v-else>
       <header class="flex shrink-0 items-center justify-between">
         <div class="flex items-center gap-3">
-          <LogoMed :isrecepcao="false" />
+          <LogoMed :tipo="0" />
           <UBadge
             :label="unidadeLabel"
             color="primary"

@@ -3,7 +3,7 @@ import type { PadraoOrientacaoExame } from '~/types'
 
 export default defineEventHandler(async (event): Promise<PadraoOrientacaoExame[]> => {
   try {
-    const raw = await flaskFetch<{ padroes_orientacoes_exames: any[] }>(event, '/padrao_medico_orientacao_exame/lista')
+    const raw = await flaskFetch<{ padroes_orientacoes_exames: any[] }>(event, '/padrao_medico_orientacao_exame/lista', { params: medicoAlvoParams(event) })
 
     return (raw.padroes_orientacoes_exames || []).map(p => ({
       id: String(p.id),

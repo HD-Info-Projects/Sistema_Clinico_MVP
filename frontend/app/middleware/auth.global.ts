@@ -1,4 +1,4 @@
-import { useAuthStore } from '~/stores/auth'
+import { useAuthStore, paginaInicialPorModo } from '~/stores/auth'
 
 export default defineNuxtRouteMiddleware(async (to) => {
   const auth = useAuthStore()
@@ -20,22 +20,50 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return navigateTo('/login')
   }
 
+  // Rota raiz - redirecionar baseado no role
+  if (to.path === '/') {
+    if (auth.isAdmin) return navigateTo(paginaInicialPorModo(auth.accessMode))
+    if (['dpo', 'ti'].includes(auth.user?.role || '')) return navigateTo('/lgpd/auditoria')
+    if (auth.isRecepcao) return navigateTo('/recepcao')
+    return navigateTo('/dashboard')
+  }
+
   if (to.path === '/acesso-negado') return
 
-  // Rota de seleção de clínica — permitir se não tiver clínica ativa
-  if (to.path === '/selecionar-clinica') {
-    if (auth.activeClinicaId && auth.clinicas.length <= 1) {
-      return navigateTo(auth.isRecepcao ? '/recepcao' : '/dashboard')
+  // Seleção de modo de acesso — exclusiva de admins
+  if (to.path === '/selecionar-acesso') {
+    if (!auth.isAdmin) {
+      if (['dpo', 'ti'].includes(auth.user?.role || '')) return navigateTo('/lgpd/auditoria')
+      if (auth.isRecepcao) return navigateTo('/recepcao')
+      return navigateTo('/dashboard')
     }
     return
   }
 
-  // Se tem múltiplas clínicas mas nenhuma selecionada, forçar seleção
-  if (auth.clinicas.length > 1 && !auth.activeClinicaId) {
-    return navigateTo('/selecionar-clinica')
+  // Seleção de unidade — admins podem acessar sempre; demais apenas sem clínica ativa
+  if (to.path === '/selecionar-clinica') {
+    if (!auth.isAdmin && auth.activeClinicaId) {
+      if (['dpo', 'ti'].includes(auth.user?.role || '')) return navigateTo('/lgpd/auditoria')
+      if (auth.isRecepcao) return navigateTo('/recepcao')
+      return navigateTo('/dashboard')
+    }
+    return
   }
 
-  // Role-based routing
+  // Admin sem modo definido deve escolher o acesso antes de navegar
+  if (auth.isAdmin && !auth.accessMode) {
+    return navigateTo('/selecionar-acesso')
+  }
+
+  // Se tem múltiplas clínicas mas nenhuma selecionada, forçar seleção
+  if (auth.clinicas.length > 1 && !auth.activeClinicaId) {
+    if (!auth.isAdmin || auth.accessMode === 'recepcionista') {
+      return navigateTo('/selecionar-clinica')
+    }
+  }
+
+  // Role-based routing - proteger rotas por role
+  const isAdminRoute = to.path.startsWith('/admin')
   const isLgpdRoute = to.path.startsWith('/lgpd')
   const canAccessLgpd = ['admin', 'dpo', 'ti'].includes(auth.user?.role || '')
   if (isLgpdRoute && !canAccessLgpd) {
@@ -43,13 +71,46 @@ export default defineNuxtRouteMiddleware(async (to) => {
   }
 
   const isRecepcaoRoute = to.path.startsWith('/recepcao')
-  const isMedicoRoute = !isRecepcaoRoute
+  const isDashboardRoute = to.path.startsWith('/dashboard')
+    || to.path.startsWith('/agenda')
+    || to.path.startsWith('/atendimento')
+    || to.path.startsWith('/pacientes')
+    || to.path.startsWith('/padroes')
 
-  if (auth.user?.role === 'recepcao' && isMedicoRoute) {
+  // Guardas por modo de acesso do admin
+  if (auth.isAdmin) {
+    if (auth.accessMode === 'recepcionista') {
+      if (!isRecepcaoRoute) return navigateTo('/recepcao')
+      if (!auth.activeClinicaId) return navigateTo('/selecionar-clinica')
+      return
+    }
+    if (auth.accessMode === 'logs') {
+      if (!isLgpdRoute) return navigateTo('/lgpd/auditoria')
+      return
+    }
+    // Modo administrador: painel admin + telas LGPD liberadas para admin.
+    if (!isAdminRoute && !isLgpdRoute) return navigateTo('/admin')
+    return
+  }
+
+  // Não-admin não pode acessar rotas /admin
+  if (isAdminRoute) {
+    if (auth.isRecepcao) return navigateTo('/recepcao')
+    if (canAccessLgpd) return navigateTo('/lgpd/auditoria')
+    return navigateTo('/dashboard')
+  }
+
+  if (['dpo', 'ti'].includes(auth.user?.role || '') && !isLgpdRoute) {
+    return navigateTo('/lgpd/auditoria')
+  }
+
+  // Recepção só pode acessar rotas /recepcao
+  if (auth.isRecepcao && !isRecepcaoRoute && !isAdminRoute) {
     return navigateTo('/recepcao')
   }
 
-  if (auth.user?.role === 'medico' && isRecepcaoRoute) {
+  // Médico só pode acessar rotas médicas (dashboard, agenda, etc)
+  if (auth.isMedico && !isDashboardRoute && !isAdminRoute && !isRecepcaoRoute) {
     return navigateTo('/dashboard')
   }
 })

@@ -27,8 +27,32 @@ def test_sync_agenda_nao_busca_agenda_sem_codigo_spdata_agenda():
 
 
 def test_classifica_tipo_procedimento_por_codigo_tuss():
-    assert tipo_procedimento_row({"COD_PROCEDIMENTO_SPDATA": "10101012"}) == "consulta"
-    assert tipo_procedimento_row({"COD_PROCEDIMENTO_SPDATA": "40901300"}) == "exame"
+    casos = [
+        ("5001", "consulta"),
+        ("10101012", "consulta"),
+        ("20000000", "procedimento-ambulatorial"),
+        ("30000000", "cirurgia"),
+        ("40100000", "metodos-eletrofisiologicos"),
+        ("40200000", "endoscopia"),
+        ("40300000", "medicina-laboratorial"),
+        ("40400000", "medicina-transfusional"),
+        ("40500000", "genetica"),
+        ("40600000", "anatomia-patologica-citopatologia"),
+        ("40700000", "medicina-nuclear"),
+        ("40800000", "radiologia-rx"),
+        ("40901300", "ultrassonografia-us"),
+        ("41000000", "tomografia-computadorizada"),
+        ("41100000", "ressonancia-magnetica"),
+        ("41200000", "radioterapia"),
+        ("41300000", "exames-procedimentos-especificos"),
+        ("41400000", "testes-diagnostico"),
+        ("41500000", "outros-diagnosticos-terapeuticos"),
+        ("41600000", "outros"),
+    ]
+
+    for codigo, tipo in casos:
+        assert tipo_procedimento_row({"COD_PROCEDIMENTO_SPDATA": codigo}) == tipo
+
     assert tipo_procedimento_row({"COD_PROCEDIMENTO_SPDATA": "0"}) == "nao-informado"
     assert tipo_procedimento_row({"COD_PROCEDIMENTO_SPDATA": None}) == "nao-informado"
 
@@ -36,13 +60,16 @@ def test_classifica_tipo_procedimento_por_codigo_tuss():
 def test_filtra_rows_por_tipo_procedimento():
     rows = [
         {"COD_PROCEDIMENTO_SPDATA": "10101012"},
+        {"COD_PROCEDIMENTO_SPDATA": "5001"},
         {"COD_PROCEDIMENTO_SPDATA": "40901300"},
         {"COD_PROCEDIMENTO_SPDATA": "0"},
+        {"COD_PROCEDIMENTO_SPDATA": "99999999"},
     ]
 
-    assert filtrar_rows_por_tipo(rows, "consulta") == [rows[0]]
-    assert filtrar_rows_por_tipo(rows, "exame") == [rows[1]]
-    assert filtrar_rows_por_tipo(rows, "nao-informado") == [rows[2]]
+    assert filtrar_rows_por_tipo(rows, "consulta") == [rows[0], rows[1]]
+    assert filtrar_rows_por_tipo(rows, "ultrassonografia-us") == [rows[2]]
+    assert filtrar_rows_por_tipo(rows, "nao-informado") == [rows[3]]
+    assert filtrar_rows_por_tipo(rows, "outros") == [rows[4]]
 
 
 def test_item_check_in_expoe_tipo_procedimento():
@@ -55,5 +82,5 @@ def test_item_check_in_expoe_tipo_procedimento():
     )
 
     assert item["codigoProcedimentoSpdata"] == "40901300"
-    assert item["tipoProcedimento"] == "exame"
-    assert item["tipoProcedimentoLabel"] == "Exame"
+    assert item["tipoProcedimento"] == "ultrassonografia-us"
+    assert item["tipoProcedimentoLabel"] == "Ultrassonografia (US)"
