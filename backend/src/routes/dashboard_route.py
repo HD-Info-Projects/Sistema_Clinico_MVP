@@ -39,6 +39,10 @@ def _item_dashboard(item, crm_medico):
         "DATA_HORA_ALTA_MEDICA": None,
         "OBS_ATENDIMENTO": item.get("descricao") or "",
         "ID_TBCONVEN": paciente.get("idConvenioSpdata"),
+        "COD_PROCEDIMENTO_SPDATA": item.get("codigoProcedimentoSpdata"),
+        "PROCEDIMENTO_SPDATA": item.get("procedimentoSpdata"),
+        "TIPO_PROCEDIMENTO": item.get("tipoProcedimento"),
+        "TIPO_PROCEDIMENTO_LABEL": item.get("tipoProcedimentoLabel"),
         "PRONTUARIO": "",
         "PACIENTE": paciente.get("nome") or "Paciente",
         "PACIENTE_NOME_SOCIAL": paciente.get("nomeSocial") or "",
@@ -68,6 +72,7 @@ def dashboard_paciente_lista():
             data_ref,
             data_ref,
             unidade_id=unidade.id,
+            somente_consultas=True,
         )
         result = [_item_dashboard(item, crm_medico) for item in items]
 

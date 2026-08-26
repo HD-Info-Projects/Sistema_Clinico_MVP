@@ -7,7 +7,7 @@ export default defineEventHandler(async (event): Promise<PadraoAnamnese> => {
     throw createError({ statusCode: 400, statusMessage: 'id é obrigatório' })
   }
 
-  const raw = await flaskFetch<any>(event, `/padrao_medico_anamnese/${id}`)
+  const raw = await flaskFetch<any>(event, `/padrao_medico_anamnese/${id}`, { params: medicoAlvoParams(event) })
 
   return {
     id: String(raw.id),

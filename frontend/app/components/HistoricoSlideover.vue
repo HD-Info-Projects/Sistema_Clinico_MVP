@@ -46,9 +46,12 @@ const isLoadingHistorico = ref(false)
 const isLoadingMaisHistorico = ref(false)
 const historicoScrollRef = ref<HTMLElement | null>(null)
 const biodataHistorico = ref<HistoricoRecord[]>([])
+const spdataHistorico = ref<HistoricoRecord[]>([])
 const localHistorico = ref<HistoricoLocalRecord[]>([])
 const biodataOffset = ref(0)
 const biodataHasMore = ref(false)
+const spdataOffset = ref(0)
+const spdataHasMore = ref(false)
 
 type ExamePacs = {
   idTokenLancamentoExame: number | null
@@ -74,13 +77,19 @@ type ExamesPacsResponse = {
 const examesPacs = ref<ExamePacs[]>([])
 
 const HISTORICO_BIODATA_LIMIT = 10
+const HISTORICO_SPDATA_LIMIT = 10
+
+const historicoExternoHasMore = computed(() => biodataHasMore.value || spdataHasMore.value)
 
 type HistoricoCacheEntry = {
   biodata: HistoricoRecord[]
+  spdata: HistoricoRecord[]
   local: HistoricoLocalRecord[]
   examesPacs: ExamePacs[]
-  offset: number
-  hasMore: boolean
+  biodataOffset: number
+  biodataHasMore: boolean
+  spdataOffset: number
+  spdataHasMore: boolean
 }
 
 const historicoCache = new Map<string, HistoricoCacheEntry>()
@@ -89,8 +98,8 @@ let historicoRequestId = 0
 useInfiniteScroll(
   historicoScrollRef,
   () => {
-    if (biodataHasMore.value && !isLoadingHistorico.value && !isLoadingMaisHistorico.value) {
-      void carregarMaisHistoricoBiodata()
+    if (historicoExternoHasMore.value && !isLoadingHistorico.value && !isLoadingMaisHistorico.value) {
+      void carregarMaisHistoricoExterno()
     }
   },
   { distance: 160 }
@@ -166,20 +175,26 @@ watch([open, historicoCacheKey], ([val]) => {
 function resetHistoricoState() {
   historicoItems.value = []
   biodataHistorico.value = []
+  spdataHistorico.value = []
   localHistorico.value = []
   examesPacs.value = []
   biodataOffset.value = 0
   biodataHasMore.value = false
+  spdataOffset.value = 0
+  spdataHasMore.value = false
   isLoadingHistorico.value = false
   isLoadingMaisHistorico.value = false
 }
 
 function restaurarHistoricoCache(cache: HistoricoCacheEntry) {
   biodataHistorico.value = [...cache.biodata]
+  spdataHistorico.value = [...cache.spdata]
   localHistorico.value = [...cache.local]
   examesPacs.value = [...cache.examesPacs]
-  biodataOffset.value = cache.offset
-  biodataHasMore.value = cache.hasMore
+  biodataOffset.value = cache.biodataOffset
+  biodataHasMore.value = cache.biodataHasMore
+  spdataOffset.value = cache.spdataOffset
+  spdataHasMore.value = cache.spdataHasMore
   remontarHistoricoItems()
 }
 
@@ -188,10 +203,13 @@ function salvarHistoricoCache(cacheKey: string) {
 
   historicoCache.set(cacheKey, {
     biodata: [...biodataHistorico.value],
+    spdata: [...spdataHistorico.value],
     local: [...localHistorico.value],
     examesPacs: [...examesPacs.value],
-    offset: biodataOffset.value,
-    hasMore: biodataHasMore.value
+    biodataOffset: biodataOffset.value,
+    biodataHasMore: biodataHasMore.value,
+    spdataOffset: spdataOffset.value,
+    spdataHasMore: spdataHasMore.value
   })
 }
 
@@ -215,10 +233,13 @@ async function fetchHistorico() {
 
   isLoadingHistorico.value = true
   biodataHistorico.value = []
+  spdataHistorico.value = []
   localHistorico.value = []
   historicoItems.value = []
   biodataOffset.value = 0
   biodataHasMore.value = false
+  spdataOffset.value = 0
+  spdataHasMore.value = false
 
   try {
     const localPromise = buscarHistoricoLocal(pacienteId)
@@ -254,7 +275,19 @@ async function fetchHistorico() {
         if (isHistoricoAtual(requestId, cacheKey)) console.error('Erro ao buscar exames PACS')
       })
 
-    await Promise.allSettled([localPromise, biodataPromise, pacsPromise])
+    const spdataPromise = buscarHistoricoSpdata(0)
+      .then((spdataResponse) => {
+        if (!isHistoricoAtual(requestId, cacheKey)) return
+        adicionarRegistrosSpdata(spdataResponse.items)
+        spdataOffset.value = spdataResponse.offset + spdataResponse.items.length
+        spdataHasMore.value = spdataResponse.has_more
+        remontarHistoricoItems()
+      })
+      .catch(() => {
+        if (isHistoricoAtual(requestId, cacheKey)) console.error('Erro ao buscar histórico SPDATA')
+      })
+
+    await Promise.allSettled([localPromise, biodataPromise, pacsPromise, spdataPromise])
 
     if (isHistoricoAtual(requestId, cacheKey)) salvarHistoricoCache(cacheKey)
   } catch {
@@ -287,6 +320,7 @@ async function buscarHistoricoBiodata(offset: number): Promise<HistoricoResponse
     query: {
       cpf: cpfHistorico(paciente.cpf),
       nome: paciente.nome || undefined,
+      spdataAtendimentoId: props.agendamento?.spdataAtendimentoId || undefined,
       limit: HISTORICO_BIODATA_LIMIT,
       offset
     }
@@ -297,15 +331,57 @@ async function buscarExamesPacs(pacienteId: number): Promise<ExamesPacsResponse>
   return await $fetch<ExamesPacsResponse>(`/api/exames-pacs/paciente/${pacienteId}`)
 }
 
-async function carregarMaisHistoricoBiodata() {
-  if (!biodataHasMore.value || isLoadingMaisHistorico.value || isLoadingHistorico.value) return
+async function buscarHistoricoSpdata(offset: number): Promise<HistoricoResponse> {
+  const paciente = pacienteAtual.value
+  const pacienteId = paciente?.id
+  if (!pacienteId) {
+    return { items: [], limit: HISTORICO_SPDATA_LIMIT, offset, has_more: false }
+  }
+
+  return await $fetch<HistoricoResponse>(`/api/historico-spdata/${pacienteId}`, {
+    query: {
+      cpf: cpfHistorico(paciente.cpf),
+      nome: paciente.nome || undefined,
+      spdataAtendimentoId: props.agendamento?.spdataAtendimentoId || undefined,
+      limit: HISTORICO_SPDATA_LIMIT,
+      offset
+    }
+  })
+}
+
+async function carregarMaisHistoricoExterno() {
+  if (!historicoExternoHasMore.value || isLoadingMaisHistorico.value || isLoadingHistorico.value) return
 
   isLoadingMaisHistorico.value = true
   try {
-    const response = await buscarHistoricoBiodata(biodataOffset.value)
-    adicionarRegistrosBiodata(response.items)
-    biodataOffset.value = response.offset + response.items.length
-    biodataHasMore.value = response.has_more
+    const requests: Promise<{ origem: 'biodata' | 'spdata', response: HistoricoResponse }>[] = []
+
+    if (biodataHasMore.value) {
+      requests.push(buscarHistoricoBiodata(biodataOffset.value).then(response => ({ origem: 'biodata' as const, response })))
+    }
+    if (spdataHasMore.value) {
+      requests.push(buscarHistoricoSpdata(spdataOffset.value).then(response => ({ origem: 'spdata' as const, response })))
+    }
+
+    const results = await Promise.allSettled(requests)
+    for (const result of results) {
+      if (result.status === 'rejected') {
+        console.error('Erro ao carregar mais histórico externo')
+        continue
+      }
+
+      const { origem, response } = result.value
+      if (origem === 'biodata') {
+        adicionarRegistrosBiodata(response.items)
+        biodataOffset.value = response.offset + response.items.length
+        biodataHasMore.value = response.has_more
+      } else {
+        adicionarRegistrosSpdata(response.items)
+        spdataOffset.value = response.offset + response.items.length
+        spdataHasMore.value = response.has_more
+      }
+    }
+
     remontarHistoricoItems()
     salvarHistoricoCache(historicoCacheKey.value)
   } finally {
@@ -325,22 +401,41 @@ function adicionarRegistrosBiodata(registros: HistoricoRecord[]) {
   biodataHistorico.value.push(...novos)
 }
 
+function adicionarRegistrosSpdata(registros: HistoricoRecord[]) {
+  const existentes = new Set(spdataHistorico.value.map(chaveHistoricoSpdata))
+  const novos = registros.filter((registro) => {
+    const chave = chaveHistoricoSpdata(registro)
+    if (existentes.has(chave)) return false
+    existentes.add(chave)
+    return true
+  })
+
+  spdataHistorico.value.push(...novos)
+}
+
 function chaveHistoricoBiodata(registro: HistoricoRecord) {
   return registro.ID_ANAMNESE || `${registro.ID_ATENDIMENTO || ''}-${registro.DATA_ANAMNESE || ''}-${registro.ANAMNESE || ''}`
 }
 
-function remontarHistoricoItems() {
-  historicoItems.value = montarHistoricoItems(biodataHistorico.value, localHistorico.value)
+function chaveHistoricoSpdata(registro: HistoricoRecord) {
+  return registro.ID_ANAMNESE || `spdata-${registro.ID_ATENDIMENTO || ''}-${registro.DATA_ANAMNESE || ''}-${registro.ANAMNESE || ''}`
 }
 
-function montarHistoricoItems(biodata: HistoricoRecord[], local: HistoricoLocalRecord[]) {
-  const items: HistoricoTimelineItem[] = []
-  const biodataPorAtendimento = new Map<string, HistoricoTimelineItem>()
+function remontarHistoricoItems() {
+  historicoItems.value = montarHistoricoItems(biodataHistorico.value, spdataHistorico.value, localHistorico.value)
+}
 
-  for (const r of biodata) {
+function montarHistoricoItems(biodata: HistoricoRecord[], spdata: HistoricoRecord[], local: HistoricoLocalRecord[]) {
+  const items: HistoricoTimelineItem[] = []
+  const historicoExternoPorAtendimento = new Map<string, HistoricoTimelineItem>()
+
+  for (const r of [...biodata, ...spdata]) {
+    const origemSpdata = r.ORIGEM === 'SPDATA'
     const dataHistorico = r.DATA_ANAMNESE || r.DATA_CONSULTA || r.DATA_ENCERRAMENTO || ''
-    const idGrupo = `biodata-${dataHistorico || r.ID_ANAMNESE}`
-    let item = biodataPorAtendimento.get(idGrupo)
+    const idGrupo = origemSpdata
+      ? `spdata-${r.ID_ANAMNESE || dataHistorico || r.ID_ATENDIMENTO}`
+      : `biodata-${dataHistorico || r.ID_ANAMNESE}`
+    let item = historicoExternoPorAtendimento.get(idGrupo)
 
     if (!item) {
       item = {
@@ -348,11 +443,11 @@ function montarHistoricoItems(biodata: HistoricoRecord[], local: HistoricoLocalR
         title: formatarDataHistorico(dataHistorico),
         time: formatarHoraHistorico(dataHistorico),
         icon: 'i-lucide-calendar',
-        subtitle: r.MEDICO || undefined,
+        subtitle: montarSubtituloHistoricoExterno(r),
         _sortKey: r.DATA_ANAMNESE || r.DATA_CONSULTA || r.DATA_ENCERRAMENTO || '',
         cards: []
       }
-      biodataPorAtendimento.set(idGrupo, item)
+      historicoExternoPorAtendimento.set(idGrupo, item)
       items.push(item)
     }
 
@@ -397,6 +492,14 @@ function montarHistoricoItems(biodata: HistoricoRecord[], local: HistoricoLocalR
   items.sort((a, b) => timestampHistorico(b._sortKey) - timestampHistorico(a._sortKey))
 
   return items
+}
+
+function montarSubtituloHistoricoExterno(item: HistoricoRecord): string | undefined {
+  if (item.ORIGEM !== 'SPDATA') return item.MEDICO || undefined
+
+  return ['SPDATA', item.MODELO_EVOLUCAO, item.MEDICO]
+    .filter(Boolean)
+    .join(' · ') || undefined
 }
 
 function timestampHistorico(valor: string): number {
@@ -706,12 +809,12 @@ function abrirExamePacs(idTokenLancamentoExame: number | null | undefined, tipo:
             class="size-5 animate-spin text-muted"
           />
           <UButton
-            v-else-if="biodataHasMore"
+            v-else-if="historicoExternoHasMore"
             label="Carregar mais histórico"
             color="neutral"
             variant="ghost"
             size="sm"
-            @click="void carregarMaisHistoricoBiodata()"
+            @click="void carregarMaisHistoricoExterno()"
           />
         </div>
       </div>

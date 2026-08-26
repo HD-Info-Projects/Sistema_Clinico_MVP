@@ -11,6 +11,11 @@ const navItems = [
   { label: 'No-show', icon: 'i-lucide-user-x', to: '/recepcao/noshow' },
   { label: 'Conversão de Exames', icon: 'i-lucide-flask-conical', to: '/recepcao/retencao-exames' }
 ]
+
+function trocarAcesso() {
+  auth.limparAccessMode()
+  navigateTo('/selecionar-acesso')
+}
 </script>
 
 <template>
@@ -21,7 +26,7 @@ const navItems = [
     >
       <template #header>
         <NuxtLink to="/recepcao">
-          <logoMed isrecepcao />
+          <logoMed :tipo="1" />
         </NuxtLink>
       </template>
 
@@ -47,6 +52,15 @@ const navItems = [
               variant="ghost"
               class="w-full justify-start"
               to="/selecionar-clinica"
+            />
+            <UButton
+              v-if="auth.isAdmin"
+              icon="i-lucide-repeat"
+              label="Trocar acesso"
+              color="neutral"
+              variant="ghost"
+              class="w-full justify-start"
+              @click="trocarAcesso()"
             />
           </div>
           <UButton

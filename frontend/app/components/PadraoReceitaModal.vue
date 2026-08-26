@@ -2,6 +2,8 @@
 import type { ItemMedicamento, PadraoReceita } from '~/types'
 
 const props = defineProps<{
+  /** Medico alvo quando um admin gerencia os padroes de outro usuario */
+  medicoId?: number | null
   padrao?: PadraoReceita | null
 }>()
 
@@ -44,9 +46,9 @@ async function salvar() {
       medicamentos: medicamentosValidos.value
     }
     if (props.padrao) {
-      await padroesStore.atualizar(props.padrao.id, data)
+      await padroesStore.atualizar(props.padrao.id, data, props.medicoId ?? undefined)
     } else {
-      await padroesStore.criar(data)
+      await padroesStore.criar(data, props.medicoId ?? undefined)
     }
     open.value = false
   } finally {

@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import type { TipoProcedimentoTuss } from '~/types'
 import { CalendarDate } from '@internationalized/date'
+import { TUSS_PROCEDIMENTO_FILTROS, corTipoProcedimento, rotuloTipoProcedimento } from '~/utils/tuss'
 
 interface ItemRecepcao {
   id: number | string
@@ -14,12 +16,17 @@ interface ItemRecepcao {
   crm: string
   crmAtendimento: string
   especialidade: string
+  codigoProcedimentoSpdata: string | null
+  tipoProcedimento: TipoProcedimentoTuss
+  tipoProcedimentoLabel: string
   status: string
 }
 
 interface CheckInResponse {
   items: ItemRecepcao[]
 }
+
+const auth = useAuthStore()
 
 const selectedDate = ref(new Date())
 const isPopoverOpen = ref(false)
@@ -29,6 +36,8 @@ const errorMsg = ref('')
 const selectedMedico = ref('Todos')
 const selectedEspecialidade = ref('Todos')
 const selectedStatus = ref('')
+const selectedTipo = ref<TipoProcedimentoTuss | ''>('')
+let requestId = 0
 
 const formattedDate = computed(() => {
   const d = selectedDate.value
@@ -71,22 +80,45 @@ function isToday(date: Date) {
 }
 
 async function loadAgendamentos() {
+  const currentRequest = ++requestId
   const dataStr = formatarDataISO(selectedDate.value)
+  const unidadeId = auth.activeClinicaId
   loading.value = true
   errorMsg.value = ''
 
-  try {
-    const response = await $fetch<CheckInResponse>(`/api/check-in?data=${dataStr}&pageSize=100`)
-    agendamentos.value = response.items ?? []
-  } catch {
+  if (!unidadeId) {
     agendamentos.value = []
-    errorMsg.value = 'Erro ao carregar agendamentos'
-  } finally {
+    errorMsg.value = 'Selecione uma unidade para carregar agendamentos'
     loading.value = false
+    return
+  }
+
+  const params = new URLSearchParams()
+  params.set('data', dataStr)
+  params.set('pageSize', '100')
+  params.set('unidadeId', String(unidadeId))
+  if (selectedTipo.value) params.set('tipo', selectedTipo.value)
+
+  try {
+    const response = await $fetch<CheckInResponse>(`/api/check-in?${params.toString()}`)
+    if (currentRequest === requestId) agendamentos.value = response.items ?? []
+  } catch {
+    if (currentRequest === requestId) {
+      agendamentos.value = []
+      errorMsg.value = 'Erro ao carregar agendamentos'
+    }
+  } finally {
+    if (currentRequest === requestId) loading.value = false
   }
 }
 
 watch(selectedDate, loadAgendamentos)
+watch(() => auth.activeClinicaId, () => {
+  selectedMedico.value = 'Todos'
+  selectedEspecialidade.value = 'Todos'
+  selectedTipo.value = ''
+  loadAgendamentos()
+})
 
 onMounted(() => {
   loadAgendamentos()
@@ -115,11 +147,14 @@ const filtrosStatus = [
   { label: 'Faltosos', value: 'faltou' }
 ]
 
+const filtrosTipo = TUSS_PROCEDIMENTO_FILTROS
+
 const atendimentosFiltrados = computed(() => {
   return agendamentos.value.filter((a) => {
     if (selectedMedico.value !== 'Todos' && a.medico !== selectedMedico.value) return false
     if (selectedEspecialidade.value !== 'Todos' && a.especialidade !== selectedEspecialidade.value) return false
     if (selectedStatus.value && a.status !== selectedStatus.value) return false
+    if (selectedTipo.value && a.tipoProcedimento !== selectedTipo.value) return false
     return true
   })
 })
@@ -193,11 +228,25 @@ function rotuloStatus(s: string) {
   }
 }
 
+function corTipo(tipo: string) {
+  return corTipoProcedimento(tipo)
+}
+
+function rotuloTipo(item: ItemRecepcao) {
+  return rotuloTipoProcedimento(item.tipoProcedimento, item.tipoProcedimentoLabel)
+}
+
+function selecionarTipo(tipo: TipoProcedimentoTuss | '' | null | undefined) {
+  selectedTipo.value = tipo ?? ''
+  loadAgendamentos()
+}
+
 const colunas = [
   { accessorKey: 'horario', header: 'Horário' },
   { accessorKey: 'paciente', header: 'Paciente' },
   { accessorKey: 'contato', header: 'Contato' },
   { accessorKey: 'medico', header: 'Médico' },
+  { accessorKey: 'tipoProcedimento', header: 'Tipo' },
   { accessorKey: 'status', header: 'Status' }
 ]
 
@@ -253,6 +302,17 @@ const statuses: { id: string, name: string, color: string }[] = [
             @click="selectedStatus = status.value"
           />
         </div>
+        <USelectMenu
+          :model-value="selectedTipo || undefined"
+          :items="filtrosTipo"
+          value-key="value"
+          label-key="label"
+          placeholder="Filtrar por tipo"
+          clearable
+          size="sm"
+          class="w-full sm:w-56"
+          @update:model-value="selecionarTipo"
+        />
       </div>
 
       <div class="flex items-center justify-between">
@@ -351,7 +411,7 @@ const statuses: { id: string, name: string, color: string }[] = [
           <div
             v-for="linha in 5"
             :key="linha"
-            class="grid grid-cols-1 gap-3 rounded-lg border border-muted p-3 md:grid-cols-[80px_1.5fr_1fr_1fr_120px]"
+            class="grid grid-cols-1 gap-3 rounded-lg border border-muted p-3 md:grid-cols-[80px_1.5fr_1fr_1fr_120px_120px]"
           >
             <USkeleton class="h-5 w-16" />
             <div class="space-y-2">
@@ -360,6 +420,7 @@ const statuses: { id: string, name: string, color: string }[] = [
             </div>
             <USkeleton class="h-5 w-36 max-w-full" />
             <USkeleton class="h-5 w-40 max-w-full" />
+            <USkeleton class="h-6 w-24 rounded-full" />
             <USkeleton class="h-6 w-24 rounded-full" />
           </div>
         </div>
@@ -378,7 +439,7 @@ const statuses: { id: string, name: string, color: string }[] = [
           <UTable
             :columns="colunas"
             :data="atendimentosOrdenados"
-            class="min-w-[760px]"
+            class="min-w-[880px]"
           >
             <template #horario-cell="{ row }">
               <span class="font-mono text-sm">{{ row.original.horario || '-' }}</span>
@@ -419,6 +480,22 @@ const statuses: { id: string, name: string, color: string }[] = [
                 </p>
                 <p class="text-xs text-muted">
                   {{ textoNaoInformado(crmExibicao(row.original), 'CRM não informado') }}
+                </p>
+              </div>
+            </template>
+
+            <template #tipoProcedimento-cell="{ row }">
+              <div class="min-w-40">
+                <UBadge
+                  :label="rotuloTipo(row.original)"
+                  :color="corTipo(row.original.tipoProcedimento)"
+                  variant="subtle"
+                />
+                <p
+                  v-if="row.original.codigoProcedimentoSpdata"
+                  class="mt-1 text-xs text-muted"
+                >
+                  TUSS {{ row.original.codigoProcedimentoSpdata }}
                 </p>
               </div>
             </template>

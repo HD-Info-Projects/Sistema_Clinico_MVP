@@ -207,6 +207,7 @@ def create_app():
     from src.routes.retencao_exames_route import retencao_exames_bp
     from src.routes.tts_route import tts_bp
     from src.routes.documentos_medicos_route import documentos_medicos_bp
+    from src.routes.usuarios_route import usuarios_bp
     from src.routes.auditoria_route import auditoria_bp
     from src.routes.unidades_route import unidades_bp
     from src.routes.spdata_exames_pacs_route import exames_pacs_bp
@@ -226,6 +227,7 @@ def create_app():
     app.register_blueprint(retencao_exames_bp)
     app.register_blueprint(tts_bp)
     app.register_blueprint(documentos_medicos_bp)
+    app.register_blueprint(usuarios_bp)
     app.register_blueprint(auditoria_bp)
     app.register_blueprint(unidades_bp)
     app.register_blueprint(exames_pacs_bp)

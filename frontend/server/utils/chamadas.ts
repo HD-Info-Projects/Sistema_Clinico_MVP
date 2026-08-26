@@ -19,12 +19,15 @@ const chamados: Chamado[] = []
 const MAX_CHAMADOS = 100
 
 function nomePublicoPaciente(nome: string) {
-  const primeiroNome = String(nome || '').trim().split(/\s+/)[0]
-  return primeiroNome || 'Paciente'
+  return String(nome || '').trim().replace(/\s+/g, ' ') || 'Paciente'
 }
 
 function localPublico(local: string) {
   return String(local || '').trim().slice(0, 80) || 'sala de atendimento'
+}
+
+function medicoPublico(nome: string) {
+  return String(nome || '').trim().slice(0, 80)
 }
 
 export function chamadoPublico(chamado: Chamado | null) {
@@ -38,7 +41,7 @@ export function chamadoPublico(chamado: Chamado | null) {
     dataChamada: chamado.dataChamada,
     status: chamado.status,
     localAtendimento: localPublico(chamado.localAtendimento),
-    medicoResponsavel: ''
+    medicoResponsavel: medicoPublico(chamado.medicoResponsavel)
   }
 }
 

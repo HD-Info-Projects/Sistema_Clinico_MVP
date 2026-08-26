@@ -5,7 +5,7 @@ export default defineEventHandler(async (event): Promise<PadraoOrientacaoExame> 
   const id = getRouterParam(event, 'id')
   if (!id) throw createError({ statusCode: 400, statusMessage: 'id é obrigatório' })
 
-  const raw = await flaskFetch<any>(event, `/padrao_medico_orientacao_exame/${id}`)
+  const raw = await flaskFetch<any>(event, `/padrao_medico_orientacao_exame/${id}`, { params: medicoAlvoParams(event) })
 
   return {
     id: String(raw.id),

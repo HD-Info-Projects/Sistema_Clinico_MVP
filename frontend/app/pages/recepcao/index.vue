@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import type { TipoProcedimentoTuss } from '~/types'
+import { TUSS_PROCEDIMENTO_FILTROS, corTipoProcedimento, rotuloTipoProcedimento } from '~/utils/tuss'
+
 type AtendimentoStatus = 'agendado' | 'em-espera' | 'em-atendimento' | 'atendido' | 'faltou' | 'desconhecido'
 
 interface AtendimentoRecepcao {
@@ -14,6 +17,9 @@ interface AtendimentoRecepcao {
   email: string
   medico: string
   especialidade: string
+  codigoProcedimentoSpdata: string | null
+  tipoProcedimento: TipoProcedimentoTuss
+  tipoProcedimentoLabel: string
   dataNascimento: string | null
   status: AtendimentoStatus
 }
@@ -55,6 +61,7 @@ const loading = ref(true)
 const errorMsg = ref('')
 const busca = ref('')
 const selectedStatus = ref<AtendimentoStatus | ''>('')
+const selectedTipo = ref<TipoProcedimentoTuss | ''>('')
 const selectedMedico = ref<string | null>(null)
 const selectedEspecialidade = ref<string | undefined>('Todas as especialidades')
 
@@ -91,6 +98,8 @@ const filtrosStatus: { label: string, value: AtendimentoStatus | '' }[] = [
   { label: 'Faltosos', value: 'faltou' }
 ]
 
+const filtrosTipo = TUSS_PROCEDIMENTO_FILTROS
+
 const medicosColunas = [
   { accessorKey: 'nome', header: 'Médico' },
   { accessorKey: 'pacientesCount', header: 'Pacientes' }
@@ -101,6 +110,7 @@ const atendimentosColunas = [
   { accessorKey: 'paciente', header: 'Paciente' },
   { accessorKey: 'contato', header: 'Contato' },
   { accessorKey: 'medico', header: 'Médico' },
+  { accessorKey: 'tipoProcedimento', header: 'Tipo' },
   { accessorKey: 'status', header: 'Status' }
 ]
 
@@ -136,6 +146,8 @@ const tituloTabela = computed(() => {
   if (selectedMedicoNome.value) partes.push(selectedMedicoNome.value)
   const status = filtrosStatus.find(s => s.value === selectedStatus.value)
   if (status?.value) partes.push(status.label)
+  const tipo = filtrosTipo.find(t => t.value === selectedTipo.value)
+  if (tipo?.value) partes.push(tipo.label)
   return partes.join(' - ')
 })
 
@@ -165,6 +177,14 @@ function rotuloStatus(s: string) {
     case 'faltou': return 'Faltou'
     default: return 'Desconhecido'
   }
+}
+
+function corTipo(tipo: string) {
+  return corTipoProcedimento(tipo)
+}
+
+function rotuloTipo(item: AtendimentoRecepcao) {
+  return rotuloTipoProcedimento(item.tipoProcedimento, item.tipoProcedimentoLabel)
 }
 
 function textoInformado(valor: string | number | null | undefined) {
@@ -205,14 +225,24 @@ function resetPageAndFetch() {
 
 async function carregarAtendimentos() {
   const currentRequest = ++requestId
+  const unidadeId = auth.activeClinicaId
   loading.value = true
   errorMsg.value = ''
+
+  if (!unidadeId) {
+    dados.value = respostaVazia()
+    errorMsg.value = 'Selecione uma unidade para carregar atendimentos'
+    loading.value = false
+    return
+  }
 
   const params = new URLSearchParams()
   params.set('page', String(page.value))
   params.set('pageSize', String(pageSize.value))
   params.set('data', formatarDataISO(new Date()))
+  params.set('unidadeId', String(unidadeId))
   if (selectedStatus.value) params.set('status', selectedStatus.value)
+  if (selectedTipo.value) params.set('tipo', selectedTipo.value)
   if (selectedMedico.value) params.set('medico', selectedMedico.value)
   if (busca.value.trim()) params.set('q', busca.value.trim())
 
@@ -244,8 +274,20 @@ function selecionarStatus(status: AtendimentoStatus | '') {
   resetPageAndFetch()
 }
 
+function selecionarTipo(tipo: TipoProcedimentoTuss | '' | null | undefined) {
+  selectedTipo.value = tipo ?? ''
+  resetPageAndFetch()
+}
+
 watch(page, () => {
   carregarAtendimentos()
+})
+
+watch(() => auth.activeClinicaId, () => {
+  selectedMedico.value = null
+  selectedEspecialidade.value = 'Todas as especialidades'
+  selectedTipo.value = ''
+  resetPageAndFetch()
 })
 
 watch(busca, () => {
@@ -421,6 +463,18 @@ onUnmounted(() => {
                 @click="selecionarStatus(status.value)"
               />
             </div>
+
+            <USelectMenu
+              :model-value="selectedTipo || undefined"
+              :items="filtrosTipo"
+              value-key="value"
+              label-key="label"
+              placeholder="Filtrar por tipo"
+              clearable
+              size="sm"
+              class="w-full sm:w-56"
+              @update:model-value="selecionarTipo"
+            />
           </div>
         </template>
 
@@ -431,7 +485,7 @@ onUnmounted(() => {
           <div
             v-for="linha in 6"
             :key="linha"
-            class="grid grid-cols-1 gap-3 rounded-lg border border-muted p-3 md:grid-cols-[80px_1.5fr_1fr_1fr_120px]"
+            class="grid grid-cols-1 gap-3 rounded-lg border border-muted p-3 md:grid-cols-[80px_1.5fr_1fr_1fr_120px_120px]"
           >
             <USkeleton class="h-5 w-16" />
             <div class="space-y-2">
@@ -446,6 +500,7 @@ onUnmounted(() => {
               <USkeleton class="h-5 w-40 max-w-full" />
               <USkeleton class="h-4 w-28 max-w-full" />
             </div>
+            <USkeleton class="h-6 w-24 rounded-full" />
             <USkeleton class="h-6 w-24 rounded-full" />
           </div>
         </div>
@@ -464,7 +519,7 @@ onUnmounted(() => {
           <UTable
             :columns="atendimentosColunas"
             :data="dados.items"
-            class="min-w-[760px]"
+            class="min-w-220"
           >
             <template #horario-cell="{ row }">
               <span class="font-mono text-sm">{{ row.original.horario || '-' }}</span>
@@ -507,6 +562,22 @@ onUnmounted(() => {
                 </p>
                 <p class="text-xs text-muted">
                   {{ textoNaoInformado(row.original.especialidade, 'Especialidade não informada') }}
+                </p>
+              </div>
+            </template>
+
+            <template #tipoProcedimento-cell="{ row }">
+              <div class="min-w-40">
+                <UBadge
+                  :label="rotuloTipo(row.original)"
+                  :color="corTipo(row.original.tipoProcedimento)"
+                  variant="subtle"
+                />
+                <p
+                  v-if="row.original.codigoProcedimentoSpdata"
+                  class="mt-1 text-xs text-muted"
+                >
+                  TUSS {{ row.original.codigoProcedimentoSpdata }}
                 </p>
               </div>
             </template>

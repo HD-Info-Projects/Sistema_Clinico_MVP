@@ -1,9 +1,9 @@
 # Plano de Implementação LGPD e Segurança
 
-**Sistema:** Sistema Clínico MVP  
-**Data de referência:** 17 de agosto de 2026  
-**Status:** Plano técnico-operacional para execução  
-**Classificação:** Uso interno  
+**Sistema:** Sistema Clínico MVP
+**Data de referência:** 17 de agosto de 2026
+**Status:** Plano técnico-operacional para execução
+**Classificação:** Uso interno
 
 > Este plano não substitui validação jurídica, regulatória, assistencial ou do Encarregado/DPO. Ele organiza as ações técnicas necessárias para reduzir risco, gerar evidências e sustentar a validação de conformidade LGPD.
 

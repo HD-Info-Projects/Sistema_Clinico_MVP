@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required
 from src.security.decorators import roles_required
 
 from src.settings.extensions import db
@@ -10,6 +10,7 @@ from src.models.model_padroes_solicitacoes.exames_para_modelo_exame_model import
     ExamesDoModelo,
 )
 from src.services.auditoria_service import registrar_auditoria
+from src.services.padroes_medico_service import resolver_medico_alvo
 
 padrao_medico_exame_bp = Blueprint(
     "padrao_medico_exame",
@@ -23,10 +24,6 @@ def _padrao_medico_exame_to_dict(padrao):
         **padrao._to_dict(),
         "exames": [exame._to_dict() for exame in padrao.exames],
     }
-
-
-def _get_medico_id():
-    return int(get_jwt_identity())
 
 
 def _get_padrao_do_medico(id_padrao, medico_id):
@@ -87,10 +84,12 @@ def _auditar_modelo_exame(acao, modelo_id, medico_id, detalhe):
 
 @padrao_medico_exame_bp.route("/criar", methods=["POST"])
 @jwt_required()
-@roles_required("medico")
+@roles_required("medico", "admin")
 def create_padrao_medico_exame():
     try:
-        medico_id = _get_medico_id()
+        medico_id, erro = resolver_medico_alvo()
+        if erro:
+            return erro
         data = request.get_json() or {}
         nome_modelo = (data.get("nome_modelo") or "").strip()
 
@@ -121,10 +120,12 @@ def create_padrao_medico_exame():
     "/add_exame/<int:id_padrao_medico_exame>", methods=["POST"]
 )
 @jwt_required()
-@roles_required("medico")
+@roles_required("medico", "admin")
 def add_exame_padrao_medico_exame(id_padrao_medico_exame):
     try:
-        medico_id = _get_medico_id()
+        medico_id, erro = resolver_medico_alvo()
+        if erro:
+            return erro
         padrao = _get_padrao_do_medico(id_padrao_medico_exame, medico_id)
 
         if not padrao:
@@ -161,10 +162,12 @@ def add_exame_padrao_medico_exame(id_padrao_medico_exame):
 
 @padrao_medico_exame_bp.route("/lista", methods=["GET"])
 @jwt_required()
-@roles_required("medico")
+@roles_required("medico", "admin")
 def lista_padroes_medicos_exame():
     try:
-        medico_id = _get_medico_id()
+        medico_id, erro = resolver_medico_alvo()
+        if erro:
+            return erro
         lista = (
             db.session.query(ModeloExame)
             .filter(ModeloExame.medico_id == medico_id)
@@ -179,10 +182,12 @@ def lista_padroes_medicos_exame():
 
 @padrao_medico_exame_bp.route("/<int:id>", methods=["GET"])
 @jwt_required()
-@roles_required("medico")
+@roles_required("medico", "admin")
 def detalhes_padrao_medico_exame(id):
     try:
-        medico_id = _get_medico_id()
+        medico_id, erro = resolver_medico_alvo()
+        if erro:
+            return erro
         padrao = _get_padrao_do_medico(id, medico_id)
 
         if not padrao:
@@ -196,10 +201,12 @@ def detalhes_padrao_medico_exame(id):
 
 @padrao_medico_exame_bp.route("/editar/<int:id>", methods=["PUT", "PATCH"])
 @jwt_required()
-@roles_required("medico")
+@roles_required("medico", "admin")
 def editar_padrao_medico_exame(id):
     try:
-        medico_id = _get_medico_id()
+        medico_id, erro = resolver_medico_alvo()
+        if erro:
+            return erro
         padrao = _get_padrao_do_medico(id, medico_id)
 
         if not padrao:
@@ -229,10 +236,12 @@ def editar_padrao_medico_exame(id):
 
 @padrao_medico_exame_bp.route("/editar_exame/<int:id>", methods=["PUT", "PATCH"])
 @jwt_required()
-@roles_required("medico")
+@roles_required("medico", "admin")
 def editar_exame_padrao_medico_exame(id):
     try:
-        medico_id = _get_medico_id()
+        medico_id, erro = resolver_medico_alvo()
+        if erro:
+            return erro
         exame = _get_exame_do_medico(id, medico_id)
 
         if not exame:
@@ -278,10 +287,12 @@ def editar_exame_padrao_medico_exame(id):
 
 @padrao_medico_exame_bp.route("/deletar/<int:id>", methods=["DELETE"])
 @jwt_required()
-@roles_required("medico")
+@roles_required("medico", "admin")
 def deletar_padrao_medico_exame(id):
     try:
-        medico_id = _get_medico_id()
+        medico_id, erro = resolver_medico_alvo()
+        if erro:
+            return erro
         padrao = _get_padrao_do_medico(id, medico_id)
 
         if not padrao:
@@ -305,10 +316,12 @@ def deletar_padrao_medico_exame(id):
 
 @padrao_medico_exame_bp.route("/deletar_exame/<int:id>", methods=["DELETE"])
 @jwt_required()
-@roles_required("medico")
+@roles_required("medico", "admin")
 def deletar_exame_padrao_medico_exame(id):
     try:
-        medico_id = _get_medico_id()
+        medico_id, erro = resolver_medico_alvo()
+        if erro:
+            return erro
         exame = _get_exame_do_medico(id, medico_id)
 
         if not exame:

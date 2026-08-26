@@ -56,6 +56,7 @@ class Medico(db.Model):
             "crm": self.crm,
             "crm_atendimento_spdata": self.crm_atendimento_spdata,
             "crm_uf": self.crm_uf,
+            "rqe": self.rqe,
             "especialidade": self.especialidade,
             "ativo": self.ativo,
             "created_at": self.created_at.isoformat() if self.created_at else None,

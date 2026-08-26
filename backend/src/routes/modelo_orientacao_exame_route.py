@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from flask_jwt_extended import get_jwt_identity, jwt_required
+from flask_jwt_extended import jwt_required
 
 from src.models.model_padroes_solicitacoes.modelo_orientacao_exame_model import (
     ModeloOrientacaoExame,
@@ -7,6 +7,7 @@ from src.models.model_padroes_solicitacoes.modelo_orientacao_exame_model import 
 from src.models.auditoria_model import AcaoAuditoria
 from src.security.decorators import roles_required
 from src.services.auditoria_service import registrar_auditoria
+from src.services.padroes_medico_service import resolver_medico_alvo
 from src.settings.extensions import db
 
 
@@ -15,10 +16,6 @@ padrao_medico_orientacao_exame_bp = Blueprint(
     __name__,
     url_prefix="/padrao_medico_orientacao_exame",
 )
-
-
-def _get_medico_id():
-    return int(get_jwt_identity())
 
 
 def _get_padrao_do_medico(id_padrao, medico_id):
@@ -44,10 +41,12 @@ def _auditar_modelo_orientacao(acao, modelo_id, medico_id, detalhe):
 
 @padrao_medico_orientacao_exame_bp.route("/criar", methods=["POST"])
 @jwt_required()
-@roles_required("medico")
+@roles_required("medico", "admin")
 def create_padrao_medico_orientacao_exame():
     try:
-        medico_id = _get_medico_id()
+        medico_id, erro = resolver_medico_alvo()
+        if erro:
+            return erro
         data = request.get_json() or {}
         nome_modelo = (data.get("nome_modelo") or "").strip()
         conteudo = (data.get("conteudo") or "").strip()
@@ -77,10 +76,12 @@ def create_padrao_medico_orientacao_exame():
 
 @padrao_medico_orientacao_exame_bp.route("/lista", methods=["GET"])
 @jwt_required()
-@roles_required("medico")
+@roles_required("medico", "admin")
 def lista_padroes_medicos_orientacao_exame():
     try:
-        medico_id = _get_medico_id()
+        medico_id, erro = resolver_medico_alvo()
+        if erro:
+            return erro
         lista_padroes = (
             db.session.query(ModeloOrientacaoExame)
             .filter(ModeloOrientacaoExame.medico_id == medico_id)
@@ -100,10 +101,12 @@ def lista_padroes_medicos_orientacao_exame():
 
 @padrao_medico_orientacao_exame_bp.route("/<int:id>", methods=["GET"])
 @jwt_required()
-@roles_required("medico")
+@roles_required("medico", "admin")
 def detalhes_padrao_medico_orientacao_exame(id: int):
     try:
-        medico_id = _get_medico_id()
+        medico_id, erro = resolver_medico_alvo()
+        if erro:
+            return erro
         padrao = _get_padrao_do_medico(id, medico_id)
 
         if not padrao:
@@ -117,10 +120,12 @@ def detalhes_padrao_medico_orientacao_exame(id: int):
 
 @padrao_medico_orientacao_exame_bp.route("/editar/<int:id>", methods=["PUT", "PATCH"])
 @jwt_required()
-@roles_required("medico")
+@roles_required("medico", "admin")
 def editar_padrao_medico_orientacao_exame(id: int):
     try:
-        medico_id = _get_medico_id()
+        medico_id, erro = resolver_medico_alvo()
+        if erro:
+            return erro
         padrao = _get_padrao_do_medico(id, medico_id)
 
         if not padrao:
@@ -157,10 +162,12 @@ def editar_padrao_medico_orientacao_exame(id: int):
 
 @padrao_medico_orientacao_exame_bp.route("/deletar/<int:id>", methods=["DELETE"])
 @jwt_required()
-@roles_required("medico")
+@roles_required("medico", "admin")
 def deletar_padrao_medico_orientacao_exame(id: int):
     try:
-        medico_id = _get_medico_id()
+        medico_id, erro = resolver_medico_alvo()
+        if erro:
+            return erro
         padrao = _get_padrao_do_medico(id, medico_id)
 
         if not padrao:

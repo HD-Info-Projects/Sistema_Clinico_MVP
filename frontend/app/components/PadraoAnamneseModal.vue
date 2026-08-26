@@ -2,6 +2,8 @@
 import type { PadraoAnamnese } from '~/types'
 
 const props = defineProps<{
+  /** Medico alvo quando um admin gerencia os padroes de outro usuario */
+  medicoId?: number | null
   padrao?: PadraoAnamnese | null
 }>()
 
@@ -29,9 +31,9 @@ async function salvar() {
       conteudo: conteudo.value
     }
     if (props.padrao) {
-      await padroesAnamneseStore.atualizar(props.padrao.id, data)
+      await padroesAnamneseStore.atualizar(props.padrao.id, data, props.medicoId ?? undefined)
     } else {
-      await padroesAnamneseStore.criar(data)
+      await padroesAnamneseStore.criar(data, props.medicoId ?? undefined)
     }
     open.value = false
   } finally {

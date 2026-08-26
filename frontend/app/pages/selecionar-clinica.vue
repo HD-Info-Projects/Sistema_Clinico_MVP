@@ -1,12 +1,28 @@
 <script setup lang="ts">
+import { paginaInicialPorModo } from '~/stores/auth'
+
 const auth = useAuthStore()
 
 const loading = ref(false)
 
-function selecionar(id: number) {
+const subtitulo = computed(() => {
+  if (auth.isAdmin && auth.accessMode === 'recepcionista') {
+    return 'Escolha a unidade na qual deseja atender como recepcionista.'
+  }
+  return 'Você tem acesso a mais de uma clínica. Escolha qual deseja acessar.'
+})
+
+async function selecionar(id: number) {
   loading.value = true
-  auth.setActiveClinica(id)
-  if (auth.isRecepcao) {
+  const selecionou = await auth.setActiveClinica(id)
+  if (!selecionou) {
+    loading.value = false
+    return
+  }
+
+  if (auth.isAdmin) {
+    navigateTo(paginaInicialPorModo(auth.accessMode))
+  } else if (auth.isRecepcao) {
     navigateTo('/recepcao')
   } else {
     navigateTo('/dashboard')
@@ -17,10 +33,10 @@ function selecionar(id: number) {
 <template>
   <div class="w-full max-w-lg mx-auto p-6">
     <h1 class="text-xl font-bold mb-2">
-      Selecione a Clínica
+      Selecione a Unidade
     </h1>
     <p class="text-muted mb-6">
-      Você tem acesso a mais de uma clínica. Escolha qual deseja acessar.
+      {{ subtitulo }}
     </p>
 
     <div class="flex flex-col gap-3">

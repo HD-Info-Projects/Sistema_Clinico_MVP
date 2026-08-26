@@ -34,5 +34,7 @@ const props = defineProps<{
         </p>
       </div>
     </div>
+
+    <slot />
   </UCard>
 </template>

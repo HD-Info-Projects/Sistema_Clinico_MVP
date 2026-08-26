@@ -17,10 +17,17 @@ const clinicaId = computed(() => {
 const audioRef = ref<HTMLAudioElement | null>(null)
 const audioUrl = ref<string | null>(null)
 const audioAtivo = ref(false)
+const audioBloqueado = ref(false)
+const audioAtivando = ref(false)
 const ttsLoading = ref(false)
 const ttsError = ref(false)
+const ttsErrorMensagem = ref('')
 const ttsRequestId = ref(0)
 const ttsAbortController = ref<AbortController | null>(null)
+
+function revogarObjectUrl(url: string) {
+  window.setTimeout(() => URL.revokeObjectURL(url), 0)
+}
 
 function criarAudioSilenciosoUrl() {
   const sampleRate = 8000
@@ -63,23 +70,43 @@ async function testarAudioPermitido() {
     return false
   } finally {
     audio.pause()
-    URL.revokeObjectURL(url)
+    audio.removeAttribute('src')
+    audio.load()
+    revogarObjectUrl(url)
   }
 }
 
 function limparAudioAtual() {
-  audioRef.value?.pause()
+  if (audioRef.value) {
+    audioRef.value.pause()
+    audioRef.value.removeAttribute('src')
+    audioRef.value.load()
+  }
   audioRef.value = null
 
   if (audioUrl.value) {
-    URL.revokeObjectURL(audioUrl.value)
+    revogarObjectUrl(audioUrl.value)
     audioUrl.value = null
   }
 }
 
 async function ativarAudio() {
+  if (audioAtivando.value || audioAtivo.value) return
+
+  audioAtivando.value = true
   ttsError.value = false
-  audioAtivo.value = await testarAudioPermitido()
+  ttsErrorMensagem.value = ''
+  audioBloqueado.value = false
+
+  const permitido = await testarAudioPermitido()
+  audioAtivo.value = permitido
+  audioBloqueado.value = !permitido
+  audioAtivando.value = false
+}
+
+function ativarAudioPorInteracao() {
+  if (audioAtivo.value || audioAtivando.value) return
+  void ativarAudio()
 }
 
 async function falarChamado(chamadoId: number) {
@@ -95,6 +122,7 @@ async function falarChamado(chamadoId: number) {
   limparAudioAtual()
   ttsLoading.value = true
   ttsError.value = false
+  ttsErrorMensagem.value = ''
 
   try {
     const res = await fetch('/api/tts/speak', {
@@ -104,7 +132,18 @@ async function falarChamado(chamadoId: number) {
       signal: abortController.signal
     })
 
-    if (!res.ok) throw new Error('Erro ao gerar áudio')
+    if (!res.ok) {
+      let message = 'Erro ao gerar áudio'
+
+      try {
+        const body = await res.json() as { statusMessage?: string, message?: string }
+        message = body.statusMessage || body.message || message
+      } catch {
+        // Mantém a mensagem padrão quando a resposta não é JSON.
+      }
+
+      throw new Error(message)
+    }
     if (requestId !== ttsRequestId.value) return
 
     const blob = await res.blob()
@@ -135,14 +174,17 @@ async function falarChamado(chamadoId: number) {
 
     if (error instanceof DOMException && error.name === 'NotAllowedError') {
       audioAtivo.value = false
+      audioBloqueado.value = true
       ttsLoading.value = false
       ttsError.value = false
+      ttsErrorMensagem.value = ''
       limparAudioAtual()
       return
     }
 
     ttsLoading.value = false
     ttsError.value = true
+    ttsErrorMensagem.value = error instanceof Error ? error.message : 'Erro ao gerar áudio'
     limparAudioAtual()
   }
 }
@@ -155,12 +197,11 @@ onMounted(async () => {
 
   try {
     unidade.value = await $fetch<Clinica>(`/api/clinicas/${clinicaId.value}`)
-  } catch {
-    painelError.value = 'Unidade não encontrada'
-    return
+  } catch (error) {
+    console.error('Erro ao carregar unidade do painel de chamada', error)
   }
 
-  audioAtivo.value = await testarAudioPermitido()
+  await ativarAudio()
 
   chamadosStore.init({ public: true, clinicaId: clinicaId.value })
 
@@ -184,10 +225,21 @@ const { horaFormatada, dataFormatada } = useRelogio()
 
 const ultimoChamado = computed(() => chamadosStore.ultimoChamado)
 const ultimasChamadas = computed(() => chamadosStore.historicoChamados.slice(0, 4))
+const unidadeLabel = computed(() => unidade.value?.nome || (clinicaId.value ? `Unidade ${clinicaId.value}` : 'Unidade'))
+const mostrarDesbloqueioAudio = computed(() => !audioAtivo.value && !painelError.value)
+const mensagemAudio = computed(() => audioBloqueado.value
+  ? 'Áudio bloqueado pelo navegador'
+  : 'Tentando ativar áudio automaticamente')
 </script>
 
 <template>
-  <div class="flex h-screen flex-col gap-4 overflow-hidden p-6">
+  <div
+    class="relative flex h-screen flex-col gap-4 overflow-hidden p-6"
+    tabindex="0"
+    @pointerdown="ativarAudioPorInteracao"
+    @keydown.space.prevent="ativarAudioPorInteracao"
+    @keydown.enter.prevent="ativarAudioPorInteracao"
+  >
     <div
       v-if="painelError"
       class="flex h-full items-center justify-center"
@@ -205,10 +257,9 @@ const ultimasChamadas = computed(() => chamadosStore.historicoChamados.slice(0, 
     <template v-else>
       <header class="flex shrink-0 items-center justify-between">
         <div class="flex items-center gap-3">
-          <LogoMed :isrecepcao="false" />
+          <LogoMed :tipo="0" />
           <UBadge
-            v-if="unidade"
-            :label="unidade.nome"
+            :label="unidadeLabel"
             color="primary"
             variant="soft"
             size="lg"
@@ -216,10 +267,11 @@ const ultimasChamadas = computed(() => chamadosStore.historicoChamados.slice(0, 
           <UButton
             v-if="!audioAtivo"
             icon="i-lucide-volume-2"
-            label="Ativar áudio"
+            :label="audioBloqueado ? 'Ativar áudio' : 'Ativando áudio'"
             color="primary"
             variant="soft"
-            @click="ativarAudio"
+            :loading="audioAtivando"
+            @click.stop="ativarAudioPorInteracao"
           />
           <div
             v-else-if="ttsLoading"
@@ -236,12 +288,11 @@ const ultimasChamadas = computed(() => chamadosStore.historicoChamados.slice(0, 
             class="flex items-center gap-1 text-sm text-error"
           >
             <UIcon name="i-lucide-volume-x" />
-            Erro no áudio
+            {{ ttsErrorMensagem || 'Erro no áudio' }}
           </div>
           <UBadge
             v-else
             icon="i-lucide-volume-2"
-            label="Áudio ativo"
             color="success"
             variant="soft"
           />
@@ -372,6 +423,39 @@ const ultimasChamadas = computed(() => chamadosStore.historicoChamados.slice(0, 
               Nenhuma chamada realizada
             </p>
           </div>
+        </UCard>
+      </div>
+
+      <div
+        v-if="mostrarDesbloqueioAudio"
+        class="absolute inset-0 z-20 flex items-center justify-center bg-neutral-950/65 p-6 backdrop-blur-sm"
+        @click.stop="ativarAudioPorInteracao"
+      >
+        <UCard
+          class="max-w-xl text-center shadow-2xl"
+          :ui="{ body: 'p-8 sm:p-10' }"
+        >
+          <div class="mx-auto mb-5 flex size-20 items-center justify-center rounded-full bg-primary/10">
+            <UIcon
+              name="i-lucide-volume-2"
+              class="text-5xl text-primary"
+            />
+          </div>
+          <p class="mb-2 text-3xl font-bold text-foreground">
+            Iniciar painel com áudio
+          </p>
+          <p class="mb-6 text-lg text-muted">
+            {{ mensagemAudio }}. Toque ou clique uma vez para liberar as chamadas sonoras nesta tela.
+          </p>
+          <UButton
+            icon="i-lucide-volume-2"
+            label="Iniciar áudio"
+            color="primary"
+            size="xl"
+            class="justify-center"
+            :loading="audioAtivando"
+            @click.stop="ativarAudioPorInteracao"
+          />
         </UCard>
       </div>
     </template>

@@ -14,6 +14,12 @@ from src.security.decorators import roles_required
 from src.security.unidades import unidade_atual_required
 from src.services.auditoria_service import registrar_auditoria
 from src.settings.extensions import db
+from src.utils.tuss import (
+    TIPOS_PROCEDIMENTO_VALIDOS,
+    label_tipo_procedimento,
+    normalizar_codigo_tuss,
+    tipo_procedimento_codigo,
+)
 
 
 check_in_bp = Blueprint("check_in", __name__, url_prefix="/check_in")
@@ -82,6 +88,21 @@ def normalizar_int(valor):
             return int(float(texto.replace(",", ".")))
         except (TypeError, ValueError):
             return None
+
+
+def normalizar_codigo_procedimento(valor):
+    return normalizar_codigo_tuss(valor)
+
+
+def codigo_procedimento_row(row):
+    if normalizar_texto(row.get("COD_PROCEDIMENTO_SPDATA")):
+        return normalizar_codigo_procedimento(row.get("COD_PROCEDIMENTO_SPDATA"))
+
+    return normalizar_codigo_procedimento(row.get("PROCEDIMENTO"))
+
+
+def tipo_procedimento_row(row):
+    return tipo_procedimento_codigo(codigo_procedimento_row(row))
 
 
 def normalizar_identificador_medico(valor):
@@ -153,9 +174,11 @@ def buscar_agendamentos_firebird(data_ref, unidade, medico=None, q=None):
     params = [data_ref]
 
     codigo_agenda = normalizar_texto(getattr(unidade, "codigo_spdata_agenda", None))
-    if codigo_agenda:
-        where.append("CAST(r.UNIDADE AS VARCHAR(50)) = ?")
-        params.append(codigo_agenda)
+    if not codigo_agenda:
+        raise ValueError("Unidade sem código SPDATA de agenda configurado")
+
+    where.append("CAST(r.UNIDADE AS VARCHAR(50)) = ?")
+    params.append(codigo_agenda)
 
     medico = normalizar_texto(medico)
     if medico:
@@ -206,6 +229,7 @@ def buscar_agendamentos_firebird(data_ref, unidade, medico=None, q=None):
             r.RETORNO AS RETORNO,
             r.TP_AGE AS TIPO_AGENDA,
             r.PROC_SOL AS PROCEDIMENTO_SOLICITADO,
+            r.PROCED AS COD_PROCEDIMENTO_SPDATA,
             r.PROCED AS PROCEDIMENTO,
             r.OBS AS OBS,
             r.DATA_NASCIMENTO AS DATA_NASCIMENTO,
@@ -270,7 +294,8 @@ def buscar_atendimentos_firebird(data_ref, unidade):
             CAST(NULL AS VARCHAR(50)) AS RETORNO,
             CAST(NULL AS VARCHAR(50)) AS TIPO_AGENDA,
             CAST(NULL AS VARCHAR(255)) AS PROCEDIMENTO_SOLICITADO,
-            CAST(NULL AS VARCHAR(255)) AS PROCEDIMENTO,
+            procedimento.COD_PROCEDIMENTO AS COD_PROCEDIMENTO_SPDATA,
+            procedimento.NOME AS PROCEDIMENTO,
             'S' AS ATENDIDO,
             'S' AS TEM_ATENDIMENTO
         FROM ATCABECATEND a
@@ -282,6 +307,8 @@ def buscar_atendimentos_firebird(data_ref, unidade):
             ON tb.ID_TBPROFIS = medico.ID
         LEFT JOIN TBCONVEN convenio
             ON convenio.COD = a.ID_TBCONVEN
+        LEFT JOIN TBPROCTO procedimento
+            ON procedimento.ID = a.ID_TBPROCTO
         LEFT JOIN TBESPEC esp_atendimento
             ON esp_atendimento.COD = (
                 SELECT FIRST 1 me.ESP
@@ -381,6 +408,14 @@ def filtrar_rows(rows, medico=None, q=None):
         filtrados.append(row)
 
     return filtrados
+
+
+def filtrar_rows_por_tipo(rows, tipo=None):
+    tipo = normalizar_texto(tipo)
+    if not tipo:
+        return rows
+
+    return [row for row in rows if tipo_procedimento_row(row) == tipo]
 
 
 def buscar_status_local(registros, unidade=None):
@@ -492,6 +527,8 @@ def especialidade_para_frontend(row, especialidades_por_medico):
 def item_para_frontend(row, status_local, convenios_por_codigo, especialidades_por_medico, unidade):
     registro = normalizar_texto(row.get("REGISTRO"))
     id_convenio_spdata = normalizar_int(row.get("ID_CONVENIO_SPDATA") or row.get("CONVENIO"))
+    codigo_procedimento = codigo_procedimento_row(row) or None
+    tipo_procedimento = tipo_procedimento_row(row)
     local = status_local.get(registro)
     if local:
         status = local["status"]
@@ -530,6 +567,9 @@ def item_para_frontend(row, status_local, convenios_por_codigo, especialidades_p
         "unidade": normalizar_texto(row.get("UNIDADE")),
         "retorno": normalizar_texto(row.get("RETORNO")),
         "tipoAgenda": normalizar_texto(row.get("TIPO_AGENDA")),
+        "codigoProcedimentoSpdata": codigo_procedimento,
+        "tipoProcedimento": tipo_procedimento,
+        "tipoProcedimentoLabel": label_tipo_procedimento(tipo_procedimento),
         "procedimentoSolicitado": normalizar_texto(row.get("PROCEDIMENTO_SOLICITADO")),
         "procedimento": normalizar_texto(row.get("PROCEDIMENTO")),
         "observacao": normalizar_texto(row.get("OBS")),
@@ -582,7 +622,7 @@ def calcular_medicos(rows, especialidades_por_medico):
 
 @check_in_bp.route("/", methods=["GET"])
 @jwt_required()
-@roles_required("recepcao")
+@roles_required("recepcao", "admin")
 def home_check_in():
     try:
         data_ref = parse_data_param()
@@ -590,16 +630,20 @@ def home_check_in():
         page = parse_int_param("page", 1)
         page_size = parse_int_param("pageSize", 20, maximo=MAX_PAGE_SIZE)
         status_filtro = normalizar_texto(request.args.get("status"))
+        tipo_filtro = normalizar_texto(request.args.get("tipo"))
         medico = request.args.get("medico")
         q = request.args.get("q")
 
         if status_filtro and status_filtro not in STATUS_VALIDOS:
             return jsonify({"error": "Status inválido"}), 400
+        if tipo_filtro and tipo_filtro not in TIPOS_PROCEDIMENTO_VALIDOS:
+            return jsonify({"error": "Tipo inválido"}), 400
 
         rows_agenda = buscar_agendamentos_firebird(data_ref, unidade)
         rows_atendimentos = buscar_atendimentos_firebird(data_ref, unidade)
         rows_dia = mesclar_agenda_atendimentos(rows_agenda, rows_atendimentos)
-        rows_filtradas = filtrar_rows(rows_dia, medico=medico, q=q)
+        rows_tipo = filtrar_rows_por_tipo(rows_dia, tipo_filtro)
+        rows_filtradas = filtrar_rows(rows_tipo, medico=medico, q=q)
 
         registros = [row.get("REGISTRO") for row in rows_filtradas]
         status_local = buscar_status_local(registros, unidade)
@@ -636,7 +680,7 @@ def home_check_in():
             "page": page,
             "pageSize": page_size,
             "total": total,
-            "medicos": calcular_medicos(rows_dia, especialidades_por_medico),
+            "medicos": calcular_medicos(rows_tipo, especialidades_por_medico),
             "resumo": resumo,
             "data": data_ref.isoformat(),
         }), 200

@@ -14,7 +14,8 @@ function publicEventData(type: string, data: unknown) {
   if (!type.startsWith('chamado:') || !data || typeof data !== 'object') return data
 
   const chamado = data as Record<string, unknown>
-  const pacienteNome = String(chamado.pacienteNome || '').trim().split(/\s+/)[0] || 'Paciente'
+  const pacienteNome = String(chamado.pacienteNome || '').trim().replace(/\s+/g, ' ') || 'Paciente'
+  const medicoResponsavel = String(chamado.medicoResponsavel || '').trim().slice(0, 80)
   return {
     id: chamado.id,
     clinicaId: chamado.clinicaId,
@@ -23,7 +24,7 @@ function publicEventData(type: string, data: unknown) {
     dataChamada: chamado.dataChamada,
     status: chamado.status,
     localAtendimento: String(chamado.localAtendimento || '').trim().slice(0, 80),
-    medicoResponsavel: ''
+    medicoResponsavel
   }
 }
 
