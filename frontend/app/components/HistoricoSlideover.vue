@@ -1,6 +1,6 @@
 <!-- eslint-disable vue/no-v-html -->
 <script setup lang="ts">
-import type { Paciente, AgendamentoComPaciente, HistoricoRecord, HistoricoResponse, HistoricoLocalRecord } from '~/types'
+import type { Paciente, AgendamentoComPaciente, HistoricoRecord, HistoricoResponse, HistoricoLocalRecord, HistoricoExame, ExameHistoricoItem } from '~/types'
 import { formatarDataHistorico } from '~/utils/time'
 
 const props = defineProps<{
@@ -28,6 +28,7 @@ type HistoricoCard = {
   title: string
   icon: string
   description: string
+  exames?: ExameHistoricoItem[]
 }
 
 type HistoricoTimelineItem = {
@@ -49,11 +50,35 @@ const localHistorico = ref<HistoricoLocalRecord[]>([])
 const biodataOffset = ref(0)
 const biodataHasMore = ref(false)
 
+type ExamePacs = {
+  idTokenLancamentoExame: number | null
+  pacienteId?: number | null
+  paciente?: string
+  prontuario?: string
+  dataLancamento?: string | null
+  dataResultado?: string | null
+  codigoExame?: string
+  sequencia?: number | null
+  ato?: number | null
+  nomeExame: string
+  statusExame?: string
+  temLaudo: boolean
+  temImagem: boolean
+}
+
+type ExamesPacsResponse = {
+  pacienteId: number
+  items: ExamePacs[]
+}
+
+const examesPacs = ref<ExamePacs[]>([])
+
 const HISTORICO_BIODATA_LIMIT = 10
 
 type HistoricoCacheEntry = {
   biodata: HistoricoRecord[]
   local: HistoricoLocalRecord[]
+  examesPacs: ExamePacs[]
   offset: number
   hasMore: boolean
 }
@@ -92,7 +117,10 @@ function temConteudoUtil(descricao: string): boolean {
 const historicoItemsVisiveis = computed(() => {
   return historicoItems.value.filter((item) => {
     if (!item.title) return false
-    return item.cards.some(c => temConteudoUtil(c.description))
+    return item.cards.some((c) => {
+      if (c.type === 'exames') return (c.exames?.length ?? 0) > 0
+      return temConteudoUtil(c.description)
+    })
   })
 })
 
@@ -139,6 +167,7 @@ function resetHistoricoState() {
   historicoItems.value = []
   biodataHistorico.value = []
   localHistorico.value = []
+  examesPacs.value = []
   biodataOffset.value = 0
   biodataHasMore.value = false
   isLoadingHistorico.value = false
@@ -148,6 +177,7 @@ function resetHistoricoState() {
 function restaurarHistoricoCache(cache: HistoricoCacheEntry) {
   biodataHistorico.value = [...cache.biodata]
   localHistorico.value = [...cache.local]
+  examesPacs.value = [...cache.examesPacs]
   biodataOffset.value = cache.offset
   biodataHasMore.value = cache.hasMore
   remontarHistoricoItems()
@@ -159,6 +189,7 @@ function salvarHistoricoCache(cacheKey: string) {
   historicoCache.set(cacheKey, {
     biodata: [...biodataHistorico.value],
     local: [...localHistorico.value],
+    examesPacs: [...examesPacs.value],
     offset: biodataOffset.value,
     hasMore: biodataHasMore.value
   })
@@ -213,7 +244,17 @@ async function fetchHistorico() {
         if (isHistoricoAtual(requestId, cacheKey)) console.error('Erro ao buscar histórico BioData')
       })
 
-    await Promise.allSettled([localPromise, biodataPromise])
+    const pacsPromise = buscarExamesPacs(pacienteId)
+      .then((pacsResponse) => {
+        if (!isHistoricoAtual(requestId, cacheKey)) return
+        examesPacs.value = pacsResponse.items || []
+        remontarHistoricoItems()
+      })
+      .catch(() => {
+        if (isHistoricoAtual(requestId, cacheKey)) console.error('Erro ao buscar exames PACS')
+      })
+
+    await Promise.allSettled([localPromise, biodataPromise, pacsPromise])
 
     if (isHistoricoAtual(requestId, cacheKey)) salvarHistoricoCache(cacheKey)
   } catch {
@@ -250,6 +291,10 @@ async function buscarHistoricoBiodata(offset: number): Promise<HistoricoResponse
       offset
     }
   })
+}
+
+async function buscarExamesPacs(pacienteId: number): Promise<ExamesPacsResponse> {
+  return await $fetch<ExamesPacsResponse>(`/api/exames-pacs/paciente/${pacienteId}`)
 }
 
 async function carregarMaisHistoricoBiodata() {
@@ -344,7 +389,7 @@ function montarHistoricoItems(biodata: HistoricoRecord[], local: HistoricoLocalR
         { id: 'anamnese-local', type: 'Anamnese', title: 'Anamnese', icon: 'i-lucide-file-text', description: l.anamnese || '' },
         { id: 'diagnostico-local', type: 'diagnostico', title: 'diagnostico', icon: 'i-lucide-clipboard-check', description: montarDiagnosticos(l) },
         { id: 'receita-local', type: 'receita', title: 'receita', icon: 'i-lucide-pill', description: l.medicamentos?.join('\n') || '' },
-        { id: 'exames-local', type: 'exames', title: 'exames', icon: 'i-lucide-flask-conical', description: montarExames(l.exames) }
+        { id: 'exames-local', type: 'exames', title: 'exames', icon: 'i-lucide-flask-conical', description: '', exames: montarExamesEnriquecidos(l.exames, l.data_consulta) }
       ]
     })
   }
@@ -406,27 +451,77 @@ function montarDiagnosticos(item: HistoricoLocalRecord): string {
   return partes.join('\n')
 }
 
-function escapeHtml(text: string): string {
-  return text
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
+function extrairDataIso(valor?: string | null): string {
+  const texto = String(valor || '').trim()
+  const match = texto.match(/^(\d{4}-\d{2}-\d{2})/)
+  return match?.[1] ?? ''
 }
 
-function montarExames(exames?: HistoricoLocalRecord['exames']): string {
-  if (!exames?.length) return ''
+function chaveExame(nome: string, data?: string | null): string {
+  return `${nome.trim().toLowerCase()}|${extrairDataIso(data)}`
+}
 
-  return exames
-    .map((exame) => {
-      if (typeof exame === 'string') return exame
-      const nome = exame.nome || exame.descricao || exame.tipo_exame || ''
-      if (!temConteudoUtil(exame.orientacao || '')) return nome
+function montarExamesEnriquecidos(
+  examesLocais: (HistoricoExame | string)[],
+  dataAtendimento: string | null
+): ExameHistoricoItem[] {
+  if (!examesLocais?.length) return []
 
-      return `${escapeHtml(nome)}\n<strong>Orientação:</strong>\n${exame.orientacao}`
+  const pacsPorChave = new Map<string, ExamePacs>()
+  for (const p of examesPacs.value) {
+    const chave = chaveExame(p.nomeExame, p.dataLancamento)
+    if (!pacsPorChave.has(chave)) {
+      pacsPorChave.set(chave, p)
+    }
+  }
+
+  const chavesUsadas = new Set<string>()
+  const resultado: ExameHistoricoItem[] = []
+
+  for (const exame of examesLocais) {
+    const nome = typeof exame === 'string' ? exame : (exame.nome || exame.descricao || exame.tipo_exame || '')
+    if (!nome.trim()) continue
+
+    const orientacao = typeof exame === 'string' ? null : exame.orientacao
+    const chave = chaveExame(nome, dataAtendimento)
+    const pacs = pacsPorChave.get(chave)
+
+    if (pacs) chavesUsadas.add(chave)
+
+    resultado.push({
+      nome,
+      orientacao,
+      temImagem: pacs?.temImagem ?? false,
+      temLaudo: pacs?.temLaudo ?? false,
+      idTokenLancamentoExame: pacs?.idTokenLancamentoExame ?? null
     })
-    .filter(Boolean)
-    .join('\n')
+  }
+
+  for (const p of examesPacs.value) {
+    const chave = chaveExame(p.nomeExame, p.dataLancamento)
+    if (chavesUsadas.has(chave)) continue
+    chavesUsadas.add(chave)
+
+    resultado.push({
+      nome: p.nomeExame,
+      orientacao: null,
+      temImagem: p.temImagem,
+      temLaudo: p.temLaudo,
+      idTokenLancamentoExame: p.idTokenLancamentoExame
+    })
+  }
+
+  return resultado
+}
+
+function abrirExamePacs(idTokenLancamentoExame: number | null | undefined, tipo: 'imagem' | 'laudo') {
+  if (!idTokenLancamentoExame) return
+  const id = Number(idTokenLancamentoExame)
+  if (!Number.isFinite(id) || id <= 0) return
+  const url = tipo === 'imagem'
+    ? `/api/exames-pacs/${id}/viewer`
+    : `/api/exames-pacs/${id}/laudo/pdf`
+  window.open(url, '_blank', 'noopener,noreferrer')
 }
 </script>
 
@@ -528,7 +623,7 @@ function montarExames(exames?: HistoricoLocalRecord['exames']): string {
                 :key="card.id"
               >
                 <UCard
-                  v-if="temConteudoUtil(card.description)"
+                  v-if="card.type === 'exames' ? (card.exames?.length ?? 0) > 0 : temConteudoUtil(card.description)"
                   class="rounded-lg border border-muted hover:bg-muted/50"
                   :ui="{
                     header: `p-0.5 sm:px-2 ${cardHeaderColors[card.type]}`,
@@ -546,22 +641,58 @@ function montarExames(exames?: HistoricoLocalRecord['exames']): string {
                       </p>
                     </div>
                   </template>
-                  <div class="relative">
-                    <!-- eslint-disable vue/no-v-html -->
-                    <div
-                      class="text-sm cursor-pointer whitespace-pre-line"
-                      :class="expandedContent[item.id + '-' + card.id] ? '' : 'line-clamp-3'"
-                      @click="toggleContent(item.id + '-' + card.id)"
-                      v-html="sanitizeHtml(card.description)"
-                    />
-                    <!-- eslint-enable vue/no-v-html -->
-                    <UIcon
-                      v-if="card.description.length > 100"
-                      :name="expandedContent[item.id + '-' + card.id] ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
-                      class="absolute bottom-0 right-0 dark:bg-neutral-900 px-1 cursor-pointer text-muted"
-                      @click.stop="toggleContent(item.id + '-' + card.id)"
-                    />
-                  </div>
+                  <template v-if="card.type === 'exames' && card.exames?.length">
+                    <div class="text-sm space-y-1.5">
+                      <div
+                        v-for="(exame, idx) in card.exames"
+                        :key="idx"
+                        class="flex items-center gap-1.5"
+                      >
+                        <span class="truncate">{{ exame.nome }}</span>
+                        <UIcon
+                          v-if="exame.temImagem"
+                          name="i-lucide-eye"
+                          class="size-4 shrink-0 text-primary cursor-pointer hover:text-primary-600"
+                          @click.stop="abrirExamePacs(exame.idTokenLancamentoExame, 'imagem')"
+                        />
+                        <UIcon
+                          v-if="exame.temLaudo"
+                          name="i-lucide-file-text"
+                          class="size-4 shrink-0 text-secondary cursor-pointer hover:text-secondary-600"
+                          @click.stop="abrirExamePacs(exame.idTokenLancamentoExame, 'laudo')"
+                        />
+                      </div>
+                      <template
+                        v-for="(exame, idx) in card.exames"
+                        :key="'orient-' + idx"
+                      >
+                        <div
+                          v-if="exame.orientacao"
+                          class="text-xs text-muted mt-0.5"
+                        >
+                          <strong>{{ exame.nome }}:</strong> {{ exame.orientacao }}
+                        </div>
+                      </template>
+                    </div>
+                  </template>
+                  <template v-else>
+                    <div class="relative">
+                      <!-- eslint-disable vue/no-v-html -->
+                      <div
+                        class="text-sm cursor-pointer whitespace-pre-line"
+                        :class="expandedContent[item.id + '-' + card.id] ? '' : 'line-clamp-3'"
+                        @click="toggleContent(item.id + '-' + card.id)"
+                        v-html="sanitizeHtml(card.description)"
+                      />
+                      <!-- eslint-enable vue/no-v-html -->
+                      <UIcon
+                        v-if="card.description.length > 100"
+                        :name="expandedContent[item.id + '-' + card.id] ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+                        class="absolute bottom-0 right-0 dark:bg-neutral-900 px-1 cursor-pointer text-muted"
+                        @click.stop="toggleContent(item.id + '-' + card.id)"
+                      />
+                    </div>
+                  </template>
                 </UCard>
               </template>
             </div>

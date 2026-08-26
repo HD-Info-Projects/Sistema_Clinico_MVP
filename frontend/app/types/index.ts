@@ -147,6 +147,14 @@ export interface HistoricoExame {
   codigo_amb: string | null
 }
 
+export interface ExameHistoricoItem {
+  nome: string
+  orientacao?: string | null
+  temImagem: boolean
+  temLaudo: boolean
+  idTokenLancamentoExame?: number | null
+}
+
 export interface Chamado {
   id: number
   clinicaId: number
