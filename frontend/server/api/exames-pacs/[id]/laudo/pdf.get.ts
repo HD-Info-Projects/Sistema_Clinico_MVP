@@ -24,6 +24,9 @@ export default defineEventHandler(async (event) => {
     setResponseHeader(event, 'Content-Type', contentType)
     setResponseHeader(event, 'Content-Disposition', `inline; filename="${filename}"`)
     setResponseHeader(event, 'Content-Length', pdf.length)
+    setResponseHeader(event, 'Cache-Control', 'no-store, private')
+    setResponseHeader(event, 'Pragma', 'no-cache')
+    setResponseHeader(event, 'X-Content-Type-Options', 'nosniff')
 
     return pdf
   } catch (error) {

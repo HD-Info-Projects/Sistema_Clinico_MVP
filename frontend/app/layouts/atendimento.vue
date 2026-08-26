@@ -1,6 +1,7 @@
 <!-- eslint-disable vue/no-v-html -->
 <script setup lang="ts">
-import type { HistoricoRecord, HistoricoResponse, HistoricoLocalRecord, HistoricoExame, ExameHistoricoItem } from '~/types'
+import type { HistoricoRecord, HistoricoResponse, HistoricoLocalRecord, ExameHistoricoItem, ExamePacs, ExamesPacsResponse } from '~/types'
+import { abrirExamePacs, montarExamesHistoricoUnificados } from '~/utils/historico-exames'
 import { formatarDataHistorico } from '~/utils/time'
 
 const { sanitizeHtml } = useSanitize()
@@ -18,7 +19,7 @@ onMounted(() => {
     navigateTo('/dashboard', { replace: true })
     return
   }
-  fetchHistorico()
+  void fetchHistorico()
 })
 
 const agendamento = computed(() => agendamentosStore.emAtendimento)
@@ -53,27 +54,6 @@ type HistoricoTimelineItem = {
   _sortKey: string
 }
 
-type ExamePacs = {
-  idTokenLancamentoExame: number | null
-  pacienteId?: number | null
-  paciente?: string
-  prontuario?: string
-  dataLancamento?: string | null
-  dataResultado?: string | null
-  codigoExame?: string
-  sequencia?: number | null
-  ato?: number | null
-  nomeExame: string
-  statusExame?: string
-  temLaudo: boolean
-  temImagem: boolean
-}
-
-type ExamesPacsResponse = {
-  pacienteId: number
-  items: ExamePacs[]
-}
-
 const historicoItems = ref<HistoricoTimelineItem[]>([])
 const isLoadingHistorico = ref(false)
 const isLoadingMaisHistorico = ref(false)
@@ -86,12 +66,14 @@ const biodataHasMore = ref(false)
 const spdataOffset = ref(0)
 const spdataHasMore = ref(false)
 const examesPacs = ref<ExamePacs[]>([])
+let historicoRequestId = 0
 
 watch(
-  () => agendamento.value?.paciente?.id,
-  (pacienteId, pacienteAnterior) => {
-    if (pacienteId === pacienteAnterior) return
-    examesPacs.value = []
+  () => [agendamento.value?.paciente?.id, agendamento.value?.spdataAtendimentoId] as const,
+  ([pacienteId, spdataAtendimentoId], [pacienteAnterior, spdataAtendimentoAnterior]) => {
+    if (pacienteId === pacienteAnterior && spdataAtendimentoId === spdataAtendimentoAnterior) return
+    resetHistoricoState()
+    if (pacienteId) void fetchHistorico()
   }
 )
 
@@ -99,6 +81,29 @@ const HISTORICO_BIODATA_LIMIT = 10
 const HISTORICO_SPDATA_LIMIT = 10
 
 const historicoExternoHasMore = computed(() => biodataHasMore.value || spdataHasMore.value)
+
+function historicoCacheKeyAtual(): string {
+  const ag = agendamento.value
+  return `${ag?.paciente?.id || ''}:${ag?.spdataAtendimentoId || ''}`
+}
+
+function isHistoricoAtual(requestId: number, cacheKey: string): boolean {
+  return requestId === historicoRequestId && cacheKey === historicoCacheKeyAtual()
+}
+
+function resetHistoricoState() {
+  historicoItems.value = []
+  biodataHistorico.value = []
+  spdataHistorico.value = []
+  localHistorico.value = []
+  examesPacs.value = []
+  biodataOffset.value = 0
+  biodataHasMore.value = false
+  spdataOffset.value = 0
+  spdataHasMore.value = false
+  isLoadingHistorico.value = false
+  isLoadingMaisHistorico.value = false
+}
 
 useInfiniteScroll(
   historicoScrollRef,
@@ -162,10 +167,14 @@ async function fetchHistorico() {
   const pacienteId = paciente?.id
   if (!pacienteId) return
 
+  const requestId = ++historicoRequestId
+  const cacheKey = historicoCacheKeyAtual()
+
   isLoadingHistorico.value = true
   biodataHistorico.value = []
   spdataHistorico.value = []
   localHistorico.value = []
+  examesPacs.value = []
   historicoItems.value = []
   biodataOffset.value = 0
   biodataHasMore.value = false
@@ -179,6 +188,8 @@ async function fetchHistorico() {
       buscarHistoricoLocal(pacienteId),
       $fetch<ExamesPacsResponse>(`/api/exames-pacs/paciente/${pacienteId}`)
     ])
+
+    if (!isHistoricoAtual(requestId, cacheKey)) return
 
     const biodataResponse = biodataResult.status === 'fulfilled' ? biodataResult.value : null
     const spdataResponse = spdataResult.status === 'fulfilled' ? spdataResult.value : null
@@ -211,10 +222,11 @@ async function fetchHistorico() {
 
     remontarHistoricoItems()
   } catch {
+    if (!isHistoricoAtual(requestId, cacheKey)) return
     console.error('Erro ao buscar histórico')
     historicoItems.value = []
   } finally {
-    isLoadingHistorico.value = false
+    if (isHistoricoAtual(requestId, cacheKey)) isLoadingHistorico.value = false
   }
 }
 
@@ -346,6 +358,7 @@ function remontarHistoricoItems() {
 function montarHistoricoItems(biodata: HistoricoRecord[], spdata: HistoricoRecord[], local: HistoricoLocalRecord[]) {
   const items: HistoricoTimelineItem[] = []
   const historicoExternoPorAtendimento = new Map<string, HistoricoTimelineItem>()
+  const examesUnificados = montarExamesHistoricoUnificados(local, examesPacs.value)
 
   for (const r of [...biodata, ...spdata]) {
     const origemSpdata = r.ORIGEM === 'SPDATA'
@@ -389,7 +402,7 @@ function montarHistoricoItems(biodata: HistoricoRecord[], spdata: HistoricoRecor
     })
   }
 
-  for (const l of local) {
+  for (const [index, l] of local.entries()) {
     const dataHistorico = l.data_consulta || ''
     items.push({
       id: `local-${l.spdata_atendimento_id || dataHistorico || items.length}`,
@@ -402,7 +415,22 @@ function montarHistoricoItems(biodata: HistoricoRecord[], spdata: HistoricoRecor
         { id: 'anamnese-local', type: 'Anamnese', title: 'Anamnese', icon: 'i-lucide-file-text', description: l.anamnese || '' },
         { id: 'diagnostico-local', type: 'diagnostico', title: 'diagnostico', icon: 'i-lucide-clipboard-check', description: montarDiagnosticos(l) },
         { id: 'receita-local', type: 'receita', title: 'receita', icon: 'i-lucide-pill', description: l.medicamentos?.join('\n') || '' },
-        { id: 'exames-local', type: 'exames', title: 'exames', icon: 'i-lucide-flask-conical', description: '', exames: montarExamesEnriquecidos(l.exames, l.data_consulta) }
+        { id: 'exames-local', type: 'exames', title: 'exames', icon: 'i-lucide-flask-conical', description: '', exames: examesUnificados.examesPorRegistroLocal[index] || [] }
+      ]
+    })
+  }
+
+  for (const grupo of examesUnificados.examesRealizados) {
+    const dataHistorico = grupo.data || grupo.sortKey || ''
+    items.push({
+      id: grupo.id,
+      title: formatarDataHistorico(dataHistorico) || 'Data não informada',
+      time: formatarHoraHistorico(dataHistorico),
+      icon: 'i-lucide-calendar',
+      subtitle: 'SPDATA',
+      _sortKey: dataHistorico,
+      cards: [
+        { id: 'exames-realizados', type: 'exames', title: 'exames realizados', icon: 'i-lucide-file-search', description: '', exames: grupo.exames }
       ]
     })
   }
@@ -471,79 +499,6 @@ function montarDiagnosticos(item: HistoricoLocalRecord): string {
     partes.push(`${s.codigo} — ${s.descricao || ''}`)
   }
   return partes.join('\n')
-}
-
-function extrairDataIso(valor?: string | null): string {
-  const texto = String(valor || '').trim()
-  const match = texto.match(/^(\d{4}-\d{2}-\d{2})/)
-  return match?.[1] ?? ''
-}
-
-function chaveExame(nome: string, data?: string | null): string {
-  return `${nome.trim().toLowerCase()}|${extrairDataIso(data)}`
-}
-
-function montarExamesEnriquecidos(
-  examesLocais: (HistoricoExame | string)[],
-  dataAtendimento: string | null
-): ExameHistoricoItem[] {
-  if (!examesLocais?.length) return []
-
-  const pacsPorChave = new Map<string, ExamePacs>()
-  for (const p of examesPacs.value) {
-    const chave = chaveExame(p.nomeExame, p.dataLancamento)
-    if (!pacsPorChave.has(chave)) {
-      pacsPorChave.set(chave, p)
-    }
-  }
-
-  const chavesUsadas = new Set<string>()
-  const resultado: ExameHistoricoItem[] = []
-
-  for (const exame of examesLocais) {
-    const nome = typeof exame === 'string' ? exame : (exame.nome || exame.descricao || exame.tipo_exame || '')
-    if (!nome.trim()) continue
-
-    const orientacao = typeof exame === 'string' ? null : exame.orientacao
-    const chave = chaveExame(nome, dataAtendimento)
-    const pacs = pacsPorChave.get(chave)
-
-    if (pacs) chavesUsadas.add(chave)
-
-    resultado.push({
-      nome,
-      orientacao,
-      temImagem: pacs?.temImagem ?? false,
-      temLaudo: pacs?.temLaudo ?? false,
-      idTokenLancamentoExame: pacs?.idTokenLancamentoExame ?? null
-    })
-  }
-
-  for (const p of examesPacs.value) {
-    const chave = chaveExame(p.nomeExame, p.dataLancamento)
-    if (chavesUsadas.has(chave)) continue
-    chavesUsadas.add(chave)
-
-    resultado.push({
-      nome: p.nomeExame,
-      orientacao: null,
-      temImagem: p.temImagem,
-      temLaudo: p.temLaudo,
-      idTokenLancamentoExame: p.idTokenLancamentoExame
-    })
-  }
-
-  return resultado
-}
-
-function abrirExamePacs(idTokenLancamentoExame: number | null | undefined, tipo: 'imagem' | 'laudo') {
-  if (!idTokenLancamentoExame) return
-  const id = Number(idTokenLancamentoExame)
-  if (!Number.isFinite(id) || id <= 0) return
-  const url = tipo === 'imagem'
-    ? `/api/exames-pacs/${id}/viewer`
-    : `/api/exames-pacs/${id}/laudo/pdf`
-  window.open(url, '_blank', 'noopener,noreferrer')
 }
 
 function calcularIdade(dataNascimento: string) {
@@ -716,6 +671,14 @@ function voltarDashboard() {
                           class="flex items-center gap-1.5"
                         >
                           <span class="truncate">{{ exame.nome }}</span>
+                          <UBadge
+                            v-if="exame.situacao"
+                            :label="exame.situacao"
+                            color="neutral"
+                            variant="subtle"
+                            size="sm"
+                            class="shrink-0"
+                          />
                           <UIcon
                             v-if="exame.temImagem"
                             name="i-lucide-eye"

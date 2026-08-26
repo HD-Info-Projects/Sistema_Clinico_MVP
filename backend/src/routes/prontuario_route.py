@@ -65,6 +65,7 @@ def _solicitacao_exame_to_dict(solicitacao):
         "orientacao": solicitacao.orientacao,
         "codigo_alfanumerico": exame.codigo_alfanumerico if exame else None,
         "codigo_amb": exame.codigo_amb if exame else None,
+        "idTokenLancamentoExame": getattr(solicitacao, "id_token_lancamento_exame", None),
     }
 
 

@@ -5,6 +5,9 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
+    setResponseHeader(event, 'Cache-Control', 'no-store, private')
+    setResponseHeader(event, 'Pragma', 'no-cache')
+    setResponseHeader(event, 'X-Content-Type-Options', 'nosniff')
     return await flaskFetch(event, `/exames-pacs/${id}/laudo`)
   } catch (error) {
     throwProxyError(error, 'Falha ao carregar laudo do exame no backend Flask')

@@ -85,3 +85,22 @@ def test_exame_para_frontend_marca_tem_imagem(monkeypatch):
         "NOME_EXAME": "Tomografia",
         "TEM_LAUDO": 1,
     })["temImagem"] is True
+
+
+def test_tem_imagem_pacs_usa_cache(monkeypatch):
+    route_module = _load_route_module()
+    monkeypatch.setattr(route_module, "_cache_get_tem_imagem", lambda id_lancamento: True)
+    monkeypatch.setattr(route_module, "_chamar_viewer_exame", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("não deveria chamar PACS")))
+
+    assert route_module._tem_imagem_pacs(823525) is True
+
+
+def test_tem_imagem_pacs_cacheia_resposta_com_message(monkeypatch):
+    route_module = _load_route_module()
+    chamadas_cache = []
+    monkeypatch.setattr(route_module, "_cache_get_tem_imagem", lambda id_lancamento: None)
+    monkeypatch.setattr(route_module, "_chamar_viewer_exame", lambda *args, **kwargs: ({"message": "https://exemplo.com/viewer"}, 200))
+    monkeypatch.setattr(route_module, "_cache_set_tem_imagem", lambda id_lancamento, tem_imagem: chamadas_cache.append((id_lancamento, tem_imagem)))
+
+    assert route_module._tem_imagem_pacs(823525) is True
+    assert chamadas_cache == [(823525, True)]

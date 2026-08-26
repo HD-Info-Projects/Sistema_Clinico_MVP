@@ -5,19 +5,32 @@ from datetime import date, datetime, time
 from decimal import Decimal
 
 from dotenv import load_dotenv
-from flask import Blueprint, current_app, jsonify
+from flask import Blueprint, current_app, has_app_context, jsonify
 from flask_jwt_extended import get_jwt_identity, jwt_required
 import requests
 
+from src.models.auditoria_model import AcaoAuditoria
+from src.models.db.handler_redis_db import ConnectionDBRedis
 from src.models.db.handler_fb_db import ConnectionDBFireBird
 from src.routes.prontuario_route import _referencia_autorizada_paciente
 from src.security.decorators import roles_required
 from src.security.unidades import unidade_id_request
+from src.services.auditoria_service import registrar_auditoria
 
 load_dotenv()
 
 exames_pacs_bp = Blueprint("exames_pacs", __name__, url_prefix="/exames-pacs")
 VIEWER_URL_KEYS = ("message", "url", "viewerUrl", "viewer_url", "link", "href")
+
+
+def _int_env(nome, default):
+    try:
+        return int(os.getenv(nome, default))
+    except (TypeError, ValueError):
+        return default
+
+
+TEM_IMAGEM_CACHE_TTL_SECONDS = _int_env("PACS_TEM_IMAGEM_CACHE_TTL_SECONDS", 21600)
 
 
 def _normalizar_valor(valor):
@@ -151,13 +164,95 @@ def _chamar_viewer_exame(id_lancamento: int, timeout=15):
     return payload, response.status_code
 
 
+def _tem_imagem_cache_key(id_lancamento: int):
+    return f"pacs:tem-imagem:{id_lancamento}"
+
+
+def _cache_get_tem_imagem(id_lancamento: int):
+    try:
+        cached = ConnectionDBRedis().get_cache(_tem_imagem_cache_key(id_lancamento))
+    except Exception:
+        return None
+
+    if cached is None:
+        return None
+    if str(cached) == "1":
+        return True
+    if str(cached) == "0":
+        return False
+    return None
+
+
+def _cache_set_tem_imagem(id_lancamento: int, tem_imagem: bool):
+    try:
+        ConnectionDBRedis().set_cache(
+            _tem_imagem_cache_key(id_lancamento),
+            "1" if tem_imagem else "0",
+            ttl=TEM_IMAGEM_CACHE_TTL_SECONDS,
+        )
+    except Exception:
+        return None
+
+    return None
+
+
+def _log_falha_tem_imagem(id_lancamento: int, exc: Exception):
+    if has_app_context():
+        current_app.logger.info(
+            "Falha ao consultar disponibilidade de imagem PACS para SILANEXA.ID=%s: %s",
+            id_lancamento,
+            exc,
+        )
+
+
 def _tem_imagem_pacs(id_lancamento: int):
+    cached = _cache_get_tem_imagem(id_lancamento)
+    if cached is not None:
+        return cached
+
     try:
         payload, _ = _chamar_viewer_exame(id_lancamento, timeout=5)
-    except (RuntimeError, requests.RequestException):
+    except RuntimeError as exc:
+        _log_falha_tem_imagem(id_lancamento, exc)
+        return False
+    except requests.RequestException as exc:
+        _log_falha_tem_imagem(id_lancamento, exc)
+        _cache_set_tem_imagem(id_lancamento, False)
         return False
 
-    return bool(_extrair_viewer_url(payload))
+    tem_imagem = bool(_extrair_viewer_url(payload))
+    _cache_set_tem_imagem(id_lancamento, tem_imagem)
+    return tem_imagem
+
+
+def _registrar_auditoria_pacs(acao, usuario_id, referencia=None, id_lancamento=None, total=None):
+    paciente_id = _normalizar_int((referencia or {}).get("ID_PACIENTE_SPDATA"))
+    if paciente_id is None:
+        paciente_id = _normalizar_int((referencia or {}).get("paciente_id"))
+
+    detalhes = []
+    if paciente_id is not None:
+        detalhes.append(f"paciente_id={paciente_id}")
+    if id_lancamento is not None:
+        detalhes.append(f"silanexa_id={id_lancamento}")
+    if total is not None:
+        detalhes.append(f"total={total}")
+
+    registrar_auditoria(
+        acao,
+        entidade="exame_pacs",
+        entidade_id=id_lancamento or paciente_id,
+        usuario_id=usuario_id,
+        descricao="; ".join(detalhes) or None,
+    )
+
+
+def _json_no_store(payload, status_code=200):
+    response = jsonify(payload)
+    response.headers["Cache-Control"] = "no-store, private"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response, status_code
 
 
 def _buscar_exames_paciente_firebird(paciente_id: int):
@@ -319,17 +414,31 @@ def _exame_para_frontend(row):
 @jwt_required()
 @roles_required("medico")
 def listar_exames_paciente(paciente_id: int):
+    usuario_id = None
     try:
         usuario_id = int(get_jwt_identity())
         referencia = _garantir_acesso_paciente(usuario_id, paciente_id)
         paciente_id_autorizado = _normalizar_int(referencia.get("paciente_id")) or paciente_id
         rows = _buscar_exames_paciente_firebird(paciente_id_autorizado)
+        items = [_exame_para_frontend(row) for row in rows]
+        _registrar_auditoria_pacs(
+            AcaoAuditoria.VISUALIZOU_EXAMES_PACS,
+            usuario_id,
+            referencia={**referencia, "paciente_id": paciente_id_autorizado},
+            total=len(items),
+        )
         return jsonify({
             "pacienteId": paciente_id_autorizado,
-            "items": [_exame_para_frontend(row) for row in rows],
+            "items": items,
         }), 200
 
     except PermissionError:
+        if usuario_id is not None:
+            _registrar_auditoria_pacs(
+                AcaoAuditoria.ACESSO_NEGADO,
+                usuario_id,
+                referencia={"paciente_id": paciente_id},
+            )
         return jsonify({"error": "Paciente não encontrado"}), 404
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
@@ -342,21 +451,35 @@ def listar_exames_paciente(paciente_id: int):
 @jwt_required()
 @roles_required("medico")
 def busca_laudo_exame_pacs(id: int):
+    usuario_id = None
     try:
         usuario_id = int(get_jwt_identity())
-        _garantir_acesso_lancamento(usuario_id, id)
+        referencia = _garantir_acesso_lancamento(usuario_id, id)
         laudo_base64 = _buscar_laudo_firebird(id)
         if not laudo_base64:
             return jsonify({"error": "Laudo não encontrado"}), 404
 
-        return jsonify({
+        _registrar_auditoria_pacs(
+            AcaoAuditoria.VISUALIZOU_LAUDO_EXAME,
+            usuario_id,
+            referencia=referencia,
+            id_lancamento=id,
+        )
+
+        return _json_no_store({
             "idTokenLancamentoExame": id,
             "contentType": "application/pdf",
             "filename": f"laudo-exame-{id}.pdf",
             "base64": laudo_base64,
-        }), 200
+        })
 
     except (LookupError, PermissionError):
+        if usuario_id is not None:
+            _registrar_auditoria_pacs(
+                AcaoAuditoria.ACESSO_NEGADO,
+                usuario_id,
+                id_lancamento=id,
+            )
         return jsonify({"error": "Exame não encontrado"}), 404
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
@@ -369,13 +492,26 @@ def busca_laudo_exame_pacs(id: int):
 @jwt_required()
 @roles_required("medico")
 def busca_exames_pacs(id: int):
+    usuario_id = None
     try:
         usuario_id = int(get_jwt_identity())
-        _garantir_acesso_lancamento(usuario_id, id)
+        referencia = _garantir_acesso_lancamento(usuario_id, id)
         payload, status_code = _chamar_viewer_exame(id)
-        return jsonify(payload), status_code
+        _registrar_auditoria_pacs(
+            AcaoAuditoria.VISUALIZOU_IMAGEM_EXAME,
+            usuario_id,
+            referencia=referencia,
+            id_lancamento=id,
+        )
+        return _json_no_store(payload, status_code)
 
     except (LookupError, PermissionError):
+        if usuario_id is not None:
+            _registrar_auditoria_pacs(
+                AcaoAuditoria.ACESSO_NEGADO,
+                usuario_id,
+                id_lancamento=id,
+            )
         return jsonify({"error": "Exame não encontrado"}), 404
     except RuntimeError as exc:
         return jsonify({"error": str(exc)}), 500
