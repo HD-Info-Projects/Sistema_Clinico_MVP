@@ -56,6 +56,8 @@ STATUS_MEDSYSTEM_VALUES = {
     "faltou": {StatusAtendimentoMedSystem.FALTOU.value, "faltou"},
 }
 
+STATUS_MARCADORES = ["agendado", "em-espera", "em-atendimento", "atendido", "faltou"]
+
 
 def normalizar_valor(valor):
     if valor is None:
@@ -405,6 +407,14 @@ def atendimento_prioridade(atendimento):
     if status == "em-atendimento":
         return 1
     return 0
+
+
+def adicionar_marcador(marcadores, data_ref, status):
+    status = normalizar_status(status)
+    if not data_ref or status not in STATUS_MARCADORES:
+        return
+
+    marcadores.setdefault(data_ref.isoformat(), set()).add(status)
 
 
 def atendimento_join_agenda_cond():
@@ -885,6 +895,93 @@ def listar_agenda_medica(usuario_id, data_ini, data_fim, status=None, search=Non
     items = filtrar_agenda_frontend(items, status=status, search=search)
 
     return sorted(items, key=lambda item: (item.get("data") or "", item.get("horario") or "", item["paciente"]["nome"] or ""))
+
+
+def listar_marcadores_agenda_medica(usuario_id, data_ini, data_fim, unidade_id=None, sincronizar=False):
+    crm_medico = get_crm_medico_usuario(usuario_id)
+    unidade = resolver_unidade_usuario(usuario_id, unidade_id)
+
+    if data_fim < data_ini:
+        raise ValueError("dataFim não pode ser menor que dataIni.")
+
+    if sincronizar:
+        sincronizar_agenda_spdata(data_ini, data_fim, unidade=unidade)
+        sincronizar_atendimentos_spdata(data_ini, data_fim, crm_medico, unidade)
+
+    rows_agenda = (
+        db.session.query(MedSpdataAgenda, MedAtendimentos)
+        .outerjoin(MedAtendimentos, atendimento_join_agenda_cond())
+        .filter(
+            MedSpdataAgenda.data_agenda >= data_ini,
+            MedSpdataAgenda.data_agenda <= data_fim,
+            filtro_agenda_unidade(unidade),
+            or_(
+                MedSpdataAgenda.crm_atend == crm_medico,
+                MedSpdataAgenda.crm == crm_medico,
+            ),
+        )
+        .all()
+    )
+
+    agendas_por_id = {}
+    for agenda, atendimento in rows_agenda:
+        atual = agendas_por_id.get(agenda.id)
+        if atual is None or atendimento_prioridade(atendimento) > atendimento_prioridade(atual[1]):
+            agendas_por_id[agenda.id] = (agenda, atendimento)
+
+    marcadores = {}
+    agendas_encontradas = []
+    for agenda, atendimento in agendas_por_id.values():
+        status = normalizar_status(atendimento.status) if atendimento else status_agenda_spdata(agenda)
+        adicionar_marcador(marcadores, agenda.data_agenda, status)
+        agendas_encontradas.append(agenda)
+
+    chaves_agenda = {
+        chave
+        for agenda in agendas_encontradas
+        for chave in agenda_keys(agenda)
+    }
+
+    registros = (
+        db.session.query(MedSpdataAtendimento, MedAtendimentos)
+        .outerjoin(
+            MedAtendimentos,
+            MedAtendimentos.med_spdata_atendimento_id == MedSpdataAtendimento.id,
+        )
+        .filter(
+            MedSpdataAtendimento.data_atendimento >= data_ini,
+            MedSpdataAtendimento.data_atendimento <= data_fim,
+            MedSpdataAtendimento.crm_medico == crm_medico,
+            filtro_spdata_unidade(MedSpdataAtendimento, unidade),
+        )
+        .all()
+    )
+
+    for spdata, atendimento in registros:
+        registro = normalizar_texto(spdata.cod_atendimento, 50)
+        cpf = normalizar_texto(spdata.cpf, 20)
+        chaves_spdata = set()
+        if registro:
+            chaves_spdata.add(("registro", registro))
+        if cpf and spdata.data_atendimento and spdata.hora_entrada:
+            chaves_spdata.add(("cpf_data_hora", cpf, spdata.data_atendimento, spdata.hora_entrada))
+
+        if chaves_spdata & chaves_agenda:
+            continue
+
+        if any(atendimento_matches_agenda(spdata, agenda) for agenda in agendas_encontradas):
+            continue
+
+        status = normalizar_status(atendimento.status) if atendimento else "em-espera"
+        adicionar_marcador(marcadores, spdata.data_atendimento, status)
+
+    return [
+        {
+            "data": data_ref,
+            "status": [status for status in STATUS_MARCADORES if status in status_dia],
+        }
+        for data_ref, status_dia in sorted(marcadores.items())
+    ]
 
 
 def linhas_texto(valor):
