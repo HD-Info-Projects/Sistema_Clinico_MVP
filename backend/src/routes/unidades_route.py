@@ -6,7 +6,7 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from sqlalchemy import select
 
 from src.models.unidade_model import Unidade
-from src.security.decorators import roles_required
+from src.security.decorators import active_user_required, roles_required
 from src.services.unidades_service import (
     buscar_unidade_publica,
     listar_unidades_usuario_frontend,
@@ -165,6 +165,7 @@ def inativar_unidade(unidade_id):
 
 @unidades_bp.route("/minhas", methods=["GET"])
 @jwt_required()
+@active_user_required()
 def minhas_unidades():
     usuario_id = int(get_jwt_identity())
     return jsonify(listar_unidades_usuario_frontend(usuario_id)), 200

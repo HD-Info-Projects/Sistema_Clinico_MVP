@@ -1,6 +1,7 @@
 VPS - Acesso.md
 .mysql-maintenance.lock
-../.vscode/
+.vscode
+../.vscode
 
 # Documentacao local
 /docs/
@@ -8,6 +9,7 @@ VPS - Acesso.md
 /docs/*
 !/docs/politica-retencao-descarte-backup.md
 !/docs/politica-retencao-descarte-backup.pdf
+!/docs/plano-implementacao-lgpd-seguranca.md
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

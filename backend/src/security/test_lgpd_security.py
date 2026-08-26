@@ -6,7 +6,7 @@ from src.controllers.login_controller import LoginController
 from flask_jwt_extended import create_access_token
 
 from src.routes.dashboard_route import _item_dashboard
-from src.security.decorators import roles_required
+from src.security.decorators import active_user_required, roles_required
 from src.security.jwt_blocklist import is_jti_revoked, revoke_jti
 from src.security.passwords import (
     hash_password,
@@ -103,6 +103,50 @@ def test_login_controller_rejeita_usuario_inativo(monkeypatch):
     assert controller.generate_JWT_usuario("medico@example.com", "senha-segura") is None
 
 
+def test_login_controller_bloqueia_usuario_apos_tentativas_falhas(monkeypatch):
+    app = create_app()
+    app.config["TESTING"] = True
+    app.config["JWT_SECRET_KEY"] = app.config.get("JWT_SECRET_KEY") or "test-secret"
+    app.config["LOGIN_MAX_FAILED_ATTEMPTS"] = 2
+    app.config["LOGIN_ACCOUNT_LOCK_ENABLED"] = True
+
+    usuario = SimpleNamespace(
+        id=123,
+        email="medico@example.com",
+        nome_completo="Médico Teste",
+        role="medico",
+        senha=hash_password("senha-correta"),
+        medico=None,
+        ativo=True,
+        bloqueado_em=None,
+        bloqueio_motivo=None,
+        tentativas_login_falhas=0,
+        ultimo_login_falho_em=None,
+    )
+
+    controller = LoginController()
+    monkeypatch.setattr(
+        controller,
+        "_LoginController__repo",
+        SimpleNamespace(get_usuario=lambda _email: usuario),
+    )
+
+    commits = []
+    monkeypatch.setattr(db.session, "commit", lambda: commits.append(True))
+
+    with app.app_context():
+        assert controller.generate_JWT_usuario("medico@example.com", "senha-errada") is None
+        assert usuario.tentativas_login_falhas == 1
+        assert usuario.bloqueado_em is None
+
+        assert controller.generate_JWT_usuario("medico@example.com", "senha-errada") is None
+
+    assert commits == [True, True]
+    assert usuario.tentativas_login_falhas == 2
+    assert usuario.bloqueado_em is not None
+    assert usuario.bloqueio_motivo == "Excesso de tentativas de login falhas"
+
+
 def test_registrar_auditoria_grava_metadados_sem_banco_real(monkeypatch):
     app = create_app()
     app.config["TESTING"] = True
@@ -133,6 +177,30 @@ def test_registrar_auditoria_grava_metadados_sem_banco_real(monkeypatch):
     assert evento.usuario_id == 123
     assert evento.ip == "203.0.113.10"
     assert evento.user_agent == "pytest"
+
+
+def test_registrar_auditoria_remove_cpf_token_e_senha(monkeypatch):
+    app = create_app()
+    app.config["TESTING"] = True
+
+    eventos = []
+    monkeypatch.setattr(db.session, "add", lambda evento: eventos.append(evento))
+    monkeypatch.setattr(db.session, "commit", lambda: None)
+
+    with app.test_request_context("/auditoria"):
+        evento = registrar_auditoria(
+            "TESTE_SANITIZACAO",
+            entidade="teste",
+            descricao="cpf=123.456.789-00 token=abc123 senha=segredo",
+        )
+
+    assert evento is eventos[0]
+    assert "123.456.789-00" not in evento.descricao
+    assert "abc123" not in evento.descricao
+    assert "segredo" not in evento.descricao
+    assert "[CPF_REMOVIDO]" in evento.descricao
+    assert "token=[REMOVIDO]" in evento.descricao
+    assert "senha=[REMOVIDO]" in evento.descricao
 
 
 def test_jwt_blocklist_revoga_jti_em_memoria():
@@ -176,6 +244,38 @@ def test_roles_required_rejeita_usuario_inativo(monkeypatch):
     assert response.status_code == 401
 
 
+def test_active_user_required_rejeita_usuario_bloqueado_sem_role(monkeypatch):
+    app = create_app()
+    app.config["TESTING"] = True
+    app.config["JWT_SECRET_KEY"] = app.config.get("JWT_SECRET_KEY") or "test-secret"
+
+    @app.get("/rota-ativa-teste")
+    @active_user_required()
+    def rota_ativa_teste():
+        return {"ok": True}
+
+    with app.app_context():
+        token = create_access_token(identity="123", additional_claims={"role": "medico"})
+
+    monkeypatch.setattr(
+        db.session,
+        "get",
+        lambda _model, _id: SimpleNamespace(id=123, role="medico", ativo=True, bloqueado_em="2026-08-17"),
+    )
+    monkeypatch.setattr(
+        "src.security.decorators.registrar_auditoria",
+        lambda *args, **kwargs: None,
+    )
+
+    with app.test_client() as client:
+        response = client.get(
+            "/rota-ativa-teste",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    assert response.status_code == 401
+
+
 def test_tts_desabilitado_por_configuracao():
     app = create_app()
     app.config["TESTING"] = True
@@ -196,6 +296,34 @@ def test_tts_bloqueia_texto_clinico():
         response = client.post("/tts/speak", json={"text": "Paciente com CID A00"})
 
     assert response.status_code == 400
+
+
+def test_tts_auditoria_nao_grava_texto_falado(monkeypatch):
+    app = create_app()
+    app.config["TESTING"] = True
+    app.config["ENABLE_TTS"] = True
+
+    async def gerar_audio_fake(_texto, _voice):
+        return b"audio"
+
+    eventos = []
+    monkeypatch.setattr("src.routes.tts_route._gerar_audio_edge_tts", gerar_audio_fake)
+    monkeypatch.setattr(
+        "src.routes.tts_route.registrar_auditoria",
+        lambda *args, **kwargs: eventos.append(kwargs),
+    )
+
+    with app.test_client() as client:
+        response = client.post(
+            "/tts/speak",
+            json={"text": "Paciente 12, sala 3", "chamadoId": 42},
+        )
+
+    assert response.status_code == 200
+    assert eventos[0]["entidade"] == "tts"
+    assert eventos[0]["entidade_id"] == 42
+    assert "Paciente 12" not in eventos[0]["descricao"]
+    assert "tamanho_texto=" in eventos[0]["descricao"]
 
 
 def test_dashboard_remove_identificadores_desnecessarios():

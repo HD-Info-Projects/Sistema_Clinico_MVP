@@ -50,6 +50,8 @@ class Config:
     RATELIMIT_STORAGE_URI = os.getenv('RATELIMIT_STORAGE_URI', 'memory://')
     LOGIN_RATE_LIMIT_IP = os.getenv('LOGIN_RATE_LIMIT_IP', '10 per minute')
     LOGIN_RATE_LIMIT_EMAIL = os.getenv('LOGIN_RATE_LIMIT_EMAIL', '5 per minute')
+    LOGIN_MAX_FAILED_ATTEMPTS = int(os.getenv('LOGIN_MAX_FAILED_ATTEMPTS', 5))
+    LOGIN_ACCOUNT_LOCK_ENABLED = os.getenv('LOGIN_ACCOUNT_LOCK_ENABLED', 'true').lower() == 'true'
     CORS_ORIGINS = [
         origin.strip()
         for origin in os.getenv('CORS_ORIGINS', '').split(',')
@@ -59,7 +61,7 @@ class Config:
     SECURITY_HSTS_MAX_AGE = int(os.getenv('SECURITY_HSTS_MAX_AGE', 31536000))
     ENABLE_TTS = os.getenv('ENABLE_TTS', 'false').lower() == 'true'
     TTS_RATE_LIMIT = os.getenv('TTS_RATE_LIMIT', '30 per minute')
-    PASSWORD_MIN_LENGTH = int(os.getenv('PASSWORD_MIN_LENGTH', 8))
+    PASSWORD_MIN_LENGTH = int(os.getenv('PASSWORD_MIN_LENGTH', 12))
     JWT_BLOCKLIST_STORAGE_URI = os.getenv('JWT_BLOCKLIST_STORAGE_URI') or RATELIMIT_STORAGE_URI
 
     LGPD_RETENTION_LOGS_INTEGRACAO_DAYS = int(

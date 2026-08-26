@@ -4,8 +4,9 @@ from flask_jwt_extended import jwt_required
 from src.models.model_padroes_solicitacoes.modelo_orientacao_exame_model import (
     ModeloOrientacaoExame,
 )
+from src.models.auditoria_model import AcaoAuditoria
 from src.security.decorators import roles_required
-
+from src.services.auditoria_service import registrar_auditoria
 from src.services.padroes_medico_service import resolver_medico_alvo
 from src.settings.extensions import db
 
@@ -25,6 +26,16 @@ def _get_padrao_do_medico(id_padrao, medico_id):
             ModeloOrientacaoExame.medico_id == medico_id,
         )
         .first()
+    )
+
+
+def _auditar_modelo_orientacao(acao, modelo_id, medico_id, detalhe):
+    registrar_auditoria(
+        acao,
+        entidade="padrao_medico_orientacao_exame",
+        entidade_id=modelo_id,
+        usuario_id=medico_id,
+        descricao=f"Modelo médico de orientação de exame {detalhe}.",
     )
 
 
@@ -49,6 +60,12 @@ def create_padrao_medico_orientacao_exame():
         novo_padrao = ModeloOrientacaoExame(nome_modelo, medico_id, conteudo)
         db.session.add(novo_padrao)
         db.session.commit()
+        _auditar_modelo_orientacao(
+            AcaoAuditoria.CRIOU_MODELO_MEDICO,
+            novo_padrao.id,
+            medico_id,
+            "criado",
+        )
 
         return jsonify(novo_padrao._to_dict()), 201
 
@@ -129,6 +146,12 @@ def editar_padrao_medico_orientacao_exame(id: int):
             padrao.conteudo = conteudo
 
         db.session.commit()
+        _auditar_modelo_orientacao(
+            AcaoAuditoria.EDITOU_MODELO_MEDICO,
+            padrao.id,
+            medico_id,
+            "editado",
+        )
 
         return jsonify(padrao._to_dict()), 200
 
@@ -152,6 +175,12 @@ def deletar_padrao_medico_orientacao_exame(id: int):
 
         db.session.delete(padrao)
         db.session.commit()
+        _auditar_modelo_orientacao(
+            AcaoAuditoria.EXCLUIU_MODELO_MEDICO,
+            id,
+            medico_id,
+            "excluído",
+        )
 
         return jsonify({"message": "Padrão médico de orientação deletado com sucesso"}), 200
 

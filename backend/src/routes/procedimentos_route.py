@@ -4,6 +4,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 
 from src.models.model_mydsystem.med_procedimentos_model import Procedimento
+from src.security.decorators import roles_required
 from src.settings.extensions import db
 
 
@@ -25,6 +26,7 @@ def procedimento_para_dict(procedimento):
 
 @procedimentos_bp.route("/buscar", methods=["GET"])
 @jwt_required()
+@roles_required("medico")
 def buscar_procedimentos():
     q = (request.args.get("q") or "").strip()
 

@@ -52,6 +52,27 @@ type HistoricoTimelineItem = {
   _sortKey: string
 }
 
+type ExamePacs = {
+  idTokenLancamentoExame: number | null
+  pacienteId?: number | null
+  paciente?: string
+  prontuario?: string
+  dataLancamento?: string | null
+  dataResultado?: string | null
+  codigoExame?: string
+  sequencia?: number | null
+  ato?: number | null
+  nomeExame: string
+  statusExame?: string
+  temLaudo: boolean
+  temImagem: boolean
+}
+
+type ExamesPacsResponse = {
+  pacienteId: number
+  items: ExamePacs[]
+}
+
 const historicoItems = ref<HistoricoTimelineItem[]>([])
 const isLoadingHistorico = ref(false)
 const isLoadingMaisHistorico = ref(false)
@@ -63,6 +84,19 @@ const biodataOffset = ref(0)
 const biodataHasMore = ref(false)
 const spdataOffset = ref(0)
 const spdataHasMore = ref(false)
+const examesModalAberto = ref(false)
+const examesPacs = ref<ExamePacs[]>([])
+const isLoadingExamesPacs = ref(false)
+const examesPacsErro = ref('')
+
+watch(
+  () => agendamento.value?.paciente?.id,
+  (pacienteId, pacienteAnterior) => {
+    if (pacienteId === pacienteAnterior) return
+    examesPacs.value = []
+    examesPacsErro.value = ''
+  }
+)
 
 const HISTORICO_BIODATA_LIMIT = 10
 const HISTORICO_SPDATA_LIMIT = 10
@@ -457,6 +491,62 @@ function montarExames(exames?: HistoricoLocalRecord['exames']): string {
     .join('\n')
 }
 
+function formatarDataExame(valor?: string | null): string {
+  const texto = String(valor || '').trim()
+  if (!texto) return '—'
+
+  const matchIso = texto.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (matchIso) return `${matchIso[3]}/${matchIso[2]}/${matchIso[1]}`
+
+  const data = new Date(texto)
+  if (Number.isNaN(data.getTime())) return texto
+  return data.toLocaleDateString('pt-BR')
+}
+
+function idExamePacs(exame: ExamePacs): number | null {
+  const id = Number(exame.idTokenLancamentoExame)
+  return Number.isFinite(id) && id > 0 ? id : null
+}
+
+async function abrirResultadosExames() {
+  examesModalAberto.value = true
+  await carregarExamesPacs()
+}
+
+async function carregarExamesPacs() {
+  const pacienteId = agendamento.value?.paciente?.id
+  if (!pacienteId || isLoadingExamesPacs.value) return
+
+  isLoadingExamesPacs.value = true
+  examesPacsErro.value = ''
+
+  try {
+    const response = await $fetch<ExamesPacsResponse>(`/api/exames-pacs/paciente/${pacienteId}`)
+    examesPacs.value = response.items || []
+  } catch {
+    examesPacs.value = []
+    examesPacsErro.value = 'Não foi possível carregar os resultados de exames deste paciente.'
+  } finally {
+    isLoadingExamesPacs.value = false
+  }
+}
+
+function abrirUrlNovaAba(url: string) {
+  window.open(url, '_blank', 'noopener,noreferrer')
+}
+
+function visualizarImagem(exame: ExamePacs) {
+  const id = idExamePacs(exame)
+  if (!id || !exame.temImagem) return
+  abrirUrlNovaAba(`/api/exames-pacs/${id}/viewer`)
+}
+
+function visualizarLaudo(exame: ExamePacs) {
+  const id = idExamePacs(exame)
+  if (!id || !exame.temLaudo) return
+  abrirUrlNovaAba(`/api/exames-pacs/${id}/laudo/pdf`)
+}
+
 function calcularIdade(dataNascimento: string) {
   const hoje = new Date()
   const nasc = new Date(dataNascimento)
@@ -481,13 +571,23 @@ function voltarDashboard() {
       :style="{ '--sidebar-width': '35rem' }"
     >
       <template #header>
-        <UButton
-          icon="i-lucide-arrow-left"
-          label="Voltar pro Dashboard"
-          variant="ghost"
-          color="neutral"
-          @click="voltarDashboard"
-        />
+        <div class="flex flex-wrap items-center gap-2">
+          <UButton
+            icon="i-lucide-arrow-left"
+            label="Voltar pro Dashboard"
+            variant="ghost"
+            color="neutral"
+            @click="voltarDashboard"
+          />
+          <UButton
+            icon="i-lucide-file-search"
+            label="Visualizar resultados de exames"
+            variant="soft"
+            color="primary"
+            :loading="isLoadingExamesPacs && examesModalAberto"
+            @click="abrirResultadosExames"
+          />
+        </div>
       </template>
       <div class="flex justify-center items-center py-2 gap-2">
         <UAvatar
@@ -660,6 +760,169 @@ function voltarDashboard() {
     <main class="flex-1 overflow-y-auto bg-neutral-100 dark:bg-neutral-950">
       <slot />
     </main>
+    <UModal
+      v-model:open="examesModalAberto"
+      fullscreen
+      :ui="{ body: 'p-0 sm:p-0' }"
+    >
+      <template #header>
+        <div class="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 class="text-lg font-semibold">
+              Resultados de exames
+            </h2>
+            <p class="text-sm text-muted">
+              {{ agendamento.paciente.nome }}
+            </p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <UButton
+              icon="i-lucide-refresh-cw"
+              label="Atualizar"
+              color="neutral"
+              variant="soft"
+              :loading="isLoadingExamesPacs"
+              @click="carregarExamesPacs"
+            />
+            <UButton
+              icon="i-lucide-x"
+              color="neutral"
+              variant="ghost"
+              @click="examesModalAberto = false"
+            />
+          </div>
+        </div>
+      </template>
+
+      <template #body>
+        <div class="h-[calc(100vh-8rem)] overflow-hidden p-4">
+          <section class="h-full min-h-0 overflow-hidden rounded-xl border border-muted bg-default">
+            <div class="flex items-center justify-between gap-3 border-b border-muted p-4">
+              <div>
+                <h3 class="font-semibold">
+                  Exames realizados
+                </h3>
+                <p class="text-sm text-muted">
+                  {{ examesPacs.length }} registro(s) encontrado(s)
+                </p>
+              </div>
+              <UIcon
+                v-if="isLoadingExamesPacs"
+                name="i-lucide-loader-circle"
+                class="size-5 animate-spin text-muted"
+              />
+            </div>
+
+            <div class="h-full overflow-y-auto p-4 pb-24">
+              <UAlert
+                v-if="examesPacsErro"
+                color="error"
+                variant="soft"
+                icon="i-lucide-alert-triangle"
+                :title="examesPacsErro"
+                class="mb-4"
+              />
+
+              <div
+                v-if="isLoadingExamesPacs && !examesPacs.length"
+                class="flex h-48 items-center justify-center text-muted"
+              >
+                <div class="flex items-center gap-2 text-sm">
+                  <UIcon
+                    name="i-lucide-loader-circle"
+                    class="size-5 animate-spin"
+                  />
+                  Carregando exames...
+                </div>
+              </div>
+
+              <div
+                v-else-if="!examesPacs.length"
+                class="flex h-48 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-muted text-center text-muted"
+              >
+                <UIcon
+                  name="i-lucide-file-search"
+                  class="size-8"
+                />
+                <p class="text-sm">
+                  Nenhum exame realizado encontrado para este paciente.
+                </p>
+              </div>
+
+              <div
+                v-else
+                class="space-y-3"
+              >
+                <article
+                  v-for="exame in examesPacs"
+                  :key="`${exame.idTokenLancamentoExame || 'sem-token'}-${exame.sequencia || 0}`"
+                  class="rounded-xl border border-muted bg-elevated p-3 transition hover:bg-muted/50"
+                >
+                  <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                      <h4 class="truncate text-sm font-semibold text-highlighted">
+                        {{ exame.nomeExame }}
+                      </h4>
+                      <p class="text-xs text-muted">
+                        Token {{ exame.idTokenLancamentoExame || '—' }}
+                        <span v-if="exame.codigoExame"> · Código {{ exame.codigoExame }}</span>
+                      </p>
+                    </div>
+                    <UBadge
+                      :label="exame.statusExame || 'Realizado'"
+                      color="success"
+                      variant="subtle"
+                      class="shrink-0"
+                    />
+                  </div>
+
+                  <dl class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <dt class="text-muted">
+                        Lançamento
+                      </dt>
+                      <dd class="font-medium">
+                        {{ formatarDataExame(exame.dataLancamento) }}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt class="text-muted">
+                        Resultado
+                      </dt>
+                      <dd class="font-medium">
+                        {{ formatarDataExame(exame.dataResultado) }}
+                      </dd>
+                    </div>
+                  </dl>
+
+                  <div class="mt-3 flex flex-wrap gap-2">
+                    <UButton
+                      v-if="exame.temImagem"
+                      icon="i-lucide-image"
+                      label="Visualizar imagem"
+                      size="xs"
+                      color="primary"
+                      variant="soft"
+                      :disabled="!idExamePacs(exame)"
+                      @click="visualizarImagem(exame)"
+                    />
+                    <UButton
+                      icon="i-lucide-file-text"
+                      label="Visualizar laudo"
+                      size="xs"
+                      color="neutral"
+                      variant="soft"
+                      :disabled="!exame.temLaudo || !idExamePacs(exame)"
+                      @click="visualizarLaudo(exame)"
+                    />
+                  </div>
+                </article>
+              </div>
+            </div>
+          </section>
+        </div>
+      </template>
+    </UModal>
   </div>
   <div
     v-else

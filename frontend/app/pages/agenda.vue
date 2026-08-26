@@ -1,13 +1,91 @@
 <script setup lang="ts">
-import type { AgendamentoComPaciente } from '~/types'
+import type { AgendamentoComPaciente, AgendamentoStatus } from '~/types'
+import type { DateValue } from '@internationalized/date'
 import { CalendarDate } from '@internationalized/date'
 import { corTipoProcedimento, rotuloTipoProcedimento } from '~/utils/tuss'
+
+type MarcadorStatus = Exclude<AgendamentoStatus, 'cancelado'>
+type MarcadorCalendarioResponse = {
+  data?: string | null
+  status?: AgendamentoStatus[] | AgendamentoStatus | null
+}
+
+const ordemMarcadoresStatus: MarcadorStatus[] = ['agendado', 'em-espera', 'em-atendimento', 'atendido', 'faltou']
+const classesPontoStatus: Record<MarcadorStatus, string> = {
+  'agendado': 'bg-secondary',
+  'em-espera': 'bg-primary',
+  'em-atendimento': 'bg-warning',
+  'atendido': 'bg-success',
+  'faltou': 'bg-error'
+}
 
 const agendamentosStore = useAgendamentosStore()
 const auth = useAuthStore()
 
 const selectedDate = ref(new Date())
+const calendarPlaceholder = shallowRef(dateToCalendarDate(selectedDate.value))
 const isPopoverOpen = ref(false)
+const marcadoresCalendario = ref<Record<string, MarcadorStatus[]>>({})
+const cacheMarcadoresCalendario = new Map<string, Record<string, MarcadorStatus[]>>()
+let marcadoresRequestId = 0
+
+function dateToCalendarDate(d: Date) {
+  return new CalendarDate(d.getFullYear(), d.getMonth() + 1, d.getDate())
+}
+
+function dataISOCalendar(date: DateValue) {
+  const month = String(date.month).padStart(2, '0')
+  const day = String(date.day).padStart(2, '0')
+  return `${date.year}-${month}-${day}`
+}
+
+function chaveMesCalendar(date: DateValue) {
+  return `${date.year}-${String(date.month).padStart(2, '0')}`
+}
+
+function chaveCacheMarcadores(date: DateValue) {
+  return `${auth.activeClinicaId ?? 'sem-unidade'}:${chaveMesCalendar(date)}`
+}
+
+function intervaloMes(date: DateValue) {
+  const inicio = new Date(date.year, date.month - 1, 1)
+  const fim = new Date(date.year, date.month, 0)
+  return {
+    dataIni: formatarDataISO(inicio),
+    dataFim: formatarDataISO(fim)
+  }
+}
+
+function isMarcadorStatus(status: unknown): status is MarcadorStatus {
+  return ordemMarcadoresStatus.includes(status as MarcadorStatus)
+}
+
+function montarMarcadoresCalendario(items: MarcadorCalendarioResponse[]) {
+  const statusPorData = new Map<string, Set<MarcadorStatus>>()
+
+  for (const item of items) {
+    const data = String(item.data ?? '').slice(0, 10)
+    if (!data) continue
+
+    const statusDia = statusPorData.get(data) ?? new Set<MarcadorStatus>()
+    const statusItem = Array.isArray(item.status) ? item.status : [item.status]
+    for (const status of statusItem) {
+      if (isMarcadorStatus(status)) statusDia.add(status)
+    }
+    if (statusDia.size) statusPorData.set(data, statusDia)
+  }
+
+  return Object.fromEntries(
+    Array.from(statusPorData.entries()).map(([data, statusDia]) => [
+      data,
+      ordemMarcadoresStatus.filter(status => statusDia.has(status))
+    ])
+  )
+}
+
+function marcadoresDoDia(day: DateValue) {
+  return marcadoresCalendario.value[dataISOCalendar(day)] ?? []
+}
 
 const formattedDate = computed(() => {
   const d = selectedDate.value
@@ -17,8 +95,7 @@ const formattedDate = computed(() => {
 
 const calendarDate = computed({
   get: () => {
-    const d = selectedDate.value
-    return new CalendarDate(d.getFullYear(), d.getMonth() + 1, d.getDate())
+    return dateToCalendarDate(selectedDate.value)
   },
   set: (val: CalendarDate) => {
     selectedDate.value = new Date(val.year, val.month - 1, val.day)
@@ -47,6 +124,47 @@ function loadAgendamentos() {
   agendamentosStore.fetchAgendamentos(auth.activeClinicaId ?? undefined, dataStr, auth.user?.id)
 }
 
+async function buscarMarcadoresCalendario(date: DateValue, sincronizar = false) {
+  const { dataIni, dataFim } = intervaloMes(date)
+  const params = new URLSearchParams({ dataIni, dataFim })
+  if (auth.activeClinicaId) params.set('clinicaId', String(auth.activeClinicaId))
+  if (sincronizar) params.set('sincronizar', 'true')
+
+  const items = await $fetch<MarcadorCalendarioResponse[]>(`/api/agendamentos/marcadores?${params.toString()}`)
+  return montarMarcadoresCalendario(items)
+}
+
+async function atualizarMarcadoresCalendario(date: DateValue, requestId: number) {
+  try {
+    const marcadoresAtualizados = await buscarMarcadoresCalendario(date, true)
+    if (requestId !== marcadoresRequestId) return
+
+    cacheMarcadoresCalendario.set(chaveCacheMarcadores(date), marcadoresAtualizados)
+    marcadoresCalendario.value = marcadoresAtualizados
+  } catch {
+    // Mantém os marcadores locais/cacheados se a sincronização em segundo plano falhar.
+  }
+}
+
+async function loadMarcadoresCalendario(date = calendarPlaceholder.value) {
+  const requestId = ++marcadoresRequestId
+  const chaveCache = chaveCacheMarcadores(date)
+  const marcadoresCache = cacheMarcadoresCalendario.get(chaveCache)
+  marcadoresCalendario.value = marcadoresCache ?? {}
+
+  try {
+    const marcadoresLocais = await buscarMarcadoresCalendario(date)
+    if (requestId !== marcadoresRequestId) return
+
+    cacheMarcadoresCalendario.set(chaveCache, marcadoresLocais)
+    marcadoresCalendario.value = marcadoresLocais
+  } catch {
+    if (requestId === marcadoresRequestId && !marcadoresCache) marcadoresCalendario.value = {}
+  }
+
+  void atualizarMarcadoresCalendario(date, requestId)
+}
+
 function isToday(date: Date) {
   const today = new Date()
   return date.getDate() === today.getDate()
@@ -54,10 +172,24 @@ function isToday(date: Date) {
     && date.getFullYear() === today.getFullYear()
 }
 
-watch(selectedDate, loadAgendamentos)
+watch(selectedDate, () => {
+  loadAgendamentos()
+
+  const novoPlaceholder = dateToCalendarDate(selectedDate.value)
+  if (chaveMesCalendar(novoPlaceholder) !== chaveMesCalendar(calendarPlaceholder.value)) {
+    calendarPlaceholder.value = novoPlaceholder
+  }
+})
+
+watch(calendarPlaceholder, (placeholder, anterior) => {
+  if (!anterior || chaveMesCalendar(placeholder) !== chaveMesCalendar(anterior)) {
+    loadMarcadoresCalendario(placeholder)
+  }
+})
 
 onMounted(() => {
   loadAgendamentos()
+  loadMarcadoresCalendario()
 })
 
 const atendimentosFiltrados = computed(() => agendamentosStore.agendamentos)
@@ -188,7 +320,27 @@ const statuses: { id: string, name: string, color: string }[] = [
             </UButton>
             <template #content>
               <div class="p-2">
-                <UCalendar v-model="calendarDate" />
+                <UCalendar
+                  v-model="calendarDate"
+                  v-model:placeholder="calendarPlaceholder"
+                  size="lg"
+                >
+                  <template #day="{ day }">
+                    <span class="relative flex size-full items-center justify-center">
+                      <span>{{ day.day }}</span>
+                      <span
+                        v-if="marcadoresDoDia(day).length"
+                        class="absolute bottom-0.5 left-1/2 flex -translate-x-1/2 gap-0.5"
+                      >
+                        <span
+                          v-for="status in marcadoresDoDia(day)"
+                          :key="status"
+                          :class="['size-1 rounded-full', classesPontoStatus[status]]"
+                        />
+                      </span>
+                    </span>
+                  </template>
+                </UCalendar>
                 <UButton
                   label="Hoje"
                   color="primary"
