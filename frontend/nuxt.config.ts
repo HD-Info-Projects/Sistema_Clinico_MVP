@@ -28,7 +28,7 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     flaskBaseUrl: process.env.NUXT_FLASK_BASE_URL || 'http://localhost:5000',
-    pacsViewerAllowedHosts: process.env.NUXT_PACS_VIEWER_ALLOWED_HOSTS || process.env.PACS_VIEWER_ALLOWED_HOSTS || '192.168.5.21',
+    pacsViewerAllowedHosts: process.env.NUXT_PACS_VIEWER_ALLOWED_HOSTS || process.env.PACS_VIEWER_ALLOWED_HOSTS || 'natuslumine.am2saude.com,192.168.5.21',
     enableTts: process.env.NUXT_ENABLE_TTS === 'true',
     public: {
       authCookieMaxAgeSeconds: Number.isFinite(authCookieMaxAgeSeconds)

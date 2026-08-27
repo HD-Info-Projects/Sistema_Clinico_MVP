@@ -59,6 +59,43 @@ def test_chamar_viewer_exame_envia_treatment_id_823525(monkeypatch):
     }]
 
 
+def test_chamar_viewer_exame_reescreve_host_viewer_publico(monkeypatch):
+    route_module = _load_route_module()
+    monkeypatch.setenv("URL_EXAMES_PACS", "https://pacs.exemplo.com/viewer")
+    monkeypatch.setenv("TOKEN_EXAMES_PACS", "token-teste")
+
+    class FakeViewerResponse:
+        status_code = 200
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "message": (
+                    "https://192.168.5.21/viewer/viewer/"
+                    "1.2.410.200001.101.11.302.1100234043.1.20251107073919690"
+                    "?aet=SP1972&token="
+                ),
+                "treatmentId": "823525",
+            }
+
+    monkeypatch.setattr(
+        route_module.requests,
+        "post",
+        lambda *args, **kwargs: FakeViewerResponse(),
+    )
+
+    payload, status_code = route_module._chamar_viewer_exame(823525)
+
+    assert status_code == 200
+    assert payload["message"] == (
+        "https://natuslumine.am2saude.com/viewer/viewer/"
+        "1.2.410.200001.101.11.302.1100234043.1.20251107073919690"
+        "?aet=SP1972&token="
+    )
+
+
 def test_normalizar_base64_pdf_remove_data_url_e_espacos():
     route_module = _load_route_module()
 

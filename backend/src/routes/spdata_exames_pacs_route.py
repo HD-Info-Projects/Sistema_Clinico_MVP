@@ -21,6 +21,11 @@ load_dotenv()
 
 exames_pacs_bp = Blueprint("exames_pacs", __name__, url_prefix="/exames-pacs")
 VIEWER_URL_KEYS = ("message", "url", "viewerUrl", "viewer_url", "link", "href")
+PACS_VIEWER_INTERNAL_ORIGIN_RE = re.compile(
+    r"^https://192\.168\.5\.21(?=/|$)",
+    flags=re.IGNORECASE,
+)
+PACS_VIEWER_PUBLIC_ORIGIN = "https://natuslumine.am2saude.com"
 
 
 def _int_env(nome, default):
@@ -140,6 +145,27 @@ def _extrair_viewer_url(payload):
     return None
 
 
+def _reescrever_viewer_url_publica(url):
+    url_limpa = url.strip()
+    return PACS_VIEWER_INTERNAL_ORIGIN_RE.sub(PACS_VIEWER_PUBLIC_ORIGIN, url_limpa)
+
+
+def _reescrever_viewer_urls_payload(payload):
+    if not isinstance(payload, dict):
+        return payload
+
+    for chave in VIEWER_URL_KEYS:
+        valor = payload.get(chave)
+        if isinstance(valor, str):
+            payload[chave] = _reescrever_viewer_url_publica(valor)
+
+    data = payload.get("data")
+    if isinstance(data, dict):
+        _reescrever_viewer_urls_payload(data)
+
+    return payload
+
+
 def _chamar_viewer_exame(id_lancamento: int, timeout=15):
     url, token = _pacs_config()
     response = requests.post(
@@ -155,6 +181,7 @@ def _chamar_viewer_exame(id_lancamento: int, timeout=15):
 
     try:
         payload = response.json()
+        payload = _reescrever_viewer_urls_payload(payload)
     except ValueError:
         payload = {
             "content_type": response.headers.get("Content-Type"),
