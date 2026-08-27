@@ -919,6 +919,26 @@ async function finalizarConsulta() {
           >
             Rascunho salvo às {{ draftSalvoHorario }}
           </UBadge>
+
+          <UPopover>
+            <UButton
+              label="DUM"
+              icon="lucide:calculator"
+              color="neutral"
+              variant="subtle"
+              size="sm"
+            />
+
+            <template #content>
+              <CalculadoraDUM />
+            </template>
+          </UPopover>
+
+          <USeparator
+            orientation="vertical"
+            class="h-6"
+          />
+
           <UBadge
             color="neutral"
             variant="subtle"
