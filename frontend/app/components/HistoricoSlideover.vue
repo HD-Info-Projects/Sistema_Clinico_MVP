@@ -676,14 +676,6 @@ function montarDiagnosticos(item: HistoricoLocalRecord): string {
                         class="flex items-center gap-1.5"
                       >
                         <span class="truncate">{{ exame.nome }}</span>
-                        <UBadge
-                          v-if="exame.situacao"
-                          :label="exame.situacao"
-                          color="neutral"
-                          variant="subtle"
-                          size="sm"
-                          class="shrink-0"
-                        />
                         <UIcon
                           v-if="exame.temImagem"
                           name="i-lucide-eye"
