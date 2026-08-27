@@ -1,9 +1,16 @@
 <script setup lang="ts">
+import type { CalendarDate } from '@internationalized/date'
 import { calcularDataProvavelParto, calcularIdadeGestacional, formatarDataBR, formatarIdadeGestacional } from '~/utils/obstetricia'
 
-const dum = ref<string>('')
+const dum = shallowRef<CalendarDate | null>(null)
 const hoje = ref(new Date())
 const copiado = ref(false)
+
+function calendarDateToISO(date: CalendarDate): string {
+  const month = String(date.month).padStart(2, '0')
+  const day = String(date.day).padStart(2, '0')
+  return `${date.year}-${month}-${day}`
+}
 
 let intervalo: ReturnType<typeof setInterval> | null = null
 
@@ -19,12 +26,12 @@ onUnmounted(() => {
 
 const idadeGestacional = computed(() => {
   if (!dum.value) return null
-  return calcularIdadeGestacional(dum.value, hoje.value)
+  return calcularIdadeGestacional(calendarDateToISO(dum.value), hoje.value)
 })
 
 const dataProvavelParto = computed(() => {
   if (!dum.value) return null
-  return calcularDataProvavelParto(dum.value)
+  return calcularDataProvavelParto(calendarDateToISO(dum.value))
 })
 
 const idadeGestacionalFormatada = computed(() => {
@@ -43,7 +50,7 @@ const resultadoTexto = computed(() => {
 })
 
 function limpar() {
-  dum.value = ''
+  dum.value = null
 }
 
 function copiarResultado() {
@@ -70,9 +77,8 @@ function copiarResultado() {
     </div>
 
     <UFormField label="Data da Última Menstruação">
-      <UInput
+      <UInputDate
         v-model="dum"
-        type="date"
         class="w-full"
       />
     </UFormField>
