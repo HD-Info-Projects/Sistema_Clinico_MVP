@@ -219,11 +219,54 @@ onBeforeUnmount(() => {
   ttsRequestId.value += 1
   ttsAbortController.value?.abort()
   limparAudioAtual()
+  limparTimerChamado()
 })
 
 const { horaFormatada, dataFormatada } = useRelogio()
 
+const videosPlaylist = ['/media/1.mp4', '/media/2.mp4', '/media/3.mp4', '/media/4.mp4']
+
+const videoIndexAtual = ref(0)
+const videoRef = ref<HTMLVideoElement | null>(null)
+
+function avancarVideo() {
+  videoIndexAtual.value = (videoIndexAtual.value + 1) % videosPlaylist.length
+}
+
 const ultimoChamado = computed(() => chamadosStore.ultimoChamado)
+const timerChamadoRef = ref<ReturnType<typeof setTimeout> | null>(null)
+const chamadoAtualIdRef = ref<number | null>(null)
+
+function limparTimerChamado() {
+  if (timerChamadoRef.value) {
+    clearTimeout(timerChamadoRef.value)
+    timerChamadoRef.value = null
+  }
+  chamadoAtualIdRef.value = null
+}
+
+function agendarConclusaoAutomatica(chamadoId: number) {
+  limparTimerChamado()
+  chamadoAtualIdRef.value = chamadoId
+  timerChamadoRef.value = setTimeout(async () => {
+    if (chamadoAtualIdRef.value === chamadoId && clinicaId.value) {
+      try {
+        await chamadosStore.concluirChamadoPublico(chamadoId, clinicaId.value)
+      } catch (error) {
+        console.error('Erro ao concluir chamado automaticamente', error)
+      }
+    }
+  }, 10000)
+}
+
+watch(ultimoChamado, (novoChamado) => {
+  if (novoChamado && novoChamado.id !== chamadoAtualIdRef.value) {
+    agendarConclusaoAutomatica(novoChamado.id)
+  } else if (!novoChamado) {
+    limparTimerChamado()
+  }
+})
+
 const ultimasChamadas = computed(() => chamadosStore.historicoChamados.slice(0, 4))
 const unidadeLabel = computed(() => unidade.value?.nome || (clinicaId.value ? `Unidade ${clinicaId.value}` : 'Unidade'))
 const mostrarDesbloqueioAudio = computed(() => !audioAtivo.value && !painelError.value)
@@ -362,16 +405,22 @@ const mensagemAudio = computed(() => audioBloqueado.value
 
           <template v-else>
             <UCard class="flex flex-1 flex-col items-center justify-center bg-primary-600 p-10 dark:bg-primary-700/80">
-              <UIcon
-                name="i-lucide-stethoscope"
-                class="text-7xl text-white"
-              />
-              <p class="mt-4 text-2xl font-medium text-white">
-                Nenhuma chamada no momento
-              </p>
-              <p class="mt-1 text-base text-white">
-                A lista de chamadas aparecerá aqui automaticamente.
-              </p>
+              <video
+                ref="videoRef"
+                :key="videoIndexAtual"
+                class="rounded-xl"
+                width="1100"
+                height="619"
+                autoplay
+                muted
+                playsinline
+                @ended="avancarVideo"
+              >
+                <source
+                  :src="videosPlaylist[videoIndexAtual]"
+                  type="video/mp4"
+                >
+              </video>
             </UCard>
           </template>
         </div>

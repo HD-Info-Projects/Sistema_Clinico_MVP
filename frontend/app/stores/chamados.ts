@@ -100,6 +100,18 @@ export const useChamadosStore = defineStore('chamados', () => {
     }
   }
 
+  async function concluirChamadoPublico(chamadoId: number, clinicaId: number) {
+    try {
+      return await $fetch<Chamado>('/api/chamadas/concluir', {
+        method: 'POST',
+        body: { chamadoId, clinicaId }
+      })
+    } catch (error) {
+      console.error('Erro ao concluir chamado publicamente')
+      throw error
+    }
+  }
+
   return {
     chamados,
     loading,
@@ -108,6 +120,7 @@ export const useChamadosStore = defineStore('chamados', () => {
     init,
     fetchChamados,
     chamarPaciente,
-    concluirChamado
+    concluirChamado,
+    concluirChamadoPublico
   }
 })
