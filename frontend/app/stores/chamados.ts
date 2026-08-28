@@ -12,9 +12,14 @@ export const useChamadosStore = defineStore('chamados', () => {
     chamados.value.find(c => c.status === 'chamando') ?? null
   )
 
-  const historicoChamados = computed(() =>
-    chamados.value.filter(c => c.status !== 'chamando')
-  )
+  const historicoChamados = computed(() => {
+    const historico = chamados.value.filter(c => c.status !== 'chamando')
+    return historico.filter((c, i) => {
+      if (i === 0) return true
+      const anterior = historico[i - 1]
+      return anterior ? c.pacienteNome !== anterior.pacienteNome : true
+    })
+  })
 
   function chamadasQuery(clinicaId?: number | null) {
     return clinicaId ? `?clinicaId=${encodeURIComponent(String(clinicaId))}` : ''
@@ -55,7 +60,7 @@ export const useChamadosStore = defineStore('chamados', () => {
       const existingActive = chamados.value.findIndex(c => c.status === 'chamando')
       if (existingActive >= 0) {
         const active = chamados.value[existingActive]!
-        const mesmoPaciente = Boolean(active.pacienteId && chamado.pacienteId && active.pacienteId === chamado.pacienteId)
+        const mesmoPaciente = Boolean(active.pacienteNome && chamado.pacienteNome && active.pacienteNome === chamado.pacienteNome)
         if (active.id === chamado.id || mesmoPaciente) {
           chamados.value[existingActive] = chamado
           return
