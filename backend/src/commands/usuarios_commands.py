@@ -10,7 +10,7 @@ from src.settings.extensions import db
 
 
 def _password_min_length():
-    return int(current_app.config.get("PASSWORD_MIN_LENGTH", 12))
+    return int(current_app.config.get("PASSWORD_MIN_LENGTH", 6))
 
 
 def _buscar_usuario(usuario_id=None, email=None):

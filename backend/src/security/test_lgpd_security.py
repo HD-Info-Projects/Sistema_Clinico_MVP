@@ -43,6 +43,10 @@ def test_validate_password_strength_rejeita_senha_fraca():
         raise AssertionError("Senha fraca deveria ser rejeitada")
 
 
+def test_validate_password_strength_aceita_senha_com_minimo_padrao():
+    validate_password_strength("123456")
+
+
 def test_login_controller_migra_senha_legada_para_hash(monkeypatch):
     app = create_app()
     app.config["TESTING"] = True

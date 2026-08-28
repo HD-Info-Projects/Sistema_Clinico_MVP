@@ -1,7 +1,7 @@
 from werkzeug.security import check_password_hash, generate_password_hash
 
 
-DEFAULT_MIN_PASSWORD_LENGTH = 12
+DEFAULT_MIN_PASSWORD_LENGTH = 6
 
 
 PASSWORD_HASH_PREFIXES = (

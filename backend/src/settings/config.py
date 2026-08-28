@@ -61,7 +61,7 @@ class Config:
     SECURITY_HSTS_MAX_AGE = int(os.getenv('SECURITY_HSTS_MAX_AGE', 31536000))
     ENABLE_TTS = os.getenv('ENABLE_TTS', 'false').lower() == 'true'
     TTS_RATE_LIMIT = os.getenv('TTS_RATE_LIMIT', '30 per minute')
-    PASSWORD_MIN_LENGTH = int(os.getenv('PASSWORD_MIN_LENGTH', 12))
+    PASSWORD_MIN_LENGTH = int(os.getenv('PASSWORD_MIN_LENGTH', 6))
     JWT_BLOCKLIST_STORAGE_URI = os.getenv('JWT_BLOCKLIST_STORAGE_URI') or RATELIMIT_STORAGE_URI
 
     LGPD_RETENTION_LOGS_INTEGRACAO_DAYS = int(

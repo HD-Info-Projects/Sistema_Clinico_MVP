@@ -101,7 +101,7 @@ def _status_value_error(error):
 
 
 def _senha_minima():
-    return current_app.config.get("PASSWORD_MIN_LENGTH", 8)
+    return current_app.config.get("PASSWORD_MIN_LENGTH", 6)
 
 
 def _payload_unidade_ids(data):

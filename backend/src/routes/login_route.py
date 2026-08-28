@@ -175,7 +175,7 @@ def register_medic():
         if isinstance(unidade_ids, (str, int)):
             unidade_ids = [unidade_ids]
 
-        validate_password_strength(senha, current_app.config.get("PASSWORD_MIN_LENGTH", 8))
+        validate_password_strength(senha, current_app.config.get("PASSWORD_MIN_LENGTH", 6))
 
         medicos_spdata = buscar_medicos_spdata(cpf=cpf_cnpj)
         if not medicos_spdata:
