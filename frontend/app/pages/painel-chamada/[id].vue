@@ -260,9 +260,13 @@ function agendarConclusaoAutomatica(chamadoId: number) {
 }
 
 watch(ultimoChamado, (novoChamado) => {
-  if (novoChamado && novoChamado.id !== chamadoAtualIdRef.value) {
-    agendarConclusaoAutomatica(novoChamado.id)
-  } else if (!novoChamado) {
+  if (novoChamado) {
+    videoRef.value?.pause()
+    if (novoChamado.id !== chamadoAtualIdRef.value) {
+      agendarConclusaoAutomatica(novoChamado.id)
+    }
+  } else {
+    videoRef.value?.play()
     limparTimerChamado()
   }
 })
@@ -352,8 +356,28 @@ const mensagemAudio = computed(() => audioBloqueado.value
 
       <div class="flex min-h-0 flex-1 gap-4">
         <div class="flex min-w-0 flex-2 flex-col gap-4">
-          <template v-if="ultimoChamado">
-            <UCard class="flex flex-1 flex-col items-center justify-center bg-primary-600 p-10 dark:bg-primary-700/80">
+          <UCard class="relative flex flex-1 flex-col items-center justify-center overflow-hidden bg-primary-600 p-10 dark:bg-primary-700/80">
+            <video
+              ref="videoRef"
+              :key="videoIndexAtual"
+              class="rounded-xl"
+              width="1100"
+              height="619"
+              autoplay
+              muted
+              playsinline
+              @ended="avancarVideo"
+            >
+              <source
+                :src="videosPlaylist[videoIndexAtual]"
+                type="video/mp4"
+              >
+            </video>
+
+            <div
+              v-if="ultimoChamado"
+              class="absolute inset-0 flex flex-col items-center justify-center bg-primary-600 p-10 dark:bg-primary-700/80"
+            >
               <div class="w-full">
                 <p class="mb-4 text-center text-xl font-medium uppercase tracking-widest text-white">
                   Chamando Agora
@@ -400,29 +424,8 @@ const mensagemAudio = computed(() => audioBloqueado.value
                   Por favor, dirija-se à sala indicada.
                 </p>
               </div>
-            </UCard>
-          </template>
-
-          <template v-else>
-            <UCard class="flex flex-1 flex-col items-center justify-center bg-primary-600 p-10 dark:bg-primary-700/80">
-              <video
-                ref="videoRef"
-                :key="videoIndexAtual"
-                class="rounded-xl"
-                width="1100"
-                height="619"
-                autoplay
-                muted
-                playsinline
-                @ended="avancarVideo"
-              >
-                <source
-                  :src="videosPlaylist[videoIndexAtual]"
-                  type="video/mp4"
-                >
-              </video>
-            </UCard>
-          </template>
+            </div>
+          </UCard>
         </div>
 
         <UCard
