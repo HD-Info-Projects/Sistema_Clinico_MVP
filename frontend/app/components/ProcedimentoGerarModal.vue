@@ -120,6 +120,7 @@ function normalizarProcedimentoSelecionado(valor: unknown): ProcedimentoSelecion
     procedimento_id: procedimentoId,
     nome,
     codigo_procedimento: normalizarNumero(item.codigo_procedimento ?? item.codigoProcedimento),
+    codigo_tuss: normalizarNumero(item.codigo_tuss ?? item.codigoTuss),
     tipo_ato_codigo: normalizarId(item.tipo_ato_codigo ?? item.tipoAtoCodigo),
     tipo_ato_nome: normalizarTexto(item.tipo_ato_nome ?? item.tipoAtoNome) || null,
     exige_autorizacao: normalizarNumero(item.exige_autorizacao ?? item.exigeAutorizacao),
@@ -155,9 +156,14 @@ function normalizarListaProcedimentos(valor: unknown) {
   return procedimentos
 }
 
+function codigoProcedimentoExibicao(procedimento: ProcedimentoSelecionado | ProcedimentoCatalogo) {
+  return procedimento.codigo_tuss ?? procedimento.codigo_procedimento ?? null
+}
+
 function procedimentoLabel(procedimento: ProcedimentoSelecionado | ProcedimentoCatalogo) {
-  const codigo = procedimento.codigo_procedimento ? `${procedimento.codigo_procedimento} - ` : ''
-  return `${codigo}${procedimento.nome}`
+  const codigo = codigoProcedimentoExibicao(procedimento)
+  const prefixo = codigo ? `${codigo} - ` : ''
+  return `${prefixo}${procedimento.nome}`
 }
 
 const descricaoProcedimentos = computed(() => (

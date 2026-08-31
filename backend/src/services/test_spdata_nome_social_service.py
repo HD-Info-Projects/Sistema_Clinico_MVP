@@ -96,3 +96,32 @@ def test_filtro_consultas_medico_inclui_faixa_consulta_e_codigo_5001():
     )
 
     assert [item["codigoProcedimentoSpdata"] for item in filtrados] == ["10101012", "5001"]
+
+
+def test_filtro_agenda_sem_tipo_mantem_todos_codigos_tuss():
+    def item(codigo):
+        tipo, label = tipo_procedimento_frontend(codigo)
+        return {
+            "codigoProcedimentoSpdata": codigo,
+            "tipoProcedimento": tipo,
+            "tipoProcedimentoLabel": label,
+            "paciente": {"nome": "Paciente"},
+        }
+
+    items = [
+        item("10101012"),
+        item("41301307"),
+        item("41301471"),
+        item("40901300"),
+        item("41500000"),
+    ]
+
+    filtrados = filtrar_agenda_frontend(items)
+
+    assert [item["codigoProcedimentoSpdata"] for item in filtrados] == [
+        "10101012",
+        "41301307",
+        "41301471",
+        "40901300",
+        "41500000",
+    ]

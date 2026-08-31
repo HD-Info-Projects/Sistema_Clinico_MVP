@@ -50,13 +50,12 @@ def listar_agenda():
             status=status,
             search=search,
             unidade_id=unidade_id_request(),
-            somente_consultas=True,
         )
         registrar_auditoria(
             AcaoAuditoria.VISUALIZOU_AGENDA,
             entidade="agenda_medica",
             usuario_id=usuario_id,
-            descricao=f"Listagem de agenda médica. data_ini={data_ini} data_fim={data_fim} status={status or ''} somente_consultas=true",
+            descricao=f"Listagem de agenda médica. data_ini={data_ini} data_fim={data_fim} status={status or ''} todos_tipos=true",
         )
         return jsonify(resultado), 200
 
@@ -87,7 +86,6 @@ def listar_marcadores_agenda():
             data_fim,
             unidade_id=unidade_id_request(),
             sincronizar=sincronizar,
-            somente_consultas=True,
         )
         return jsonify(resultado), 200
 

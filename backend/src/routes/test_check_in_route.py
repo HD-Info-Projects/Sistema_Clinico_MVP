@@ -45,6 +45,8 @@ def test_classifica_tipo_procedimento_por_codigo_tuss():
         ("41100000", "ressonancia-magnetica"),
         ("41200000", "radioterapia"),
         ("41300000", "exames-procedimentos-especificos"),
+        ("41301307", "exames-procedimentos-especificos"),
+        ("41301471", "exames-procedimentos-especificos"),
         ("41400000", "testes-diagnostico"),
         ("41500000", "outros-diagnosticos-terapeuticos"),
         ("41600000", "outros"),
