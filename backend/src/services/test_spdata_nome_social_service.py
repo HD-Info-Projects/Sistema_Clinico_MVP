@@ -1,12 +1,16 @@
 from datetime import date, datetime, time
 from types import SimpleNamespace
 
+from sqlalchemy import column
+
 from src.services.spdata_atendimentos_service import (
     agenda_para_frontend,
     agenda_spdata_para_frontend,
     filtrar_agenda_frontend,
+    filtro_visivel_medico_spdata,
     tipo_procedimento_frontend,
 )
+from src.utils.tuss import codigo_tuss_visivel_medico
 
 
 def test_agenda_para_frontend_expoe_nome_social_sem_substituir_nome_civil():
@@ -98,30 +102,24 @@ def test_filtro_consultas_medico_inclui_faixa_consulta_e_codigo_5001():
     assert [item["codigoProcedimentoSpdata"] for item in filtrados] == ["10101012", "5001"]
 
 
-def test_filtro_agenda_sem_tipo_mantem_todos_codigos_tuss():
-    def item(codigo):
-        tipo, label = tipo_procedimento_frontend(codigo)
-        return {
-            "codigoProcedimentoSpdata": codigo,
-            "tipoProcedimento": tipo,
-            "tipoProcedimentoLabel": label,
-            "paciente": {"nome": "Paciente"},
-        }
+def test_visibilidade_medica_inclui_consultas_e_codigos_liberados():
+    assert codigo_tuss_visivel_medico("10101012") is True
+    assert codigo_tuss_visivel_medico("5001") is True
+    assert codigo_tuss_visivel_medico("41301307") is True
+    assert codigo_tuss_visivel_medico("41301471") is True
+    assert codigo_tuss_visivel_medico("40901300") is False
+    assert codigo_tuss_visivel_medico("41500000") is False
 
-    items = [
-        item("10101012"),
-        item("41301307"),
-        item("41301471"),
-        item("40901300"),
-        item("41500000"),
-    ]
 
-    filtrados = filtrar_agenda_frontend(items)
+def test_filtro_visibilidade_medica_sql_inclui_apenas_regra_permitida():
+    model = SimpleNamespace(cod_procedimento_spdata=column("cod_procedimento_spdata"))
+    filtro = filtro_visivel_medico_spdata(model)
+    sql = str(filtro.compile(compile_kwargs={"literal_binds": True}))
 
-    assert [item["codigoProcedimentoSpdata"] for item in filtrados] == [
-        "10101012",
-        "41301307",
-        "41301471",
-        "40901300",
-        "41500000",
-    ]
+    assert "5001" in sql
+    assert "10000000" in sql
+    assert "19999999" in sql
+    assert "41301307" in sql
+    assert "41301471" in sql
+    assert "40901300" not in sql
+    assert "41500000" not in sql

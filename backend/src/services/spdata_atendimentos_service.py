@@ -28,6 +28,7 @@ from src.settings.extensions import db
 from src.utils.normalizar import normalizar_cpf
 from src.utils.tuss import (
     CODIGOS_TUSS_CONSULTA_EXATOS,
+    CODIGOS_TUSS_VISIVEIS_MEDICO_EXTRAS,
     FAIXAS_TUSS_CONSULTA,
     TIPO_PROCEDIMENTO_CONSULTA,
     TIPOS_PROCEDIMENTO_VALIDOS,
@@ -267,6 +268,10 @@ def filtro_consulta_agenda():
     return filtro_consulta_spdata(MedSpdataAgenda)
 
 
+def filtro_visivel_medico_agenda():
+    return filtro_visivel_medico_spdata(MedSpdataAgenda)
+
+
 def filtro_consulta_spdata(model):
     campo = model.cod_procedimento_spdata
     filtros = [campo.in_(CODIGOS_TUSS_CONSULTA_EXATOS)]
@@ -280,6 +285,14 @@ def filtro_consulta_spdata(model):
         ))
 
     return or_(*filtros)
+
+
+def filtro_visivel_medico_spdata(model):
+    campo = model.cod_procedimento_spdata
+    return or_(
+        filtro_consulta_spdata(model),
+        campo.in_(CODIGOS_TUSS_VISIVEIS_MEDICO_EXTRAS),
+    )
 
 
 def buscar_atendimentos_spdata(data_ini, data_fim, crm_medico, unidade):
@@ -875,13 +888,16 @@ def listar_atendimentos_medsystem_para_frontend(
     search=None,
     tipo=None,
     somente_consultas=False,
+    somente_visiveis_medico=False,
 ):
     filtros = [
         MedSpdataAtendimento.crm_medico == crm_medico,
         filtro_spdata_unidade(MedSpdataAtendimento, unidade),
     ]
 
-    if somente_consultas:
+    if somente_visiveis_medico:
+        filtros.append(filtro_visivel_medico_spdata(MedSpdataAtendimento))
+    elif somente_consultas:
         filtros.append(filtro_consulta_spdata(MedSpdataAtendimento))
 
     if data_ini:
@@ -932,6 +948,7 @@ def listar_agenda_medica(
     tipo=None,
     unidade_id=None,
     somente_consultas=False,
+    somente_visiveis_medico=False,
 ):
     crm_medico = get_crm_medico_usuario(usuario_id)
     unidade = resolver_unidade_usuario(usuario_id, unidade_id)
@@ -953,6 +970,7 @@ def listar_agenda_medica(
             search=search,
             tipo=tipo,
             somente_consultas=somente_consultas,
+            somente_visiveis_medico=somente_visiveis_medico,
         )
 
     if data_fim < data_ini:
@@ -972,7 +990,9 @@ def listar_agenda_medica(
                 MedSpdataAgenda.crm_atend == crm_medico,
                 MedSpdataAgenda.crm == crm_medico,
             ),
-            filtro_consulta_agenda() if somente_consultas else True,
+            filtro_visivel_medico_agenda()
+            if somente_visiveis_medico
+            else filtro_consulta_agenda() if somente_consultas else True,
         )
         .order_by(MedSpdataAgenda.data_agenda, MedSpdataAgenda.hora_agenda, MedSpdataAgenda.paciente)
         .all()
@@ -1013,7 +1033,9 @@ def listar_agenda_medica(
             MedSpdataAtendimento.data_atendimento <= data_fim,
             MedSpdataAtendimento.crm_medico == crm_medico,
             filtro_spdata_unidade(MedSpdataAtendimento, unidade),
-            filtro_consulta_spdata(MedSpdataAtendimento) if somente_consultas else True,
+            filtro_visivel_medico_spdata(MedSpdataAtendimento)
+            if somente_visiveis_medico
+            else filtro_consulta_spdata(MedSpdataAtendimento) if somente_consultas else True,
         )
         .order_by(MedSpdataAtendimento.data_hora_entrada, MedSpdataAtendimento.paciente)
         .all()
@@ -1054,6 +1076,7 @@ def listar_marcadores_agenda_medica(
     unidade_id=None,
     sincronizar=False,
     somente_consultas=False,
+    somente_visiveis_medico=False,
 ):
     crm_medico = get_crm_medico_usuario(usuario_id)
     unidade = resolver_unidade_usuario(usuario_id, unidade_id)
@@ -1076,7 +1099,9 @@ def listar_marcadores_agenda_medica(
                 MedSpdataAgenda.crm_atend == crm_medico,
                 MedSpdataAgenda.crm == crm_medico,
             ),
-            filtro_consulta_agenda() if somente_consultas else True,
+            filtro_visivel_medico_agenda()
+            if somente_visiveis_medico
+            else filtro_consulta_agenda() if somente_consultas else True,
         )
         .all()
     )
@@ -1111,7 +1136,9 @@ def listar_marcadores_agenda_medica(
             MedSpdataAtendimento.data_atendimento <= data_fim,
             MedSpdataAtendimento.crm_medico == crm_medico,
             filtro_spdata_unidade(MedSpdataAtendimento, unidade),
-            filtro_consulta_spdata(MedSpdataAtendimento) if somente_consultas else True,
+            filtro_visivel_medico_spdata(MedSpdataAtendimento)
+            if somente_visiveis_medico
+            else filtro_consulta_spdata(MedSpdataAtendimento) if somente_consultas else True,
         )
         .all()
     )
