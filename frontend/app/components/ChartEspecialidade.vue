@@ -27,7 +27,7 @@ const options: ChartOptions<'doughnut'> = {
   cutout: '50%',
   plugins: {
     legend: {
-      position: 'right' as const,
+      position: 'bottom' as const,
       labels: { padding: 16, usePointStyle: true, font: { size: 12 } }
     },
     tooltip: {
@@ -43,16 +43,18 @@ const options: ChartOptions<'doughnut'> = {
 </script>
 
 <template>
-  <div class="relative h-64">
+  <div class="relative h-56 w-full min-w-0 sm:h-64">
     <ClientOnly>
       <Doughnut
         :data="data"
         :options="options"
-        class="h-full w-full"
+        class="aspect-square h-full max-w-full"
+        role="img"
+        aria-label="Gráfico de pacientes por especialidade"
       />
       <template #fallback>
         <div class="flex h-full items-center justify-center">
-          <div class="size-48 rounded-full bg-neutral-200 dark:bg-neutral-800 animate-pulse" />
+          <div class="aspect-square w-48 max-w-full animate-pulse rounded-full bg-neutral-200 dark:bg-neutral-800" />
         </div>
       </template>
     </ClientOnly>

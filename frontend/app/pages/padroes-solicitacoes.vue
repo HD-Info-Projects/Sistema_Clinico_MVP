@@ -159,8 +159,8 @@ function activeTabEmpty(): boolean {
       </template>
     </UHeader>
 
-    <div class="p-4 sm:p-6 space-y-6 bg-neutral-100 dark:bg-neutral-950 min-h-screen">
-      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+    <div class="min-h-screen min-w-0 space-y-6 bg-neutral-100 p-3 dark:bg-neutral-950 sm:p-6">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4 xl:gap-6">
         <UCard>
           <template #title>
             <div class="flex items-center gap-2">
@@ -180,17 +180,19 @@ function activeTabEmpty(): boolean {
             </p>
           </template>
 
-          <div class="flex gap-2">
+          <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             <UButton
               icon="i-lucide-plus"
               label="Novo Modelo"
               size="sm"
+              class="min-h-10 justify-center"
               @click="abrirNovaReceita"
             />
             <UButton
               label="Gerenciar"
               color="neutral"
               size="sm"
+              class="min-h-10 justify-center"
               @click="gerenciarReceita"
             />
           </div>
@@ -215,17 +217,19 @@ function activeTabEmpty(): boolean {
             </p>
           </template>
 
-          <div class="flex gap-2">
+          <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             <UButton
               icon="i-lucide-plus"
               label="Novo Modelo"
               size="sm"
+              class="min-h-10 justify-center"
               @click="abrirNovaExame"
             />
             <UButton
               label="Gerenciar"
               color="neutral"
               size="sm"
+              class="min-h-10 justify-center"
               @click="gerenciarExame"
             />
           </div>
@@ -250,17 +254,19 @@ function activeTabEmpty(): boolean {
             </p>
           </template>
 
-          <div class="flex gap-2">
+          <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             <UButton
               icon="i-lucide-plus"
               label="Novo Modelo"
               size="sm"
+              class="min-h-10 justify-center"
               @click="abrirNovaAnamnese"
             />
             <UButton
               label="Gerenciar"
               color="neutral"
               size="sm"
+              class="min-h-10 justify-center"
               @click="gerenciarAnamnese"
             />
           </div>
@@ -285,17 +291,19 @@ function activeTabEmpty(): boolean {
             </p>
           </template>
 
-          <div class="flex gap-2">
+          <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             <UButton
               icon="i-lucide-plus"
               label="Novo Modelo"
               size="sm"
+              class="min-h-10 justify-center"
               @click="abrirNovaOrientacao"
             />
             <UButton
               label="Gerenciar"
               color="neutral"
               size="sm"
+              class="min-h-10 justify-center"
               @click="gerenciarOrientacao"
             />
           </div>
@@ -320,10 +328,10 @@ function activeTabEmpty(): boolean {
             <div
               v-for="p in padroesStore.receitas"
               :key="p.id"
-              class="flex items-center justify-between p-3 rounded-lg border border-muted hover:bg-muted/50"
+              class="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-muted p-3 hover:bg-muted/50"
             >
-              <div>
-                <p class="font-medium">
+              <div class="min-w-0">
+                <p class="break-words font-medium">
                   {{ p.nome }}
                 </p>
                 <p class="text-xs text-muted">
@@ -331,7 +339,7 @@ function activeTabEmpty(): boolean {
                   &middot; {{ new Date(p.updatedAt).toLocaleDateString('pt-BR') }}
                 </p>
               </div>
-              <div class="flex gap-1">
+              <div class="flex shrink-0 gap-1">
                 <UButton
                   icon="i-lucide-pencil"
                   color="neutral"
@@ -354,10 +362,10 @@ function activeTabEmpty(): boolean {
             <div
               v-for="p in padroesStore.exames"
               :key="p.id"
-              class="flex items-center justify-between p-3 rounded-lg border border-muted hover:bg-muted/50"
+              class="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-muted p-3 hover:bg-muted/50"
             >
-              <div>
-                <p class="font-medium">
+              <div class="min-w-0">
+                <p class="break-words font-medium">
                   {{ p.nome }}
                 </p>
                 <p class="text-xs text-muted">
@@ -365,7 +373,7 @@ function activeTabEmpty(): boolean {
                   &middot; {{ new Date(p.updatedAt).toLocaleDateString('pt-BR') }}
                 </p>
               </div>
-              <div class="flex gap-1">
+              <div class="flex shrink-0 gap-1">
                 <UButton
                   icon="i-lucide-pencil"
                   color="neutral"
@@ -388,17 +396,17 @@ function activeTabEmpty(): boolean {
             <div
               v-for="p in padroesAnamneseStore.padroes"
               :key="p.id"
-              class="flex items-center justify-between p-3 rounded-lg border border-muted hover:bg-muted/50"
+              class="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-muted p-3 hover:bg-muted/50"
             >
-              <div>
-                <p class="font-medium">
+              <div class="min-w-0">
+                <p class="break-words font-medium">
                   {{ p.nome }}
                 </p>
                 <p class="text-xs text-muted">
                   {{ new Date(p.updatedAt).toLocaleDateString('pt-BR') }}
                 </p>
               </div>
-              <div class="flex gap-1">
+              <div class="flex shrink-0 gap-1">
                 <UButton
                   icon="i-lucide-pencil"
                   color="neutral"
@@ -421,17 +429,17 @@ function activeTabEmpty(): boolean {
             <div
               v-for="p in padroesOrientacoesStore.padroes"
               :key="p.id"
-              class="flex items-center justify-between p-3 rounded-lg border border-muted hover:bg-muted/50"
+              class="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-muted p-3 hover:bg-muted/50"
             >
-              <div>
-                <p class="font-medium">
+              <div class="min-w-0">
+                <p class="break-words font-medium">
                   {{ p.nome }}
                 </p>
                 <p class="text-xs text-muted">
                   {{ new Date(p.updatedAt).toLocaleDateString('pt-BR') }}
                 </p>
               </div>
-              <div class="flex gap-1">
+              <div class="flex shrink-0 gap-1">
                 <UButton
                   icon="i-lucide-pencil"
                   color="neutral"
@@ -459,5 +467,15 @@ function activeTabEmpty(): boolean {
         </div>
       </UCard>
     </div>
+
+    <ModalConfirmacao
+      :abrir="confirmDeleteId !== null"
+      titulo="Excluir padrão?"
+      descricao="Esta ação não pode ser desfeita."
+      texto-confirma="Excluir"
+      cor-confirma="error"
+      @fechar="confirmDeleteId = null; confirmDeleteTipo = null"
+      @confirmar="executarDeletar"
+    />
   </div>
 </template>

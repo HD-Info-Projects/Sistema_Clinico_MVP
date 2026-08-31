@@ -312,7 +312,7 @@ const tempoMedioEspera = computed(() => {
         </div>
       </template>
     </UHeader>
-    <div class="lg:hidden flex items-center justify-between gap-2 bg-default/75 backdrop-blur border-b border-default px-4 sm:px-6 py-2">
+    <div class="flex min-w-0 items-center justify-between gap-2 border-b border-default bg-default/75 px-3 py-2 backdrop-blur sm:px-6 lg:hidden">
       <UBadge
         color="primary"
         variant="soft"
@@ -329,12 +329,12 @@ const tempoMedioEspera = computed(() => {
         :label="auth.activeClinica?.nome || 'Sem unidade'"
         color="neutral"
         variant="soft"
-        class="truncate"
+        class="min-w-0 max-w-[55vw] truncate"
       />
     </div>
-    <div class="p-4 sm:p-6 space-y-8 bg-neutral-100 dark:bg-neutral-950 min-h-screen">
-      <div>
-        <p class="text-3xl font-semibold text-foreground">
+    <div class="min-h-screen min-w-0 space-y-6 bg-neutral-100 p-3 dark:bg-neutral-950 sm:space-y-8 sm:p-6">
+      <div class="min-w-0">
+        <p class="break-words text-2xl font-semibold text-foreground sm:text-3xl">
           {{ getSaudacao(agora) }}, Dr. {{ userName }}
         </p>
         <p class="text-base text-muted mt-1">
@@ -357,7 +357,7 @@ const tempoMedioEspera = computed(() => {
             <div class="flex flex-col gap-2 items-center">
               <div class="flex items-center gap-2">
                 <div class="size-3 bg-warning rounded-full" />
-                <p class="text-xl font-medium">
+                <p class="text-center text-lg font-medium sm:text-xl">
                   Tempo médio espera:
                 </p>
               </div>
@@ -370,7 +370,7 @@ const tempoMedioEspera = computed(() => {
             <div class="flex flex-col gap-2 items-center">
               <div class="flex items-center gap-2">
                 <div class="size-3 bg-azu-500 rounded-full" />
-                <p class="text-xl font-medium">
+                <p class="text-center text-lg font-medium sm:text-xl">
                   Em espera:
                 </p>
               </div>
@@ -383,7 +383,7 @@ const tempoMedioEspera = computed(() => {
             <div class="flex flex-col gap-2 items-center">
               <div class="flex items-center gap-2">
                 <div class="size-3 bg-success rounded-full" />
-                <p class="text-xl font-medium">
+                <p class="text-center text-lg font-medium sm:text-xl">
                   Atendidos:
                 </p>
               </div>
@@ -396,7 +396,7 @@ const tempoMedioEspera = computed(() => {
             <div class="flex flex-col gap-2 items-center">
               <div class="flex items-center gap-2">
                 <div class="size-3 bg-error rounded-full" />
-                <p class="text-xl font-medium">
+                <p class="text-center text-lg font-medium sm:text-xl">
                   Faltantes:
                 </p>
               </div>
@@ -450,7 +450,7 @@ const tempoMedioEspera = computed(() => {
         <UPageCard>
           <div class="flex flex-col gap-2 items-center">
             <div class="flex items-center gap-2 text-muted ">
-              <p class="text-xl font-medium">
+              <p class="text-center text-lg font-medium sm:text-xl">
                 Nenhum paciente na fila de espera nesse momento.
               </p>
             </div>
@@ -477,19 +477,19 @@ const tempoMedioEspera = computed(() => {
             class=""
             :ui="{ container: 'p-1 sm:p-1' }"
           >
-            <div class="grid grid-cols-2 md:grid-cols-7 gap-x-4 gap-y-3 items-start md:items-center">
+            <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-7 md:items-center">
               <div class="col-span-2">
                 <p class="text-sm text-muted font-bold text-center sm:text-left">
                   Paciente
                 </p>
-                <div class="flex items-center gap-3 justify-center">
+                <div class="flex min-w-0 items-center justify-center gap-3 sm:justify-start">
                   <UAvatar
                     :alt="paciente.paciente.nome"
                     color="primary"
                     size="sm"
                   />
-                  <div>
-                    <p class="font-medium">
+                  <div class="min-w-0">
+                    <p class="break-words font-medium">
                       {{ paciente.paciente.nome }}
                     </p>
                     <p class="text-xs text-muted">
@@ -534,7 +534,7 @@ const tempoMedioEspera = computed(() => {
                 <p class="text-sm text-muted font-bold">
                   Ações
                 </p>
-                <div class="flex flex-wrap justify-center gap-1">
+                <div class="grid grid-cols-1 justify-center gap-2 sm:flex sm:flex-wrap sm:gap-1">
                   <UButton
                     icon="i-lucide-phone"
                     :label="rotuloChamada(paciente.paciente.id)"
@@ -593,19 +593,19 @@ const tempoMedioEspera = computed(() => {
             :key="paciente.id"
             :ui="{ container: 'p-1 sm:p-1' }"
           >
-            <div class="grid grid-cols-2 md:grid-cols-7 gap-x-4 gap-y-3 items-start md:items-center">
+            <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-7 md:items-center">
               <div class="col-span-2">
                 <p class="text-sm text-muted font-bold text-center sm:text-left">
                   Paciente
                 </p>
-                <div class="flex items-center gap-3 justify-center">
+                <div class="flex min-w-0 items-center justify-center gap-3 sm:justify-start">
                   <UAvatar
                     :alt="paciente.paciente.nome"
                     color="primary"
                     size="sm"
                   />
-                  <div>
-                    <p class="font-medium">
+                  <div class="min-w-0">
+                    <p class="break-words font-medium">
                       {{ paciente.paciente.nome }}
                     </p>
                     <p class="text-xs text-muted">

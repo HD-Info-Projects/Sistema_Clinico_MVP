@@ -41,7 +41,7 @@ function selecionar(modo: AccessMode) {
 </script>
 
 <template>
-  <div class="w-full max-w-lg mx-auto p-6">
+  <div class="relative z-10 mx-4 w-full max-w-lg rounded-xl bg-default/95 p-4 shadow-xl sm:p-6">
     <h1 class="text-xl font-bold mb-2">
       Selecione o Acesso
     </h1>
@@ -53,17 +53,21 @@ function selecionar(modo: AccessMode) {
       <UCard
         v-for="opcao in opcoes"
         :key="opcao.modo"
-        :ui="{ root: 'cursor-pointer hover:ring-2 hover:ring-primary transition-all' }"
+        role="button"
+        tabindex="0"
+        :ui="{ root: 'cursor-pointer hover:ring-2 hover:ring-primary transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none' }"
         @click="selecionar(opcao.modo)"
+        @keydown.enter="selecionar(opcao.modo)"
+        @keydown.space.prevent="selecionar(opcao.modo)"
       >
-        <div class="flex items-center gap-3">
-          <div class="size-10 rounded-full bg-primary/10 flex items-center justify-center">
+        <div class="flex min-w-0 items-center gap-3">
+          <div class="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
             <UIcon
               :name="opcao.icone"
               class="text-primary"
             />
           </div>
-          <div>
+          <div class="min-w-0">
             <p class="font-semibold">
               {{ opcao.titulo }}
             </p>

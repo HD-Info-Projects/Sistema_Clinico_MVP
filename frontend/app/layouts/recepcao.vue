@@ -1,14 +1,18 @@
 <script setup lang="ts">
 const auth = useAuthStore()
 
-const open = ref(true)
-const isMobile = useMediaQuery('(max-width: 1023px)')
+const open = ref(false)
+const isDesktop = useMediaQuery('(min-width: 1024px)')
 const route = useRoute()
+
+watch(isDesktop, (desktop) => {
+  open.value = desktop
+}, { immediate: true })
 
 watch(
   () => route.fullPath,
   () => {
-    if (isMobile.value) open.value = false
+    if (!isDesktop.value) open.value = false
   }
 )
 
@@ -34,7 +38,7 @@ function trocarAcesso() {
 </script>
 
 <template>
-  <div class="flex">
+  <div class="flex min-h-dvh min-w-0">
     <USidebar
       v-model:open="open"
       collapsible="icon"
@@ -57,7 +61,7 @@ function trocarAcesso() {
       />
 
       <template #footer>
-        <div class="felx flex-col gap-2 w-full">
+        <div class="flex w-full flex-col gap-2">
           <div class="mb-2 flex flex-col gap-2 px-2">
             <UBadge
               :label="unidadeAtivaLabel"
@@ -96,8 +100,12 @@ function trocarAcesso() {
       </template>
     </USidebar>
 
-    <div class="flex-1 flex flex-col min-h-screen">
-      <UMain>
+    <div class="flex min-h-dvh min-w-0 flex-1 flex-col">
+      <UMain
+        id="conteudo-principal"
+        tabindex="-1"
+        class="min-w-0"
+      >
         <slot />
       </UMain>
     </div>

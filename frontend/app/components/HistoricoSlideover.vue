@@ -537,7 +537,7 @@ function montarExames(exames?: HistoricoLocalRecord['exames']): string {
   <USlideover
     v-model:open="open"
     side="left"
-    :ui="{ content: 'w-[35rem] max-w-full' }"
+    :ui="{ content: 'h-dvh max-h-dvh w-[35rem] max-w-full', body: 'min-h-0 overflow-hidden p-0' }"
   >
     <template #header>
       <div class="flex items-center justify-between w-full">
@@ -567,6 +567,7 @@ function montarExames(exames?: HistoricoLocalRecord['exames']): string {
         </h2>
         <UButton
           icon="i-lucide-x"
+          aria-label="Fechar histórico"
           color="neutral"
           variant="ghost"
           @click="void (open = false)"
@@ -577,7 +578,7 @@ function montarExames(exames?: HistoricoLocalRecord['exames']): string {
     <template #body>
       <div
         ref="historicoScrollRef"
-        class="overflow-y-none max-h-[calc(100vh-8rem)]"
+        class="h-full overflow-y-auto p-4 sm:p-6"
       >
         <div
           v-if="isLoadingHistorico"
@@ -652,16 +653,21 @@ function montarExames(exames?: HistoricoLocalRecord['exames']): string {
                   <div class="relative">
                     <!-- eslint-disable vue/no-v-html -->
                     <div
-                      class="text-sm cursor-pointer whitespace-pre-line"
+                      class="cursor-pointer overflow-hidden break-words text-sm whitespace-pre-line [&_*]:max-w-full"
                       :class="expandedContent[item.id + '-' + card.id] ? '' : 'line-clamp-3'"
                       @click="toggleContent(item.id + '-' + card.id)"
                       v-html="sanitizeHtml(card.description)"
                     />
                     <!-- eslint-enable vue/no-v-html -->
-                    <UIcon
+                    <UButton
                       v-if="card.description.length > 100"
-                      :name="expandedContent[item.id + '-' + card.id] ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
-                      class="absolute bottom-0 right-0 dark:bg-neutral-900 px-1 cursor-pointer text-muted"
+                      :icon="expandedContent[item.id + '-' + card.id] ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+                      :aria-label="expandedContent[item.id + '-' + card.id] ? 'Recolher conteúdo' : 'Expandir conteúdo'"
+                      :aria-expanded="expandedContent[item.id + '-' + card.id]"
+                      color="neutral"
+                      variant="ghost"
+                      size="xs"
+                      class="absolute right-0 bottom-0 dark:bg-neutral-900"
                       @click.stop="toggleContent(item.id + '-' + card.id)"
                     />
                   </div>

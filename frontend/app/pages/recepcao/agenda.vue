@@ -268,7 +268,7 @@ const statuses: { id: string, name: string, color: string }[] = [
           @click="openNav()"
         />
       </template>
-      <div class="flex gap-4">
+      <div class="hidden flex-wrap justify-center gap-x-4 gap-y-1 xl:flex">
         <div
           v-for="s in statuses"
           :key="s.id"
@@ -283,21 +283,21 @@ const statuses: { id: string, name: string, color: string }[] = [
       </template>
     </UHeader>
 
-    <div class="min-h-screen space-y-4 bg-muted p-4 sm:space-y-6 sm:p-6">
-      <div class="flex flex-wrap items-center gap-2">
+    <div class="min-h-screen min-w-0 space-y-4 bg-muted p-3 sm:space-y-6 sm:p-6">
+      <div class="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 xl:grid-cols-[14rem_14rem_minmax(0,1fr)_14rem]">
         <UInputMenu
           v-model="selectedMedico"
           :items="medicosOpcoes"
           size="sm"
-          class="w-full sm:w-56"
+          class="w-full"
         />
         <UInputMenu
           v-model="selectedEspecialidade"
           :items="especialidadesOpcoes"
           size="sm"
-          class="w-full sm:w-56"
+          class="w-full"
         />
-        <div class="flex flex-wrap gap-2">
+        <div class="flex flex-wrap gap-2 sm:col-span-2 xl:col-span-1">
           <UButton
             v-for="status in filtrosStatus"
             :key="status.value || 'todos'"
@@ -305,6 +305,7 @@ const statuses: { id: string, name: string, color: string }[] = [
             :color="status.value ? corStatus(status.value) : 'neutral'"
             :variant="selectedStatus === status.value ? 'solid' : 'soft'"
             size="sm"
+            class="min-h-10 flex-1 sm:flex-none"
             @click="void (selectedStatus = status.value)"
           />
         </div>
@@ -316,25 +317,26 @@ const statuses: { id: string, name: string, color: string }[] = [
           placeholder="Filtrar por tipo"
           clearable
           size="sm"
-          class="w-full sm:w-56"
+          class="w-full"
           @update:model-value="selecionarTipo"
         />
       </div>
 
-      <div class="flex items-center justify-between">
+      <div class="grid grid-cols-[2.5rem_minmax(0,1fr)_2.5rem] items-center gap-1 sm:gap-3">
         <UButton
           icon="i-lucide-chevron-left"
           color="neutral"
           variant="ghost"
           size="lg"
+          class="min-h-10 min-w-10"
           @click="prevDay"
         />
-        <div class="flex items-center gap-4">
+        <div class="min-w-0 text-center">
           <UPopover v-model:open="isPopoverOpen">
             <UButton
               color="neutral"
               variant="link"
-              class="text-lg font-semibold"
+              class="h-auto max-w-full whitespace-normal px-1 text-center text-sm font-semibold leading-snug sm:text-lg"
             >
               {{ formattedDate }} {{ isToday(selectedDate) ? '(Hoje)' : '' }}
             </UButton>
@@ -358,6 +360,7 @@ const statuses: { id: string, name: string, color: string }[] = [
           color="neutral"
           variant="ghost"
           size="lg"
+          class="min-h-10 min-w-10"
           @click="nextDay"
         />
       </div>
@@ -400,7 +403,7 @@ const statuses: { id: string, name: string, color: string }[] = [
 
       <UCard>
         <template #title>
-          <div class="flex items-center justify-between">
+          <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
             <p class="text-lg font-medium">
               Pacientes do Dia
             </p>
@@ -447,19 +450,19 @@ const statuses: { id: string, name: string, color: string }[] = [
             :key="item.id"
             :ui="{ container: 'p-1 sm:p-1' }"
           >
-            <div class="grid grid-cols-2 md:grid-cols-7 gap-x-4 gap-y-3 items-start md:items-center">
+            <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-7 md:items-center">
               <div class="col-span-2">
                 <p class="text-sm text-muted font-bold text-center sm:text-left">
                   Paciente
                 </p>
-                <div class="flex items-center gap-3 justify-center">
+                <div class="flex min-w-0 items-center justify-center gap-3 sm:justify-start">
                   <UAvatar
                     :alt="item.paciente"
                     color="primary"
                     size="sm"
                   />
-                  <div>
-                    <p class="font-medium">
+                  <div class="min-w-0">
+                    <p class="break-words font-medium">
                       {{ item.paciente || 'Paciente não informado' }}
                     </p>
                     <p class="text-xs text-muted">
@@ -483,9 +486,11 @@ const statuses: { id: string, name: string, color: string }[] = [
                 <p class="text-sm text-muted font-bold">
                   Contato
                 </p>
-                <div class="text-sm">
-                  <p>{{ contatoPrincipal(item) }}</p>
-                  <p class="text-xs text-muted">
+                <div class="min-w-0 text-sm">
+                  <p class="break-all">
+                    {{ contatoPrincipal(item) }}
+                  </p>
+                  <p class="break-all text-xs text-muted">
                     {{ textoNaoInformado(item.email, '') || '' }}
                   </p>
                 </div>
@@ -495,8 +500,8 @@ const statuses: { id: string, name: string, color: string }[] = [
                 <p class="text-sm text-muted font-bold">
                   Médico
                 </p>
-                <div class="text-sm">
-                  <p class="font-medium">
+                <div class="min-w-0 text-sm">
+                  <p class="break-words font-medium">
                     {{ item.medico || '-' }}
                   </p>
                   <p class="text-xs text-muted">

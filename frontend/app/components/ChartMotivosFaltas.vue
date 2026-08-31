@@ -57,12 +57,14 @@ const options = {
 </script>
 
 <template>
-  <div class="relative h-64">
+  <div class="relative h-56 w-full min-w-0 sm:h-64">
     <ClientOnly>
       <Doughnut
         :data="data"
         :options="options"
-        class="h-full w-full"
+        class="aspect-square h-full max-w-full"
+        role="img"
+        aria-label="Gráfico dos motivos de faltas"
       />
       <template #fallback>
         <div class="flex h-full items-center justify-center gap-4 sm:gap-8">
@@ -77,9 +79,9 @@ const options = {
         </div>
       </template>
     </ClientOnly>
-    <div class="absolute inset-0 flex items-center justify-center pointer-events-none mb-8">
+    <div class="pointer-events-none absolute inset-0 mb-8 flex items-center justify-center">
       <div class="text-center">
-        <p class="text-4xl font-bold">
+        <p class="text-3xl font-bold sm:text-4xl">
           {{ props.total }}
         </p>
         <p class="text-xs text-muted">

@@ -134,15 +134,6 @@ function rotuloTipo(item: AgendamentoComPaciente) {
   return rotuloTipoProcedimento(item.tipoProcedimento, item.tipoProcedimentoLabel)
 }
 
-const colunas = [
-  { accessorKey: 'horario', header: 'Horário' },
-  { accessorKey: 'paciente', header: 'Paciente' },
-  { accessorKey: 'contato', header: 'Contato' },
-  { accessorKey: 'tipoProcedimento', header: 'Tipo' },
-  { accessorKey: 'status', header: 'Status' }
-]
-
-
 const statuses: { id: string, name: string, color: string }[] = [
   { id: 'agendado', name: 'Agendado', color: 'secondary' },
   { id: 'em-espera', name: 'Em espera', color: 'primary' },
@@ -168,7 +159,7 @@ const statuses: { id: string, name: string, color: string }[] = [
           @click="openNav()"
         />
       </template>
-      <div class="flex gap-4">
+      <div class="hidden flex-wrap justify-center gap-x-4 gap-y-1 xl:flex">
         <div
           v-for="s in statuses"
           :key="s.id"
@@ -183,21 +174,22 @@ const statuses: { id: string, name: string, color: string }[] = [
       </template>
     </UHeader>
 
-    <div class="min-h-screen space-y-4 bg-muted p-4 sm:space-y-6 sm:p-6">
-      <div class="flex items-center justify-between">
+    <div class="min-h-screen min-w-0 space-y-4 bg-muted p-3 sm:space-y-6 sm:p-6">
+      <div class="grid grid-cols-[2.5rem_minmax(0,1fr)_2.5rem] items-center gap-1 sm:gap-3">
         <UButton
           icon="i-lucide-chevron-left"
           color="neutral"
           variant="ghost"
           size="lg"
+          class="min-h-10 min-w-10"
           @click="prevDay"
         />
-        <div class="flex items-center gap-4">
+        <div class="min-w-0 text-center">
           <UPopover v-model:open="isPopoverOpen">
             <UButton
               color="neutral"
               variant="link"
-              class="text-lg font-semibold"
+              class="h-auto max-w-full whitespace-normal px-1 text-center text-sm font-semibold leading-snug sm:text-lg"
             >
               {{ formattedDate }} {{ isToday(selectedDate) ? '(Hoje)' : '' }}
             </UButton>
@@ -221,6 +213,7 @@ const statuses: { id: string, name: string, color: string }[] = [
           color="neutral"
           variant="ghost"
           size="lg"
+          class="min-h-10 min-w-10"
           @click="nextDay"
         />
       </div>
@@ -255,7 +248,7 @@ const statuses: { id: string, name: string, color: string }[] = [
 
       <UCard>
         <template #title>
-          <div class="flex items-center justify-between">
+          <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
             <p class="text-lg font-medium">
               Pacientes do Dia
             </p>
@@ -301,22 +294,22 @@ const statuses: { id: string, name: string, color: string }[] = [
             :key="item.id"
             :ui="{ container: 'p-1 sm:p-1' }"
           >
-            <div class="grid grid-cols-2 md:grid-cols-6 gap-x-4 gap-y-3 items-start md:items-center">
+            <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-6 md:items-center">
               <div class="col-span-2">
                 <p class="text-sm text-muted font-bold text-center sm:text-left">
                   Paciente
                 </p>
-                <div class="flex items-center gap-3 justify-center">
+                <div class="flex min-w-0 items-center justify-center gap-3 sm:justify-start">
                   <UAvatar
                     :alt="item.paciente.nome"
                     color="primary"
                     size="sm"
                   />
-                  <div>
-                    <p class="font-medium">
+                  <div class="min-w-0">
+                    <p class="break-words font-medium">
                       {{ item.paciente.nome || 'Paciente não informado' }}
                     </p>
-                    <p class="text-xs text-muted">
+                    <p class="break-words text-xs text-muted">
                       {{ textoInformado(idadePaciente(item.paciente.dataNascimento)) ? `${idadePaciente(item.paciente.dataNascimento)}` : '' }}
                       {{ textoNaoInformado(item.paciente.convenio, '') ? `· ${item.paciente.convenio}` : '' }}
                     </p>
@@ -337,9 +330,11 @@ const statuses: { id: string, name: string, color: string }[] = [
                 <p class="text-sm text-muted font-bold">
                   Contato
                 </p>
-                <div class="text-sm">
-                  <p>{{ contatoPrincipal(item) }}</p>
-                  <p class="text-xs text-muted">
+                <div class="min-w-0 text-sm">
+                  <p class="break-all">
+                    {{ contatoPrincipal(item) }}
+                  </p>
+                  <p class="break-all text-xs text-muted">
                     {{ textoNaoInformado(item.paciente.email, '') || '' }}
                   </p>
                 </div>

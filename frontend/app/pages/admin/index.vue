@@ -4,6 +4,7 @@ definePageMeta({ layout: 'admin' })
 const auth = useAuthStore()
 const usuariosStore = useUsuariosStore()
 const unidadesStore = useUnidadesStore()
+const openNav = inject<() => void>('openNav', () => {})
 
 const userName = computed(() => auth.user?.nome || 'Administrador')
 
@@ -56,20 +57,36 @@ function formatarData(data: string) {
 
 <template>
   <div>
-    <UHeader title="Dashboard Administrativo">
-      <template #right>
-        <UBadge
-          :label="userName"
+    <UHeader
+      title="Dashboard Administrativo"
+      toggle-side="left"
+    >
+      <template #toggle>
+        <UButton
+          icon="i-lucide-panel-left"
           color="neutral"
-          variant="soft"
+          variant="ghost"
+          class="min-h-11 min-w-11 lg:hidden"
+          aria-label="Abrir menu"
+          @click="openNav()"
         />
-        <UColorModeButton />
+      </template>
+      <template #right>
+        <div class="flex min-w-0 items-center justify-end gap-2">
+          <UBadge
+            :label="userName"
+            color="neutral"
+            variant="soft"
+            class="hidden max-w-48 truncate sm:inline-flex"
+          />
+          <UColorModeButton />
+        </div>
       </template>
     </UHeader>
 
-    <div class="p-6 bg-neutral-100 dark:bg-neutral-950 min-h-screen space-y-6">
-      <div>
-        <p class="text-3xl font-semibold">
+    <div class="min-h-screen space-y-6 bg-neutral-100 p-4 dark:bg-neutral-950 sm:p-6">
+      <div class="min-w-0">
+        <p class="break-words text-2xl font-semibold sm:text-3xl">
           Bem-vindo, {{ userName }}
         </p>
         <p class="text-base text-muted mt-1">
@@ -179,38 +196,43 @@ function formatarData(data: string) {
           </p>
         </div>
 
-        <UTable
+        <div
           v-else
-          :columns="colunas"
-          :data="ultimosUsuarios"
+          class="w-full overflow-x-auto"
         >
-          <template #nome-cell="{ row }">
-            <div class="flex items-center gap-3">
-              <UAvatar
-                :alt="row.original.nome_completo"
-                color="primary"
-                size="sm"
+          <UTable
+            :columns="colunas"
+            :data="ultimosUsuarios"
+            class="min-w-[42rem]"
+          >
+            <template #nome-cell="{ row }">
+              <div class="flex min-w-0 items-center gap-3">
+                <UAvatar
+                  :alt="row.original.nome_completo"
+                  color="primary"
+                  size="sm"
+                />
+                <p class="min-w-0 break-words font-medium">
+                  {{ row.original.nome_completo }}
+                </p>
+              </div>
+            </template>
+
+            <template #role-cell="{ row }">
+              <UBadge
+                :label="rotuloRole(row.original.role)"
+                :color="corRole(row.original.role)"
+                variant="subtle"
               />
-              <p class="font-medium">
-                {{ row.original.nome_completo }}
-              </p>
-            </div>
-          </template>
+            </template>
 
-          <template #role-cell="{ row }">
-            <UBadge
-              :label="rotuloRole(row.original.role)"
-              :color="corRole(row.original.role)"
-              variant="subtle"
-            />
-          </template>
-
-          <template #created_at-cell="{ row }">
-            <span class="text-sm text-muted">
-              {{ formatarData(row.original.created_at) }}
-            </span>
-          </template>
-        </UTable>
+            <template #created_at-cell="{ row }">
+              <span class="text-sm text-muted">
+                {{ formatarData(row.original.created_at) }}
+              </span>
+            </template>
+          </UTable>
+        </div>
       </UCard>
     </div>
   </div>

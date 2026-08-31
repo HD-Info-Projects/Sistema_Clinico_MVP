@@ -131,6 +131,7 @@ async function salvarEImprimir() {
 <template>
   <UModal
     v-model:open="open"
+    :ui="{ content: 'max-h-dvh sm:max-h-[calc(100dvh-2rem)]', body: 'min-h-0 overflow-y-auto p-0', footer: 'shrink-0' }"
   >
     <template #header>
       <div class="flex items-center justify-between">
@@ -139,6 +140,7 @@ async function salvarEImprimir() {
         </h2>
         <UButton
           icon="i-lucide-x"
+          aria-label="Fechar atestado"
           color="neutral"
           variant="ghost"
           @click="void (open = false)"
@@ -147,7 +149,7 @@ async function salvarEImprimir() {
     </template>
 
     <template #body>
-      <div class="space-y-4 p-4">
+      <div class="space-y-4 p-4 sm:p-6">
         <UFormField label="Paciente">
           <UInput
             :model-value="paciente?.nome ?? '—'"
@@ -179,11 +181,12 @@ async function salvarEImprimir() {
     </template>
 
     <template #footer>
-      <div class="flex justify-between">
+      <div class="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-between">
         <UButton
           label="Cancelar"
           color="neutral"
           variant="ghost"
+          class="w-full justify-center sm:w-auto"
           @click="void (open = false)"
         />
         <UButton
@@ -191,6 +194,7 @@ async function salvarEImprimir() {
           :label="botaoLabel"
           :disabled="!podeEnviar"
           :loading="salvando"
+          class="w-full justify-center sm:w-auto"
           @click="salvarEImprimir"
         />
       </div>

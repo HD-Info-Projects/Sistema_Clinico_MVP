@@ -27,6 +27,7 @@ type AuditoriaResponse = {
   has_more: boolean
 }
 
+const openNav = inject<() => void>('openNav', () => {})
 const eventos = ref<AuditoriaEvento[]>([])
 const loading = ref(false)
 const erro = ref<string | null>(null)
@@ -108,68 +109,83 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-50 p-4 sm:p-6 space-y-6">
-    <div class="flex flex-col gap-2">
+  <div class="min-h-screen space-y-6 bg-slate-50 p-4 dark:bg-slate-950 sm:p-6">
+    <UButton
+      icon="i-lucide-panel-left"
+      label="Abrir menu"
+      color="neutral"
+      variant="ghost"
+      class="min-h-11 lg:hidden"
+      @click="openNav()"
+    />
+    <header class="flex flex-col gap-2">
       <UBadge
         label="LGPD"
         color="info"
         variant="soft"
         class="w-fit"
       />
-      <h1 class="text-3xl font-semibold text-slate-900">
+      <h1 class="text-2xl font-semibold text-slate-900 dark:text-slate-100 sm:text-3xl">
         Auditoria LGPD
       </h1>
-      <p class="text-slate-600 max-w-3xl">
+      <p class="max-w-3xl text-sm text-slate-600 dark:text-slate-300 sm:text-base">
         Acompanhe metadados de acessos sensíveis, autenticação, tentativas negadas e operações relevantes sem expor conteúdo clínico nos logs.
       </p>
-    </div>
+    </header>
 
     <UCard>
       <template #header>
         <div class="flex items-center gap-2">
           <UIcon
             name="i-lucide-filter"
-            class="size-5 text-slate-500"
+            class="size-5 text-slate-500 dark:text-slate-400"
           />
           <span class="font-medium">Filtros</span>
         </div>
       </template>
 
-      <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <form
+        class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5"
+        @submit.prevent="aplicarFiltros"
+      >
         <UFormField label="Data inicial">
           <UInput
             v-model="dataIni"
             type="date"
+            class="w-full"
           />
         </UFormField>
         <UFormField label="Data final">
           <UInput
             v-model="dataFim"
             type="date"
+            class="w-full"
           />
         </UFormField>
         <UFormField label="Ação">
           <UInput
             v-model="acao"
             placeholder="LOGIN_SUCESSO"
+            class="w-full"
           />
         </UFormField>
         <UFormField label="Entidade">
           <UInput
             v-model="entidade"
             placeholder="paciente"
+            class="w-full"
           />
         </UFormField>
         <div class="flex items-end">
           <UButton
             label="Aplicar"
             icon="i-lucide-search"
+            type="submit"
             :loading="loading"
             class="w-full justify-center"
-            @click="aplicarFiltros"
           />
         </div>
-      </div>
+      </form>
     </UCard>
 
     <UAlert
@@ -182,12 +198,12 @@ onMounted(() => {
 
     <UCard>
       <template #header>
-        <div class="flex items-center justify-between gap-4">
-          <div>
-            <h2 class="font-semibold text-slate-900">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+          <div class="min-w-0">
+            <h2 class="font-semibold text-slate-900 dark:text-slate-100">
               Eventos registrados
             </h2>
-            <p class="text-sm text-slate-500">
+            <p class="text-sm text-slate-600 dark:text-slate-400">
               Exibindo {{ eventos.length }} evento(s), a partir do offset {{ offset }}.
             </p>
           </div>
@@ -197,40 +213,67 @@ onMounted(() => {
             color="neutral"
             variant="soft"
             :loading="loading"
+            class="w-full justify-center sm:w-auto"
             @click="carregarAuditoria(offset)"
           />
         </div>
       </template>
 
-      <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-slate-200 text-sm">
-          <thead class="bg-slate-100 text-left text-slate-600">
+      <div
+        class="max-w-full overflow-x-auto rounded-md border border-slate-200 dark:border-slate-700"
+        role="region"
+        aria-label="Eventos de auditoria"
+        tabindex="0"
+      >
+        <table class="min-w-[64rem] divide-y divide-slate-200 text-sm dark:divide-slate-700">
+          <caption class="sr-only">
+            Eventos de auditoria LGPD, com data, ação, usuário, entidade, IP e descrição.
+          </caption>
+          <thead class="bg-slate-100 text-left text-slate-700 dark:bg-slate-800 dark:text-slate-200">
             <tr>
-              <th class="px-4 py-3 font-medium">
+              <th
+                scope="col"
+                class="px-4 py-3 font-medium"
+              >
                 Data/Hora
               </th>
-              <th class="px-4 py-3 font-medium">
+              <th
+                scope="col"
+                class="px-4 py-3 font-medium"
+              >
                 Ação
               </th>
-              <th class="px-4 py-3 font-medium">
+              <th
+                scope="col"
+                class="px-4 py-3 font-medium"
+              >
                 Usuário
               </th>
-              <th class="px-4 py-3 font-medium">
+              <th
+                scope="col"
+                class="px-4 py-3 font-medium"
+              >
                 Entidade
               </th>
-              <th class="px-4 py-3 font-medium">
+              <th
+                scope="col"
+                class="px-4 py-3 font-medium"
+              >
                 IP
               </th>
-              <th class="px-4 py-3 font-medium">
+              <th
+                scope="col"
+                class="px-4 py-3 font-medium"
+              >
                 Descrição
               </th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-slate-100 bg-white">
+          <tbody class="divide-y divide-slate-100 bg-white dark:divide-slate-800 dark:bg-slate-900">
             <tr v-if="loading">
               <td
                 colspan="6"
-                class="px-4 py-8 text-center text-slate-500"
+                class="px-4 py-8 text-center text-slate-600 dark:text-slate-400"
               >
                 Carregando auditoria...
               </td>
@@ -238,7 +281,7 @@ onMounted(() => {
             <tr v-else-if="!eventos.length">
               <td
                 colspan="6"
-                class="px-4 py-8 text-center text-slate-500"
+                class="px-4 py-8 text-center text-slate-600 dark:text-slate-400"
               >
                 Nenhum evento encontrado.
               </td>
@@ -247,28 +290,28 @@ onMounted(() => {
               <tr
                 v-for="evento in eventos"
                 :key="evento.id"
-                class="hover:bg-slate-50"
+                class="hover:bg-slate-50 dark:hover:bg-slate-800/70"
               >
-                <td class="px-4 py-3 whitespace-nowrap text-slate-700">
+                <td class="whitespace-nowrap px-4 py-3 text-slate-700 dark:text-slate-300">
                   {{ formatarData(evento.created_at) }}
                 </td>
-                <td class="px-4 py-3 whitespace-nowrap">
+                <td class="whitespace-nowrap px-4 py-3">
                   <UBadge
                     :label="evento.acao"
                     :color="acoesCriticas.has(evento.acao) ? 'warning' : 'neutral'"
                     variant="soft"
                   />
                 </td>
-                <td class="px-4 py-3 text-slate-700">
+                <td class="px-4 py-3 text-slate-700 dark:text-slate-300">
                   {{ usuarioLabel(evento) }}
                 </td>
-                <td class="px-4 py-3 text-slate-700">
+                <td class="px-4 py-3 text-slate-700 dark:text-slate-300">
                   {{ entidadeLabel(evento) }}
                 </td>
-                <td class="px-4 py-3 text-slate-700">
+                <td class="px-4 py-3 text-slate-700 dark:text-slate-300">
                   {{ evento.ip || '-' }}
                 </td>
-                <td class="px-4 py-3 text-slate-600 max-w-xl">
+                <td class="max-w-xl px-4 py-3 text-slate-600 dark:text-slate-300">
                   {{ evento.descricao || '-' }}
                 </td>
               </tr>
@@ -278,13 +321,14 @@ onMounted(() => {
       </div>
 
       <template #footer>
-        <div class="flex flex-col sm:flex-row gap-3 justify-between">
+        <div class="flex flex-col justify-between gap-3 sm:flex-row">
           <UButton
             label="Anterior"
             icon="i-lucide-chevron-left"
             color="neutral"
             variant="soft"
             :disabled="offset === 0 || loading"
+            class="w-full justify-center sm:w-auto"
             @click="paginaAnterior"
           />
           <UButton
@@ -293,6 +337,7 @@ onMounted(() => {
             color="neutral"
             variant="soft"
             :disabled="!hasMore || loading"
+            class="w-full justify-center sm:w-auto"
             @click="proximaPagina"
           />
         </div>

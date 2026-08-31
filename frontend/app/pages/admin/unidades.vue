@@ -5,6 +5,7 @@ import { formatarTelefone } from '~/utils/masks'
 definePageMeta({ layout: 'admin' })
 
 const unidadesStore = useUnidadesStore()
+const openNav = inject<() => void>('openNav', () => {})
 
 const busca = ref('')
 const showFormModal = ref(false)
@@ -71,23 +72,41 @@ function onSaved() {
 
 <template>
   <div>
-    <UHeader title="Unidades">
-      <template #right>
+    <UHeader
+      title="Unidades"
+      toggle-side="left"
+    >
+      <template #toggle>
         <UButton
-          icon="i-lucide-plus"
-          label="Nova Unidade"
-          @click="abrirNovo"
+          icon="i-lucide-panel-left"
+          color="neutral"
+          variant="ghost"
+          class="min-h-11 min-w-11 lg:hidden"
+          aria-label="Abrir menu"
+          @click="openNav()"
         />
-        <UColorModeButton />
+      </template>
+      <template #right>
+        <div class="flex flex-wrap items-center justify-end gap-2">
+          <UButton
+            icon="i-lucide-plus"
+            label="Nova Unidade"
+            :ui="{ label: 'hidden sm:inline' }"
+            aria-label="Nova Unidade"
+            @click="abrirNovo"
+          />
+          <UColorModeButton />
+        </div>
       </template>
     </UHeader>
 
-    <div class="p-6 bg-neutral-100 dark:bg-neutral-950 min-h-screen space-y-6">
+    <div class="min-h-screen space-y-6 bg-neutral-100 p-4 dark:bg-neutral-950 sm:p-6">
       <UInput
         v-model="busca"
         icon="i-lucide-search"
         placeholder="Buscar por nome, endereco, telefone..."
         class="w-full"
+        aria-label="Buscar unidades"
       />
 
       <div
@@ -139,57 +158,63 @@ function onSaved() {
         v-else
         class="w-full"
       >
-        <UTable
-          :columns="colunas"
-          :data="listaFiltrada"
-          class="w-full"
-        >
-          <template #nome-cell="{ row }">
-            <div>
-              <p class="font-medium">
-                {{ row.original.nome }}
-              </p>
-              <p class="text-xs text-muted">
-                {{ row.original.endereco }}
-              </p>
-            </div>
-          </template>
+        <div class="w-full overflow-x-auto">
+          <UTable
+            :columns="colunas"
+            :data="listaFiltrada"
+            class="min-w-[56rem]"
+          >
+            <template #nome-cell="{ row }">
+              <div class="min-w-0 max-w-xs">
+                <p class="break-words font-medium">
+                  {{ row.original.nome }}
+                </p>
+                <p class="break-words text-xs text-muted">
+                  {{ row.original.endereco }}
+                </p>
+              </div>
+            </template>
 
-          <template #telefone-cell="{ row }">
-            <span class="text-sm whitespace-nowrap">
-              {{ row.original.telefone ? formatarTelefone(row.original.telefone) : '-' }}
-            </span>
-          </template>
+            <template #telefone-cell="{ row }">
+              <span class="text-sm whitespace-nowrap">
+                {{ row.original.telefone ? formatarTelefone(row.original.telefone) : '-' }}
+              </span>
+            </template>
 
-          <template #ativa-cell="{ row }">
-            <UBadge
-              :label="row.original.ativa ? 'Ativa' : 'Inativa'"
-              :color="row.original.ativa ? 'success' : 'neutral'"
-              variant="subtle"
-              size="sm"
-            />
-          </template>
-
-          <template #acoes-cell="{ row }">
-            <div class="flex items-center gap-1">
-              <UButton
-                icon="i-lucide-pencil"
-                color="neutral"
-                variant="ghost"
+            <template #ativa-cell="{ row }">
+              <UBadge
+                :label="row.original.ativa ? 'Ativa' : 'Inativa'"
+                :color="row.original.ativa ? 'success' : 'neutral'"
+                variant="subtle"
                 size="sm"
-                @click="editar(row.original)"
               />
-              <UButton
-                icon="i-lucide-trash-2"
-                color="error"
-                variant="ghost"
-                size="sm"
-                :disabled="row.original.ativa === false"
-                @click="confirmarExclusao(row.original.id)"
-              />
-            </div>
-          </template>
-        </UTable>
+            </template>
+
+            <template #acoes-cell="{ row }">
+              <div class="flex items-center gap-1">
+                <UButton
+                  icon="i-lucide-pencil"
+                  color="neutral"
+                  variant="ghost"
+                  size="sm"
+                  class="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
+                  aria-label="Editar unidade"
+                  @click="editar(row.original)"
+                />
+                <UButton
+                  icon="i-lucide-trash-2"
+                  color="error"
+                  variant="ghost"
+                  size="sm"
+                  class="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
+                  aria-label="Inativar unidade"
+                  :disabled="row.original.ativa === false"
+                  @click="confirmarExclusao(row.original.id)"
+                />
+              </div>
+            </template>
+          </UTable>
+        </div>
       </UCard>
     </div>
 

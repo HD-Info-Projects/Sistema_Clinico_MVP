@@ -154,29 +154,31 @@ function activeTabEmpty(): boolean {
               name="i-lucide-pill"
               class="text-primary"
             />
-            <p class="font-semibold">
+            <p class="min-w-0 break-words font-semibold">
               Receitas Médicas
             </p>
           </div>
         </template>
 
         <template #description>
-          <p class="text-sm text-muted">
+          <p class="break-words text-sm text-muted">
             Modelos de receita com listas de medicamentos pré-definidos.
           </p>
         </template>
 
-        <div class="flex gap-2">
+        <div class="flex flex-col gap-2 sm:flex-row">
           <UButton
             icon="i-lucide-plus"
             label="Novo Modelo"
             size="sm"
+            class="w-full justify-center sm:w-auto"
             @click="abrirNovaReceita"
           />
           <UButton
             label="Gerenciar"
             color="neutral"
             size="sm"
+            class="w-full justify-center sm:w-auto"
             @click="gerenciarReceita"
           />
         </div>
@@ -189,29 +191,31 @@ function activeTabEmpty(): boolean {
               name="i-lucide-flask-conical"
               class="text-primary"
             />
-            <p class="font-semibold">
+            <p class="min-w-0 break-words font-semibold">
               Pedidos de Exames
             </p>
           </div>
         </template>
 
         <template #description>
-          <p class="text-sm text-muted">
+          <p class="break-words text-sm text-muted">
             Conjuntos de exames para solicitação. No atendimento você seleciona quais entrarão no pedido.
           </p>
         </template>
 
-        <div class="flex gap-2">
+        <div class="flex flex-col gap-2 sm:flex-row">
           <UButton
             icon="i-lucide-plus"
             label="Novo Modelo"
             size="sm"
+            class="w-full justify-center sm:w-auto"
             @click="abrirNovaExame"
           />
           <UButton
             label="Gerenciar"
             color="neutral"
             size="sm"
+            class="w-full justify-center sm:w-auto"
             @click="gerenciarExame"
           />
         </div>
@@ -224,29 +228,31 @@ function activeTabEmpty(): boolean {
               name="i-lucide-notebook-text"
               class="text-primary"
             />
-            <p class="font-semibold">
+            <p class="min-w-0 break-words font-semibold">
               Anamnese
             </p>
           </div>
         </template>
 
         <template #description>
-          <p class="text-sm text-muted">
+          <p class="break-words text-sm text-muted">
             Modelos de anamnese com texto pré-formatado. No atendimento você insere o padrão no editor.
           </p>
         </template>
 
-        <div class="flex gap-2">
+        <div class="flex flex-col gap-2 sm:flex-row">
           <UButton
             icon="i-lucide-plus"
             label="Novo Modelo"
             size="sm"
+            class="w-full justify-center sm:w-auto"
             @click="abrirNovaAnamnese"
           />
           <UButton
             label="Gerenciar"
             color="neutral"
             size="sm"
+            class="w-full justify-center sm:w-auto"
             @click="gerenciarAnamnese"
           />
         </div>
@@ -259,29 +265,31 @@ function activeTabEmpty(): boolean {
               name="i-lucide-message-square-text"
               class="text-primary"
             />
-            <p class="font-semibold">
+            <p class="min-w-0 break-words font-semibold">
               Orientações de Exames
             </p>
           </div>
         </template>
 
         <template #description>
-          <p class="text-sm text-muted">
+          <p class="break-words text-sm text-muted">
             Modelos de orientações impressas como folha extra junto da solicitação de exames.
           </p>
         </template>
 
-        <div class="flex gap-2">
+        <div class="flex flex-col gap-2 sm:flex-row">
           <UButton
             icon="i-lucide-plus"
             label="Novo Modelo"
             size="sm"
+            class="w-full justify-center sm:w-auto"
             @click="abrirNovaOrientacao"
           />
           <UButton
             label="Gerenciar"
             color="neutral"
             size="sm"
+            class="w-full justify-center sm:w-auto"
             @click="gerenciarOrientacao"
           />
         </div>
@@ -290,12 +298,12 @@ function activeTabEmpty(): boolean {
 
     <UCard v-if="activeTab">
       <template #title>
-        <div class="flex items-center gap-2">
+        <div class="flex min-w-0 items-center gap-2">
           <UIcon
             :name="activeTabIcon(activeTab)"
             class="text-primary"
           />
-          <p class="font-semibold">
+          <p class="min-w-0 break-words font-semibold">
             Modelos de {{ activeTabTitulo(activeTab) }}
           </p>
         </div>
@@ -306,23 +314,25 @@ function activeTabEmpty(): boolean {
           <div
             v-for="p in padroesStore.receitas"
             :key="p.id"
-            class="flex items-center justify-between p-3 rounded-lg border border-muted hover:bg-muted/50"
+            class="flex min-w-0 flex-col gap-2 rounded-lg border border-muted p-3 hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between"
           >
-            <div>
-              <p class="font-medium">
+            <div class="min-w-0">
+              <p class="break-words font-medium">
                 {{ p.nome }}
               </p>
-              <p class="text-xs text-muted">
+              <p class="break-words text-xs text-muted">
                 {{ p.medicamentos.length }} medicamento{{ p.medicamentos.length !== 1 ? 's' : '' }}
                 &middot; {{ new Date(p.updatedAt).toLocaleDateString('pt-BR') }}
               </p>
             </div>
-            <div class="flex gap-1">
+            <div class="flex shrink-0 self-end gap-1 sm:self-auto">
               <UButton
                 icon="i-lucide-pencil"
                 color="neutral"
                 variant="ghost"
                 size="sm"
+                class="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
+                aria-label="Editar padrão de receita"
                 @click="editarReceita(p)"
               />
               <UButton
@@ -330,6 +340,8 @@ function activeTabEmpty(): boolean {
                 color="error"
                 variant="ghost"
                 size="sm"
+                class="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
+                aria-label="Excluir padrão de receita"
                 @click="confirmarDeletar(p, 'receita')"
               />
             </div>
@@ -340,23 +352,25 @@ function activeTabEmpty(): boolean {
           <div
             v-for="p in padroesStore.exames"
             :key="p.id"
-            class="flex items-center justify-between p-3 rounded-lg border border-muted hover:bg-muted/50"
+            class="flex min-w-0 flex-col gap-2 rounded-lg border border-muted p-3 hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between"
           >
-            <div>
-              <p class="font-medium">
+            <div class="min-w-0">
+              <p class="break-words font-medium">
                 {{ p.nome }}
               </p>
-              <p class="text-xs text-muted">
+              <p class="break-words text-xs text-muted">
                 {{ p.exames.length }} exame{{ p.exames.length !== 1 ? 's' : '' }}
                 &middot; {{ new Date(p.updatedAt).toLocaleDateString('pt-BR') }}
               </p>
             </div>
-            <div class="flex gap-1">
+            <div class="flex shrink-0 self-end gap-1 sm:self-auto">
               <UButton
                 icon="i-lucide-pencil"
                 color="neutral"
                 variant="ghost"
                 size="sm"
+                class="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
+                aria-label="Editar padrão de exames"
                 @click="editarExame(p)"
               />
               <UButton
@@ -364,6 +378,8 @@ function activeTabEmpty(): boolean {
                 color="error"
                 variant="ghost"
                 size="sm"
+                class="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
+                aria-label="Excluir padrão de exames"
                 @click="confirmarDeletar(p, 'exame')"
               />
             </div>
@@ -374,22 +390,24 @@ function activeTabEmpty(): boolean {
           <div
             v-for="p in padroesAnamneseStore.padroes"
             :key="p.id"
-            class="flex items-center justify-between p-3 rounded-lg border border-muted hover:bg-muted/50"
+            class="flex min-w-0 flex-col gap-2 rounded-lg border border-muted p-3 hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between"
           >
-            <div>
-              <p class="font-medium">
+            <div class="min-w-0">
+              <p class="break-words font-medium">
                 {{ p.nome }}
               </p>
               <p class="text-xs text-muted">
                 {{ new Date(p.updatedAt).toLocaleDateString('pt-BR') }}
               </p>
             </div>
-            <div class="flex gap-1">
+            <div class="flex shrink-0 self-end gap-1 sm:self-auto">
               <UButton
                 icon="i-lucide-pencil"
                 color="neutral"
                 variant="ghost"
                 size="sm"
+                class="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
+                aria-label="Editar padrão de anamnese"
                 @click="editarAnamnese(p)"
               />
               <UButton
@@ -397,6 +415,8 @@ function activeTabEmpty(): boolean {
                 color="error"
                 variant="ghost"
                 size="sm"
+                class="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
+                aria-label="Excluir padrão de anamnese"
                 @click="confirmarDeletar(p, 'anamnese')"
               />
             </div>
@@ -407,22 +427,24 @@ function activeTabEmpty(): boolean {
           <div
             v-for="p in padroesOrientacoesStore.padroes"
             :key="p.id"
-            class="flex items-center justify-between p-3 rounded-lg border border-muted hover:bg-muted/50"
+            class="flex min-w-0 flex-col gap-2 rounded-lg border border-muted p-3 hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between"
           >
-            <div>
-              <p class="font-medium">
+            <div class="min-w-0">
+              <p class="break-words font-medium">
                 {{ p.nome }}
               </p>
               <p class="text-xs text-muted">
                 {{ new Date(p.updatedAt).toLocaleDateString('pt-BR') }}
               </p>
             </div>
-            <div class="flex gap-1">
+            <div class="flex shrink-0 self-end gap-1 sm:self-auto">
               <UButton
                 icon="i-lucide-pencil"
                 color="neutral"
                 variant="ghost"
                 size="sm"
+                class="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
+                aria-label="Editar padrão de orientação"
                 @click="editarOrientacao(p)"
               />
               <UButton
@@ -430,6 +452,8 @@ function activeTabEmpty(): boolean {
                 color="error"
                 variant="ghost"
                 size="sm"
+                class="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
+                aria-label="Excluir padrão de orientação"
                 @click="confirmarDeletar(p, 'orientacao')"
               />
             </div>

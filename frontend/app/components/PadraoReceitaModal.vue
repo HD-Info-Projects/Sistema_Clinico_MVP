@@ -61,6 +61,7 @@ async function salvar() {
   <UModal
     v-model:open="open"
     fullscreen
+    :ui="{ content: 'max-h-dvh', body: 'min-h-0 overflow-y-auto p-0', footer: 'shrink-0' }"
   >
     <template #header>
       <div class="flex items-center justify-between w-full">
@@ -74,6 +75,7 @@ async function salvar() {
         </div>
         <UButton
           icon="i-lucide-x"
+          aria-label="Fechar padrão de receita"
           color="neutral"
           variant="ghost"
           @click="void (open = false)"
@@ -82,7 +84,7 @@ async function salvar() {
     </template>
 
     <template #body>
-      <div class="h-full overflow-y-auto p-6 space-y-6">
+      <div class="space-y-6 p-4 sm:p-6">
         <div class="space-y-1 flex flex-col">
           <label class="text-sm font-medium">Nome do modelo</label>
           <UInput
@@ -101,7 +103,7 @@ async function salvar() {
             <div
               v-for="(med, i) in medicamentos"
               :key="i"
-              class="flex items-center gap-3 w-full p-3 rounded-lg border border-muted"
+              class="flex w-full flex-col items-stretch gap-3 rounded-lg border border-muted p-3 sm:flex-row sm:items-center"
             >
               <div class="grid grid-cols-1 sm:grid-cols-6 gap-3 w-full">
                 <div class="space-y-1 flex flex-col col-span-1 sm:col-span-2">
@@ -128,10 +130,11 @@ async function salvar() {
               </div>
               <UButton
                 icon="i-lucide-x"
+                :aria-label="`Remover medicamento ${med.nome || i + 1}`"
                 color="error"
                 variant="ghost"
                 size="sm"
-                class="mt-5"
+                class="self-end sm:mt-5 sm:self-auto"
                 @click="removerMedicamento(i)"
               />
             </div>
@@ -156,21 +159,23 @@ async function salvar() {
     </template>
 
     <template #footer>
-      <div class="flex items-center justify-between w-full">
+      <div class="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p class="text-sm text-muted">
           {{ medicamentosValidos.length }} medicamento{{ medicamentosValidos.length !== 1 ? 's' : '' }} válido{{ medicamentosValidos.length !== 1 ? 's' : '' }}
         </p>
-        <div class="flex gap-2">
+        <div class="flex flex-col-reverse gap-2 sm:flex-row">
           <UButton
             label="Cancelar"
             color="neutral"
             variant="ghost"
+            class="w-full justify-center sm:w-auto"
             @click="void (open = false)"
           />
           <UButton
             label="Salvar"
             :loading="saving"
             :disabled="!nome.trim()"
+            class="w-full justify-center sm:w-auto"
             @click="salvar"
           />
         </div>

@@ -46,6 +46,7 @@ async function salvar() {
   <UModal
     v-model:open="open"
     fullscreen
+    :ui="{ content: 'max-h-dvh', body: 'min-h-0 overflow-y-auto p-0', footer: 'shrink-0' }"
   >
     <template #header>
       <div class="flex items-center justify-between w-full">
@@ -59,6 +60,7 @@ async function salvar() {
         </div>
         <UButton
           icon="i-lucide-x"
+          aria-label="Fechar padrão de anamnese"
           color="neutral"
           variant="ghost"
           @click="void (open = false)"
@@ -67,7 +69,7 @@ async function salvar() {
     </template>
 
     <template #body>
-      <div class="h-full overflow-y-auto p-6 space-y-6 flex flex-col">
+      <div class="flex min-h-0 flex-col space-y-6 p-4 sm:p-6">
         <div class="space-y-1 flex flex-col">
           <label class="text-sm font-medium">Nome do modelo</label>
           <UInput
@@ -77,29 +79,31 @@ async function salvar() {
           />
         </div>
 
-        <div class="space-y-1 flex flex-col grow">
+        <div class="flex min-h-0 flex-col space-y-1">
           <label class="text-sm font-medium">Conteúdo da Anamnese</label>
           <EditorRichText
             v-model="conteudo"
             placeholder="Descreva o padrão de anamnese..."
-            class="grow flex flex-col min-h-96"
+            class="flex min-h-72 flex-col"
           />
         </div>
       </div>
     </template>
 
     <template #footer>
-      <div class="flex items-center justify-end gap-2 w-full">
+      <div class="flex w-full flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
         <UButton
           label="Cancelar"
           color="neutral"
           variant="ghost"
+          class="w-full justify-center sm:w-auto"
           @click="void (open = false)"
         />
         <UButton
           label="Salvar"
           :loading="saving"
           :disabled="!nome.trim()"
+          class="w-full justify-center sm:w-auto"
           @click="salvar"
         />
       </div>

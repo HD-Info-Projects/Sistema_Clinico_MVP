@@ -59,15 +59,17 @@ const options = {
 
 <template>
   <ClientOnly>
-    <div class="relative h-64">
+    <div class="relative h-56 w-full min-w-0 sm:h-64">
       <Line
         :data="data"
         :options="options"
         class="h-full w-full"
+        role="img"
+        aria-label="Gráfico de faltas por dia da semana"
       />
     </div>
     <template #fallback>
-      <div class="h-64 flex items-center justify-center">
+      <div class="flex h-56 items-center justify-center sm:h-64">
         <div class="w-full h-48 bg-neutral-200 dark:bg-neutral-800 rounded animate-pulse" />
       </div>
     </template>

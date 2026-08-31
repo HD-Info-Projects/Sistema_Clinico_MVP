@@ -47,7 +47,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
 </script>
 
 <template>
-  <div class="p-4">
+  <div class="relative z-10 w-full p-4 sm:p-6">
     <UPageCard class="w-full max-w-md">
       <UAuthForm
         :submit="{
@@ -86,7 +86,7 @@ async function onSubmit(payload: FormSubmitEvent<Schema>) {
         </template>
 
         <template #footer>
-          <div class="flex justify-center gap-4 w-full">
+          <div class="flex w-full flex-wrap justify-center gap-4">
             <span class="text-sm text-muted flex items-center gap-1">
               <UIcon name="i-lucide-shield-check" />
               LGPD Compliant

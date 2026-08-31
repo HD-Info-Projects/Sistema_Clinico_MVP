@@ -16,12 +16,15 @@ const features = ref<PageFeatureProps[]>([
 </script>
 
 <template>
-  <div class="h-dvh flex items-center overflow-hidden">
-    <div class="w-1/2 hidden sm:block h-full relative">
+  <div class="flex min-h-dvh min-w-0">
+    <aside
+      class="relative hidden h-dvh w-1/2 lg:block"
+      aria-label="Sobre o MedSystem"
+    >
       <NuxtImg
         src="img/bg-login.png"
         class="absolute inset-0 w-full h-full object-cover"
-        alt="Background"
+        alt=""
       />
       <div class="absolute inset-0 bg-primary-800/80" />
       <UPageSection
@@ -69,10 +72,14 @@ const features = ref<PageFeatureProps[]>([
           />
         </template>
       </UPageSection>
-    </div>
-    <div class="w-full sm:w-1/2 h-full flex items-center justify-center bg-[url('/img/bg-login.png')] bg-cover bg-center sm:bg-none">
-      <div class="absolute inset-0 sm:hidden bg-primary-800/80" />
+    </aside>
+    <main
+      id="conteudo-principal"
+      tabindex="-1"
+      class="relative flex min-h-dvh min-w-0 w-full items-center justify-center overflow-y-auto bg-[url('/img/bg-login.png')] bg-cover bg-center py-4 lg:w-1/2 lg:bg-none"
+    >
+      <div class="absolute inset-0 bg-primary-800/80 lg:hidden" />
       <slot />
-    </div>
+    </main>
   </div>
 </template>

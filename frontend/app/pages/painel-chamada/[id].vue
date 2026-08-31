@@ -223,6 +223,7 @@ onBeforeUnmount(() => {
 
 const { horaFormatada, dataFormatada } = useRelogio()
 
+const unidadeLabel = computed(() => unidade.value?.nome || (clinicaId.value ? `Unidade #${clinicaId.value}` : 'Unidade'))
 const ultimoChamado = computed(() => chamadosStore.ultimoChamado)
 const ultimasChamadas = computed(() => chamadosStore.historicoChamados.slice(0, 4))
 const mostrarDesbloqueioAudio = computed(() => !audioAtivo.value && !painelError.value)
@@ -233,8 +234,9 @@ const mensagemAudio = computed(() => audioBloqueado.value
 
 <template>
   <div
-    class="relative flex h-screen flex-col gap-4 overflow-hidden p-6"
+    class="relative flex h-dvh flex-col gap-3 overflow-y-auto p-3 sm:gap-4 sm:p-6 lg:overflow-hidden"
     tabindex="0"
+    aria-label="Painel de chamada. Pressione Enter ou Espaço para ativar o áudio."
     @pointerdown="ativarAudioPorInteracao"
     @keydown.space.prevent="ativarAudioPorInteracao"
     @keydown.enter.prevent="ativarAudioPorInteracao"
@@ -254,14 +256,16 @@ const mensagemAudio = computed(() => audioBloqueado.value
     </div>
 
     <template v-else>
-      <header class="flex shrink-0 items-center justify-between">
-        <div class="flex items-center gap-3">
+      <header class="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
           <LogoMed :tipo="0" />
           <UBadge
             :label="unidadeLabel"
             color="primary"
             variant="soft"
             size="lg"
+            class="max-w-full"
+            :ui="{ label: 'truncate' }"
           />
           <UButton
             v-if="!audioAtivo"
@@ -270,11 +274,14 @@ const mensagemAudio = computed(() => audioBloqueado.value
             color="primary"
             variant="soft"
             :loading="audioAtivando"
+            :aria-label="audioBloqueado ? 'Ativar áudio das chamadas' : 'Áudio sendo ativado'"
             @click.stop="ativarAudioPorInteracao"
           />
           <div
             v-else-if="ttsLoading"
             class="flex items-center gap-1 text-sm text-muted"
+            role="status"
+            aria-live="polite"
           >
             <UIcon
               name="i-lucide-volume-2"
@@ -285,6 +292,7 @@ const mensagemAudio = computed(() => audioBloqueado.value
           <div
             v-else-if="ttsError"
             class="flex items-center gap-1 text-sm text-error"
+            role="alert"
           >
             <UIcon name="i-lucide-volume-x" />
             {{ ttsErrorMensagem || 'Erro no áudio' }}
@@ -296,26 +304,31 @@ const mensagemAudio = computed(() => audioBloqueado.value
             variant="soft"
           />
         </div>
-        <div class="text-right">
-          <p class="text-2xl font-light text-muted">
+        <div class="shrink-0 text-left sm:text-right">
+          <p class="text-[clamp(1rem,2.5vw,1.5rem)] font-light text-muted">
             {{ dataFormatada }}
           </p>
-          <p class="text-5xl font-bold tracking-tight text-foreground tabular-nums">
+          <p class="text-[clamp(2rem,5vw,3rem)] font-bold tracking-tight text-foreground tabular-nums">
             {{ horaFormatada }}
           </p>
         </div>
       </header>
 
-      <div class="flex min-h-0 flex-1 gap-4">
-        <div class="flex min-w-0 flex-2 flex-col gap-4">
+      <main class="flex flex-1 flex-col gap-3 lg:min-h-0 lg:flex-row lg:gap-4">
+        <div class="flex min-h-96 min-w-0 flex-2 flex-col gap-4 lg:min-h-0">
           <template v-if="ultimoChamado">
-            <UCard class="flex flex-1 flex-col items-center justify-center bg-primary-600 p-10 dark:bg-primary-700/80">
+            <UCard
+              class="flex flex-1 flex-col items-center justify-center bg-primary-600 p-4 sm:p-6 lg:p-10 dark:bg-primary-700/80"
+              role="status"
+              aria-live="assertive"
+              aria-atomic="true"
+            >
               <div class="w-full">
-                <p class="mb-4 text-center text-xl font-medium uppercase tracking-widest text-white">
+                <p class="mb-3 text-center text-[clamp(0.875rem,2vw,1.25rem)] font-medium uppercase tracking-widest text-white sm:mb-4">
                   Chamando Agora
                 </p>
 
-                <p class="mb-6 text-center text-5xl font-bold leading-tight text-white md:text-7xl">
+                <p class="mb-4 break-words text-center text-[clamp(2rem,6vw,4.5rem)] font-bold leading-tight text-white [overflow-wrap:anywhere] sm:mb-6">
                   {{ ultimoChamado.pacienteNome }}
                 </p>
               </div>
@@ -326,10 +339,10 @@ const mensagemAudio = computed(() => audioBloqueado.value
                   variant="subtle"
                   :ui="{ container: 'p-0 sm:p-0' }"
                 >
-                  <p class="text-lg uppercase tracking-wider text-white">
+                  <p class="text-[clamp(0.75rem,1.8vw,1.125rem)] uppercase tracking-wider text-white">
                     Local de Atendimento
                   </p>
-                  <p class="text-4xl font-semibold text-white">
+                  <p class="break-words text-[clamp(1.5rem,4vw,2.25rem)] font-semibold text-white [overflow-wrap:anywhere]">
                     {{ ultimoChamado.localAtendimento }}
                   </p>
                 </UPageCard>
@@ -338,10 +351,10 @@ const mensagemAudio = computed(() => audioBloqueado.value
                   variant="subtle"
                   :ui="{ container: 'p-0 sm:p-0' }"
                 >
-                  <p class="text-lg uppercase tracking-wider text-white">
+                  <p class="text-[clamp(0.75rem,1.8vw,1.125rem)] uppercase tracking-wider text-white">
                     Médico Responsável
                   </p>
-                  <p class="text-4xl font-semibold text-white">
+                  <p class="break-words text-[clamp(1.5rem,4vw,2.25rem)] font-semibold text-white [overflow-wrap:anywhere]">
                     {{ ultimoChamado.medicoResponsavel || 'Atendimento' }}
                   </p>
                 </UPageCard>
@@ -352,7 +365,7 @@ const mensagemAudio = computed(() => audioBloqueado.value
                   name="i-lucide-arrow-right"
                   class="animate-pulse text-white"
                 />
-                <p class="animate-pulse text-center text-3xl font-medium text-white">
+                <p class="animate-pulse text-center text-[clamp(1rem,3vw,1.875rem)] font-medium text-white">
                   Por favor, dirija-se à sala indicada.
                 </p>
               </div>
@@ -360,12 +373,12 @@ const mensagemAudio = computed(() => audioBloqueado.value
           </template>
 
           <template v-else>
-            <UCard class="flex flex-1 flex-col items-center justify-center bg-primary-600 p-10 dark:bg-primary-700/80">
+            <UCard class="flex flex-1 flex-col items-center justify-center bg-primary-600 p-4 text-center sm:p-6 lg:p-10 dark:bg-primary-700/80">
               <UIcon
                 name="i-lucide-stethoscope"
                 class="text-7xl text-white"
               />
-              <p class="mt-4 text-2xl font-medium text-white">
+              <p class="mt-4 text-[clamp(1.25rem,3vw,1.5rem)] font-medium text-white">
                 Nenhuma chamada no momento
               </p>
               <p class="mt-1 text-base text-white">
@@ -376,7 +389,7 @@ const mensagemAudio = computed(() => audioBloqueado.value
         </div>
 
         <UCard
-          class="flex flex-1 flex-col overflow-hidden"
+          class="flex min-h-80 min-w-0 flex-1 flex-col overflow-hidden lg:min-h-0"
           :ui="{ body: 'p-0 md:p-0 lg:p-0' }"
         >
           <template #title>
@@ -385,7 +398,7 @@ const mensagemAudio = computed(() => audioBloqueado.value
                 name="i-lucide-list-check"
                 class="shrink-0 text-2xl text-primary"
               />
-              <p class="text-lg font-bold uppercase tracking-widest text-primary">
+              <p class="break-words text-base font-bold uppercase tracking-widest text-primary sm:text-lg">
                 Últimas Chamadas
               </p>
             </div>
@@ -399,15 +412,17 @@ const mensagemAudio = computed(() => audioBloqueado.value
               v-for="chamado in ultimasChamadas"
               :key="chamado.id"
             >
-              <p class="truncate text-2xl font-semibold text-foreground">
+              <p class="line-clamp-2 break-words text-xl font-semibold text-foreground [overflow-wrap:anywhere] sm:text-2xl">
                 {{ chamado.pacienteNome }}
               </p>
-              <div class="mt-1 flex justify-between text-sm text-muted">
+              <div class="mt-1 flex flex-wrap items-center justify-between gap-2 text-sm text-muted">
                 <UBadge
                   :label="chamado.localAtendimento"
                   color="primary"
                   variant="soft"
                   size="lg"
+                  class="max-w-full"
+                  :ui="{ label: 'truncate' }"
                 />
                 <span>{{ chamado.dataChamada }}</span>
               </div>
@@ -423,15 +438,18 @@ const mensagemAudio = computed(() => audioBloqueado.value
             </p>
           </div>
         </UCard>
-      </div>
+      </main>
 
       <div
         v-if="mostrarDesbloqueioAudio"
         class="absolute inset-0 z-20 flex items-center justify-center bg-neutral-950/65 p-6 backdrop-blur-sm"
-        @click.stop="ativarAudioPorInteracao"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="titulo-ativar-audio"
+        aria-describedby="descricao-ativar-audio"
       >
         <UCard
-          class="max-w-xl text-center shadow-2xl"
+          class="w-full max-w-xl text-center shadow-2xl"
           :ui="{ body: 'p-8 sm:p-10' }"
         >
           <div class="mx-auto mb-5 flex size-20 items-center justify-center rounded-full bg-primary/10">
@@ -440,10 +458,16 @@ const mensagemAudio = computed(() => audioBloqueado.value
               class="text-5xl text-primary"
             />
           </div>
-          <p class="mb-2 text-3xl font-bold text-foreground">
+          <p
+            id="titulo-ativar-audio"
+            class="mb-2 text-[clamp(1.5rem,5vw,1.875rem)] font-bold text-foreground"
+          >
             Iniciar painel com áudio
           </p>
-          <p class="mb-6 text-lg text-muted">
+          <p
+            id="descricao-ativar-audio"
+            class="mb-6 text-base text-muted sm:text-lg"
+          >
             {{ mensagemAudio }}. Toque ou clique uma vez para liberar as chamadas sonoras nesta tela.
           </p>
           <UButton

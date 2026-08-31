@@ -323,10 +323,10 @@ onUnmounted(() => {
       </template>
     </UHeader>
 
-    <div class="min-h-screen space-y-4 bg-muted p-4 sm:space-y-6 sm:p-6">
+    <div class="min-h-screen min-w-0 space-y-4 bg-muted p-3 sm:space-y-6 sm:p-6">
       <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <p class="text-2xl font-semibold sm:text-3xl">
+        <div class="min-w-0">
+          <p class="break-words text-2xl font-semibold sm:text-3xl">
             {{ getSaudacao(agora) }}, {{ userName }}
           </p>
           <p class="text-base text-muted mt-1">
@@ -347,7 +347,7 @@ onUnmounted(() => {
         icon="i-lucide-circle-alert"
       />
 
-      <div class="grid grid-cols-1 gap-4  lg:grid-cols-2 lg:gap-6">
+      <div class="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
         <ChartResumo
           :total="resumoTotal"
           :agendados="dados.resumo.agendados"
@@ -428,8 +428,8 @@ onUnmounted(() => {
         <template #title>
           <div class="flex flex-col gap-4">
             <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between ">
-              <div class="text-center">
-                <p class="text-lg font-medium">
+              <div class="min-w-0 text-left lg:text-center">
+                <p class="break-words text-lg font-medium">
                   {{ tituloTabela }}
                 </p>
                 <p class="text-sm text-muted">
@@ -528,19 +528,19 @@ onUnmounted(() => {
             :key="item.id"
             :ui="{ container: 'px-4 sm:p-1 sm:px-4' }"
           >
-            <div class="grid grid-cols-2 md:grid-cols-7 gap-x-4 gap-y-3 items-start md:items-center">
+            <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-7 md:items-center">
               <div class="col-span-2">
                 <p class="text-sm text-muted font-bold sm:text-left">
                   Paciente
                 </p>
-                <div class="flex items-center gap-3">
+                <div class="flex min-w-0 items-center gap-3">
                   <UAvatar
                     :alt="item.paciente"
                     color="primary"
                     size="sm"
                   />
-                  <div>
-                    <p class="font-medium">
+                  <div class="min-w-0">
+                    <p class="break-words font-medium">
                       {{ item.paciente || 'Paciente não informado' }}
                     </p>
                     <p class="text-xs text-muted">
@@ -566,9 +566,11 @@ onUnmounted(() => {
                 <p class="text-sm text-muted font-bold">
                   Contato
                 </p>
-                <div class="text-sm">
-                  <p>{{ contatoPrincipal(item) }}</p>
-                  <p class="text-xs text-muted">
+                <div class="min-w-0 text-sm">
+                  <p class="break-all">
+                    {{ contatoPrincipal(item) }}
+                  </p>
+                  <p class="break-all text-xs text-muted">
                     {{ textoNaoInformado(item.email, 'Email não informado') }}
                   </p>
                 </div>
@@ -578,8 +580,8 @@ onUnmounted(() => {
                 <p class="text-sm text-muted font-bold">
                   Médico
                 </p>
-                <div class="text-sm">
-                  <p class="font-bold">
+                <div class="min-w-0 text-sm">
+                  <p class="break-words font-bold">
                     {{ item.medico || '-' }}
                   </p>
                   <p class="text-xs text-muted">

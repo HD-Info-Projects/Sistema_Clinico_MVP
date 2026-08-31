@@ -9,6 +9,7 @@ const props = defineProps<{
 }>()
 
 const usuariosStore = useUsuariosStore()
+const openNav = inject<() => void>('openNav', () => {})
 
 const busca = ref('')
 const showFormModal = ref(false)
@@ -90,23 +91,41 @@ function onSaved() {
 
 <template>
   <div>
-    <UHeader :title="titulo">
-      <template #right>
+    <UHeader
+      :title="titulo"
+      toggle-side="left"
+    >
+      <template #toggle>
         <UButton
-          icon="i-lucide-plus"
-          :label="`Novo ${titulo.replace('s', '')}`"
-          @click="abrirNovo"
+          icon="i-lucide-panel-left"
+          color="neutral"
+          variant="ghost"
+          class="min-h-11 min-w-11 lg:hidden"
+          aria-label="Abrir menu"
+          @click="openNav()"
         />
-        <UColorModeButton />
+      </template>
+      <template #right>
+        <div class="flex flex-wrap items-center justify-end gap-2">
+          <UButton
+            icon="i-lucide-plus"
+            :label="`Novo ${titulo.replace('s', '')}`"
+            :ui="{ label: 'hidden sm:inline' }"
+            :aria-label="`Novo ${titulo.replace('s', '')}`"
+            @click="abrirNovo"
+          />
+          <UColorModeButton />
+        </div>
       </template>
     </UHeader>
 
-    <div class="p-6 bg-neutral-100 dark:bg-neutral-950 min-h-screen space-y-6">
+    <div class="min-h-screen space-y-6 bg-neutral-100 p-4 dark:bg-neutral-950 sm:p-6">
       <UInput
         v-model="busca"
         icon="i-lucide-search"
         :placeholder="placeholderBusca"
         class="w-full"
+        :aria-label="`Buscar ${titulo.toLowerCase()}`"
       />
 
       <div
@@ -158,88 +177,95 @@ function onSaved() {
         v-else
         class="w-full"
       >
-        <UTable
-          :columns="colunas"
-          :data="listaFiltrada"
-          class="w-full"
-        >
-          <template #nome-cell="{ row }">
-            <div class="flex items-center gap-3">
-              <UAvatar
-                :alt="row.original.nome_completo"
-                color="primary"
-                size="sm"
-              />
-              <div>
-                <p class="font-medium">
-                  {{ row.original.nome_completo }}
-                </p>
-                <p class="text-xs text-muted">
-                  {{ formatarCpfCnpj(row.original.cnpj_cpf) }}
-                </p>
+        <div class="w-full overflow-x-auto">
+          <UTable
+            :columns="colunas"
+            :data="listaFiltrada"
+            :class="role === 'medico' ? 'min-w-[64rem]' : 'min-w-[46rem]'"
+          >
+            <template #nome-cell="{ row }">
+              <div class="flex min-w-0 items-center gap-3">
+                <UAvatar
+                  :alt="row.original.nome_completo"
+                  color="primary"
+                  size="sm"
+                />
+                <div class="min-w-0 max-w-xs">
+                  <p class="break-words font-medium">
+                    {{ row.original.nome_completo }}
+                  </p>
+                  <p class="text-xs text-muted">
+                    {{ formatarCpfCnpj(row.original.cnpj_cpf) }}
+                  </p>
+                </div>
               </div>
-            </div>
-          </template>
+            </template>
 
-          <template #crm-cell="{ row }">
-            <span class="font-mono text-sm">
-              {{ row.original.medico?.crm || row.original.medico?.crm_atendimento_spdata || '-' }}
-            </span>
-          </template>
+            <template #crm-cell="{ row }">
+              <span class="font-mono text-sm">
+                {{ row.original.medico?.crm || row.original.medico?.crm_atendimento_spdata || '-' }}
+              </span>
+            </template>
 
-          <template #especialidade-cell="{ row }">
-            <UBadge
-              v-if="row.original.medico?.especialidade"
-              :label="row.original.medico.especialidade"
-              color="neutral"
-              variant="subtle"
-              size="sm"
-            />
-            <span
-              v-else
-              class="text-muted text-sm"
-            >-</span>
-          </template>
-
-          <template #ativo-cell="{ row }">
-            <UBadge
-              :label="row.original.ativo ? 'Ativo' : 'Inativo'"
-              :color="row.original.ativo ? 'success' : 'neutral'"
-              variant="subtle"
-              size="sm"
-            />
-          </template>
-
-          <template #acoes-cell="{ row }">
-            <div class="flex items-center gap-1">
-              <UButton
-                v-if="role === 'medico'"
-                icon="i-lucide-notebook-pen"
+            <template #especialidade-cell="{ row }">
+              <UBadge
+                v-if="row.original.medico?.especialidade"
+                :label="row.original.medico.especialidade"
                 color="neutral"
-                variant="ghost"
+                variant="subtle"
                 size="sm"
-                aria-label="Padroes"
-                title="Padrões"
-                @click="void(navigateTo(`/admin/padroes-medico/${row.original.id}`))"
               />
-              <UButton
-                icon="i-lucide-pencil"
-                color="neutral"
-                variant="ghost"
+              <span
+                v-else
+                class="text-muted text-sm"
+              >-</span>
+            </template>
+
+            <template #ativo-cell="{ row }">
+              <UBadge
+                :label="row.original.ativo ? 'Ativo' : 'Inativo'"
+                :color="row.original.ativo ? 'success' : 'neutral'"
+                variant="subtle"
                 size="sm"
-                @click="editar(row.original)"
               />
-              <UButton
-                icon="i-lucide-trash-2"
-                color="error"
-                variant="ghost"
-                size="sm"
-                :disabled="row.original.ativo === false"
-                @click="confirmarExclusao(row.original.id)"
-              />
-            </div>
-          </template>
-        </UTable>
+            </template>
+
+            <template #acoes-cell="{ row }">
+              <div class="flex items-center gap-1">
+                <UButton
+                  v-if="role === 'medico'"
+                  icon="i-lucide-notebook-pen"
+                  color="neutral"
+                  variant="ghost"
+                  size="sm"
+                  class="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
+                  aria-label="Padroes"
+                  title="Padrões"
+                  @click="void(navigateTo(`/admin/padroes-medico/${row.original.id}`))"
+                />
+                <UButton
+                  icon="i-lucide-pencil"
+                  color="neutral"
+                  variant="ghost"
+                  size="sm"
+                  class="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
+                  aria-label="Editar usuario"
+                  @click="editar(row.original)"
+                />
+                <UButton
+                  icon="i-lucide-trash-2"
+                  color="error"
+                  variant="ghost"
+                  size="sm"
+                  class="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
+                  aria-label="Inativar usuario"
+                  :disabled="row.original.ativo === false"
+                  @click="confirmarExclusao(row.original.id)"
+                />
+              </div>
+            </template>
+          </UTable>
+        </div>
       </UCard>
     </div>
 

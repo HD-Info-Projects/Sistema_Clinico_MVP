@@ -13,6 +13,7 @@ const subtitulo = computed(() => {
 })
 
 async function selecionar(id: number) {
+  if (loading.value) return
   loading.value = true
   const selecionou = await auth.setActiveClinica(id)
   if (!selecionou) {
@@ -31,7 +32,7 @@ async function selecionar(id: number) {
 </script>
 
 <template>
-  <div class="w-full max-w-lg mx-auto p-6">
+  <div class="relative z-10 mx-4 w-full max-w-lg rounded-xl bg-default/95 p-4 shadow-xl sm:p-6">
     <h1 class="text-xl font-bold mb-2">
       Selecione a Unidade
     </h1>
@@ -43,17 +44,22 @@ async function selecionar(id: number) {
       <UCard
         v-for="c in auth.clinicas"
         :key="c.id"
-        :ui="{ root: 'cursor-pointer hover:ring-2 hover:ring-primary transition-all' }"
+        role="button"
+        :tabindex="loading ? -1 : 0"
+        :aria-disabled="loading"
+        :ui="{ root: 'cursor-pointer hover:ring-2 hover:ring-primary transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary aria-disabled:cursor-wait aria-disabled:opacity-70 motion-reduce:transition-none' }"
         @click="selecionar(c.id)"
+        @keydown.enter="selecionar(c.id)"
+        @keydown.space.prevent="selecionar(c.id)"
       >
-        <div class="flex items-center gap-3">
-          <div class="size-10 rounded-full bg-primary/10 flex items-center justify-center">
+        <div class="flex min-w-0 items-center gap-3">
+          <div class="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
             <UIcon
               name="i-lucide-building-2"
               class="text-primary"
             />
           </div>
-          <div>
+          <div class="min-w-0">
             <p class="font-semibold">
               {{ c.nome }}
             </p>

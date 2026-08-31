@@ -181,9 +181,15 @@ async function salvar() {
 <template>
   <UModal
     v-model:open="open"
+    :ui="{
+      content: 'max-h-[calc(100dvh-2rem)]',
+      header: 'shrink-0',
+      body: 'overflow-y-auto',
+      footer: 'shrink-0'
+    }"
   >
     <template #header>
-      <h2 class="text-lg font-semibold">
+      <h2 class="min-w-0 break-words text-lg font-semibold">
         {{ titulo }}
       </h2>
     </template>
@@ -194,16 +200,22 @@ async function salvar() {
           <USeparator label="Vínculo SPDATA" />
 
           <div class="space-y-3">
-            <div class="flex flex-col sm:flex-row gap-2">
-              <UInput
-                v-model="spdataBusca"
-                class="flex-1"
-                placeholder="Buscar médico por nome no SPDATA"
-                :disabled="Boolean(usuario)"
-                @keydown.enter.prevent="buscarSpdata"
-              />
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
+              <UFormField
+                label="Médico no SPDATA"
+                class="min-w-0 flex-1"
+              >
+                <UInput
+                  v-model="spdataBusca"
+                  class="w-full"
+                  placeholder="Buscar médico por nome no SPDATA"
+                  :disabled="Boolean(usuario)"
+                  @keydown.enter.prevent="buscarSpdata"
+                />
+              </UFormField>
               <UButton
                 label="Buscar SPDATA"
+                class="w-full justify-center sm:w-auto"
                 :loading="buscandoSpdata"
                 :disabled="Boolean(usuario) || !spdataBusca.trim()"
                 @click="buscarSpdata"
@@ -212,14 +224,14 @@ async function salvar() {
 
             <div
               v-if="form.medico?.spdata_id"
-              class="flex items-center gap-2 text-sm"
+              class="flex min-w-0 flex-wrap items-center gap-2 text-sm"
             >
               <UBadge
                 :label="`SPDATA ID ${form.medico.spdata_id}`"
                 color="success"
                 variant="subtle"
               />
-              <span class="text-muted">Médico vinculado ao SPDATA</span>
+              <span class="min-w-0 break-words text-muted">Médico vinculado ao SPDATA</span>
             </div>
 
             <div
@@ -230,13 +242,13 @@ async function salvar() {
                 v-for="medico in usuariosStore.medicosSpdata"
                 :key="medico.spdata_id"
                 type="button"
-                class="w-full text-left rounded-md border border-default p-3 hover:bg-muted/50 transition"
+                class="min-h-11 w-full min-w-0 rounded-md border border-default p-3 text-left transition hover:bg-muted/50"
                 @click="selecionarMedicoSpdata(medico)"
               >
-                <p class="font-medium">
+                <p class="break-words font-medium">
                   {{ medico.nome }}
                 </p>
-                <p class="text-xs text-muted">
+                <p class="break-words text-xs text-muted">
                   ID {{ medico.spdata_id }} | CPF/CNPJ {{ medico.documento || '-' }} | CRM {{ medico.crm || '-' }}
                 </p>
               </button>
@@ -244,41 +256,39 @@ async function salvar() {
           </div>
         </template>
 
-        <div class="flex flex-col gap-1">
-          <label class="text-sm font-medium">Nome Completo</label>
+        <UFormField label="Nome Completo">
           <UInput
             v-model="form.nome_completo"
             placeholder="Nome completo"
+            class="w-full"
           />
-        </div>
+        </UFormField>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div class="flex flex-col gap-1">
-            <label class="text-sm font-medium w-full">CPF/CNPJ</label>
+          <UFormField label="CPF/CNPJ">
             <UInput
               :model-value="form.cnpj_cpf"
               placeholder="000.000.000-00"
+              class="w-full"
               @update:model-value="form.cnpj_cpf = formatarCpfCnpj($event)"
             />
-          </div>
-          <div class="flex flex-col gap-1">
-            <label class="text-sm font-medium">Email</label>
+          </UFormField>
+          <UFormField label="Email">
             <UInput
               v-model="form.email"
               type="email"
               placeholder="email@exemplo.com"
+              class="w-full"
             />
-          </div>
+          </UFormField>
         </div>
 
-        <div class="flex flex-col gap-1">
-          <label class="text-sm font-medium">
-            Senha
-          </label>
+        <UFormField label="Senha">
           <UInput
             v-model="form.senha"
             type="password"
             placeholder="Senha"
+            class="w-full"
           />
           <p
             v-if="usuario"
@@ -292,7 +302,7 @@ async function salvar() {
           >
             A senha deve ter pelo menos 8 caracteres.
           </p>
-        </div>
+        </UFormField>
 
         <template v-if="exigeUnidade">
           <USeparator label="Unidades de atendimento" />
@@ -325,17 +335,21 @@ async function salvar() {
             icon="i-lucide-building"
           />
 
-          <USelectMenu
+          <UFormField
             v-else
-            v-model="form.unidade_ids"
-            :items="unidadesAtivas"
-            value-key="id"
-            label-key="nome"
-            multiple
-            placeholder="Selecione as unidades de atendimento"
-            :search-input="{ placeholder: 'Buscar unidade...' }"
-            class="w-full"
-          />
+            label="Unidades de atendimento"
+          >
+            <USelectMenu
+              v-model="form.unidade_ids"
+              :items="unidadesAtivas"
+              value-key="id"
+              label-key="nome"
+              multiple
+              placeholder="Selecione as unidades de atendimento"
+              :search-input="{ placeholder: 'Buscar unidade...' }"
+              class="w-full"
+            />
+          </UFormField>
 
           <p
             v-if="unidadesAtivas.length > 0 && unidadesSelecionadas.length === 0"
@@ -349,64 +363,75 @@ async function salvar() {
           <USeparator label="Dados Médicos" />
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div class="flex flex-col gap-1">
-              <label class="text-sm font-medium">CRM</label>
+            <UFormField label="CRM">
               <UInput
                 v-model="form.medico!.crm"
                 placeholder="CRM"
+                class="w-full"
               />
-            </div>
-            <div class="flex flex-col gap-1">
-              <label class="text-sm font-medium">CRM UF</label>
+            </UFormField>
+            <UFormField label="CRM UF">
               <UInputMenu
                 v-model="form.medico!.crm_uf"
                 :items="estadosBr"
                 placeholder="UF"
+                class="w-full"
               />
-            </div>
-            <div class="flex flex-col gap-1">
-              <label class="text-sm font-medium">CRM Atendimento SPDATA</label>
+            </UFormField>
+            <UFormField label="CRM Atendimento SPDATA">
               <UInput
                 v-model="form.medico!.crm_atendimento_spdata"
                 placeholder="CRM Atendimento"
+                class="w-full"
               />
-            </div>
-            <div class="flex flex-col gap-1">
-              <label class="text-sm font-medium">RQE</label>
+            </UFormField>
+            <UFormField label="RQE">
               <UInput
                 v-model="form.medico!.rqe"
                 placeholder="RQE"
+                class="w-full"
               />
-            </div>
-            <div class="flex flex-col gap-1 sm:col-span-2">
-              <label class="text-sm font-medium">Especialidade</label>
+            </UFormField>
+            <UFormField
+              label="Especialidade"
+              class="sm:col-span-2"
+            >
               <UInput
                 v-model="form.medico!.especialidade"
                 placeholder="Especialidade"
+                class="w-full"
               />
-            </div>
+            </UFormField>
           </div>
         </template>
 
         <div class="flex items-center gap-3">
-          <USwitch v-model="form.ativo" />
-          <label class="text-sm font-medium">Usuário ativo</label>
+          <USwitch
+            id="usuario-ativo"
+            v-model="form.ativo"
+          />
+          <label
+            for="usuario-ativo"
+            class="text-sm font-medium"
+          >Usuário ativo</label>
         </div>
       </div>
     </template>
 
     <template #footer>
-      <div class="flex justify-end gap-2 w-full">
+      <div class="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <UButton
           label="Cancelar"
           color="neutral"
           variant="ghost"
+          class="w-full justify-center sm:w-auto"
           @click="void (open = false)"
         />
         <UButton
           label="Salvar"
           :loading="saving"
           :disabled="!podeSalvar"
+          class="w-full justify-center sm:w-auto"
           @click="salvar"
         />
       </div>

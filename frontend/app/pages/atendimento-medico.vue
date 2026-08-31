@@ -908,7 +908,7 @@ async function finalizarConsulta() {
 </script>
 
 <template>
-  <div class="h-screen flex flex-col">
+  <div class="flex h-dvh min-h-0 flex-col overflow-hidden">
     <UHeader
       title="Consulta Atual"
       toggle-side="left"
@@ -959,19 +959,21 @@ async function finalizarConsulta() {
       color="primary"
       size="lg"
       :ui="{
-        content: 'grow min-h-0 flex flex-col',
-        list: 'bg-default/75 backdrop-blur border-b border-default rounded-tl-none rounded-tr-none'
+        content: 'flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden',
+        list: 'shrink-0 justify-start overflow-x-auto bg-default/75 backdrop-blur border-b border-default rounded-tl-none rounded-tr-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+        trigger: 'min-w-fit flex-none shrink-0 px-2 sm:px-3',
+        label: 'whitespace-nowrap text-xs sm:text-sm'
       }"
-      class="flex-1 overflow-hidden "
+      class="min-h-0 min-w-0 flex-1 overflow-hidden"
     >
       <template #content="{ index }">
         <div
           v-if="index === 0"
-          class="px-2 flex flex-col gap-4 py-2 pb-20  grow"
+          class="flex min-h-full min-w-0 grow flex-col gap-4 px-2 py-2 pb-20"
         >
           <UCard
             :ui="{ header: 'p-1 sm:px-2', body: 'p-0 sm:p-0 grow flex flex-col' }"
-            class="grow flex flex-col"
+            class="flex min-w-0 grow flex-col"
           >
             <template #title>
               <div class="flex items-center gap-2">
@@ -984,18 +986,19 @@ async function finalizarConsulta() {
                 </p>
               </div>
             </template>
-            <div class="shrink-0 flex gap-2 p-2 border-b border-muted">
+            <div class="flex shrink-0 flex-col gap-2 border-b border-muted p-2 sm:flex-row">
               <UInputMenu
                 v-model="padraoAnamneseSelected"
                 :items="padroesAnamneseStore.padroes.map(p => ({ label: p.nome, value: p }))"
                 searchable
                 placeholder="Inserir Padrão de Anamnese..."
-                class="flex-1"
+                class="min-w-0 flex-1"
               />
               <UButton
                 icon="i-lucide-copy-plus"
                 label="Adicionar"
                 color="secondary"
+                class="w-full sm:w-auto"
                 :disabled="!padraoAnamneseSelected"
                 @click="adicionarPadraoAnamnese"
               />
@@ -1003,7 +1006,7 @@ async function finalizarConsulta() {
             <EditorRichText
               v-model="anamneseTexto"
               placeholder="Descreva a anamnese e evolução do paciente..."
-              class="grow flex flex-col"
+              class="flex min-w-0 grow flex-col"
             />
           </UCard>
 
@@ -1022,7 +1025,7 @@ async function finalizarConsulta() {
               </div>
             </template>
 
-            <div class="flex gap-2">
+            <div class="flex flex-col gap-2 sm:flex-row">
               <UInputMenu
                 v-model="cidTempSelecionado"
                 v-model:search-term="searchCid"
@@ -1033,7 +1036,7 @@ async function finalizarConsulta() {
                 icon="i-lucide-search"
                 clear
                 ignore-filter
-                class="flex-1"
+                class="min-w-0 flex-1"
               >
                 <template #item-label="{ item }">
                   <span class="font-mono text-xs font-semibold text-primary min-w-10">{{ item.cid }}</span>
@@ -1058,6 +1061,7 @@ async function finalizarConsulta() {
               <UButton
                 icon="i-lucide-plus"
                 color="primary"
+                class="w-full sm:w-auto"
                 :disabled="!cidTempSelecionado"
                 @click="adicionarCid(cidTempSelecionado!); cidTempSelecionado = null"
               />
@@ -1070,9 +1074,9 @@ async function finalizarConsulta() {
               <div
                 v-for="(cid, i) in cidSelecionadoLista"
                 :key="i"
-                class="flex items-center justify-between p-2 rounded-lg border border-muted"
+                class="flex min-w-0 flex-col gap-2 rounded-lg border border-muted p-2 sm:flex-row sm:items-center sm:justify-between"
               >
-                <span class="text-sm">
+                <span class="min-w-0 break-words text-sm">
                   {{ cid.cid }} — {{ cid.nome }}
                   <UBadge
                     v-if="i === 0"
@@ -1086,6 +1090,7 @@ async function finalizarConsulta() {
                   size="xs"
                   color="error"
                   variant="ghost"
+                  class="shrink-0 self-end sm:self-auto"
                   @click="removerCid(i)"
                 />
               </div>
@@ -1101,11 +1106,11 @@ async function finalizarConsulta() {
 
         <div
           v-if="index === 2"
-          class="px-2 flex flex-col gap-4 py-2  grow"
+          class="flex min-h-full min-w-0 grow flex-col gap-4 px-2 py-2"
         >
           <UCard
             :ui="{ body: 'grow flex flex-col p-0 sm:p-0' }"
-            class="grow flex flex-col"
+            class="flex min-w-0 grow flex-col"
           >
             <template #title>
               <div class="flex items-center gap-2">
@@ -1119,25 +1124,26 @@ async function finalizarConsulta() {
               </div>
             </template>
 
-            <div class="flex flex-col gap-4 grow p-4">
+            <div class="flex min-w-0 grow flex-col gap-4 p-4">
               <div class="shrink-0 flex flex-col gap-2 sm:flex-row">
                 <UInputMenu
                   v-model="padraoReceitaSelected"
                   :items="padroesStore.receitas.map(p => ({ label: p.nome, value: p }))"
                   searchable
                   placeholder="Selecionar padrão de receita..."
-                  class="flex-1"
+                  class="min-w-0 flex-1"
                 />
                 <UButton
                   icon="i-lucide-copy-plus"
                   label="Adicionar Padrão"
                   color="secondary"
+                  class="w-full sm:w-auto"
                   :disabled="!padraoReceitaSelected"
                   @click="adicionarPadraoReceita"
                 />
               </div>
 
-              <div class="shrink-0 flex flex-col sm:flex-row sm:items-end gap-3 p-4 rounded-lg border border-muted bg-neutral-50 dark:bg-neutral-900">
+              <div class="flex shrink-0 flex-col gap-3 rounded-lg border border-muted bg-neutral-50 p-4 sm:flex-row sm:items-end dark:bg-neutral-900">
                 <UFormField
                   label="Nome do medicamento"
                   class="flex-1"
@@ -1171,6 +1177,7 @@ async function finalizarConsulta() {
                   icon="i-lucide-plus"
                   label="Adicionar"
                   color="primary"
+                  class="w-full sm:w-auto"
                   :disabled="!remedioNome && !remedioDosagem"
                   @click="adicionarRemedio"
                 />
@@ -1214,15 +1221,15 @@ async function finalizarConsulta() {
 
         <div
           v-if="index === 1"
-          class="px-2 flex flex-col gap-4 py-2  grow"
+          class="flex min-h-full min-w-0 grow flex-col gap-4 px-2 py-2"
         >
           <UCard
             :ui="{ body: 'grow flex flex-col p-0 sm:p-0' }"
-            class="grow flex flex-col"
+            class="flex min-w-0 grow flex-col"
           >
             <template #title>
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-2">
+              <div class="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div class="flex min-w-0 items-center gap-2">
                   <UIcon
                     name="i-lucide-flask-conical"
                     class="text-primary"
@@ -1231,7 +1238,7 @@ async function finalizarConsulta() {
                     Pedido de Exames
                   </p>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="flex shrink-0 items-center gap-2">
                   <span class="text-sm text-muted">
                     {{ caraterAtendimento ? 'U - Urgência/Emergência' : 'E - Eletiva' }}
                   </span>
@@ -1240,7 +1247,7 @@ async function finalizarConsulta() {
               </div>
             </template>
 
-            <div class="flex flex-col gap-4 grow p-4">
+            <div class="flex min-w-0 grow flex-col gap-4 p-4">
               <div class="shrink-0 flex flex-col gap-2 sm:flex-row">
                 <UInputMenu
                   v-model="exameTemplateSelected"
@@ -1253,6 +1260,7 @@ async function finalizarConsulta() {
                   icon="i-lucide-copy-plus"
                   label="Adicionar Padrão"
                   color="secondary"
+                  class="w-full sm:w-auto"
                   :disabled="!exameTemplateSelected"
                   @click="adicionarPadraoExame"
                 />
@@ -1299,6 +1307,7 @@ async function finalizarConsulta() {
                     label="Adicionar"
                     color="primary"
                     variant="soft"
+                    class="w-full sm:w-auto"
                     :disabled="!buscaTermoExame.trim()"
                     @click="adicionarExameManual"
                   />
@@ -1326,13 +1335,14 @@ async function finalizarConsulta() {
                   <div
                     v-for="(exameItem, i) in examesSelecionados"
                     :key="i"
-                    class="flex items-center justify-between p-3 rounded-lg border border-muted"
+                    class="flex min-w-0 flex-col gap-2 rounded-lg border border-muted p-3 sm:flex-row sm:items-center sm:justify-between"
                   >
-                    <span class="text-sm">{{ exameItem.nome }}</span>
-                    <div class="flex gap-3 items-center">
+                    <span class="min-w-0 break-words text-sm">{{ exameItem.nome }}</span>
+                    <div class="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:shrink-0 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
                       <UButton
                         variant="link"
                         :icon="exameTemOrientacao(exameItem) ? 'i-lucide-message-square-warning' : 'i-lucide-plus'"
+                        class="w-full min-w-0 sm:w-auto"
                         @click="adicionarOrientacao(exameItem)"
                       >
                         {{ exameTemOrientacao(exameItem) ? 'Editar Orientação' : 'Adicionar Orientação' }}
@@ -1342,6 +1352,7 @@ async function finalizarConsulta() {
                         color="error"
                         variant="ghost"
                         size="sm"
+                        class="w-full shrink-0 sm:w-auto"
                         @click="removerExameDaLista(i)"
                       />
                     </div>
@@ -1369,7 +1380,7 @@ async function finalizarConsulta() {
 
         <div
           v-if="index === 3"
-          class="px-2 flex flex-col gap-4 py-2  grow"
+          class="flex min-h-full min-w-0 grow flex-col gap-4 px-2 py-2"
         >
           <UCard>
             <template #title>
@@ -1432,6 +1443,7 @@ async function finalizarConsulta() {
           </UCard>
           <UCard
             :ui="{ body: 'flex flex-col sm:flex-row justify-center gap-4' }"
+            class="sticky bottom-0 z-10 shrink-0"
           >
             <UButton
               icon="i-lucide-x-circle"

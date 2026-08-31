@@ -489,12 +489,13 @@ function voltarDashboard() {
 <template>
   <div
     v-if="agendamento"
-    class="h-screen flex overflow-hidden"
+    class="flex h-dvh min-h-0 overflow-hidden"
   >
     <USidebar
       v-model:open="open"
       collapsible="icon"
-      :style="{ '--sidebar-width': '35rem' }"
+      class="max-w-full min-h-0"
+      :style="{ '--sidebar-width': 'min(35rem, 100vw)' }"
     >
       <template #header>
         <UButton
@@ -511,18 +512,18 @@ function voltarDashboard() {
           color="primary"
           :alt="agendamento.paciente.nome"
         />
-        <div>
-          <p class="text-md font-semibold">
+        <div class="min-w-0">
+          <p class="text-base font-semibold break-words">
             {{ agendamento.paciente.nome }}
           </p>
-          <p class="text-sm text-muted">
+          <p class="text-sm text-muted break-words">
             {{ calcularIdade(agendamento.paciente.dataNascimento) }} anos
             · {{ agendamento.paciente.sexo === 'masculino' ? 'Masculino' : 'Feminino' }}
             · Convênio: {{ agendamento.paciente.convenio }}
           </p>
         </div>
       </div>
-      <div class="space-y-2 flex flex-col gap-1 justify-center items-center overflow-y-hidden">
+      <div class="flex min-h-0 flex-1 flex-col items-center gap-1 overflow-hidden">
         <USeparator />
         <div class="flex flex-col items-center justify-center gap-2">
           <div class="flex items-center gap-1">
@@ -585,7 +586,7 @@ function voltarDashboard() {
         <USeparator />
         <div
           ref="historicoScrollRef"
-          class="overflow-y-auto max-h-[calc(100vh-18rem)] w-full px-2"
+          class="min-h-0 w-full flex-1 overflow-y-auto px-2"
         >
           <UTimeline
             :items="historicoItemsVisiveis"
@@ -636,16 +637,21 @@ function voltarDashboard() {
                     <div class="relative">
                       <!-- eslint-disable vue/no-v-html -->
                       <div
-                        class="text-sm cursor-pointer whitespace-pre-line"
+                        class="cursor-pointer overflow-hidden break-words text-sm whitespace-pre-line [&_*]:max-w-full"
                         :class="expandedContent[item.id + '-' + card.id] ? '' : 'line-clamp-3'"
                         @click="toggleContent(item.id + '-' + card.id)"
                         v-html="sanitizeHtml(card.description)"
                       />
                       <!-- eslint-enable vue/no-v-html -->
-                      <UIcon
+                      <UButton
                         v-if="card.description.length > 100"
-                        :name="expandedContent[item.id + '-' + card.id] ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
-                        class="absolute bottom-0 right-0 dark:bg-neutral-900 px-1 cursor-pointer text-muted"
+                        :icon="expandedContent[item.id + '-' + card.id] ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+                        :aria-label="expandedContent[item.id + '-' + card.id] ? 'Recolher conteúdo' : 'Expandir conteúdo'"
+                        :aria-expanded="expandedContent[item.id + '-' + card.id]"
+                        color="neutral"
+                        variant="ghost"
+                        size="xs"
+                        class="absolute right-0 bottom-0 dark:bg-neutral-900"
                         @click.stop="toggleContent(item.id + '-' + card.id)"
                       />
                     </div>
@@ -673,13 +679,13 @@ function voltarDashboard() {
         </div>
       </div>
     </USidebar>
-    <main class="flex-1 overflow-y-auto bg-neutral-100 dark:bg-neutral-950">
+    <main class="min-h-0 min-w-0 flex-1 overflow-y-auto bg-neutral-100 dark:bg-neutral-950">
       <slot />
     </main>
   </div>
   <div
     v-else
-    class="h-screen flex items-center justify-center bg-neutral-100 dark:bg-neutral-950"
+    class="flex h-dvh items-center justify-center bg-neutral-100 dark:bg-neutral-950"
   >
     <UCard>
       <div class="flex flex-col items-center py-12 gap-4">

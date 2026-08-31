@@ -470,7 +470,7 @@ watch(() => auth.activeClinicaId, () => {
         </div>
       </template>
     </UHeader>
-    <div class="p-4 sm:p-6 space-y-8 bg-neutral-100 dark:bg-neutral-950 min-h-screen overflow-x-hidden">
+    <div class="min-h-screen min-w-0 space-y-6 bg-neutral-100 p-3 dark:bg-neutral-950 sm:space-y-8 sm:p-6">
       <div class="w-full gap-4">
         <UCard class="w-full">
           <template #title>
@@ -479,63 +479,81 @@ watch(() => auth.activeClinicaId, () => {
             </p>
           </template>
           <div class="space-y-4">
-            <div class="flex flex-wrap items-end gap-4">
-              <div class="grid grid-cols-1 md:grid-cols-2 items-end gap-2 sm:flex">
-                <UFormField label="Ano">
+            <div class="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
+              <div class="grid grid-cols-2 items-end gap-2 sm:col-span-2 xl:col-span-2 2xl:col-span-3 2xl:grid-cols-[6rem_1fr_auto_1fr]">
+                <UFormField
+                  label="Ano"
+                  class="w-full"
+                >
                   <UInputMenu
                     v-model="filtroAno"
                     :items="anosDisponiveis"
                     placeholder="Ano"
                     size="sm"
-                    class="w-full sm:w-24"
+                    class="w-full"
                   />
                 </UFormField>
-                <UFormField label="Mês início">
+                <UFormField
+                  label="Mês início"
+                  class="w-full"
+                >
                   <UInputMenu
                     v-model="filtroMesInicio"
                     :items="mesesOpcoes"
                     placeholder="Mês início"
                     size="sm"
-                    class="w-full sm:w-36"
+                    class="w-full"
                   />
                 </UFormField>
-                <span class="text-muted mb-1">até</span>
-                <UFormField label="Mês fim">
+                <span class="mb-2 hidden text-muted 2xl:block">até</span>
+                <UFormField
+                  label="Mês fim"
+                  class="w-full"
+                >
                   <UInputMenu
                     v-model="filtroMesFim"
                     :items="mesesOpcoes"
                     placeholder="Mês fim"
                     size="sm"
-                    class="w-full sm:w-36"
+                    class="w-full"
                   />
                 </UFormField>
               </div>
 
-              <UFormField label="Médico">
+              <UFormField
+                label="Médico"
+                class="w-full"
+              >
                 <UInputMenu
                   v-model="filtroMedico"
                   :items="medicosOptions"
                   placeholder="Médico"
                   size="sm"
-                  class="w-full sm:w-48"
+                  class="w-full"
                 />
               </UFormField>
-              <UFormField label="Especialidade">
+              <UFormField
+                label="Especialidade"
+                class="w-full"
+              >
                 <UInputMenu
                   v-model="filtroEspecialidade"
                   :items="especialidadesOptions"
                   placeholder="Especialidade"
                   size="sm"
-                  class="w-full sm:w-48"
+                  class="w-full"
                 />
               </UFormField>
-              <UFormField label="Convênio">
+              <UFormField
+                label="Convênio"
+                class="w-full"
+              >
                 <UInputMenu
                   v-model="filtroConvenio"
                   :items="conveniosOptions"
                   placeholder="Convênio"
                   size="sm"
-                  class="w-full sm:w-48"
+                  class="w-full"
                 />
               </UFormField>
               <UButton
@@ -543,6 +561,7 @@ watch(() => auth.activeClinicaId, () => {
                 icon="i-lucide-filter"
                 size="sm"
                 color="primary"
+                class="min-h-10 w-full sm:w-auto"
                 @click="aplicarFiltros"
               />
             </div>
@@ -649,7 +668,7 @@ watch(() => auth.activeClinicaId, () => {
           }"
           class="md:col-span-2"
         >
-          <div class="flex flex-wrap items-center gap-3 w-full">
+          <div class="flex min-w-0 flex-wrap items-center gap-3 w-full">
             <UBadge
               class="aspect-square"
               variant="soft"
@@ -660,8 +679,8 @@ watch(() => auth.activeClinicaId, () => {
                 :class="`size-8 text-primary bg-error`"
               />
             </UBadge>
-            <div class="flex flex-col">
-              <p class="text-sm font-bold">
+            <div class="min-w-0 flex-1">
+              <p class="break-words text-sm font-bold">
                 Impacto Financeiro (estimado)
               </p>
               <p :class="`text-2xl font-black text-error`">
@@ -690,18 +709,20 @@ watch(() => auth.activeClinicaId, () => {
               />
               <span class="font-semibold">Exportar Dados</span>
             </div>
-            <div class="flex items-center gap-3">
+            <div class="grid w-full grid-cols-2 gap-2 sm:w-auto">
               <UButton
                 icon="i-lucide-file-text"
                 label="Exportar PDF"
                 color="error"
                 size="sm"
+                class="min-h-10 justify-center"
               />
               <UButton
                 icon="i-lucide-file-spreadsheet"
                 label="Exportar CSV"
                 color="primary"
                 size="sm"
+                class="min-h-10 justify-center"
               />
             </div>
           </div>
@@ -746,19 +767,19 @@ watch(() => auth.activeClinicaId, () => {
             :key="item.id"
             :ui="{ container: 'p-1 sm:p-1' }"
           >
-            <div class="grid grid-cols-2 md:grid-cols-8 gap-x-4 gap-y-3 items-start md:items-center">
+            <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-8 md:items-center">
               <div class="col-span-2">
                 <p class="text-sm text-muted font-bold text-center sm:text-left">
                   Paciente
                 </p>
-                <div class="flex items-center gap-3 justify-center">
+                <div class="flex min-w-0 items-center justify-center gap-3 sm:justify-start">
                   <UAvatar
                     :alt="item.nome"
                     color="primary"
                     size="sm"
                   />
-                  <div>
-                    <p class="font-medium">
+                  <div class="min-w-0">
+                    <p class="break-words font-medium">
                       {{ item.nome }}
                     </p>
                     <p class="text-xs text-muted">
@@ -812,12 +833,13 @@ watch(() => auth.activeClinicaId, () => {
                 <p class="text-sm text-muted font-bold">
                   Ações
                 </p>
-                <div class="flex flex-wrap justify-center gap-1">
+                <div class="grid grid-cols-2 justify-center gap-2 sm:flex sm:flex-wrap sm:gap-1">
                   <UButton
                     icon="i-lucide-phone"
                     label="Ligar"
                     size="sm"
                     color="primary"
+                    class="min-h-10"
                     @click="ligar(item)"
                   />
                   <UButton
@@ -825,6 +847,7 @@ watch(() => auth.activeClinicaId, () => {
                     label="Reagendar"
                     size="sm"
                     color="warning"
+                    class="min-h-10"
                     @click="reagendar(item)"
                   />
                   <UButton
@@ -832,6 +855,7 @@ watch(() => auth.activeClinicaId, () => {
                     label="Recusou"
                     size="sm"
                     color="error"
+                    class="min-h-10"
                     @click="pacienteRecusouSelecionado = item; modalRecusouAberto = true"
                   />
                   <UDropdownMenu :items="itensMais(item)">
@@ -840,6 +864,7 @@ watch(() => auth.activeClinicaId, () => {
                       label="Mais"
                       size="sm"
                       color="secondary"
+                      class="min-h-10"
                     />
                   </UDropdownMenu>
                 </div>
