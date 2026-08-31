@@ -224,14 +224,7 @@ onBeforeUnmount(() => {
 
 const { horaFormatada, dataFormatada } = useRelogio()
 
-const videosPlaylist = ['/media/1.mp4', '/media/2.mp4', '/media/3.mp4', '/media/4.mp4']
-
-const videoIndexAtual = ref(0)
-const videoRef = ref<HTMLVideoElement | null>(null)
-
-function avancarVideo() {
-  videoIndexAtual.value = (videoIndexAtual.value + 1) % videosPlaylist.length
-}
+const youtubePlaylistUrl = 'https://www.youtube-nocookie.com/embed/videoseries?list=PLFYrrL1WwjfP6Ta2uXVZYoTq_j_9By8am&autoplay=1&mute=1&loop=1&controls=0&disablekb=1&fs=0&iv_load_policy=3&modestbranding=1&playsinline=1&rel=0'
 
 const ultimoChamado = computed(() => chamadosStore.ultimoChamado)
 const timerChamadoRef = ref<ReturnType<typeof setTimeout> | null>(null)
@@ -261,12 +254,10 @@ function agendarConclusaoAutomatica(chamadoId: number) {
 
 watch(ultimoChamado, (novoChamado) => {
   if (novoChamado) {
-    videoRef.value?.pause()
     if (novoChamado.id !== chamadoAtualIdRef.value) {
       agendarConclusaoAutomatica(novoChamado.id)
     }
   } else {
-    videoRef.value?.play()
     limparTimerChamado()
   }
 })
@@ -356,23 +347,19 @@ const mensagemAudio = computed(() => audioBloqueado.value
 
       <div class="flex min-h-0 flex-1 gap-4">
         <div class="flex min-w-0 flex-2 flex-col gap-4">
-          <UCard class="relative flex flex-1 flex-col items-center justify-center overflow-hidden bg-primary-600 p-10 dark:bg-primary-700/80">
-            <video
-              ref="videoRef"
-              :key="videoIndexAtual"
-              class="rounded-xl"
-              width="1100"
-              height="619"
-              autoplay
-              muted
-              playsinline
-              @ended="avancarVideo"
-            >
-              <source
-                :src="videosPlaylist[videoIndexAtual]"
-                type="video/mp4"
-              >
-            </video>
+          <UCard
+            class="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-primary-600 dark:bg-primary-700/80"
+            :ui="{ body: 'relative flex min-h-0 flex-1 p-0 sm:p-0' }"
+          >
+            <div class="absolute inset-0 overflow-hidden bg-black">
+              <iframe
+                :src="youtubePlaylistUrl"
+                title="Vídeos informativos"
+                class="size-full pointer-events-none border-0"
+                allow="autoplay; encrypted-media"
+                referrerpolicy="strict-origin-when-cross-origin"
+              />
+            </div>
 
             <div
               v-if="ultimoChamado"
