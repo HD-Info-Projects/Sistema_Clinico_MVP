@@ -347,8 +347,9 @@ onUnmounted(() => {
         icon="i-lucide-circle-alert"
       />
 
-      <div class="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
+      <div class="grid min-w-0 grid-cols-1 items-stretch gap-4 lg:grid-cols-2 lg:gap-6">
         <ChartResumo
+          class="h-full"
           :total="resumoTotal"
           :agendados="dados.resumo.agendados"
           :fila="dados.resumo.emEspera"
@@ -358,7 +359,7 @@ onUnmounted(() => {
         />
 
         <UCard
-          class=""
+          class="h-full"
           :ui="{ body: '' }"
         >
           <template #title>
@@ -370,7 +371,7 @@ onUnmounted(() => {
                 v-model="selectedEspecialidade"
                 :items="especialidades"
                 placeholder="Filtrar por especialidade"
-                clearable
+                clear
                 size="sm"
                 class="w-full sm:w-56"
               />
@@ -385,8 +386,8 @@ onUnmounted(() => {
               :ui="{ container: 'p-1 sm:p-1' }"
               @click="selecionarMedico(medico.id)"
             >
-              <div class="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-3 items-center">
-                <div class="col-span-2">
+              <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-3">
+                <div>
                   <div class="flex items-center gap-3">
                     <UAvatar
                       :alt="medico.nome"
@@ -477,7 +478,7 @@ onUnmounted(() => {
               value-key="value"
               label-key="label"
               placeholder="Filtrar por tipo"
-              clearable
+              clear
               size="sm"
               class="w-full sm:w-56"
               @update:model-value="selecionarTipo"
@@ -495,7 +496,7 @@ onUnmounted(() => {
             class="grid grid-cols-1 gap-3 rounded-lg border border-muted p-3 md:grid-cols-[80px_1.5fr_1fr_1fr_120px_120px]"
           >
             <USkeleton class="h-5 w-16" />
-            <div class="col-span-2 space-y-2">
+            <div class="space-y-2 md:col-span-2">
               <USkeleton class="h-5 w-48 max-w-full" />
               <USkeleton class="h-4 w-32 max-w-full" />
             </div>
@@ -529,7 +530,7 @@ onUnmounted(() => {
             :ui="{ container: 'px-4 sm:p-1 sm:px-4' }"
           >
             <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-7 md:items-center">
-              <div class="col-span-2">
+              <div class="sm:col-span-2">
                 <p class="text-sm text-muted font-bold sm:text-left">
                   Paciente
                 </p>
@@ -562,7 +563,7 @@ onUnmounted(() => {
                 </p>
               </div>
 
-              <div class="col-span-2 md:col-span-1 ">
+              <div class="sm:col-span-2 md:col-span-1">
                 <p class="text-sm text-muted font-bold">
                   Contato
                 </p>
@@ -576,7 +577,7 @@ onUnmounted(() => {
                 </div>
               </div>
 
-              <div class="col-span-2 md:col-span-1">
+              <div class="sm:col-span-2 md:col-span-1">
                 <p class="text-sm text-muted font-bold">
                   Médico
                 </p>

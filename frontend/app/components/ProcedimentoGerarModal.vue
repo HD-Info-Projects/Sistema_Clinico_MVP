@@ -719,6 +719,7 @@ onUnmounted(() => {
                     label="Adicionar"
                     color="primary"
                     variant="soft"
+                    class="w-full justify-center sm:w-auto"
                     :disabled="!podeEditar || !procedimentoSelecionado"
                     @click="adicionarProcedimento(procedimentoSelecionado)"
                   />
@@ -989,6 +990,7 @@ onUnmounted(() => {
                     label="Adicionar"
                     color="primary"
                     variant="soft"
+                    class="w-full justify-center sm:w-auto"
                     :disabled="!podeEditar || !opmeNome.trim()"
                     @click="adicionarOpme"
                   />

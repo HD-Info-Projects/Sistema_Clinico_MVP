@@ -479,7 +479,7 @@ watch(() => auth.activeClinicaId, () => {
             </p>
           </template>
           <div class="space-y-4">
-            <div class="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
+            <div class="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 xl:grid-cols-6 2xl:grid-cols-7">
               <div class="grid grid-cols-2 items-end gap-2 sm:col-span-2 xl:col-span-2 2xl:col-span-3 2xl:grid-cols-[6rem_1fr_auto_1fr]">
                 <UFormField
                   label="Ano"
@@ -577,8 +577,9 @@ watch(() => auth.activeClinicaId, () => {
         icon="i-lucide-circle-alert"
       />
 
-      <div class="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 items-center gap-4">
+      <div class="grid w-full grid-cols-1 items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <CardInformativo
+          class="h-full"
           titulo="Taxa de Recuperação"
           :valor="taxaRecuperacao"
           medida="%"
@@ -586,24 +587,28 @@ watch(() => auth.activeClinicaId, () => {
           icone="i-lucide-trending-up"
         />
         <CardInformativo
+          class="h-full"
           titulo="Desistentes"
           :valor="totalNaoConfirmado"
           cor="quinary"
           icone="lucide:user-round-x"
         />
         <CardInformativo
+          class="h-full"
           titulo="Faltou"
           :valor="totalFaltou"
           cor="error"
           icone="i-lucide-calendar-x"
         />
         <CardInformativo
+          class="h-full"
           titulo="Sem contato"
           :valor="totalSemContato"
           cor="secondary"
           icone="i-lucide-clock"
         />
         <CardInformativo
+          class="h-full"
           titulo="Lista de resgate"
           :valor="totalFiltrado"
           cor="tertiary"
@@ -768,7 +773,7 @@ watch(() => auth.activeClinicaId, () => {
             :ui="{ container: 'p-1 sm:p-1' }"
           >
             <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-8 md:items-center">
-              <div class="col-span-2">
+              <div class="sm:col-span-2">
                 <p class="text-sm text-muted font-bold text-center sm:text-left">
                   Paciente
                 </p>
@@ -829,7 +834,7 @@ watch(() => auth.activeClinicaId, () => {
                 />
               </div>
 
-              <div class="col-span-2 md:col-span-2 text-center">
+              <div class="text-center sm:col-span-2 md:col-span-2">
                 <p class="text-sm text-muted font-bold">
                   Ações
                 </p>

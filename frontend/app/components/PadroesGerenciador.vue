@@ -146,8 +146,11 @@ function activeTabEmpty(): boolean {
 
 <template>
   <div class="space-y-6">
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-      <UCard>
+    <div class="grid grid-cols-1 items-stretch gap-6 md:grid-cols-2 xl:grid-cols-4">
+      <UCard
+        class="flex h-full flex-col"
+        :ui="{ body: 'flex flex-1 flex-col' }"
+      >
         <template #title>
           <div class="flex items-center gap-2">
             <UIcon
@@ -166,7 +169,7 @@ function activeTabEmpty(): boolean {
           </p>
         </template>
 
-        <div class="flex flex-col gap-2 sm:flex-row">
+        <div class="mt-auto flex flex-col gap-2 sm:flex-row">
           <UButton
             icon="i-lucide-plus"
             label="Novo Modelo"
@@ -184,7 +187,10 @@ function activeTabEmpty(): boolean {
         </div>
       </UCard>
 
-      <UCard>
+      <UCard
+        class="flex h-full flex-col"
+        :ui="{ body: 'flex flex-1 flex-col' }"
+      >
         <template #title>
           <div class="flex items-center gap-2">
             <UIcon
@@ -203,7 +209,7 @@ function activeTabEmpty(): boolean {
           </p>
         </template>
 
-        <div class="flex flex-col gap-2 sm:flex-row">
+        <div class="mt-auto flex flex-col gap-2 sm:flex-row">
           <UButton
             icon="i-lucide-plus"
             label="Novo Modelo"
@@ -221,7 +227,10 @@ function activeTabEmpty(): boolean {
         </div>
       </UCard>
 
-      <UCard>
+      <UCard
+        class="flex h-full flex-col"
+        :ui="{ body: 'flex flex-1 flex-col' }"
+      >
         <template #title>
           <div class="flex items-center gap-2">
             <UIcon
@@ -240,7 +249,7 @@ function activeTabEmpty(): boolean {
           </p>
         </template>
 
-        <div class="flex flex-col gap-2 sm:flex-row">
+        <div class="mt-auto flex flex-col gap-2 sm:flex-row">
           <UButton
             icon="i-lucide-plus"
             label="Novo Modelo"
@@ -258,7 +267,10 @@ function activeTabEmpty(): boolean {
         </div>
       </UCard>
 
-      <UCard>
+      <UCard
+        class="flex h-full flex-col"
+        :ui="{ body: 'flex flex-1 flex-col' }"
+      >
         <template #title>
           <div class="flex items-center gap-2">
             <UIcon
@@ -277,7 +289,7 @@ function activeTabEmpty(): boolean {
           </p>
         </template>
 
-        <div class="flex flex-col gap-2 sm:flex-row">
+        <div class="mt-auto flex flex-col gap-2 sm:flex-row">
           <UButton
             icon="i-lucide-plus"
             label="Novo Modelo"

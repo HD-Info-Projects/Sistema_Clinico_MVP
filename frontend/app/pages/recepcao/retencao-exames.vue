@@ -465,7 +465,7 @@ watch(() => auth.activeClinicaId, () => {
           </p>
         </template>
         <div class="space-y-4">
-          <div class="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-8">
+          <div class="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 xl:grid-cols-7 2xl:grid-cols-8">
             <div class="grid grid-cols-2 items-end gap-2 sm:col-span-2 xl:col-span-2 2xl:col-span-3 2xl:grid-cols-[6rem_1fr_auto_1fr]">
               <UFormField
                 label="Ano"
@@ -597,32 +597,37 @@ watch(() => auth.activeClinicaId, () => {
         icon="i-lucide-circle-alert"
       />
 
-      <div class="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 items-center gap-4">
+      <div class="grid w-full grid-cols-1 items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <CardRetencao
+          class="h-full"
           titulo="Exames Solicitados"
           :valor="totalExamesSolicitados"
           cor="info"
           icone="i-lucide-flask-conical"
         />
         <CardRetencao
+          class="h-full"
           titulo="Realizados"
           :valor="totalRealizadosInternamente"
           cor="success"
           icone="i-lucide-check-circle"
         />
         <CardRetencao
+          class="h-full"
           titulo="Pendentes"
           :valor="totalPendentes"
           cor="warning"
           icone="i-lucide-clock"
         />
         <CardRetencao
+          class="h-full"
           titulo="Não Convertidos"
           :valor="totalNaoConvertidos"
           cor="error"
           icone="i-lucide-x-circle"
         />
         <CardRetencao
+          class="h-full"
           titulo="Taxa de Conversão"
           :valor="taxaConversao"
           medida="%"
@@ -630,6 +635,7 @@ watch(() => auth.activeClinicaId, () => {
           icone="i-lucide-trending-up"
         />
         <CardRetencao
+          class="h-full"
           titulo="Faturamento Realizado"
           :valor="`R$ ${faturamentoRealizado.toLocaleString('pt-BR')}`"
           cor="success"
@@ -796,7 +802,7 @@ watch(() => auth.activeClinicaId, () => {
             :ui="{ container: 'p-1 sm:p-1' }"
           >
             <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-8 md:items-center">
-              <div class="col-span-2">
+              <div class="sm:col-span-2">
                 <p class="text-sm text-muted font-bold text-center sm:text-left">
                   Paciente
                 </p>
@@ -840,7 +846,7 @@ watch(() => auth.activeClinicaId, () => {
                 </p>
               </div>
 
-              <div class="col-span-2 md:col-span-1 text-center">
+              <div class="text-center sm:col-span-2 md:col-span-1">
                 <p class="text-sm text-muted font-bold">
                   Exame
                 </p>
@@ -879,7 +885,7 @@ watch(() => auth.activeClinicaId, () => {
                 />
               </div>
 
-              <div class="col-span-2 md:col-span-1 text-center">
+              <div class="text-center sm:col-span-2 md:col-span-1">
                 <p class="text-sm text-muted font-bold">
                   Valor Est.
                 </p>

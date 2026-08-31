@@ -51,7 +51,7 @@ function salvar() {
   <UModal
     v-model:open="open"
     fullscreen
-    :ui="{ content: 'max-h-dvh', body: 'min-h-0 overflow-y-auto p-0', footer: 'shrink-0' }"
+    :ui="{ content: 'h-dvh', body: 'flex min-h-0 flex-1 flex-col overflow-y-auto p-0', footer: 'shrink-0' }"
   >
     <template #header>
       <div class="flex items-center justify-between w-full">
@@ -74,7 +74,7 @@ function salvar() {
     </template>
 
     <template #body>
-      <div class="flex min-h-0 flex-col space-y-6 p-4 sm:p-6">
+      <div class="flex min-h-0 flex-1 flex-col space-y-6 p-4 sm:p-6">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <UFormField label="Paciente">
             <UInput
@@ -110,12 +110,12 @@ function salvar() {
           />
         </div>
 
-        <div class="flex min-h-0 flex-col space-y-1">
+        <div class="flex min-h-0 flex-1 flex-col space-y-1">
           <label class="text-sm font-medium">Texto da orientação</label>
           <EditorRichText
             v-model="orientacaoTexto"
             placeholder="Descreva a orientação para este exame..."
-            class="flex min-h-72 flex-col"
+            class="flex min-h-72 flex-1 flex-col"
           />
         </div>
       </div>

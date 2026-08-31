@@ -468,6 +468,26 @@ function activeTabEmpty(): boolean {
       </UCard>
     </div>
 
+    <PadraoReceitaModal
+      v-model:open="showReceitaModal"
+      :padrao="editingReceita"
+    />
+
+    <PadraoExameModal
+      v-model:open="showExameModal"
+      :padrao="editingExame"
+    />
+
+    <PadraoAnamneseModal
+      v-model:open="showAnamneseModal"
+      :padrao="editingAnamnese"
+    />
+
+    <PadraoOrientacaoModal
+      v-model:open="showOrientacaoModal"
+      :padrao="editingOrientacao"
+    />
+
     <ModalConfirmacao
       :abrir="confirmDeleteId !== null"
       titulo="Excluir padrão?"

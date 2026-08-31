@@ -32,7 +32,7 @@ async function selecionar(id: number) {
 </script>
 
 <template>
-  <div class="relative z-10 mx-4 w-full max-w-lg rounded-xl bg-default/95 p-4 shadow-xl sm:p-6">
+  <div class="relative z-10 m-auto w-[calc(100%-2rem)] max-w-lg rounded-xl bg-default/95 p-4 shadow-xl sm:p-6">
     <h1 class="text-xl font-bold mb-2">
       Selecione a Unidade
     </h1>

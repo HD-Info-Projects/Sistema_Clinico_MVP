@@ -40,14 +40,13 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return
   }
 
-  // Seleção de unidade — admins podem acessar sempre; demais apenas sem clínica ativa
+  // Seleção de unidade — admins podem acessar sempre; médico/recepção apenas com múltiplas clínicas
   if (to.path === '/selecionar-clinica') {
-    if (!auth.isAdmin && auth.activeClinicaId) {
-      if (['dpo', 'ti'].includes(auth.user?.role || '')) return navigateTo('/lgpd/auditoria')
-      if (auth.isRecepcao) return navigateTo('/recepcao')
-      return navigateTo('/dashboard')
-    }
-    return
+    if (auth.isAdmin) return
+    if (auth.clinicas.length > 1 && (auth.isMedico || auth.isRecepcao)) return
+    if (['dpo', 'ti'].includes(auth.user?.role || '')) return navigateTo('/lgpd/auditoria')
+    if (auth.isRecepcao) return navigateTo('/recepcao')
+    return navigateTo('/dashboard')
   }
 
   // Admin sem modo definido deve escolher o acesso antes de navegar

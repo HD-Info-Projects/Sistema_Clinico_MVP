@@ -494,7 +494,7 @@ function voltarDashboard() {
     <USidebar
       v-model:open="open"
       collapsible="icon"
-      class="max-w-full min-h-0"
+      class="max-w-full min-h-0 shrink-0"
       :style="{ '--sidebar-width': 'min(35rem, 100vw)' }"
     >
       <template #header>
@@ -523,7 +523,10 @@ function voltarDashboard() {
           </p>
         </div>
       </div>
-      <div class="flex min-h-0 flex-1 flex-col items-center gap-1 overflow-hidden">
+      <div
+        ref="historicoScrollRef"
+        class="flex min-h-0 w-full flex-1 flex-col items-center gap-1 overflow-y-auto"
+      >
         <USeparator />
         <div class="flex flex-col items-center justify-center gap-2">
           <div class="flex items-center gap-1">
@@ -585,8 +588,7 @@ function voltarDashboard() {
         </div>
         <USeparator />
         <div
-          ref="historicoScrollRef"
-          class="min-h-0 w-full flex-1 overflow-y-auto px-2"
+          class="w-full px-2"
         >
           <UTimeline
             :items="historicoItemsVisiveis"
@@ -679,7 +681,7 @@ function voltarDashboard() {
         </div>
       </div>
     </USidebar>
-    <main class="min-h-0 min-w-0 flex-1 overflow-y-auto bg-neutral-100 dark:bg-neutral-950">
+    <main class="min-h-0 min-w-0 flex-1 overflow-hidden bg-neutral-100 dark:bg-neutral-950">
       <slot />
     </main>
   </div>

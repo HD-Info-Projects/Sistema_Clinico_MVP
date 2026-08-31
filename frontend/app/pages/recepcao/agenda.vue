@@ -297,7 +297,7 @@ const statuses: { id: string, name: string, color: string }[] = [
           size="sm"
           class="w-full"
         />
-        <div class="flex flex-wrap gap-2 sm:col-span-2 xl:col-span-1">
+        <div class="grid grid-cols-2 gap-2 sm:col-span-2 sm:grid-cols-3 xl:col-span-1 xl:grid-cols-6">
           <UButton
             v-for="status in filtrosStatus"
             :key="status.value || 'todos'"
@@ -305,7 +305,7 @@ const statuses: { id: string, name: string, color: string }[] = [
             :color="status.value ? corStatus(status.value) : 'neutral'"
             :variant="selectedStatus === status.value ? 'solid' : 'soft'"
             size="sm"
-            class="min-h-10 flex-1 sm:flex-none"
+            class="min-h-10 w-full justify-center"
             @click="void (selectedStatus = status.value)"
           />
         </div>
@@ -315,9 +315,9 @@ const statuses: { id: string, name: string, color: string }[] = [
           value-key="value"
           label-key="label"
           placeholder="Filtrar por tipo"
-          clearable
+          clear
           size="sm"
-          class="w-full"
+          class="w-full sm:col-span-2 xl:col-span-1"
           @update:model-value="selecionarTipo"
         />
       </div>
@@ -365,7 +365,7 @@ const statuses: { id: string, name: string, color: string }[] = [
         />
       </div>
 
-      <div class="flex flex-wrap gap-2">
+      <div class="flex flex-wrap justify-center gap-2 sm:justify-start">
         <UBadge
           :label="`${resumo.agendados} agendados`"
           color="warning"
@@ -420,17 +420,17 @@ const statuses: { id: string, name: string, color: string }[] = [
           <div
             v-for="linha in 5"
             :key="linha"
-            class="grid grid-cols-1 gap-3 rounded-lg border border-muted p-3 md:grid-cols-[80px_1.5fr_1fr_1fr_120px_120px]"
+            class="grid grid-cols-1 gap-3 rounded-lg border border-muted p-3 sm:grid-cols-2 md:grid-cols-7 md:items-center"
           >
-            <USkeleton class="h-5 w-16" />
-            <div class="col-span-2 space-y-2">
+            <div class="space-y-2 sm:col-span-2">
               <USkeleton class="h-5 w-48 max-w-full" />
               <USkeleton class="h-4 w-32 max-w-full" />
             </div>
+            <USkeleton class="mx-auto h-5 w-16 md:mx-0" />
             <USkeleton class="h-5 w-36 max-w-full" />
             <USkeleton class="h-5 w-40 max-w-full" />
-            <USkeleton class="h-6 w-24 rounded-full" />
-            <USkeleton class="h-6 w-24 rounded-full" />
+            <USkeleton class="mx-auto h-6 w-24 rounded-full md:mx-0" />
+            <USkeleton class="mx-auto h-6 w-24 rounded-full md:mx-0" />
           </div>
         </div>
 
@@ -451,11 +451,11 @@ const statuses: { id: string, name: string, color: string }[] = [
             :ui="{ container: 'p-1 sm:p-1' }"
           >
             <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-7 md:items-center">
-              <div class="col-span-2">
-                <p class="text-sm text-muted font-bold text-center sm:text-left">
+              <div class="sm:col-span-2">
+                <p class="text-sm text-muted font-bold">
                   Paciente
                 </p>
-                <div class="flex min-w-0 items-center justify-center gap-3 sm:justify-start">
+                <div class="flex min-w-0 items-center gap-3">
                   <UAvatar
                     :alt="item.paciente"
                     color="primary"
@@ -473,7 +473,7 @@ const statuses: { id: string, name: string, color: string }[] = [
                 </div>
               </div>
 
-              <div class="md:col-span-1 text-center">
+              <div class="text-center md:text-left">
                 <p class="text-sm text-muted font-bold">
                   Horário
                 </p>
@@ -482,7 +482,7 @@ const statuses: { id: string, name: string, color: string }[] = [
                 </p>
               </div>
 
-              <div class="md:col-span-1 text-center">
+              <div class="text-left">
                 <p class="text-sm text-muted font-bold">
                   Contato
                 </p>
@@ -496,7 +496,7 @@ const statuses: { id: string, name: string, color: string }[] = [
                 </div>
               </div>
 
-              <div class="md:col-span-1 text-center">
+              <div class="text-left">
                 <p class="text-sm text-muted font-bold">
                   Médico
                 </p>
@@ -510,7 +510,7 @@ const statuses: { id: string, name: string, color: string }[] = [
                 </div>
               </div>
 
-              <div class="md:col-span-1 text-center">
+              <div class="text-center md:text-left">
                 <p class="text-sm text-muted font-bold">
                   Tipo
                 </p>
@@ -527,7 +527,7 @@ const statuses: { id: string, name: string, color: string }[] = [
                 </p>
               </div>
 
-              <div class="md:col-span-1 text-center">
+              <div class="text-center md:text-left">
                 <p class="text-sm text-muted font-bold">
                   Status
                 </p>

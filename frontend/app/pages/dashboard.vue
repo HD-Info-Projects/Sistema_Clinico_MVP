@@ -343,17 +343,18 @@ const tempoMedioEspera = computed(() => {
       </div>
       <div
         v-if="!agendamentosStore.loading && temPacientesDashboard"
-        class="grid grid-cols-1 md:grid-cols-2 gap-6"
+        class="grid grid-cols-1 items-stretch gap-6 md:grid-cols-2"
       >
         <ChartResumo
+          class="h-full"
           :total="totalPacientesDashboard"
           :fila="agendamentosStore.fila.length"
           :em-atendimento="agendamentosStore.emAtendimento ? 1 : 0"
           :atendidos="agendamentosStore.totalAtendidos"
           :faltas="agendamentosStore.totalFaltas"
         />
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center ">
-          <UPageCard>
+        <div class="grid grid-cols-1 items-stretch gap-2 sm:grid-cols-2">
+          <UPageCard class="h-full">
             <div class="flex flex-col gap-2 items-center">
               <div class="flex items-center gap-2">
                 <div class="size-3 bg-warning rounded-full" />
@@ -366,7 +367,7 @@ const tempoMedioEspera = computed(() => {
               </p>
             </div>
           </UPageCard>
-          <UPageCard>
+          <UPageCard class="h-full">
             <div class="flex flex-col gap-2 items-center">
               <div class="flex items-center gap-2">
                 <div class="size-3 bg-azu-500 rounded-full" />
@@ -379,7 +380,7 @@ const tempoMedioEspera = computed(() => {
               </p>
             </div>
           </UPageCard>
-          <UPageCard>
+          <UPageCard class="h-full">
             <div class="flex flex-col gap-2 items-center">
               <div class="flex items-center gap-2">
                 <div class="size-3 bg-success rounded-full" />
@@ -392,7 +393,7 @@ const tempoMedioEspera = computed(() => {
               </p>
             </div>
           </UPageCard>
-          <UPageCard>
+          <UPageCard class="h-full">
             <div class="flex flex-col gap-2 items-center">
               <div class="flex items-center gap-2">
                 <div class="size-3 bg-error rounded-full" />
@@ -409,34 +410,34 @@ const tempoMedioEspera = computed(() => {
       </div>
       <div
         v-else-if="agendamentosStore.loading"
-        class="grid grid-cols-1 md:grid-cols-2 gap-6"
+        class="grid grid-cols-1 items-stretch gap-6 md:grid-cols-2"
       >
-        <UPageCard>
+        <UPageCard class="h-full">
           <div class="flex flex-col gap-4 items-center justify-center h-full">
             <USkeleton class="h-40 w-40" />
             <USkeleton class="h-4 w-48" />
           </div>
         </UPageCard>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
-          <UPageCard>
+        <div class="grid grid-cols-1 items-stretch gap-2 sm:grid-cols-2">
+          <UPageCard class="h-full">
             <div class="flex flex-col gap-3 items-center">
               <USkeleton class="h-5 w-32" />
               <USkeleton class="h-8 w-20" />
             </div>
           </UPageCard>
-          <UPageCard>
+          <UPageCard class="h-full">
             <div class="flex flex-col gap-3 items-center">
               <USkeleton class="h-5 w-32" />
               <USkeleton class="h-8 w-20" />
             </div>
           </UPageCard>
-          <UPageCard>
+          <UPageCard class="h-full">
             <div class="flex flex-col gap-3 items-center">
               <USkeleton class="h-5 w-32" />
               <USkeleton class="h-8 w-20" />
             </div>
           </UPageCard>
-          <UPageCard>
+          <UPageCard class="h-full">
             <div class="flex flex-col gap-3 items-center">
               <USkeleton class="h-5 w-32" />
               <USkeleton class="h-8 w-20" />
@@ -478,7 +479,7 @@ const tempoMedioEspera = computed(() => {
             :ui="{ container: 'p-1 sm:p-1' }"
           >
             <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-7 md:items-center">
-              <div class="col-span-2">
+              <div class="sm:col-span-2">
                 <p class="text-sm text-muted font-bold text-center sm:text-left">
                   Paciente
                 </p>
@@ -499,7 +500,7 @@ const tempoMedioEspera = computed(() => {
                 </div>
               </div>
 
-              <div class="col-span-2 md:col-span-1 text-center">
+              <div class="text-center sm:col-span-2 md:col-span-1">
                 <p class="text-sm text-muted font-bold">
                   Horário
                 </p>
@@ -530,7 +531,7 @@ const tempoMedioEspera = computed(() => {
                 />
               </div>
 
-              <div class="col-span-2 md:col-span-2 text-center">
+              <div class="text-center sm:col-span-2 md:col-span-2">
                 <p class="text-sm text-muted font-bold">
                   Ações
                 </p>
@@ -594,7 +595,7 @@ const tempoMedioEspera = computed(() => {
             :ui="{ container: 'p-1 sm:p-1' }"
           >
             <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-7 md:items-center">
-              <div class="col-span-2">
+              <div class="sm:col-span-2">
                 <p class="text-sm text-muted font-bold text-center sm:text-left">
                   Paciente
                 </p>
@@ -615,7 +616,7 @@ const tempoMedioEspera = computed(() => {
                 </div>
               </div>
 
-              <div class="col-span-2 md:col-span-1 text-center">
+              <div class="text-center sm:col-span-2 md:col-span-1">
                 <p class="text-sm text-muted font-bold">
                   Horário
                 </p>
@@ -646,7 +647,7 @@ const tempoMedioEspera = computed(() => {
                 />
               </div>
 
-              <div class="col-span-2 md:col-span-2 text-center">
+              <div class="text-center sm:col-span-2 md:col-span-2">
                 <p class="text-sm text-muted font-bold">
                   Ações
                 </p>

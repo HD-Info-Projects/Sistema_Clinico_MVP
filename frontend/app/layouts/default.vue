@@ -1,13 +1,9 @@
 <script setup lang="ts">
 const auth = useAuthStore()
 
-const open = ref(false)
+const open = ref(true)
 const isDesktop = useMediaQuery('(min-width: 1024px)')
 const route = useRoute()
-
-watch(isDesktop, (desktop) => {
-  open.value = desktop
-}, { immediate: true })
 
 watch(
   () => route.fullPath,
@@ -22,6 +18,11 @@ provide('openNav', () => {
 
 const unidadeAtivaLabel = computed(() => auth.activeClinica?.nome || 'Sem unidade')
 const podeTrocarUnidade = computed(() => auth.clinicas.length > 1)
+
+function trocarUnidade() {
+  if (!isDesktop.value) open.value = false
+  return navigateTo('/selecionar-clinica')
+}
 
 const navItems = computed(() => [
   ...(auth.user?.role === 'medico'
@@ -83,7 +84,7 @@ function trocarAcesso() {
               color="neutral"
               variant="ghost"
               class="w-full justify-start"
-              to="/selecionar-clinica"
+              @click="trocarUnidade()"
             />
             <UButton
               v-if="auth.isAdmin"

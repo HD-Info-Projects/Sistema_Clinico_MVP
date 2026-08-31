@@ -1,12 +1,8 @@
 <script setup lang="ts">
 const auth = useAuthStore()
-const open = ref(false)
+const open = ref(true)
 const isDesktop = useMediaQuery('(min-width: 1024px)')
 const route = useRoute()
-
-watch(isDesktop, (desktop) => {
-  open.value = desktop
-}, { immediate: true })
 
 watch(
   () => route.fullPath,

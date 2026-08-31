@@ -960,9 +960,9 @@ async function finalizarConsulta() {
       size="lg"
       :ui="{
         content: 'flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden',
-        list: 'shrink-0 justify-start overflow-x-auto bg-default/75 backdrop-blur border-b border-default rounded-tl-none rounded-tr-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
-        trigger: 'min-w-fit flex-none shrink-0 px-2 sm:px-3',
-        label: 'whitespace-nowrap text-xs sm:text-sm'
+        list: 'w-full shrink-0 bg-default/75 backdrop-blur border-b border-default rounded-tl-none rounded-tr-none',
+        trigger: 'flex-1 px-2 sm:px-3',
+        label: 'sr-only sm:not-sr-only sm:whitespace-nowrap sm:text-sm'
       }"
       class="min-h-0 min-w-0 flex-1 overflow-hidden"
     >

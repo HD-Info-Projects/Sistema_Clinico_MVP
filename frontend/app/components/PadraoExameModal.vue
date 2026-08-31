@@ -230,6 +230,7 @@ async function salvar() {
               label="Adicionar"
               color="primary"
               variant="soft"
+              class="w-full justify-center sm:w-auto"
               :disabled="!buscaTermo.trim()"
               @click="adicionarExameManual"
             />

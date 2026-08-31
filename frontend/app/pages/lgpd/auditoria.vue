@@ -110,21 +110,23 @@ onMounted(() => {
 
 <template>
   <div class="min-h-screen space-y-6 bg-slate-50 p-4 dark:bg-slate-950 sm:p-6">
-    <UButton
-      icon="i-lucide-panel-left"
-      label="Abrir menu"
-      color="neutral"
-      variant="ghost"
-      class="min-h-11 lg:hidden"
-      @click="openNav()"
-    />
     <header class="flex flex-col gap-2">
-      <UBadge
-        label="LGPD"
-        color="info"
-        variant="soft"
-        class="w-fit"
-      />
+      <div class="flex items-center gap-2">
+        <UButton
+          icon="i-lucide-panel-left"
+          label="Abrir menu"
+          color="neutral"
+          variant="ghost"
+          class="min-h-11 lg:hidden"
+          @click="openNav()"
+        />
+        <UBadge
+          label="LGPD"
+          color="info"
+          variant="soft"
+          class="w-fit"
+        />
+      </div>
       <h1 class="text-2xl font-semibold text-slate-900 dark:text-slate-100 sm:text-3xl">
         Auditoria LGPD
       </h1>

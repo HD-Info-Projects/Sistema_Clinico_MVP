@@ -57,36 +57,38 @@ const options = {
 </script>
 
 <template>
-  <div class="relative h-56 w-full min-w-0 sm:h-64">
-    <ClientOnly>
-      <Doughnut
-        :data="data"
-        :options="options"
-        class="aspect-square h-full max-w-full"
-        role="img"
-        aria-label="Gráfico dos motivos de faltas"
-      />
-      <template #fallback>
-        <div class="flex h-full items-center justify-center gap-4 sm:gap-8">
-          <div class="size-40 sm:size-48 rounded-full bg-neutral-200 dark:bg-neutral-800 animate-pulse" />
-          <div class="space-y-3">
-            <div
-              v-for="i in 3"
-              :key="i"
-              class="h-4 w-16 sm:w-24 bg-neutral-200 dark:bg-neutral-800 rounded animate-pulse"
-            />
+  <div class="flex h-56 w-full min-w-0 justify-center sm:h-64">
+    <div class="relative h-full w-full max-w-sm">
+      <ClientOnly>
+        <Doughnut
+          :data="data"
+          :options="options"
+          class="mx-auto h-full max-w-full"
+          role="img"
+          aria-label="Gráfico dos motivos de faltas"
+        />
+        <template #fallback>
+          <div class="flex h-full items-center justify-center gap-4 sm:gap-8">
+            <div class="size-40 rounded-full bg-neutral-200 animate-pulse sm:size-48 dark:bg-neutral-800" />
+            <div class="space-y-3">
+              <div
+                v-for="i in 3"
+                :key="i"
+                class="h-4 w-16 rounded bg-neutral-200 animate-pulse sm:w-24 dark:bg-neutral-800"
+              />
+            </div>
           </div>
+        </template>
+      </ClientOnly>
+      <div class="pointer-events-none absolute inset-0 mb-8 flex items-center justify-center">
+        <div class="text-center">
+          <p class="text-3xl font-bold sm:text-4xl">
+            {{ props.total }}
+          </p>
+          <p class="text-xs text-muted">
+            Total
+          </p>
         </div>
-      </template>
-    </ClientOnly>
-    <div class="pointer-events-none absolute inset-0 mb-8 flex items-center justify-center">
-      <div class="text-center">
-        <p class="text-3xl font-bold sm:text-4xl">
-          {{ props.total }}
-        </p>
-        <p class="text-xs text-muted">
-          Total
-        </p>
       </div>
     </div>
   </div>

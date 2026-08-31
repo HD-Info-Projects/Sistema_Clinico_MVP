@@ -46,7 +46,7 @@ async function salvar() {
   <UModal
     v-model:open="open"
     fullscreen
-    :ui="{ content: 'max-h-dvh', body: 'min-h-0 overflow-y-auto p-0', footer: 'shrink-0' }"
+    :ui="{ content: 'h-dvh', body: 'flex min-h-0 flex-1 flex-col overflow-y-auto p-0', footer: 'shrink-0' }"
   >
     <template #header>
       <div class="flex items-center justify-between w-full">
@@ -69,7 +69,7 @@ async function salvar() {
     </template>
 
     <template #body>
-      <div class="flex min-h-0 flex-col space-y-6 p-4 sm:p-6">
+      <div class="flex min-h-0 flex-1 flex-col space-y-6 p-4 sm:p-6">
         <div class="space-y-1 flex flex-col">
           <label class="text-sm font-medium">Nome do modelo</label>
           <UInput
@@ -79,12 +79,12 @@ async function salvar() {
           />
         </div>
 
-        <div class="flex min-h-0 flex-col space-y-1">
+        <div class="flex min-h-0 flex-1 flex-col space-y-1">
           <label class="text-sm font-medium">Conteúdo da Anamnese</label>
           <EditorRichText
             v-model="conteudo"
             placeholder="Descreva o padrão de anamnese..."
-            class="flex min-h-72 flex-col"
+            class="flex min-h-72 flex-1 flex-col"
           />
         </div>
       </div>

@@ -693,7 +693,7 @@ function dropdownItems(ag: AgendamentoComPaciente) {
                   </span>
                   <span
                     v-if="ag.paciente.email"
-                    class="inline-flex items-center gap-1"
+                    class="inline-flex min-w-0 items-center gap-1 break-all"
                   >
                     <UIcon
                       name="i-lucide-mail"
