@@ -1076,7 +1076,7 @@ async function finalizarConsulta() {
                 :key="i"
                 class="flex min-w-0 flex-col gap-2 rounded-lg border border-muted p-2 sm:flex-row sm:items-center sm:justify-between"
               >
-                <span class="min-w-0 break-words text-sm">
+                <span class="min-w-0 wrap-break-word text-sm">
                   {{ cid.cid }} — {{ cid.nome }}
                   <UBadge
                     v-if="i === 0"
@@ -1337,7 +1337,7 @@ async function finalizarConsulta() {
                     :key="i"
                     class="flex min-w-0 flex-col gap-2 rounded-lg border border-muted p-3 sm:flex-row sm:items-center sm:justify-between"
                   >
-                    <span class="min-w-0 break-words text-sm">{{ exameItem.nome }}</span>
+                    <span class="min-w-0 wrap-break-word text-sm">{{ exameItem.nome }}</span>
                     <div class="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:shrink-0 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
                       <UButton
                         variant="link"

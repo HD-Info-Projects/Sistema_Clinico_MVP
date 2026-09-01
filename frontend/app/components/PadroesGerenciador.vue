@@ -157,14 +157,14 @@ function activeTabEmpty(): boolean {
               name="i-lucide-pill"
               class="text-primary"
             />
-            <p class="min-w-0 break-words font-semibold">
+            <p class="min-w-0 wrap-break-word font-semibold">
               Receitas Médicas
             </p>
           </div>
         </template>
 
         <template #description>
-          <p class="break-words text-sm text-muted">
+          <p class="wrap-break-word text-sm text-muted">
             Modelos de receita com listas de medicamentos pré-definidos.
           </p>
         </template>
@@ -197,14 +197,14 @@ function activeTabEmpty(): boolean {
               name="i-lucide-flask-conical"
               class="text-primary"
             />
-            <p class="min-w-0 break-words font-semibold">
+            <p class="min-w-0 wrap-break-word font-semibold">
               Pedidos de Exames
             </p>
           </div>
         </template>
 
         <template #description>
-          <p class="break-words text-sm text-muted">
+          <p class="wrap-break-word text-sm text-muted">
             Conjuntos de exames para solicitação. No atendimento você seleciona quais entrarão no pedido.
           </p>
         </template>
@@ -237,14 +237,14 @@ function activeTabEmpty(): boolean {
               name="i-lucide-notebook-text"
               class="text-primary"
             />
-            <p class="min-w-0 break-words font-semibold">
+            <p class="min-w-0 wrap-break-word font-semibold">
               Anamnese
             </p>
           </div>
         </template>
 
         <template #description>
-          <p class="break-words text-sm text-muted">
+          <p class="wrap-break-word text-sm text-muted">
             Modelos de anamnese com texto pré-formatado. No atendimento você insere o padrão no editor.
           </p>
         </template>
@@ -277,14 +277,14 @@ function activeTabEmpty(): boolean {
               name="i-lucide-message-square-text"
               class="text-primary"
             />
-            <p class="min-w-0 break-words font-semibold">
+            <p class="min-w-0 wrap-break-word font-semibold">
               Orientações de Exames
             </p>
           </div>
         </template>
 
         <template #description>
-          <p class="break-words text-sm text-muted">
+          <p class="wrap-break-word text-sm text-muted">
             Modelos de orientações impressas como folha extra junto da solicitação de exames.
           </p>
         </template>
@@ -315,7 +315,7 @@ function activeTabEmpty(): boolean {
             :name="activeTabIcon(activeTab)"
             class="text-primary"
           />
-          <p class="min-w-0 break-words font-semibold">
+          <p class="min-w-0 wrap-break-word font-semibold">
             Modelos de {{ activeTabTitulo(activeTab) }}
           </p>
         </div>
@@ -329,10 +329,10 @@ function activeTabEmpty(): boolean {
             class="flex min-w-0 flex-col gap-2 rounded-lg border border-muted p-3 hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between"
           >
             <div class="min-w-0">
-              <p class="break-words font-medium">
+              <p class="wrap-break-word font-medium">
                 {{ p.nome }}
               </p>
-              <p class="break-words text-xs text-muted">
+              <p class="wrap-break-word text-xs text-muted">
                 {{ p.medicamentos.length }} medicamento{{ p.medicamentos.length !== 1 ? 's' : '' }}
                 &middot; {{ new Date(p.updatedAt).toLocaleDateString('pt-BR') }}
               </p>
@@ -367,10 +367,10 @@ function activeTabEmpty(): boolean {
             class="flex min-w-0 flex-col gap-2 rounded-lg border border-muted p-3 hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between"
           >
             <div class="min-w-0">
-              <p class="break-words font-medium">
+              <p class="wrap-break-wordword font-medium">
                 {{ p.nome }}
               </p>
-              <p class="break-words text-xs text-muted">
+              <p class="wrap-break-wordword text-xs text-muted">
                 {{ p.exames.length }} exame{{ p.exames.length !== 1 ? 's' : '' }}
                 &middot; {{ new Date(p.updatedAt).toLocaleDateString('pt-BR') }}
               </p>
@@ -405,7 +405,7 @@ function activeTabEmpty(): boolean {
             class="flex min-w-0 flex-col gap-2 rounded-lg border border-muted p-3 hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between"
           >
             <div class="min-w-0">
-              <p class="break-words font-medium">
+              <p class="wrap-break-word font-medium">
                 {{ p.nome }}
               </p>
               <p class="text-xs text-muted">
@@ -442,7 +442,7 @@ function activeTabEmpty(): boolean {
             class="flex min-w-0 flex-col gap-2 rounded-lg border border-muted p-3 hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between"
           >
             <div class="min-w-0">
-              <p class="break-words font-medium">
+              <p class="wrap-break-word font-medium">
                 {{ p.nome }}
               </p>
               <p class="text-xs text-muted">
