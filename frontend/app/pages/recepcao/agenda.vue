@@ -299,7 +299,7 @@ const statuses: { id: string, name: string, color: string }[] = [
             :color="status.value ? corStatus(status.value) : 'neutral'"
             :variant="selectedStatus === status.value ? 'solid' : 'soft'"
             size="sm"
-            @click="selectedStatus = status.value"
+            @click="void (selectedStatus = status.value)"
           />
         </div>
         <USelectMenu
@@ -439,7 +439,7 @@ const statuses: { id: string, name: string, color: string }[] = [
           <UTable
             :columns="colunas"
             :data="atendimentosOrdenados"
-            class="min-w-[880px]"
+            class="min-w-220"
           >
             <template #horario-cell="{ row }">
               <span class="font-mono text-sm">{{ row.original.horario || '-' }}</span>

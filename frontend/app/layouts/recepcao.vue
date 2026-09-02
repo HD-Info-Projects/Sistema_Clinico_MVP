@@ -7,7 +7,8 @@ const podeTrocarUnidade = computed(() => auth.clinicas.length > 1)
 const navItems = [
   { label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: '/recepcao' },
   { label: 'Agenda', icon: 'i-lucide-calendar', to: '/recepcao/agenda' },
-  // { label: 'Cadastro', icon: 'i-lucide-user-plus', to: '/recepcao/cadastro' },
+  { label: 'Cadastro de Pacientes', icon: 'i-lucide-user-plus', to: '/recepcao/cadastro-pacientes' },
+  { label: 'Cadastro de Atendimento', icon: 'i-lucide-user-check', to: '/recepcao/cadastro-atendimento' },
   { label: 'No-show', icon: 'i-lucide-user-x', to: '/recepcao/noshow' },
   { label: 'Conversão de Exames', icon: 'i-lucide-flask-conical', to: '/recepcao/retencao-exames' }
 ]
