@@ -770,49 +770,51 @@ watch(() => auth.activeClinicaId, () => {
           <UPageCard
             v-for="item in pacientesPaginados"
             :key="item.id"
-            :ui="{ container: 'p-1 sm:p-1' }"
+            variant="ghost"
+            class="border-b border-muted rounded-none"
+            :ui="{ container: 'px-4 sm:p-1 pb-3 sm:px-4' }"
           >
-            <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-8 md:items-center">
-              <div class="sm:col-span-2">
-                <p class="text-sm text-muted font-bold text-center sm:text-left">
+            <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,2fr)] xl:items-center">
+              <div class="min-w-0 sm:col-span-2 lg:col-span-1">
+                <p class="text-sm text-muted font-bold">
                   Paciente
                 </p>
-                <div class="flex min-w-0 items-center justify-center gap-3 sm:justify-start">
+                <div class="flex min-w-0 items-center gap-3">
                   <UAvatar
                     :alt="item.nome"
                     color="primary"
                     size="sm"
                   />
                   <div class="min-w-0">
-                    <p class="break-words font-medium">
+                    <p class="wrap-break-word font-medium">
                       {{ item.nome }}
                     </p>
-                    <p class="text-xs text-muted">
+                    <p class="wrap-break-word text-xs text-muted">
                       {{ item.convenio || 'Convênio não informado' }}
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div class="md:col-span-1 text-center">
+              <div class="min-w-0">
                 <p class="text-sm text-muted font-bold">
                   Telefone
                 </p>
-                <p class="text-sm">
+                <p class="wrap-break-word text-sm">
                   {{ item.telefone || 'Não informado' }}
                 </p>
               </div>
 
-              <div class="md:col-span-1 text-center">
+              <div class="min-w-0">
                 <p class="text-sm text-muted font-bold">
                   Data da Falta
                 </p>
-                <p class="text-sm">
+                <p class="wrap-break-word text-sm">
                   {{ formatarData(item.dataFalta) }} {{ item.horario || '' }}
                 </p>
               </div>
 
-              <div class="md:col-span-1 text-center">
+              <div class="min-w-0">
                 <p class="text-sm text-muted font-bold">
                   Motivo
                 </p>
@@ -823,7 +825,7 @@ watch(() => auth.activeClinicaId, () => {
                 />
               </div>
 
-              <div class="md:col-span-1 text-center">
+              <div class="min-w-0">
                 <p class="text-sm text-muted font-bold">
                   Status
                 </p>
@@ -834,17 +836,17 @@ watch(() => auth.activeClinicaId, () => {
                 />
               </div>
 
-              <div class="text-center sm:col-span-2 md:col-span-2">
+              <div class="min-w-0 sm:col-span-2 lg:col-span-3 xl:col-span-1">
                 <p class="text-sm text-muted font-bold">
                   Ações
                 </p>
-                <div class="grid grid-cols-2 justify-center gap-2 sm:flex sm:flex-wrap sm:gap-1">
+                <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
                   <UButton
                     icon="i-lucide-phone"
                     label="Ligar"
                     size="sm"
                     color="primary"
-                    class="min-h-10"
+                    class="justify-center"
                     @click="ligar(item)"
                   />
                   <UButton
@@ -852,7 +854,7 @@ watch(() => auth.activeClinicaId, () => {
                     label="Reagendar"
                     size="sm"
                     color="warning"
-                    class="min-h-10"
+                    class="justify-center"
                     @click="reagendar(item)"
                   />
                   <UButton
@@ -860,16 +862,19 @@ watch(() => auth.activeClinicaId, () => {
                     label="Recusou"
                     size="sm"
                     color="error"
-                    class="min-h-10"
+                    class="justify-center"
                     @click="pacienteRecusouSelecionado = item; modalRecusouAberto = true"
                   />
-                  <UDropdownMenu :items="itensMais(item)">
+                  <UDropdownMenu
+                    :items="itensMais(item)"
+                    class="w-full"
+                  >
                     <UButton
                       icon="lucide:menu"
                       label="Mais"
                       size="sm"
                       color="secondary"
-                      class="min-h-10"
+                      class="w-full justify-center"
                     />
                   </UDropdownMenu>
                 </div>

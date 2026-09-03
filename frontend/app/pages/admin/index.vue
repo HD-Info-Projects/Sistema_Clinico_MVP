@@ -20,13 +20,6 @@ const ultimosUsuarios = computed(() => {
     .slice(0, 10)
 })
 
-const colunas = [
-  { accessorKey: 'nome', header: 'Nome' },
-  { accessorKey: 'role', header: 'Perfil' },
-  { accessorKey: 'email', header: 'Email' },
-  { accessorKey: 'created_at', header: 'Criado em' }
-]
-
 onMounted(() => {
   usuariosStore.fetchAll()
   unidadesStore.fetchAll()
@@ -198,40 +191,62 @@ function formatarData(data: string) {
 
         <div
           v-else
-          class="w-full overflow-x-auto"
+          class="flex flex-col"
         >
-          <UTable
-            :columns="colunas"
-            :data="ultimosUsuarios"
-            class="min-w-[42rem]"
+          <UPageCard
+            v-for="usuario in ultimosUsuarios"
+            :key="usuario.id"
+            variant="ghost"
+            class="border-b border-muted rounded-none"
+            :ui="{ container: 'px-4 sm:p-1 pb-3 sm:px-4' }"
           >
-            <template #nome-cell="{ row }">
-              <div class="flex min-w-0 items-center gap-3">
-                <UAvatar
-                  :alt="row.original.nome_completo"
-                  color="primary"
-                  size="sm"
+            <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-12 lg:items-center">
+              <div class="lg:col-span-4">
+                <p class="text-sm font-bold text-muted">
+                  Nome
+                </p>
+                <div class="flex min-w-0 items-center gap-3">
+                  <UAvatar
+                    :alt="usuario.nome_completo"
+                    color="primary"
+                    size="sm"
+                  />
+                  <p class="min-w-0 wrap-break-word font-medium">
+                    {{ usuario.nome_completo }}
+                  </p>
+                </div>
+              </div>
+
+              <div class="lg:col-span-2">
+                <p class="text-sm font-bold text-muted">
+                  Perfil
+                </p>
+                <UBadge
+                  :label="rotuloRole(usuario.role)"
+                  :color="corRole(usuario.role)"
+                  variant="subtle"
                 />
-                <p class="min-w-0 break-words font-medium">
-                  {{ row.original.nome_completo }}
+              </div>
+
+              <div class="lg:col-span-4">
+                <p class="text-sm font-bold text-muted">
+                  Email
+                </p>
+                <p class="break-all text-sm">
+                  {{ usuario.email }}
                 </p>
               </div>
-            </template>
 
-            <template #role-cell="{ row }">
-              <UBadge
-                :label="rotuloRole(row.original.role)"
-                :color="corRole(row.original.role)"
-                variant="subtle"
-              />
-            </template>
-
-            <template #created_at-cell="{ row }">
-              <span class="text-sm text-muted">
-                {{ formatarData(row.original.created_at) }}
-              </span>
-            </template>
-          </UTable>
+              <div class="lg:col-span-2">
+                <p class="text-sm font-bold text-muted">
+                  Criado em
+                </p>
+                <span class="text-sm text-muted">
+                  {{ formatarData(usuario.created_at) }}
+                </span>
+              </div>
+            </div>
+          </UPageCard>
         </div>
       </UCard>
     </div>

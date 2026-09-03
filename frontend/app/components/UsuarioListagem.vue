@@ -18,22 +18,6 @@ const confirmDeleteId = ref<number | null>(null)
 
 let buscaTimer: ReturnType<typeof setTimeout> | null = null
 
-const colunas = computed(() => {
-  const base = [
-    { accessorKey: 'nome', header: 'Nome' },
-    { accessorKey: 'email', header: 'Email' },
-    { accessorKey: 'ativo', header: 'Status' },
-    { id: 'acoes', header: 'Acoes' }
-  ]
-  if (props.role === 'medico') {
-    base.splice(1, 0,
-      { accessorKey: 'crm', header: 'CRM' },
-      { accessorKey: 'especialidade', header: 'Especialidade' }
-    )
-  }
-  return base
-})
-
 const listaFiltrada = computed(() => {
   const lista = usuariosStore.porRole(props.role)
   const termo = busca.value.trim().toLowerCase()
@@ -177,94 +161,130 @@ function onSaved() {
         v-else
         class="w-full"
       >
-        <div class="w-full overflow-x-auto">
-          <UTable
-            :columns="colunas"
-            :data="listaFiltrada"
-            :class="role === 'medico' ? 'min-w-[64rem]' : 'min-w-[46rem]'"
+        <div class="flex flex-col">
+          <UPageCard
+            v-for="usuario in listaFiltrada"
+            :key="usuario.id"
+            variant="ghost"
+            class="border-b border-muted rounded-none"
+            :ui="{ container: 'px-4 sm:p-1 pb-3 sm:px-4' }"
           >
-            <template #nome-cell="{ row }">
-              <div class="flex min-w-0 items-center gap-3">
-                <UAvatar
-                  :alt="row.original.nome_completo"
-                  color="primary"
-                  size="sm"
-                />
-                <div class="min-w-0 max-w-xs">
-                  <p class="break-words font-medium">
-                    {{ row.original.nome_completo }}
-                  </p>
-                  <p class="text-xs text-muted">
-                    {{ formatarCpfCnpj(row.original.cnpj_cpf) }}
-                  </p>
+            <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-12 lg:items-center">
+              <div :class="role === 'medico' ? 'lg:col-span-3' : 'lg:col-span-4'">
+                <p class="text-sm font-bold text-muted">
+                  Nome
+                </p>
+                <div class="flex min-w-0 items-center gap-3">
+                  <UAvatar
+                    :alt="usuario.nome_completo"
+                    color="primary"
+                    size="sm"
+                  />
+                  <div class="min-w-0">
+                    <p class="wrap-break-word font-medium">
+                      {{ usuario.nome_completo }}
+                    </p>
+                    <p class="text-xs text-muted">
+                      {{ formatarCpfCnpj(usuario.cnpj_cpf) }}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </template>
 
-            <template #crm-cell="{ row }">
-              <span class="font-mono text-sm">
-                {{ row.original.medico?.crm || row.original.medico?.crm_atendimento_spdata || '-' }}
-              </span>
-            </template>
+              <div
+                v-if="role === 'medico'"
+                class="lg:col-span-1"
+              >
+                <p class="text-sm font-bold text-muted">
+                  CRM
+                </p>
+                <span class="font-mono text-sm">
+                  {{ usuario.medico?.crm || usuario.medico?.crm_atendimento_spdata || '-' }}
+                </span>
+              </div>
 
-            <template #especialidade-cell="{ row }">
-              <UBadge
-                v-if="row.original.medico?.especialidade"
-                :label="row.original.medico.especialidade"
-                color="neutral"
-                variant="subtle"
-                size="sm"
-              />
-              <span
-                v-else
-                class="text-muted text-sm"
-              >-</span>
-            </template>
-
-            <template #ativo-cell="{ row }">
-              <UBadge
-                :label="row.original.ativo ? 'Ativo' : 'Inativo'"
-                :color="row.original.ativo ? 'success' : 'neutral'"
-                variant="subtle"
-                size="sm"
-              />
-            </template>
-
-            <template #acoes-cell="{ row }">
-              <div class="flex items-center gap-1">
-                <UButton
-                  v-if="role === 'medico'"
-                  icon="i-lucide-notebook-pen"
+              <div
+                v-if="role === 'medico'"
+                class="lg:col-span-2"
+              >
+                <p class="text-sm font-bold text-muted">
+                  Especialidade
+                </p>
+                <UBadge
+                  v-if="usuario.medico?.especialidade"
+                  :label="usuario.medico.especialidade"
                   color="neutral"
-                  variant="ghost"
+                  variant="subtle"
                   size="sm"
-                  class="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
-                  aria-label="Padroes"
-                  title="Padrões"
-                  @click="void(navigateTo(`/admin/padroes-medico/${row.original.id}`))"
                 />
-                <UButton
-                  icon="i-lucide-pencil"
-                  color="neutral"
-                  variant="ghost"
+                <span
+                  v-else
+                  class="text-sm text-muted"
+                >-</span>
+              </div>
+
+              <div :class="role === 'medico' ? 'lg:col-span-2' : 'lg:col-span-4'">
+                <p class="text-sm font-bold text-muted">
+                  Email
+                </p>
+                <p class="break-all text-sm">
+                  {{ usuario.email }}
+                </p>
+              </div>
+
+              <div :class="role === 'medico' ? 'lg:col-span-1' : 'lg:col-span-2'">
+                <p class="text-sm font-bold text-muted">
+                  Status
+                </p>
+                <UBadge
+                  :label="usuario.ativo ? 'Ativo' : 'Inativo'"
+                  :color="usuario.ativo ? 'success' : 'neutral'"
+                  variant="subtle"
                   size="sm"
-                  class="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
-                  aria-label="Editar usuario"
-                  @click="editar(row.original)"
-                />
-                <UButton
-                  icon="i-lucide-trash-2"
-                  color="error"
-                  variant="ghost"
-                  size="sm"
-                  class="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
-                  aria-label="Inativar usuario"
-                  :disabled="row.original.ativo === false"
-                  @click="confirmarExclusao(row.original.id)"
                 />
               </div>
-            </template>
-          </UTable>
+
+              <div :class="role === 'medico' ? 'sm:col-span-2 lg:col-span-3' : 'sm:col-span-2 lg:col-span-2'">
+                <p class="text-sm font-bold text-muted">
+                  Ações
+                </p>
+                <div class="flex items-center gap-1">
+                  <UButton
+                    v-if="role === 'medico'"
+                    icon="i-lucide-notebook-pen"
+                    color="neutral"
+                    variant="ghost"
+                    size="sm"
+                    class="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
+                    :aria-label="`Padrões de ${usuario.nome_completo}`"
+                    title="Padrões"
+                    @click="void(navigateTo(`/admin/padroes-medico/${usuario.id}`))"
+                  />
+                  <UButton
+                    icon="i-lucide-pencil"
+                    color="neutral"
+                    variant="ghost"
+                    size="sm"
+                    class="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
+                    :aria-label="`Editar ${usuario.nome_completo}`"
+                    title="Editar usuário"
+                    @click="editar(usuario)"
+                  />
+                  <UButton
+                    icon="i-lucide-trash-2"
+                    color="error"
+                    variant="ghost"
+                    size="sm"
+                    class="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
+                    :aria-label="`Inativar ${usuario.nome_completo}`"
+                    title="Inativar usuário"
+                    :disabled="usuario.ativo === false"
+                    @click="confirmarExclusao(usuario.id)"
+                  />
+                </div>
+              </div>
+            </div>
+          </UPageCard>
         </div>
       </UCard>
     </div>

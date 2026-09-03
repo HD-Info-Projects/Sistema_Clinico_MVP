@@ -475,15 +475,25 @@ const tempoMedioEspera = computed(() => {
           <UPageCard
             v-for="paciente in pacientesNaFila"
             :key="paciente.id"
-            class=""
-            :ui="{ container: 'p-1 sm:p-1' }"
+            variant="ghost"
+            class="border-b border-muted rounded-none"
+            :ui="{ container: 'px-4 sm:p-1 pb-3 sm:px-4' }"
           >
-            <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-7 md:items-center">
-              <div class="sm:col-span-2">
-                <p class="text-sm text-muted font-bold text-center sm:text-left">
+            <div class="grid min-w-0 grid-cols-3 gap-x-4 gap-y-3 md:grid-cols-[max-content_2fr_1fr_1fr_1fr_2fr] md:items-center">
+              <div class="hidden w-min pr-3 md:block">
+                <p class="text-sm text-muted font-bold">
+                  Horário
+                </p>
+                <p class="whitespace-nowrap font-mono text-sm">
+                  {{ paciente.horario }}
+                </p>
+              </div>
+
+              <div class="col-span-3">
+                <p class="text-sm text-muted font-bold">
                   Paciente
                 </p>
-                <div class="flex min-w-0 items-center justify-center gap-3 sm:justify-start">
+                <div class="flex min-w-0 items-center gap-3">
                   <UAvatar
                     :alt="paciente.paciente.nome"
                     color="primary"
@@ -493,23 +503,23 @@ const tempoMedioEspera = computed(() => {
                     <p class="wrap-break-word font-medium">
                       {{ paciente.paciente.nome }}
                     </p>
-                    <p class="text-xs text-muted">
+                    <p class="wrap-break-word text-xs text-muted">
                       {{ paciente.paciente.convenio }}
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div class="text-center sm:col-span-2 md:col-span-1">
+              <div class="block md:hidden">
                 <p class="text-sm text-muted font-bold">
                   Horário
                 </p>
-                <p class="whitespace-nowrap">
+                <p class="whitespace-nowrap font-mono text-sm">
                   {{ paciente.horario }}
                 </p>
               </div>
 
-              <div class="md:col-span-1 text-center">
+              <div class="text-left">
                 <p class="text-sm text-muted font-bold">
                   Prioridade
                 </p>
@@ -520,7 +530,7 @@ const tempoMedioEspera = computed(() => {
                 />
               </div>
 
-              <div class="md:col-span-1 text-center">
+              <div class="text-left">
                 <p class="text-sm text-muted font-bold">
                   Status
                 </p>
@@ -531,11 +541,11 @@ const tempoMedioEspera = computed(() => {
                 />
               </div>
 
-              <div class="text-center sm:col-span-2 md:col-span-2">
+              <div class="text-left col-span-3 md:col-span-1">
                 <p class="text-sm text-muted font-bold">
                   Ações
                 </p>
-                <div class="grid grid-cols-1 justify-center gap-2 sm:flex sm:flex-wrap sm:gap-1">
+                <div class="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:gap-1">
                   <UButton
                     icon="i-lucide-phone"
                     :label="rotuloChamada(paciente.paciente.id)"
@@ -592,14 +602,25 @@ const tempoMedioEspera = computed(() => {
           <UPageCard
             v-for="paciente in pacientesFinalizados"
             :key="paciente.id"
-            :ui="{ container: 'p-1 sm:p-1' }"
+            variant="ghost"
+            class="border-b border-muted rounded-none"
+            :ui="{ container: 'px-4 sm:p-1 pb-3 sm:px-4' }"
           >
-            <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-7 md:items-center">
+            <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-[max-content_2fr_1fr_1fr_2fr] md:items-center">
+              <div class="hidden w-min pr-3 md:block">
+                <p class="text-sm text-muted font-bold">
+                  Horário
+                </p>
+                <p class="whitespace-nowrap font-mono text-sm">
+                  {{ paciente.horario }}
+                </p>
+              </div>
+
               <div class="sm:col-span-2">
-                <p class="text-sm text-muted font-bold text-center sm:text-left">
+                <p class="text-sm text-muted font-bold">
                   Paciente
                 </p>
-                <div class="flex min-w-0 items-center justify-center gap-3 sm:justify-start">
+                <div class="flex min-w-0 items-center gap-3">
                   <UAvatar
                     :alt="paciente.paciente.nome"
                     color="primary"
@@ -609,23 +630,23 @@ const tempoMedioEspera = computed(() => {
                     <p class="wrap-break-word font-medium">
                       {{ paciente.paciente.nome }}
                     </p>
-                    <p class="text-xs text-muted">
+                    <p class="wrap-break-word text-xs text-muted">
                       {{ paciente.paciente.convenio }}
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div class="text-center sm:col-span-2 md:col-span-1">
+              <div class="block md:hidden">
                 <p class="text-sm text-muted font-bold">
                   Horário
                 </p>
-                <p class="whitespace-nowrap">
+                <p class="whitespace-nowrap font-mono text-sm">
                   {{ paciente.horario }}
                 </p>
               </div>
 
-              <div class="md:col-span-1 text-center">
+              <div class="text-left">
                 <p class="text-sm text-muted font-bold">
                   Prioridade
                 </p>
@@ -636,7 +657,7 @@ const tempoMedioEspera = computed(() => {
                 />
               </div>
 
-              <div class="md:col-span-1 text-center">
+              <div class="text-left">
                 <p class="text-sm text-muted font-bold">
                   Status
                 </p>
@@ -647,11 +668,11 @@ const tempoMedioEspera = computed(() => {
                 />
               </div>
 
-              <div class="text-center sm:col-span-2 md:col-span-2">
+              <div class="text-left sm:col-span-2 md:col-span-1">
                 <p class="text-sm text-muted font-bold">
                   Ações
                 </p>
-                <div class="flex flex-wrap justify-center gap-1">
+                <div class="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:gap-1">
                   <UButton
                     v-if="paciente.status === 'atendido'"
                     icon="i-lucide-pencil"

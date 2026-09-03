@@ -12,16 +12,6 @@ const showFormModal = ref(false)
 const editingUnidade = ref<Unidade | null>(null)
 const confirmDeleteId = ref<number | null>(null)
 
-const colunas = [
-  { accessorKey: 'id', header: 'ID' },
-  { accessorKey: 'nome', header: 'Nome' },
-  { accessorKey: 'codigo_spdata_centro_custo', header: 'Centro de Custo' },
-  { accessorKey: 'codigo_spdata_agenda', header: 'Agenda' },
-  { accessorKey: 'telefone', header: 'Telefone' },
-  { accessorKey: 'ativa', header: 'Status' },
-  { id: 'acoes', header: 'Acoes' }
-]
-
 const listaFiltrada = computed(() => {
   const lista = unidadesStore.unidades
   const termo = busca.value.trim().toLowerCase()
@@ -158,62 +148,105 @@ function onSaved() {
         v-else
         class="w-full"
       >
-        <div class="w-full overflow-x-auto">
-          <UTable
-            :columns="colunas"
-            :data="listaFiltrada"
-            class="min-w-[56rem]"
+        <div class="flex flex-col">
+          <UPageCard
+            v-for="unidade in listaFiltrada"
+            :key="unidade.id"
+            variant="ghost"
+            class="border-b border-muted rounded-none"
+            :ui="{ container: 'px-4 sm:p-1 pb-3 sm:px-4' }"
           >
-            <template #nome-cell="{ row }">
-              <div class="min-w-0 max-w-xs">
-                <p class="break-words font-medium">
-                  {{ row.original.nome }}
+            <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-12 lg:items-center">
+              <div class="lg:col-span-1">
+                <p class="text-sm font-bold text-muted">
+                  ID
                 </p>
-                <p class="break-words text-xs text-muted">
-                  {{ row.original.endereco }}
+                <p class="font-mono text-sm">
+                  {{ unidade.id }}
                 </p>
               </div>
-            </template>
 
-            <template #telefone-cell="{ row }">
-              <span class="text-sm whitespace-nowrap">
-                {{ row.original.telefone ? formatarTelefone(row.original.telefone) : '-' }}
-              </span>
-            </template>
+              <div class="lg:col-span-3">
+                <p class="text-sm font-bold text-muted">
+                  Nome
+                </p>
+                <p class="wrap-break-word font-medium">
+                  {{ unidade.nome }}
+                </p>
+                <p class="wrap-break-word text-xs text-muted">
+                  {{ unidade.endereco }}
+                </p>
+              </div>
 
-            <template #ativa-cell="{ row }">
-              <UBadge
-                :label="row.original.ativa ? 'Ativa' : 'Inativa'"
-                :color="row.original.ativa ? 'success' : 'neutral'"
-                variant="subtle"
-                size="sm"
-              />
-            </template>
+              <div class="lg:col-span-2">
+                <p class="text-sm font-bold text-muted">
+                  Centro de Custo
+                </p>
+                <p class="wrap-break-word text-sm">
+                  {{ unidade.codigo_spdata_centro_custo || '-' }}
+                </p>
+              </div>
 
-            <template #acoes-cell="{ row }">
-              <div class="flex items-center gap-1">
-                <UButton
-                  icon="i-lucide-pencil"
-                  color="neutral"
-                  variant="ghost"
+              <div class="lg:col-span-2">
+                <p class="text-sm font-bold text-muted">
+                  Agenda SPDATA
+                </p>
+                <p class="wrap-break-word text-sm">
+                  {{ unidade.codigo_spdata_agenda || '-' }}
+                </p>
+              </div>
+
+              <div class="lg:col-span-2">
+                <p class="text-sm font-bold text-muted">
+                  Telefone
+                </p>
+                <span class="whitespace-nowrap text-sm">
+                  {{ unidade.telefone ? formatarTelefone(unidade.telefone) : '-' }}
+                </span>
+              </div>
+
+              <div class="lg:col-span-1">
+                <p class="text-sm font-bold text-muted">
+                  Status
+                </p>
+                <UBadge
+                  :label="unidade.ativa ? 'Ativa' : 'Inativa'"
+                  :color="unidade.ativa ? 'success' : 'neutral'"
+                  variant="subtle"
                   size="sm"
-                  class="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
-                  aria-label="Editar unidade"
-                  @click="editar(row.original)"
-                />
-                <UButton
-                  icon="i-lucide-trash-2"
-                  color="error"
-                  variant="ghost"
-                  size="sm"
-                  class="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
-                  aria-label="Inativar unidade"
-                  :disabled="row.original.ativa === false"
-                  @click="confirmarExclusao(row.original.id)"
                 />
               </div>
-            </template>
-          </UTable>
+
+              <div class="sm:col-span-2 lg:col-span-1">
+                <p class="text-sm font-bold text-muted">
+                  Ações
+                </p>
+                <div class="flex items-center gap-1">
+                  <UButton
+                    icon="i-lucide-pencil"
+                    color="neutral"
+                    variant="ghost"
+                    size="sm"
+                    class="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
+                    :aria-label="`Editar ${unidade.nome}`"
+                    title="Editar unidade"
+                    @click="editar(unidade)"
+                  />
+                  <UButton
+                    icon="i-lucide-trash-2"
+                    color="error"
+                    variant="ghost"
+                    size="sm"
+                    class="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
+                    :aria-label="`Inativar ${unidade.nome}`"
+                    title="Inativar unidade"
+                    :disabled="unidade.ativa === false"
+                    @click="confirmarExclusao(unidade.id)"
+                  />
+                </div>
+              </div>
+            </div>
+          </UPageCard>
         </div>
       </UCard>
     </div>

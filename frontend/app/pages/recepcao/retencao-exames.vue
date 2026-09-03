@@ -799,45 +799,47 @@ watch(() => auth.activeClinicaId, () => {
           <UPageCard
             v-for="item in pacientesPaginados"
             :key="item.id"
-            :ui="{ container: 'p-1 sm:p-1' }"
+            variant="ghost"
+            class="border-b border-muted rounded-none"
+            :ui="{ container: 'px-4 sm:p-1 pb-3 sm:px-4' }"
           >
-            <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-8 md:items-center">
-              <div class="sm:col-span-2">
-                <p class="text-sm text-muted font-bold text-center sm:text-left">
+            <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1.3fr)_minmax(6.5rem,0.7fr)_minmax(0,1.5fr)_4rem_7rem_7rem] xl:items-center">
+              <div class="min-w-0 sm:col-span-2 lg:col-span-2 xl:col-span-1">
+                <p class="text-sm text-muted font-bold">
                   Paciente
                 </p>
-                <div class="flex min-w-0 items-center justify-center gap-3 sm:justify-start">
+                <div class="flex min-w-0 items-center gap-3">
                   <UAvatar
                     :alt="item.paciente"
                     color="primary"
                     size="sm"
                   />
                   <div class="min-w-0">
-                    <p class="break-words font-medium">
+                    <p class="wrap-break-word font-medium">
                       {{ item.paciente }}
                     </p>
-                    <p class="text-xs text-muted">
+                    <p class="wrap-break-word text-xs text-muted">
                       {{ item.convenio }}
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div class="md:col-span-1 text-center">
+              <div class="min-w-0">
                 <p class="text-sm text-muted font-bold">
                   Médico
                 </p>
-                <div class="text-sm">
-                  <p class="font-medium">
+                <div class="min-w-0 text-sm">
+                  <p class="wrap-break-word font-medium">
                     {{ item.medico }}
                   </p>
-                  <p class="text-xs text-muted">
+                  <p class="wrap-break-word text-xs text-muted">
                     {{ item.crm }}
                   </p>
                 </div>
               </div>
 
-              <div class="md:col-span-1 text-center">
+              <div class="min-w-0">
                 <p class="text-sm text-muted font-bold">
                   Data Solic.
                 </p>
@@ -846,23 +848,23 @@ watch(() => auth.activeClinicaId, () => {
                 </p>
               </div>
 
-              <div class="text-center sm:col-span-2 md:col-span-1">
+              <div class="min-w-0 sm:col-span-2 lg:col-span-2 xl:col-span-1">
                 <p class="text-sm text-muted font-bold">
                   Exame
                 </p>
-                <div class="text-sm">
+                <div class="min-w-0 text-sm">
                   <UTooltip :text="item.exame">
-                    <p class="mx-auto max-w-70 truncate cursor-default text-sm font-medium">
+                    <p class="wrap-break-word cursor-default text-sm font-medium">
                       {{ item.exame }}
                     </p>
                   </UTooltip>
-                  <p class="text-xs text-muted">
+                  <p class="wrap-break-word text-xs text-muted">
                     {{ item.codigoTuss }}
                   </p>
                 </div>
               </div>
 
-              <div class="md:col-span-1 text-center">
+              <div class="min-w-0">
                 <p class="text-sm text-muted font-bold">
                   Dias
                 </p>
@@ -874,7 +876,7 @@ watch(() => auth.activeClinicaId, () => {
                 />
               </div>
 
-              <div class="md:col-span-1 text-center">
+              <div class="min-w-0">
                 <p class="text-sm text-muted font-bold">
                   Status
                 </p>
@@ -885,7 +887,7 @@ watch(() => auth.activeClinicaId, () => {
                 />
               </div>
 
-              <div class="text-center sm:col-span-2 md:col-span-1">
+              <div class="min-w-0">
                 <p class="text-sm text-muted font-bold">
                   Valor Est.
                 </p>

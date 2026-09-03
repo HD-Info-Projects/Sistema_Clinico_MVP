@@ -292,10 +292,21 @@ const statuses: { id: string, name: string, color: string }[] = [
           <UPageCard
             v-for="item in atendimentosOrdenados"
             :key="item.id"
-            :ui="{ container: 'p-1 sm:p-1' }"
+            variant="ghost"
+            class="border-b border-muted rounded-none"
+            :ui="{ container: 'px-4 sm:p-1 pb-3 sm:px-4' }"
           >
-            <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-6 md:items-center">
-              <div class="sm:col-span-2">
+            <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-[max-content_2fr_1.5fr_1fr_1fr] md:items-center">
+              <div class="hidden w-min pr-3 md:block">
+                <p class="text-sm text-muted font-bold">
+                  Horário
+                </p>
+                <p class="whitespace-nowrap font-mono text-sm">
+                  {{ item.horario || '-' }}
+                </p>
+              </div>
+
+              <div class="sm:col-span-2 md:col-span-1">
                 <p class="text-sm text-muted font-bold">
                   Paciente
                 </p>
@@ -317,16 +328,7 @@ const statuses: { id: string, name: string, color: string }[] = [
                 </div>
               </div>
 
-              <div class="text-center md:text-left">
-                <p class="text-sm text-muted font-bold">
-                  Horário
-                </p>
-                <p class="whitespace-nowrap font-mono text-sm">
-                  {{ item.horario || '-' }}
-                </p>
-              </div>
-
-              <div class="text-left">
+              <div class="sm:col-span-2 md:col-span-1">
                 <p class="text-sm text-muted font-bold">
                   Contato
                 </p>
@@ -340,7 +342,16 @@ const statuses: { id: string, name: string, color: string }[] = [
                 </div>
               </div>
 
-              <div class="text-center md:text-left">
+              <div class="block md:hidden">
+                <p class="text-sm text-muted font-bold">
+                  Horário
+                </p>
+                <p class="whitespace-nowrap font-mono text-sm">
+                  {{ item.horario || '-' }}
+                </p>
+              </div>
+
+              <div class="text-left">
                 <p class="text-sm text-muted font-bold">
                   Tipo
                 </p>
@@ -352,7 +363,7 @@ const statuses: { id: string, name: string, color: string }[] = [
                 />
               </div>
 
-              <div class="text-center md:text-left">
+              <div class="text-left">
                 <p class="text-sm text-muted font-bold">
                   Status
                 </p>
