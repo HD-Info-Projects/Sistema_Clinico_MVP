@@ -306,10 +306,10 @@ const statuses: { id: string, name: string, color: string }[] = [
                     size="sm"
                   />
                   <div class="min-w-0">
-                    <p class="break-words font-medium">
+                    <p class="wrap-break-word font-medium">
                       {{ item.paciente.nome || 'Paciente não informado' }}
                     </p>
-                    <p class="break-words text-xs text-muted">
+                    <p class="wrap-break-word text-xs text-muted">
                       {{ textoInformado(idadePaciente(item.paciente.dataNascimento)) ? `${idadePaciente(item.paciente.dataNascimento)}` : '' }}
                       {{ textoNaoInformado(item.paciente.convenio, '') ? `· ${item.paciente.convenio}` : '' }}
                     </p>
@@ -348,6 +348,7 @@ const statuses: { id: string, name: string, color: string }[] = [
                   :label="rotuloTipo(item)"
                   :color="corTipo(item.tipoProcedimento)"
                   variant="subtle"
+                  class="md:max-w-40 break-all cursor-default"
                 />
               </div>
 

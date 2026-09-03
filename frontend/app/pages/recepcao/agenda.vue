@@ -448,9 +448,19 @@ const statuses: { id: string, name: string, color: string }[] = [
           <UPageCard
             v-for="item in atendimentosOrdenados"
             :key="item.id"
-            :ui="{ container: 'p-1 sm:p-1' }"
+            variant="ghost"
+            class="border-b border-muted rounded-none"
+            :ui="{ container: 'p-1 sm:p-1 pb-3 sm:px-4' }"
           >
-            <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-7 md:items-center">
+            <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-[max-content_2fr_1fr_1.5fr_2fr_1.5fr_1fr] ">
+              <div class="md:col-span-1 w-min hidden md:block pr-3">
+                <p class="text-sm text-muted font-bold">
+                  Horário
+                </p>
+                <p class="whitespace-nowrap font-mono text-sm">
+                  {{ item.horario || '-' }}
+                </p>
+              </div>
               <div class="sm:col-span-2">
                 <p class="text-sm text-muted font-bold">
                   Paciente
@@ -462,7 +472,7 @@ const statuses: { id: string, name: string, color: string }[] = [
                     size="sm"
                   />
                   <div class="min-w-0">
-                    <p class="break-words font-medium">
+                    <p class="wrap-break-word font-medium">
                       {{ item.paciente || 'Paciente não informado' }}
                     </p>
                     <p class="text-xs text-muted">
@@ -471,15 +481,6 @@ const statuses: { id: string, name: string, color: string }[] = [
                     </p>
                   </div>
                 </div>
-              </div>
-
-              <div class="text-center md:text-left">
-                <p class="text-sm text-muted font-bold">
-                  Horário
-                </p>
-                <p class="whitespace-nowrap font-mono text-sm">
-                  {{ item.horario || '-' }}
-                </p>
               </div>
 
               <div class="text-left">
@@ -501,7 +502,7 @@ const statuses: { id: string, name: string, color: string }[] = [
                   Médico
                 </p>
                 <div class="min-w-0 text-sm">
-                  <p class="break-words font-medium">
+                  <p class="wrap-break-word font-medium">
                     {{ item.medico || '-' }}
                   </p>
                   <p class="text-xs text-muted">
@@ -510,15 +511,29 @@ const statuses: { id: string, name: string, color: string }[] = [
                 </div>
               </div>
 
-              <div class="text-center md:text-left">
+              <div class="md:col-span-1 block md:hidden">
+                <p class="text-sm text-muted font-bold">
+                  Horário
+                </p>
+                <p class="whitespace-nowrap font-mono text-sm">
+                  {{ item.horario || '-' }}
+                </p>
+              </div>
+
+              <div class="text-left md:text-left">
                 <p class="text-sm text-muted font-bold">
                   Tipo
                 </p>
-                <UBadge
-                  :label="rotuloTipo(item)"
-                  :color="corTipo(item.tipoProcedimento)"
-                  variant="subtle"
-                />
+                <UTooltip
+                  :text="rotuloTipo(item)"
+                >
+                  <UBadge
+                    :label="rotuloTipo(item)"
+                    :color="corTipo(item.tipoProcedimento)"
+                    variant="subtle"
+                    class="md:max-w-40 break-all cursor-default"
+                  />
+                </UTooltip>
                 <p
                   v-if="item.codigoProcedimentoSpdata"
                   class="mt-1 text-xs text-muted"
@@ -527,7 +542,7 @@ const statuses: { id: string, name: string, color: string }[] = [
                 </p>
               </div>
 
-              <div class="text-center md:text-left">
+              <div class="text-left md:text-left">
                 <p class="text-sm text-muted font-bold">
                   Status
                 </p>

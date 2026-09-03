@@ -77,7 +77,7 @@ function trocarAcesso() {
               color="neutral"
               variant="ghost"
               class="w-full justify-start"
-              @click="trocarUnidade()"
+              @click="void (trocarUnidade())"
             />
             <UButton
               v-if="auth.isAdmin"

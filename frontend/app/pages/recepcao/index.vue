@@ -326,7 +326,7 @@ onUnmounted(() => {
     <div class="min-h-screen min-w-0 space-y-4 bg-muted p-3 sm:space-y-6 sm:p-6">
       <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div class="min-w-0">
-          <p class="break-words text-2xl font-semibold sm:text-3xl">
+          <p class="wrap-break-word text-2xl font-semibold sm:text-3xl">
             {{ getSaudacao(agora) }}, {{ userName }}
           </p>
           <p class="text-base text-muted mt-1">
@@ -383,6 +383,7 @@ onUnmounted(() => {
               v-for="medico in medicosDoDia"
               :key="medico.id"
               class="cursor-pointer"
+              variant="ghost"
               :ui="{ container: 'p-1 sm:p-1' }"
               @click="selecionarMedico(medico.id)"
             >
@@ -430,7 +431,7 @@ onUnmounted(() => {
           <div class="flex flex-col gap-4">
             <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between ">
               <div class="min-w-0 text-left lg:text-center">
-                <p class="break-words text-lg font-medium">
+                <p class="wrap-break-word text-lg font-medium">
                   {{ tituloTabela }}
                 </p>
                 <p class="text-sm text-muted">
@@ -527,13 +528,20 @@ onUnmounted(() => {
           <UPageCard
             v-for="item in dados.items"
             :key="item.id"
-            :ui="{ container: 'px-4 sm:p-1 sm:px-4' }"
+            variant="ghost"
+            class="border-b border-muted rounded-none"
+            :ui="{ container: 'px-4 sm:p-1 pb-3 sm:px-4' }"
           >
-            <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-7 md:items-center">
-              <div class="sm:col-span-2">
-                <p class="text-sm text-muted font-bold sm:text-left">
-                  Paciente
+            <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-[max-content_2fr_1fr_1.5fr_2fr_1.5fr_1fr] ">
+              <div class="md:col-span-1 w-min hidden md:block pr-3">
+                <p class="text-sm text-muted font-bold">
+                  Horário
                 </p>
+                <p class="whitespace-nowrap font-mono text-sm">
+                  {{ item.horario || '-' }}
+                </p>
+              </div>
+              <div class="sm:col-span-2">
                 <div class="flex min-w-0 items-center gap-3">
                   <UAvatar
                     :alt="item.paciente"
@@ -541,7 +549,7 @@ onUnmounted(() => {
                     size="sm"
                   />
                   <div class="min-w-0">
-                    <p class="break-words font-medium">
+                    <p class="wrap-break-word font-medium">
                       {{ item.paciente || 'Paciente não informado' }}
                     </p>
                     <p class="text-xs text-muted">
@@ -552,15 +560,6 @@ onUnmounted(() => {
                     </p>
                   </div>
                 </div>
-              </div>
-
-              <div class="md:col-span-1 hidden md:block">
-                <p class="text-sm text-muted font-bold">
-                  Horário
-                </p>
-                <p class="whitespace-nowrap font-mono text-sm">
-                  {{ item.horario || '-' }}
-                </p>
               </div>
 
               <div class="sm:col-span-2 md:col-span-1">
@@ -582,7 +581,7 @@ onUnmounted(() => {
                   Médico
                 </p>
                 <div class="min-w-0 text-sm">
-                  <p class="break-words font-bold">
+                  <p class="wrap-break-word font-bold">
                     {{ item.medico || '-' }}
                   </p>
                   <p class="text-xs text-muted">
@@ -608,6 +607,7 @@ onUnmounted(() => {
                   :label="rotuloTipo(item)"
                   :color="corTipo(item.tipoProcedimento)"
                   variant="subtle"
+                  class="md:max-w-40 break-all cursor-default"
                 />
                 <p
                   v-if="item.codigoProcedimentoSpdata"

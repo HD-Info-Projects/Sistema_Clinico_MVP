@@ -9,7 +9,7 @@ const toast = useToast()
 const { sala, precisaSelecionar, definirSala } = useSalaAtendimento()
 
 const showSalaModal = ref(false)
-const inputSala = ref('')
+const inputSala = ref('Consultório 1')
 
 watch(showSalaModal, (val) => {
   if (val) inputSala.value = sala.value ?? ''
@@ -334,7 +334,7 @@ const tempoMedioEspera = computed(() => {
     </div>
     <div class="min-h-screen min-w-0 space-y-6 bg-neutral-100 p-3 dark:bg-neutral-950 sm:space-y-8 sm:p-6">
       <div class="min-w-0">
-        <p class="break-words text-2xl font-semibold text-foreground sm:text-3xl">
+        <p class="wrap-break-word text-2xl font-semibold text-foreground sm:text-3xl">
           {{ getSaudacao(agora) }}, Dr. {{ userName }}
         </p>
         <p class="text-base text-muted mt-1">
@@ -490,7 +490,7 @@ const tempoMedioEspera = computed(() => {
                     size="sm"
                   />
                   <div class="min-w-0">
-                    <p class="break-words font-medium">
+                    <p class="wrap-break-word font-medium">
                       {{ paciente.paciente.nome }}
                     </p>
                     <p class="text-xs text-muted">
@@ -606,7 +606,7 @@ const tempoMedioEspera = computed(() => {
                     size="sm"
                   />
                   <div class="min-w-0">
-                    <p class="break-words font-medium">
+                    <p class="wrap-break-word font-medium">
                       {{ paciente.paciente.nome }}
                     </p>
                     <p class="text-xs text-muted">
@@ -698,21 +698,28 @@ const tempoMedioEspera = computed(() => {
           <p class="text-sm text-muted">
             Informe a sala de atendimento:
           </p>
-          <UInput
-            v-model="inputSala"
-            placeholder="Ex: Consultório 2"
-            size="lg"
-          />
-        </div>
-      </template>
-
-      <template #footer>
-        <div class="flex justify-end gap-2">
-          <UButton
-            label="Salvar"
-            :disabled="!inputSala"
-            @click="confirmarSala"
-          />
+          <UForm class="flex flex-col gap-3">
+            <UFormItem
+              label="Sala"
+              :error="!inputSala ? 'Informe a sala de atendimento' : ''"
+            >
+              <UInput
+                v-model="inputSala"
+                placeholder="Ex: Consultório 1"
+                class="w-full"
+                default-value="Consultório 1"
+                size="lg"
+              />
+            </UFormItem>
+            <div class="flex justify-end gap-2">
+              <UButton
+                type="submit"
+                label="Salvar"
+                :disabled="!inputSala"
+                @click="confirmarSala"
+              />
+            </div>
+          </UForm>
         </div>
       </template>
     </UModal>
