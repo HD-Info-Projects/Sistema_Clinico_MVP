@@ -2,21 +2,68 @@
 import { CalendarDate, type Time } from '@internationalized/date'
 import { formatarCpf, formatarCpfCnpj, formatarTelefone } from '~/utils/masks'
 
-type PacienteMock = {
+type PacienteRecepcao = {
+  idPacienteSpdata?: number
   nome: string
-  cpf: string
-  prontuario: string
-  dataNascimento: string
-  sexoBiologico: string
-  cidade: string
-  celularWhatsapp: string
-  email: string
-  logradouro: string
-  bairro: string
-  estadoUf: string
+  nomeSocial?: string | null
+  cpf?: string
+  prontuario?: string
+  dataNascimento?: string | null
+  sexo?: string | null
+  sexoBiologico?: string
+  cidade?: string
+  celular?: string
+  celularWhatsapp?: string
+  telefone?: string
+  telefoneFixo?: string
+  email?: string
+  endereco?: string
+  logradouro?: string
+  numero?: string
+  complemento?: string
+  bairro?: string
+  uf?: string
+  estadoUf?: string
+  cep?: string
+  nomeMae?: string
+  rg?: string
+  orgaoEmissor?: string
+  codigoIbge?: string
 }
 
 type EnderecoViaCep = { erro?: boolean, logradouro?: string, complemento?: string, bairro?: string, localidade?: string, uf?: string, ibge?: string }
+
+type ProcedimentoRecepcao = {
+  id: number
+  spdataTpId?: number | null
+  nome: string
+  codigoProcedimento?: number | string | null
+  codigoTuss?: number | string | null
+}
+
+type ConvenioRecepcao = {
+  idConvenioSpdata: number
+  codigoSpdata?: number | null
+  nome: string
+  registroAns?: string | null
+}
+
+type MedicoRecepcao = {
+  id: number
+  usuarioId?: number
+  nome: string
+  spdataId?: number | null
+  crm?: string | null
+  crmAtendimento?: string | null
+  especialidade?: string | null
+}
+
+type UnidadeRecepcao = {
+  id: number
+  nome: string
+  codigoSpdataCentroCusto?: number | null
+  codigo_spdata_centro_custo?: string | number | null
+}
 
 const auth = useAuthStore()
 const toast = useToast()
@@ -24,7 +71,7 @@ const userName = computed(() => auth.user?.nome || 'Usuário')
 const tabAtiva = ref('paciente')
 const pacienteConcluido = ref(false)
 const atendimentoConcluido = ref(false)
-const pacienteSelecionado = ref<PacienteMock | null>(null)
+const pacienteSelecionado = ref<PacienteRecepcao | null>(null)
 const fotoPaciente = ref<File | null>(null)
 const fotoPacienteUrl = ref<string | null>(null)
 const dataNascimento = shallowRef<CalendarDate | null>(null)
@@ -39,24 +86,32 @@ const cameraErro = ref('')
 const videoCamera = ref<HTMLVideoElement | null>(null)
 let streamCamera: MediaStream | null = null
 let consultaCepTimer: ReturnType<typeof setTimeout> | null = null
+let buscaPacienteTimer: ReturnType<typeof setTimeout> | null = null
+let buscaProcedimentoTimer: ReturnType<typeof setTimeout> | null = null
+let buscaConvenioTimer: ReturnType<typeof setTimeout> | null = null
 let consultaCepAtual = 0
-let proximoProntuario = 1000
 const prontuarioNovo = ref('')
+const pacientesEncontrados = ref<PacienteRecepcao[]>([])
+const pacienteSpdataId = ref<number | null>(null)
+const procedimentos = ref<ProcedimentoRecepcao[]>([])
+const convenios = ref<ConvenioRecepcao[]>([])
+const medicos = ref<MedicoRecepcao[]>([])
+const buscaTermoProcedimento = ref('')
+const buscaTermoConvenio = ref('')
+const carregandoProcedimentos = ref(false)
+const carregandoConvenios = ref(false)
+const carregandoMedicos = ref(false)
 
 const paciente = reactive({
   nomeCompleto: '', nomeSocial: '', cpf: '', nomeMae: '', rg: '', orgaoEmissor: '', sexoBiologico: '', identidadeGenero: '', estadoCivil: '', nacionalidade: '', naturalidade: '', celularWhatsapp: '', telefoneFixo: '', email: '', cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', estadoUf: '', codigoIbge: ''
 })
 const atendimento = reactive({
-  registro: '', caraterSolicitacao: '', codigoProcedimento: '', nomeProcedimento: '', tipoProcedimento: '', modalidade: '', ehRetorno: false, recemNascido: false, atualizaFaturamento: false, numeroConvenio: '', descricaoConvenio: '', matricula: '', validade: '', guiaAutorizacao: '', crm: '', nomeMedico: '', especialidade: '', centroCustoNumero: '', centroCustoNome: '', unidade: ''
+  registro: '', caraterSolicitacao: '', codigoProcedimento: '', nomeProcedimento: '', tipoProcedimento: '', modalidade: '', ehRetorno: false, recemNascido: false, atualizaFaturamento: false, numeroConvenio: '', descricaoConvenio: '', matricula: '', validade: '', guiaAutorizacao: '', crm: '', nomeMedico: '', especialidade: '', centroCustoNumero: '', centroCustoNome: '', unidade: '', procedimentoId: null as number | null, procedimentoIdSpdata: null as number | null, idConvenioSpdata: null as number | null, medicoId: null as number | null, medicoSpdataId: null as number | null, unidadeId: null as number | null
 })
 const responsavel = reactive({
   nome: '', identidade: '', cpf: '', cnpj: '', parentesco: '', cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '', telefone: '', profissao: ''
 })
 
-const pacientesMockados: PacienteMock[] = [
-  { nome: 'Ana Beatriz Souza', cpf: '123.456.789-09', prontuario: 'PR-000123', dataNascimento: '1992-06-18', sexoBiologico: 'feminino', cidade: 'Belo Horizonte', celularWhatsapp: '(31) 99999-1111', email: 'ana.souza@exemplo.com', logradouro: 'Rua da Bahia', bairro: 'Centro', estadoUf: 'MG' },
-  { nome: 'Carlos Eduardo Lima', cpf: '987.654.321-00', prontuario: 'PR-000456', dataNascimento: '1985-11-04', sexoBiologico: 'masculino', cidade: 'Contagem', celularWhatsapp: '(31) 98888-2222', email: 'carlos.lima@exemplo.com', logradouro: 'Avenida João César', bairro: 'Eldorado', estadoUf: 'MG' }
-]
 const opcoesSexo = [{ label: 'Masculino', value: 'masculino' }, { label: 'Feminino', value: 'feminino' }, { label: 'Intersexo', value: 'intersexo' }, { label: 'Prefiro não informar', value: 'nao_informar' }]
 const opcoesGenero = [{ label: 'Mulher cisgênero', value: 'mulher_cisgenero' }, { label: 'Homem cisgênero', value: 'homem_cisgenero' }, { label: 'Mulher transgênero', value: 'mulher_transgenero' }, { label: 'Homem transgênero', value: 'homem_transgenero' }, { label: 'Não binário', value: 'nao_binario' }, { label: 'Outra', value: 'outra' }, { label: 'Prefiro não informar', value: 'nao_informar' }]
 const opcoesEstadoCivil = ['Solteiro(a)', 'Casado(a)', 'União estável', 'Divorciado(a)', 'Viúvo(a)', 'Prefiro não informar']
@@ -70,14 +125,40 @@ const tabItems = computed(() => [
   { label: 'Atendimento', value: 'atendimento', icon: 'i-lucide-stethoscope', slot: 'atendimento', disabled: !pacienteConcluido.value },
   { label: 'Responsável', value: 'responsavel', icon: 'i-lucide-users', slot: 'responsavel', disabled: !atendimentoConcluido.value }
 ])
-const sugestoesPacientes = computed(() => pacientesMockados.map(p => ({ label: p.nome, cpf: p.cpf, prontuario: p.prontuario, onSelect: () => selecionarPaciente(p) })))
+const sugestoesPacientes = computed(() => pacientesEncontrados.value.map(p => ({ label: p.nome, cpf: p.cpf, prontuario: p.prontuario, onSelect: () => selecionarPaciente(p) })))
+const unidadesAtendimento = computed(() => auth.clinicas as UnidadeRecepcao[])
+const sugestoesProcedimentos = computed(() => procedimentos.value.map(procedimento => ({
+  label: procedimentoLabel(procedimento),
+  codigo: String(procedimento.codigoProcedimento ?? procedimento.codigoTuss ?? procedimento.spdataTpId ?? ''),
+  codigoTuss: String(procedimento.codigoTuss ?? ''),
+  nome: procedimento.nome,
+  onSelect: () => selecionarProcedimento(procedimento)
+})))
+const sugestoesConvenios = computed(() => convenios.value.map(convenio => ({
+  label: convenio.nome,
+  codigo: String(convenio.idConvenioSpdata ?? convenio.codigoSpdata ?? ''),
+  registroAns: convenio.registroAns ?? '',
+  onSelect: () => selecionarConvenio(convenio)
+})))
+const sugestoesMedicos = computed(() => medicos.value.map(medico => ({
+  label: medico.nome,
+  crm: String(medico.crmAtendimento || medico.crm || ''),
+  especialidade: medico.especialidade || '',
+  onSelect: () => selecionarMedico(medico)
+})))
+const sugestoesUnidades = computed(() => unidadesAtendimento.value.map(unidade => ({
+  label: unidade.nome,
+  codigo: String(codigoCentroCustoUnidade(unidade) ?? ''),
+  onSelect: () => selecionarUnidade(unidade)
+})))
 const prontuarioAtual = computed(() => pacienteSelecionado.value?.prontuario || prontuarioNovo.value || 'Será gerado ao avançar')
 const idadePaciente = computed(() => {
   const data = dataNascimento.value
-  const nasc = pacienteSelecionado.value
-    ? new Date(`${pacienteSelecionado.value.dataNascimento}T12:00:00`)
+  const dataSelecionada = pacienteSelecionado.value?.dataNascimento
+  const nasc = dataSelecionada
+    ? new Date(`${dataSelecionada}T12:00:00`)
     : data ? new Date(`${data.year}-${String(data.month).padStart(2, '0')}-${String(data.day).padStart(2, '0')}T12:00:00`) : null
-  if (!nasc) return ''
+  if (!nasc || Number.isNaN(nasc.getTime())) return ''
   const hoje = new Date()
   let idade = hoje.getFullYear() - nasc.getFullYear()
   if (hoje.getMonth() < nasc.getMonth() || (hoje.getMonth() === nasc.getMonth() && hoje.getDate() < nasc.getDate())) idade--
@@ -85,7 +166,8 @@ const idadePaciente = computed(() => {
 })
 
 function limparEtapasSeguintes() {
-  Object.assign(atendimento, { registro: '', caraterSolicitacao: '', codigoProcedimento: '', nomeProcedimento: '', tipoProcedimento: '', modalidade: '', ehRetorno: false, recemNascido: false, atualizaFaturamento: false, numeroConvenio: '', descricaoConvenio: '', matricula: '', validade: '', guiaAutorizacao: '', crm: '', nomeMedico: '', especialidade: '', centroCustoNumero: '', centroCustoNome: '', unidade: '' })
+  Object.assign(atendimento, { registro: '', caraterSolicitacao: '', codigoProcedimento: '', nomeProcedimento: '', tipoProcedimento: '', modalidade: '', ehRetorno: false, recemNascido: false, atualizaFaturamento: false, numeroConvenio: '', descricaoConvenio: '', matricula: '', validade: '', guiaAutorizacao: '', crm: '', nomeMedico: '', especialidade: '', centroCustoNumero: '', centroCustoNome: '', unidade: '', procedimentoId: null, procedimentoIdSpdata: null, idConvenioSpdata: null, medicoId: null, medicoSpdataId: null, unidadeId: null })
+  aplicarUnidadeAtiva()
   Object.assign(responsavel, { nome: '', identidade: '', cpf: '', cnpj: '', parentesco: '', cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '', telefone: '', profissao: '' })
   dataEntrada.value = null
   horaEntrada.value = null
@@ -93,42 +175,283 @@ function limparEtapasSeguintes() {
   atendimentoConcluido.value = false
 }
 
-function selecionarPaciente(item: PacienteMock) {
+function mensagemErro(error: unknown, fallback: string) {
+  const err = error as { data?: { error?: string, message?: string }, message?: string }
+  return err.data?.error || err.data?.message || err.message || fallback
+}
+
+function dataCalendarIso(data: CalendarDate | null) {
+  if (!data) return null
+  return `${data.year}-${String(data.month).padStart(2, '0')}-${String(data.day).padStart(2, '0')}`
+}
+
+function horaIso(hora: Time | null) {
+  if (!hora) return ''
+  return `${String(hora.hour).padStart(2, '0')}:${String(hora.minute).padStart(2, '0')}`
+}
+
+function payloadPaciente() {
+  return {
+    ...paciente,
+    idPacienteSpdata: pacienteSpdataId.value ?? pacienteSelecionado.value?.idPacienteSpdata,
+    dataNascimento: dataCalendarIso(dataNascimento.value)
+  }
+}
+
+function payloadAtendimento() {
+  return {
+    ...atendimento,
+    unidadeId: atendimento.unidadeId ?? auth.activeClinicaId,
+    idPacienteSpdata: pacienteSpdataId.value ?? pacienteSelecionado.value?.idPacienteSpdata,
+    dataEntrada: dataCalendarIso(dataEntrada.value),
+    horaEntrada: horaIso(horaEntrada.value)
+  }
+}
+
+function procedimentoLabel(procedimento: ProcedimentoRecepcao) {
+  const codigo = procedimento.codigoTuss || procedimento.codigoProcedimento
+  return codigo ? `${procedimento.nome} - ${codigo}` : procedimento.nome
+}
+
+function codigoCentroCustoUnidade(unidade: UnidadeRecepcao) {
+  return unidade.codigoSpdataCentroCusto ?? unidade.codigo_spdata_centro_custo ?? null
+}
+
+function selecionarProcedimento(procedimento: ProcedimentoRecepcao) {
+  atendimento.procedimentoId = procedimento.id
+  atendimento.procedimentoIdSpdata = procedimento.spdataTpId ?? null
+  atendimento.codigoProcedimento = String(procedimento.codigoProcedimento ?? procedimento.codigoTuss ?? '')
+  atendimento.nomeProcedimento = procedimento.nome
+}
+
+function selecionarConvenio(convenio: ConvenioRecepcao) {
+  atendimento.idConvenioSpdata = convenio.idConvenioSpdata
+  atendimento.numeroConvenio = String(convenio.idConvenioSpdata ?? convenio.codigoSpdata ?? '')
+  atendimento.descricaoConvenio = convenio.nome
+}
+
+function selecionarMedico(medico: MedicoRecepcao) {
+  atendimento.medicoId = medico.id
+  atendimento.medicoSpdataId = medico.spdataId ?? null
+  atendimento.crm = medico.crmAtendimento || medico.crm || ''
+  atendimento.nomeMedico = medico.nome
+  atendimento.especialidade = medico.especialidade || ''
+}
+
+function selecionarUnidade(unidade: UnidadeRecepcao) {
+  atendimento.unidadeId = unidade.id
+  atendimento.centroCustoNumero = String(codigoCentroCustoUnidade(unidade) ?? '')
+  atendimento.centroCustoNome = unidade.nome
+  atendimento.unidade = unidade.nome
+  if (auth.activeClinicaId !== unidade.id) void auth.setActiveClinica(unidade.id)
+}
+
+function aplicarUnidadeAtiva() {
+  const unidade = unidadesAtendimento.value.find(item => item.id === auth.activeClinicaId)
+  if (unidade) selecionarUnidade(unidade)
+}
+
+async function carregarProcedimentos(q = '') {
+  carregandoProcedimentos.value = true
+  try {
+    const params = q.trim() ? `?q=${encodeURIComponent(q.trim())}` : ''
+    const response = await $fetch<{ procedimentos: ProcedimentoRecepcao[] }>(`/api/recepcao/procedimentos${params}`)
+    procedimentos.value = response.procedimentos ?? []
+  } catch (error) {
+    toast.add({ title: mensagemErro(error, 'Não foi possível carregar procedimentos.'), color: 'error' })
+  } finally {
+    carregandoProcedimentos.value = false
+  }
+}
+
+async function carregarConvenios(q = '') {
+  carregandoConvenios.value = true
+  try {
+    const params = q.trim() ? `?q=${encodeURIComponent(q.trim())}` : ''
+    const response = await $fetch<{ convenios: ConvenioRecepcao[] }>(`/api/recepcao/convenios${params}`)
+    convenios.value = response.convenios ?? []
+  } catch (error) {
+    toast.add({ title: mensagemErro(error, 'Não foi possível carregar convênios.'), color: 'error' })
+  } finally {
+    carregandoConvenios.value = false
+  }
+}
+
+async function carregarMedicos() {
+  carregandoMedicos.value = true
+  try {
+    const response = await $fetch<{ medicos: MedicoRecepcao[] }>('/api/recepcao/medicos')
+    medicos.value = response.medicos ?? []
+  } catch (error) {
+    toast.add({ title: mensagemErro(error, 'Não foi possível carregar médicos.'), color: 'error' })
+  } finally {
+    carregandoMedicos.value = false
+  }
+}
+
+async function carregarOpcoesAtendimento() {
+  aplicarUnidadeAtiva()
+  await Promise.all([
+    carregarProcedimentos(),
+    carregarConvenios(),
+    carregarMedicos()
+  ])
+}
+
+function payloadResponsavel() {
+  return {
+    ...responsavel,
+    dataNascimento: dataCalendarIso(dataNascimentoResponsavel.value)
+  }
+}
+
+async function buscarPacientesSpdata(termo: string) {
+  const q = termo.trim()
+  if (q.length < 3) {
+    pacientesEncontrados.value = []
+    return
+  }
+
+  try {
+    const response = await $fetch<{ pacientes: PacienteRecepcao[] }>(`/api/recepcao/pacientes/buscar?q=${encodeURIComponent(q)}`)
+    pacientesEncontrados.value = response.pacientes ?? []
+  } catch {
+    pacientesEncontrados.value = []
+  }
+}
+
+async function salvarPacienteSpdata() {
+  const response = await $fetch<{ paciente?: PacienteRecepcao, created?: boolean }>('/api/recepcao/pacientes', {
+    method: 'POST',
+    body: payloadPaciente()
+  })
+  const salvo = response.paciente
+  if (!salvo?.idPacienteSpdata) throw new Error('SPDATA não retornou o paciente salvo')
+
+  pacienteSpdataId.value = salvo.idPacienteSpdata
+  pacienteSelecionado.value = salvo
+  prontuarioNovo.value = salvo.prontuario || prontuarioNovo.value
+  return response
+}
+
+function aplicarPacienteSelecionado(item: PacienteRecepcao) {
+  pacienteSpdataId.value = item.idPacienteSpdata ?? null
+  Object.assign(paciente, {
+    nomeCompleto: item.nome || '',
+    nomeSocial: item.nomeSocial || '',
+    cpf: item.cpf ? formatarCpf(item.cpf) : '',
+    sexoBiologico: item.sexoBiologico || item.sexo || '',
+    cidade: item.cidade || '',
+    celularWhatsapp: item.celularWhatsapp || item.celular || '',
+    telefoneFixo: item.telefoneFixo || item.telefone || '',
+    email: item.email || '',
+    logradouro: item.logradouro || item.endereco || '',
+    numero: item.numero || '',
+    complemento: item.complemento || '',
+    bairro: item.bairro || '',
+    estadoUf: item.estadoUf || item.uf || '',
+    cep: item.cep ? formatarCep(item.cep) : '',
+    nomeMae: item.nomeMae || '',
+    rg: item.rg || '',
+    orgaoEmissor: item.orgaoEmissor || '',
+    codigoIbge: item.codigoIbge || ''
+  })
+}
+
+function selecionarPaciente(item: PacienteRecepcao) {
   pacienteSelecionado.value = item
-  const [ano, mes, dia] = item.dataNascimento.split('-').map(Number)
-  dataNascimento.value = new CalendarDate(ano!, mes!, dia!)
+  if (item.dataNascimento) {
+    const [ano, mes, dia] = item.dataNascimento.split('-').map(Number)
+    dataNascimento.value = new CalendarDate(ano!, mes!, dia!)
+  }
   prontuarioNovo.value = ''
-  Object.assign(paciente, { nomeCompleto: item.nome, cpf: item.cpf, sexoBiologico: item.sexoBiologico, cidade: item.cidade, celularWhatsapp: item.celularWhatsapp, email: item.email, logradouro: item.logradouro, bairro: item.bairro, estadoUf: item.estadoUf })
+  aplicarPacienteSelecionado(item)
   limparEtapasSeguintes()
 }
 
 function iniciarPacienteNovo() {
   if (!pacienteSelecionado.value) return
   pacienteSelecionado.value = null
+  pacienteSpdataId.value = null
   prontuarioNovo.value = ''
   limparEtapasSeguintes()
 }
 
-function proximoPaciente() {
+async function proximoPaciente() {
   if (!paciente.nomeCompleto.trim()) {
     toast.add({ title: 'Informe o nome completo do paciente.', color: 'error' })
     return
   }
-  if (!pacienteSelecionado.value && !prontuarioNovo.value) {
-    prontuarioNovo.value = `PR-NOVO-${proximoProntuario++}`
+  if (!auth.activeClinicaId) {
+    toast.add({ title: 'Selecione uma unidade antes de continuar.', color: 'error' })
+    return
   }
-  pacienteConcluido.value = true
-  tabAtiva.value = 'atendimento'
-  toast.add({ title: 'Dados do paciente guardados nesta sessão.', color: 'success' })
+
+  try {
+    const response = await salvarPacienteSpdata()
+    const salvo = response.paciente
+    if (salvo?.prontuario) prontuarioNovo.value = salvo.prontuario
+    pacienteConcluido.value = true
+    tabAtiva.value = 'atendimento'
+    void carregarOpcoesAtendimento()
+    toast.add({
+      title: response.created ? 'Paciente cadastrado no SPDATA.' : 'Paciente atualizado no SPDATA.',
+      description: salvo?.prontuario ? `Prontuário ${salvo.prontuario}` : undefined,
+      color: 'success'
+    })
+  } catch (error) {
+    toast.add({ title: mensagemErro(error, 'Não foi possível salvar o paciente no SPDATA.'), color: 'error' })
+  }
+}
+
+function validarAtendimento() {
+  if (!auth.activeClinicaId) return 'Selecione uma unidade antes de criar o atendimento.'
+  if (!pacienteSpdataId.value && !pacienteSelecionado.value?.idPacienteSpdata) return 'Salve o paciente antes de criar o atendimento.'
+  if (!dataEntrada.value) return 'Informe a data de entrada.'
+  if (!horaEntrada.value) return 'Informe a hora de entrada.'
+  if (!atendimento.crm.trim() && !atendimento.nomeMedico.trim()) return 'Informe o CRM ou o nome do médico.'
+  return null
 }
 
 function proximoAtendimento() {
+  const erro = validarAtendimento()
+  if (erro) {
+    toast.add({ title: erro, color: 'error' })
+    return
+  }
+
   atendimentoConcluido.value = true
   tabAtiva.value = 'responsavel'
 }
 
-function finalizarCadastro() {
-  toast.add({ title: 'Cadastro concluído nesta sessão.', description: 'Nenhum dado foi enviado ao sistema ainda.', color: 'success' })
+async function finalizarCadastro() {
+  const erro = validarAtendimento()
+  if (erro) {
+    toast.add({ title: erro, color: 'error' })
+    tabAtiva.value = 'atendimento'
+    return
+  }
+
+  try {
+    const response = await $fetch<{ atendimentoCreated?: boolean }>('/api/recepcao/novo-atendimento', {
+      method: 'POST',
+      body: {
+        unidadeId: atendimento.unidadeId ?? auth.activeClinicaId,
+        paciente: payloadPaciente(),
+        atendimento: payloadAtendimento(),
+        responsavel: payloadResponsavel()
+      }
+    })
+
+    toast.add({
+      title: response.atendimentoCreated ? 'Atendimento criado no SPDATA.' : 'Atendimento já existia no SPDATA.',
+      description: 'Ele aparecerá como em espera para recepção e médico.',
+      color: 'success'
+    })
+    await navigateTo('/recepcao')
+  } catch (error) {
+    toast.add({ title: mensagemErro(error, 'Não foi possível finalizar o cadastro no SPDATA.'), color: 'error' })
+  }
 }
 
 function formatarCep(valor: string) {
@@ -216,19 +539,45 @@ watch(() => paciente.cep, (valor) => {
   cepBuscando.value = false
   if (cep.length === 8) consultaCepTimer = setTimeout(() => void buscarEnderecoPorCep(cep, consulta), 400)
 })
+watch(buscaTermoProcedimento, (termo) => {
+  if (buscaProcedimentoTimer) clearTimeout(buscaProcedimentoTimer)
+  buscaProcedimentoTimer = setTimeout(() => {
+    void carregarProcedimentos(termo)
+  }, 350)
+})
+watch(buscaTermoConvenio, (termo) => {
+  if (buscaConvenioTimer) clearTimeout(buscaConvenioTimer)
+  buscaConvenioTimer = setTimeout(() => {
+    void carregarConvenios(termo)
+  }, 350)
+})
+watch(() => auth.activeClinicaId, () => {
+  aplicarUnidadeAtiva()
+  void carregarMedicos()
+})
 watch(fotoPaciente, (foto) => {
   if (fotoPacienteUrl.value) URL.revokeObjectURL(fotoPacienteUrl.value)
   fotoPacienteUrl.value = foto ? URL.createObjectURL(foto) : null
 })
 watch(() => paciente.nomeCompleto, (nome) => {
   if (pacienteSelecionado.value && nome !== pacienteSelecionado.value.nome) iniciarPacienteNovo()
+  if (buscaPacienteTimer) clearTimeout(buscaPacienteTimer)
+  buscaPacienteTimer = setTimeout(() => {
+    void buscarPacientesSpdata(nome)
+  }, 350)
 })
 watch(cameraAberta, (aberta) => {
   if (!aberta) encerrarCamera()
 })
+onMounted(() => {
+  void carregarOpcoesAtendimento()
+})
 onBeforeUnmount(() => {
   encerrarCamera()
   if (consultaCepTimer) clearTimeout(consultaCepTimer)
+  if (buscaPacienteTimer) clearTimeout(buscaPacienteTimer)
+  if (buscaProcedimentoTimer) clearTimeout(buscaProcedimentoTimer)
+  if (buscaConvenioTimer) clearTimeout(buscaConvenioTimer)
   if (fotoPacienteUrl.value) URL.revokeObjectURL(fotoPacienteUrl.value)
 })
 </script>
@@ -639,8 +988,18 @@ onBeforeUnmount(() => {
                   label="Cód. procedimento"
                   name="codigoProcedimento"
                 >
-                  <UInput
+                  <UInputMenu
                     v-model="atendimento.codigoProcedimento"
+                    v-model:search-term="buscaTermoProcedimento"
+                    :items="sugestoesProcedimentos"
+                    :loading="carregandoProcedimentos"
+                    label-key="label"
+                    value-key="codigo"
+                    :filter-fields="['label', 'codigo', 'codigoTuss', 'nome']"
+                    mode="autocomplete"
+                    placeholder="Busque por código ou nome"
+                    icon="i-lucide-search"
+                    clear
                     class="w-full"
                   />
                 </UFormField><UFormField
@@ -648,8 +1007,18 @@ onBeforeUnmount(() => {
                   name="nomeProcedimento"
                   class="sm:col-span-2"
                 >
-                  <UInput
+                  <UInputMenu
                     v-model="atendimento.nomeProcedimento"
+                    v-model:search-term="buscaTermoProcedimento"
+                    :items="sugestoesProcedimentos"
+                    :loading="carregandoProcedimentos"
+                    label-key="label"
+                    value-key="nome"
+                    :filter-fields="['label', 'codigo', 'codigoTuss', 'nome']"
+                    mode="autocomplete"
+                    placeholder="Busque o procedimento"
+                    icon="i-lucide-search"
+                    clear
                     class="w-full"
                   />
                 </UFormField><UFormField
@@ -709,8 +1078,18 @@ onBeforeUnmount(() => {
                   label="Convênio (número)"
                   name="numeroConvenio"
                 >
-                  <UInput
+                  <UInputMenu
                     v-model="atendimento.numeroConvenio"
+                    v-model:search-term="buscaTermoConvenio"
+                    :items="sugestoesConvenios"
+                    :loading="carregandoConvenios"
+                    label-key="label"
+                    value-key="codigo"
+                    :filter-fields="['label', 'codigo', 'registroAns']"
+                    mode="autocomplete"
+                    placeholder="Busque por número ou nome"
+                    icon="i-lucide-search"
+                    clear
                     class="w-full"
                   />
                 </UFormField><UFormField
@@ -718,10 +1097,18 @@ onBeforeUnmount(() => {
                   name="descricaoConvenio"
                   class="sm:col-span-2"
                 >
-                  <UInput
+                  <UInputMenu
                     v-model="atendimento.descricaoConvenio"
-                    readonly
+                    v-model:search-term="buscaTermoConvenio"
+                    :items="sugestoesConvenios"
+                    :loading="carregandoConvenios"
+                    label-key="label"
+                    value-key="label"
+                    :filter-fields="['label', 'codigo', 'registroAns']"
+                    mode="autocomplete"
                     placeholder="Preenchida pelo número do convênio"
+                    icon="i-lucide-search"
+                    clear
                     class="w-full"
                   />
                 </UFormField><UFormField
@@ -763,8 +1150,17 @@ onBeforeUnmount(() => {
                   label="CRM"
                   name="crm"
                 >
-                  <UInput
+                  <UInputMenu
                     v-model="atendimento.crm"
+                    :items="sugestoesMedicos"
+                    :loading="carregandoMedicos"
+                    label-key="label"
+                    value-key="crm"
+                    :filter-fields="['label', 'crm', 'especialidade']"
+                    mode="autocomplete"
+                    placeholder="Busque por CRM ou médico"
+                    icon="i-lucide-search"
+                    clear
                     class="w-full"
                   />
                 </UFormField><UFormField
@@ -772,8 +1168,17 @@ onBeforeUnmount(() => {
                   name="nomeMedico"
                   class="sm:col-span-2"
                 >
-                  <UInput
+                  <UInputMenu
                     v-model="atendimento.nomeMedico"
+                    :items="sugestoesMedicos"
+                    :loading="carregandoMedicos"
+                    label-key="label"
+                    value-key="label"
+                    :filter-fields="['label', 'crm', 'especialidade']"
+                    mode="autocomplete"
+                    placeholder="Busque o médico"
+                    icon="i-lucide-search"
+                    clear
                     class="w-full"
                   />
                 </UFormField><UFormField
@@ -788,16 +1193,32 @@ onBeforeUnmount(() => {
                   label="C.D.C. número"
                   name="centroCustoNumero"
                 >
-                  <UInput
+                  <UInputMenu
                     v-model="atendimento.centroCustoNumero"
+                    :items="sugestoesUnidades"
+                    label-key="label"
+                    value-key="codigo"
+                    :filter-fields="['label', 'codigo']"
+                    mode="autocomplete"
+                    placeholder="Busque por CDC ou unidade"
+                    icon="i-lucide-search"
+                    clear
                     class="w-full"
                   />
                 </UFormField><UFormField
                   label="C.D.C. nome"
                   name="centroCustoNome"
                 >
-                  <UInput
+                  <UInputMenu
                     v-model="atendimento.centroCustoNome"
+                    :items="sugestoesUnidades"
+                    label-key="label"
+                    value-key="label"
+                    :filter-fields="['label', 'codigo']"
+                    mode="autocomplete"
+                    placeholder="Busque a unidade"
+                    icon="i-lucide-search"
+                    clear
                     class="w-full"
                   />
                 </UFormField><UFormField
@@ -805,8 +1226,16 @@ onBeforeUnmount(() => {
                   name="unidade"
                   class="sm:col-span-2"
                 >
-                  <UInput
+                  <UInputMenu
                     v-model="atendimento.unidade"
+                    :items="sugestoesUnidades"
+                    label-key="label"
+                    value-key="label"
+                    :filter-fields="['label', 'codigo']"
+                    mode="autocomplete"
+                    placeholder="Busque a unidade"
+                    icon="i-lucide-search"
+                    clear
                     class="w-full"
                   />
                 </UFormField>

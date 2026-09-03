@@ -172,15 +172,7 @@ const resumo = computed(() => ({
 }))
 
 function idadePaciente(dataNascimento: string | null | undefined) {
-  if (!dataNascimento) return ''
-  const data = new Date(dataNascimento)
-  if (Number.isNaN(data.getTime())) return ''
-  const hoje = new Date()
-  let idade = hoje.getFullYear() - data.getFullYear()
-  const aniversario = new Date(hoje.getFullYear(), data.getMonth(), data.getDate())
-  if (aniversario > hoje) idade -= 1
-  if (idade < 0) return ''
-  return idade === 1 ? '1 ano' : `${idade} anos`
+  return formatarIdade(dataNascimento)
 }
 
 function textoInformado(valor: string | number | null | undefined) {

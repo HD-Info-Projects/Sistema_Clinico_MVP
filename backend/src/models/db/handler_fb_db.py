@@ -50,14 +50,28 @@ class ConnectionDBFireBird:
     def cursor(self):
         return self._connection.cursor()
 
+    def commit(self):
+        if self._connection:
+            self._connection.commit()
+
+    def rollback(self):
+        if self._connection:
+            try:
+                self._connection.rollback()
+            except Exception:
+                logger.debug("Rollback Firebird ignorado; transação já encerrada", exc_info=True)
+
     def close(self):
         if self._connection:
             self._connection.close()
+            self._connection = None
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type:
+            self.rollback()
         self.close()
         
 

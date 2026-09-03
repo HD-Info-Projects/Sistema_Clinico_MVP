@@ -51,3 +51,23 @@ export function getSaudacao(d: Date = new Date()) {
   if (hour < 18) return 'Boa tarde'
   return 'Boa noite'
 }
+
+export function calcularIdade(dataNascimento: string | null | undefined, hoje: Date = new Date()): number | null {
+  if (!dataNascimento) return null
+  const nasc = new Date(dataNascimento)
+  if (Number.isNaN(nasc.getTime())) return null
+
+  let idade = hoje.getFullYear() - nasc.getFullYear()
+  const mes = hoje.getMonth() - nasc.getMonth()
+  if (mes < 0 || (mes === 0 && hoje.getDate() < nasc.getDate())) idade -= 1
+  return idade < 0 ? null : idade
+}
+
+export function formatarIdade(
+  dataNascimento: string | null | undefined,
+  { semAnos = false, semDados = false }: { semAnos?: boolean, semDados?: boolean } = {}
+): string {
+  const idade = calcularIdade(dataNascimento)
+  if (idade === null) return semDados ? 'Idade não informada' : ''
+  return semAnos ? String(idade) : `${idade} ${idade === 1 ? 'ano' : 'anos'}`
+}

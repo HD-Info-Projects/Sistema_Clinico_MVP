@@ -148,12 +148,7 @@ watch(buscaNome, () => {
 })
 
 function calcularIdade(dataNascimento: string) {
-  const hoje = new Date()
-  const nasc = new Date(dataNascimento)
-  let idade = hoje.getFullYear() - nasc.getFullYear()
-  const mes = hoje.getMonth() - nasc.getMonth()
-  if (mes < 0 || (mes === 0 && hoje.getDate() < nasc.getDate())) idade--
-  return idade
+  return formatarIdade(dataNascimento, { semAnos: true })
 }
 
 function formatarDataPtBR(dataISO: string) {
