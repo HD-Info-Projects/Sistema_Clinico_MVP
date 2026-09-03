@@ -18,6 +18,7 @@ const toast = useToast()
 const userName = computed(() => auth.user?.nome || 'Usuário')
 const fotoPaciente = ref<File | null>(null)
 const dataNascimento = shallowRef<CalendarDate | null>(null)
+const salvando = ref(false)
 const dadosPessoais = reactive({
   nomeCompleto: '',
   nomeSocial: '',
@@ -81,6 +82,52 @@ const videoCamera = ref<HTMLVideoElement | null>(null)
 let streamCamera: MediaStream | null = null
 let consultaCepTimer: ReturnType<typeof setTimeout> | null = null
 let consultaCepAtual = 0
+
+function mensagemErro(error: unknown, fallback: string) {
+  const err = error as { data?: { error?: string, message?: string }, message?: string }
+  return err.data?.error || err.data?.message || err.message || fallback
+}
+
+function dataCalendarIso(data: CalendarDate | null) {
+  if (!data) return null
+  return `${data.year}-${String(data.month).padStart(2, '0')}-${String(data.day).padStart(2, '0')}`
+}
+
+function payloadPaciente() {
+  return {
+    ...dadosPessoais,
+    dataNascimento: dataCalendarIso(dataNascimento.value)
+  }
+}
+
+async function finalizarCadastro() {
+  if (!dadosPessoais.nomeCompleto.trim()) {
+    toast.add({ title: 'Informe o nome completo do paciente.', color: 'error' })
+    return
+  }
+
+  salvando.value = true
+  try {
+    const resultado = await $fetch<{ paciente?: { idPacienteSpdata?: number, prontuario?: string }, created?: boolean }>('/api/recepcao/pacientes', {
+      method: 'POST',
+      body: payloadPaciente()
+    })
+    const paciente = resultado.paciente
+    toast.add({
+      title: resultado.created ? 'Paciente cadastrado no SPDATA.' : 'Paciente atualizado no SPDATA.',
+      description: paciente?.prontuario ? `Prontuário ${paciente.prontuario}` : undefined,
+      color: 'success'
+    })
+
+    if (paciente?.idPacienteSpdata) {
+      await navigateTo(`/recepcao/cadastro-atendimento?pacienteId=${paciente.idPacienteSpdata}`)
+    }
+  } catch (error) {
+    toast.add({ title: mensagemErro(error, 'Não foi possível salvar o paciente.'), color: 'error' })
+  } finally {
+    salvando.value = false
+  }
+}
 
 function encerrarCamera() {
   streamCamera?.getTracks().forEach(track => track.stop())
@@ -585,7 +632,10 @@ onBeforeUnmount(() => {
             label="Finalizar cadastro"
             icon="i-lucide-circle-check"
             size="lg"
+            :loading="salvando"
+            :disabled="salvando"
             class="w-full sm:w-auto"
+            @click="finalizarCadastro"
           />
         </div>
       </UForm>

@@ -211,6 +211,7 @@ def create_app():
     from src.routes.auditoria_route import auditoria_bp
     from src.routes.unidades_route import unidades_bp
     from src.routes.spdata_exames_pacs_route import exames_pacs_bp
+    from src.routes.recepcao_route import recepcao_bp
 
     app.register_blueprint(login_bp)
     app.register_blueprint(dashboard_bp)
@@ -231,5 +232,6 @@ def create_app():
     app.register_blueprint(auditoria_bp)
     app.register_blueprint(unidades_bp)
     app.register_blueprint(exames_pacs_bp)
+    app.register_blueprint(recepcao_bp)
 
     return app
