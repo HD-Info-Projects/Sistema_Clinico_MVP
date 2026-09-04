@@ -479,7 +479,7 @@ const tempoMedioEspera = computed(() => {
             class="border-b border-muted rounded-none"
             :ui="{ container: 'px-4 sm:p-1 pb-3 sm:px-4' }"
           >
-            <div class="grid min-w-0 grid-cols-3 gap-x-4 gap-y-3 md:grid-cols-[max-content_2fr_1fr_1fr_1fr_2fr] md:items-center">
+            <div class="grid min-w-0 grid-cols-3 gap-x-4 gap-y-3 md:grid-cols-[max-content_1fr_2fr_1fr_1fr_1fr_2fr]">
               <div class="hidden w-min pr-3 md:block">
                 <p class="text-sm text-muted font-bold">
                   Horário
@@ -545,7 +545,7 @@ const tempoMedioEspera = computed(() => {
                 <p class="text-sm text-muted font-bold">
                   Ações
                 </p>
-                <div class="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:gap-1">
+                <div class="grid grid-cols-1 gap-2 sm:flex sm:gap-1">
                   <UButton
                     icon="i-lucide-phone"
                     :label="rotuloChamada(paciente.paciente.id)"
@@ -557,15 +557,7 @@ const tempoMedioEspera = computed(() => {
                     :disabled="temPacienteEmAtendimento || isTerminal(paciente.status) || isChamadaBloqueada(paciente.paciente.id)"
                     @click="chamarPaciente(paciente as AgendamentoComPaciente)"
                   />
-                  <UButton
-                    icon="i-lucide-user-x"
-                    label="Faltou"
-                    size="sm"
-                    :color="paciente.status === 'faltou' ? 'error' : (isTerminal(paciente.status) ? 'neutral' : 'error')"
-                    :variant="isTerminal(paciente.status) ? 'soft' : 'solid'"
-                    :disabled="temPacienteEmAtendimento || isTerminal(paciente.status) || isChamadaBloqueada(paciente.paciente.id)"
-                    @click="abrirModalFalta(paciente as AgendamentoComPaciente)"
-                  />
+
                   <UButton
                     :icon="paciente.status === 'atendido' ? 'i-lucide-check-circle' : 'i-lucide-user-check'"
                     :label="statusLabel(paciente.status)"
@@ -574,6 +566,15 @@ const tempoMedioEspera = computed(() => {
                     :variant="atendimentoVariant(paciente.status)"
                     :disabled="temPacienteEmAtendimento || atendimentoDisabled(paciente.status) || isChamadaBloqueada(paciente.paciente.id)"
                     @click="atenderAgendamento(paciente as AgendamentoComPaciente)"
+                  />
+                  <UButton
+                    icon="i-lucide-user-x"
+                    label="Faltou"
+                    size="sm"
+                    :color="paciente.status === 'faltou' ? 'error' : (isTerminal(paciente.status) ? 'neutral' : 'error')"
+                    :variant="isTerminal(paciente.status) ? 'soft' : 'solid'"
+                    :disabled="temPacienteEmAtendimento || isTerminal(paciente.status) || isChamadaBloqueada(paciente.paciente.id)"
+                    @click="abrirModalFalta(paciente as AgendamentoComPaciente)"
                   />
                 </div>
               </div>
@@ -606,7 +607,7 @@ const tempoMedioEspera = computed(() => {
             class="border-b border-muted rounded-none"
             :ui="{ container: 'px-4 sm:p-1 pb-3 sm:px-4' }"
           >
-            <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-[max-content_2fr_1fr_1fr_2fr] md:items-center">
+            <div class="grid min-w-0 grid-cols-3 gap-x-4 gap-y-3 md:grid-cols-[max-content_1fr_2fr_1fr_1fr_2fr]">
               <div class="hidden w-min pr-3 md:block">
                 <p class="text-sm text-muted font-bold">
                   Horário
@@ -616,7 +617,7 @@ const tempoMedioEspera = computed(() => {
                 </p>
               </div>
 
-              <div class="sm:col-span-2">
+              <div class="col-span-3 sm:col-span-2">
                 <p class="text-sm text-muted font-bold">
                   Paciente
                 </p>
@@ -668,15 +669,16 @@ const tempoMedioEspera = computed(() => {
                 />
               </div>
 
-              <div class="text-left sm:col-span-2 md:col-span-1">
+              <div class="text-left col-span-3 sm:col-span-2 md:col-span-1">
                 <p class="text-sm text-muted font-bold">
                   Ações
                 </p>
-                <div class="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:gap-1">
+                <div class="grid grid-cols-1 gap-2 sm:flex sm:gap-1">
                   <UButton
                     v-if="paciente.status === 'atendido'"
                     icon="i-lucide-pencil"
                     label="Editar atendimento"
+                    class="min-w-20"
                     size="sm"
                     color="primary"
                     :disabled="temPacienteEmAtendimento"

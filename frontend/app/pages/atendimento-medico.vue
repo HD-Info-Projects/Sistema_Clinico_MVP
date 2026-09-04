@@ -908,7 +908,7 @@ async function finalizarConsulta() {
 </script>
 
 <template>
-  <div class="flex h-dvh min-h-0 flex-col overflow-hidden">
+  <div class="flex h-dvh min-h-0 flex-col sm:overflow-hidden">
     <UHeader
       title="Consulta Atual"
       toggle-side="left"
@@ -964,7 +964,7 @@ async function finalizarConsulta() {
         trigger: 'flex-1 px-2 sm:px-3',
         label: 'sr-only sm:not-sr-only sm:whitespace-nowrap sm:text-sm'
       }"
-      class="min-h-0 min-w-0 flex-1 overflow-hidden"
+      class="min-h-0 min-w-0 flex-1 sm:overflow-hidden"
     >
       <template #content="{ index }">
         <div
