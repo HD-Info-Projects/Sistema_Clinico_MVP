@@ -239,7 +239,7 @@ const temPacientesDashboard = computed(() => totalPacientesDashboard.value > 0)
 
 function statusLabel(status: AgendamentoStatus) {
   switch (status) {
-    case 'em-atendimento': return 'Em Atendimento'
+    case 'em-atendimento': return 'Em Atend.'
     case 'atendido': return 'Finalizado'
     default: return 'Atender'
   }
@@ -484,7 +484,7 @@ const tempoMedioEspera = computed(() => {
                 <p class="text-sm text-muted font-bold">
                   Horário
                 </p>
-                <p class="whitespace-nowrap font-mono text-sm">
+                <p class="whitespace-nowrap font-mono pt-2 text-sm">
                   {{ paciente.horario }}
                 </p>
               </div>
@@ -550,7 +550,7 @@ const tempoMedioEspera = computed(() => {
                     icon="i-lucide-phone"
                     :label="rotuloChamada(paciente.paciente.id)"
                     size="sm"
-                    class="min-w-20"
+                    class="min-w-25 justify-center"
                     :color="isTerminal(paciente.status) ? 'neutral' : 'primary'"
                     :variant="isTerminal(paciente.status) ? 'soft' : 'solid'"
                     :loading="isChamadaBloqueada(paciente.paciente.id)"
@@ -562,6 +562,7 @@ const tempoMedioEspera = computed(() => {
                     :icon="paciente.status === 'atendido' ? 'i-lucide-check-circle' : 'i-lucide-user-check'"
                     :label="statusLabel(paciente.status)"
                     size="sm"
+                    class="min-w-25 justify-center"
                     :color="statusColor(paciente.status)"
                     :variant="atendimentoVariant(paciente.status)"
                     :disabled="temPacienteEmAtendimento || atendimentoDisabled(paciente.status) || isChamadaBloqueada(paciente.paciente.id)"
@@ -571,6 +572,7 @@ const tempoMedioEspera = computed(() => {
                     icon="i-lucide-user-x"
                     label="Faltou"
                     size="sm"
+                    class="min-w-25 justify-center"
                     :color="paciente.status === 'faltou' ? 'error' : (isTerminal(paciente.status) ? 'neutral' : 'error')"
                     :variant="isTerminal(paciente.status) ? 'soft' : 'solid'"
                     :disabled="temPacienteEmAtendimento || isTerminal(paciente.status) || isChamadaBloqueada(paciente.paciente.id)"
@@ -678,7 +680,7 @@ const tempoMedioEspera = computed(() => {
                     v-if="paciente.status === 'atendido'"
                     icon="i-lucide-pencil"
                     label="Editar atendimento"
-                    class="min-w-20"
+                    class="min-w-20 justify-center"
                     size="sm"
                     color="primary"
                     :disabled="temPacienteEmAtendimento"
@@ -688,6 +690,7 @@ const tempoMedioEspera = computed(() => {
                     v-else-if="paciente.status === 'faltou'"
                     icon="i-lucide-undo-2"
                     label="Desfazer falta"
+                    class="min-w-20 justify-center"
                     size="sm"
                     color="neutral"
                     :disabled="temPacienteEmAtendimento"

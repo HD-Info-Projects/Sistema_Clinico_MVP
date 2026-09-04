@@ -84,6 +84,10 @@ const HISTORICO_SPDATA_LIMIT = 10
 
 const historicoExternoHasMore = computed(() => biodataHasMore.value || spdataHasMore.value)
 
+const closeNav = () => {
+  open.value = false
+}
+
 useInfiniteScroll(
   historicoScrollRef,
   () => {
@@ -498,13 +502,23 @@ function voltarDashboard() {
       :style="{ '--sidebar-width': 'min(35rem, 100vw)' }"
     >
       <template #header>
-        <UButton
-          icon="i-lucide-arrow-left"
-          label="Voltar pro Dashboard"
-          variant="ghost"
-          color="neutral"
-          @click="voltarDashboard"
-        />
+        <div class="flex items-center justify-between w-full">
+          <UButton
+            icon="i-lucide-arrow-left"
+            label="Voltar pro Dashboard"
+            variant="ghost"
+            color="neutral"
+            @click="voltarDashboard"
+          />
+          <UButton
+            icon="i-lucide-x"
+            color="neutral"
+            variant="ghost"
+            class="lg:hidden"
+            aria-label="Abrir menu"
+            @click="closeNav()"
+          />
+        </div>
       </template>
       <div class="flex justify-center items-center py-2 gap-2">
         <UAvatar
@@ -513,10 +527,10 @@ function voltarDashboard() {
           :alt="agendamento.paciente.nome"
         />
         <div class="min-w-0">
-          <p class="text-base font-semibold break-words">
+          <p class="text-base font-semibold wrap-break-word">
             {{ agendamento.paciente.nome }}
           </p>
-          <p class="text-sm text-muted break-words">
+          <p class="text-sm text-muted wrap-break-word">
             {{ calcularIdade(agendamento.paciente.dataNascimento) }} anos
             · {{ agendamento.paciente.sexo === 'masculino' ? 'Masculino' : 'Feminino' }}
             · Convênio: {{ agendamento.paciente.convenio }}
@@ -639,7 +653,7 @@ function voltarDashboard() {
                     <div class="relative">
                       <!-- eslint-disable vue/no-v-html -->
                       <div
-                        class="cursor-pointer overflow-hidden break-words text-sm whitespace-pre-line [&_*]:max-w-full"
+                        class="cursor-pointer overflow-hidden wrap-break-word text-sm whitespace-pre-line **:max-w-full"
                         :class="expandedContent[item.id + '-' + card.id] ? '' : 'line-clamp-3'"
                         @click="toggleContent(item.id + '-' + card.id)"
                         v-html="sanitizeHtml(card.description)"

@@ -301,7 +301,7 @@ const statuses: { id: string, name: string, color: string }[] = [
                 <p class="text-sm text-muted font-bold">
                   Horário
                 </p>
-                <p class="whitespace-nowrap font-mono text-sm">
+                <p class="whitespace-nowrap pt-2  font-mono text-sm">
                   {{ item.horario || '-' }}
                 </p>
               </div>
@@ -346,7 +346,7 @@ const statuses: { id: string, name: string, color: string }[] = [
                 <p class="text-sm text-muted font-bold">
                   Horário
                 </p>
-                <p class="whitespace-nowrap font-mono text-sm">
+                <p class="whitespace-nowrap pt-2 font-mono text-sm">
                   {{ item.horario || '-' }}
                 </p>
               </div>

@@ -910,12 +910,12 @@ async function finalizarConsulta() {
 <template>
   <div class="flex h-dvh min-h-0 flex-col sm:overflow-hidden">
     <UHeader
-      title="Consulta Atual"
+      title=" "
       toggle-side="left"
     >
       <template #toggle>
         <UButton
-          icon="i-lucide-panel-left"
+          icon="i-lucide-menu"
           color="neutral"
           variant="ghost"
           class="lg:hidden"
@@ -959,7 +959,7 @@ async function finalizarConsulta() {
       color="primary"
       size="lg"
       :ui="{
-        content: 'flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden',
+        content: 'flex min-h-0 flex-1 flex-col overflow-y-auto sm:overflow-x-hidden',
         list: 'w-full shrink-0 bg-default/75 backdrop-blur border-b border-default rounded-tl-none rounded-tr-none',
         trigger: 'flex-1 px-2 sm:px-3',
         label: 'sr-only sm:not-sr-only sm:whitespace-nowrap sm:text-sm'
@@ -1143,7 +1143,7 @@ async function finalizarConsulta() {
                 />
               </div>
 
-              <div class="flex shrink-0 flex-col gap-3 rounded-lg border border-muted bg-neutral-50 p-4 sm:flex-row sm:items-end dark:bg-neutral-900">
+              <div class="hidden sm:flex shrink-0 flex-col gap-3 rounded-lg border border-muted bg-neutral-50 p-4 sm:flex-row sm:items-end dark:bg-neutral-900">
                 <UFormField
                   label="Nome do medicamento"
                   class="flex-1"
@@ -1183,13 +1183,6 @@ async function finalizarConsulta() {
                 />
               </div>
 
-              <p
-                v-if="!padroesStore.receitas.length"
-                class="shrink-0 text-sm text-muted italic"
-              >
-                Nenhum padrão de receita cadastrado. Crie padrões em "Padrões de Solicitações".
-              </p>
-
               <UTextarea
                 v-model="receitaTexto"
                 placeholder="Os medicamentos adicionados aparecerão aqui..."
@@ -1228,7 +1221,7 @@ async function finalizarConsulta() {
             class="flex min-w-0 grow flex-col"
           >
             <template #title>
-              <div class="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div class="flex min-w-0 gap-2 flex-row items-center justify-between">
                 <div class="flex min-w-0 items-center gap-2">
                   <UIcon
                     name="i-lucide-flask-conical"
@@ -1240,7 +1233,7 @@ async function finalizarConsulta() {
                 </div>
                 <div class="flex shrink-0 items-center gap-2">
                   <span class="text-sm text-muted">
-                    {{ caraterAtendimento ? 'U - Urgência/Emergência' : 'E - Eletiva' }}
+                    {{ caraterAtendimento ? 'U - Urgência' : 'E - Eletiva' }}
                   </span>
                   <USwitch v-model="caraterAtendimento" />
                 </div>
@@ -1338,7 +1331,7 @@ async function finalizarConsulta() {
                     class="flex min-w-0 flex-col gap-2 rounded-lg border border-muted p-3 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <span class="min-w-0 wrap-break-word text-sm">{{ exameItem.nome }}</span>
-                    <div class="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:shrink-0 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+                    <div class="flex w-full min-w-0 gap-2 sm:w-auto sm:shrink-0 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
                       <UButton
                         variant="link"
                         :icon="exameTemOrientacao(exameItem) ? 'i-lucide-message-square-warning' : 'i-lucide-plus'"
@@ -1352,7 +1345,7 @@ async function finalizarConsulta() {
                         color="error"
                         variant="ghost"
                         size="sm"
-                        class="w-full shrink-0 sm:w-auto"
+                        class=" sm:w-auto"
                         @click="removerExameDaLista(i)"
                       />
                     </div>
