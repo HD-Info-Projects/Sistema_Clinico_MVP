@@ -17,9 +17,12 @@ const emit = defineEmits<{
 
 const { transformUpperCase, transformLowerCase, transformCapitalize } = useTextTransform()
 
+const defaultBase = 'min-h-48 flex-1 overflow-y-auto max-h-100 px-2'
+
 const mergedUi = computed(() => {
-  const merged = defu(props.ui ?? {}, { base: 'min-h-48 flex-1 overflow-y-auto' })
-  return { ...merged, base: `${merged.base} *:my-2 [&_p]:leading-6` }
+  const merged = defu(props.ui ?? {}, { content: 'flex min-h-0 flex-1 flex-col' })
+  const base = [defaultBase, merged.base].filter(Boolean).join(' ')
+  return { ...merged, base: `${base} *:my-2 [&_p]:leading-6` }
 })
 
 const editorRef = ref<{ editor: import('@tiptap/core').Editor | undefined }>()

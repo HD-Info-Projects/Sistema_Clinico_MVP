@@ -915,7 +915,7 @@ async function finalizarConsulta() {
     >
       <template #toggle>
         <UButton
-          icon="i-lucide-menu"
+          icon="i-lucide-history"
           color="neutral"
           variant="ghost"
           class="lg:hidden"
@@ -959,7 +959,7 @@ async function finalizarConsulta() {
       color="primary"
       size="lg"
       :ui="{
-        content: 'flex min-h-0 flex-1 flex-col overflow-y-auto sm:overflow-x-hidden',
+        content: 'flex min-h-0 flex-1 flex-col overflow-y-auto sm:overflow-hidden',
         list: 'w-full shrink-0 bg-default/75 backdrop-blur border-b border-default rounded-tl-none rounded-tr-none',
         trigger: 'flex-1 px-2 sm:px-3',
         label: 'sr-only sm:not-sr-only sm:whitespace-nowrap sm:text-sm'
@@ -969,11 +969,11 @@ async function finalizarConsulta() {
       <template #content="{ index }">
         <div
           v-if="index === 0"
-          class="flex min-h-full min-w-0 grow flex-col gap-4 px-2 py-2 pb-20"
+          class="flex min-w-0 grow-0 sm:grow flex-col gap-4 px-2 py-2 pb-5 sm:min-h-0"
         >
           <UCard
-            :ui="{ header: 'p-1 sm:px-2', body: 'p-0 sm:p-0 grow flex flex-col' }"
-            class="flex min-w-0 grow flex-col"
+            :ui="{ header: 'p-1 sm:px-2', body: 'p-0 sm:p-0 grow flex flex-col min-h-0' }"
+            class="flex min-w-0 grow flex-col min-h-0 sm:flex-1"
           >
             <template #title>
               <div class="flex items-center gap-2">
@@ -1006,12 +1006,14 @@ async function finalizarConsulta() {
             <EditorRichText
               v-model="anamneseTexto"
               placeholder="Descreva a anamnese e evolução do paciente..."
-              class="flex min-w-0 grow flex-col"
+              :ui="{ base: 'sm:max-h-none' }"
+              class="flex min-w-0 grow flex-col min-h-0"
             />
           </UCard>
 
           <UCard
             :ui="{ header: 'p-1 sm:px-2', body: 'p-2 sm:p-2' }"
+            class="shrink-0"
           >
             <template #title>
               <div class="flex items-center gap-2">
@@ -1033,6 +1035,7 @@ async function finalizarConsulta() {
                 :loading="isLoadingCid"
                 label-key="nome"
                 placeholder="Buscar CID por código ou nome..."
+                :content="{ side: 'top', avoidCollisions: false }"
                 icon="i-lucide-search"
                 clear
                 ignore-filter
@@ -1069,7 +1072,7 @@ async function finalizarConsulta() {
 
             <div
               v-if="cidSelecionadoLista.length"
-              class="mt-3 space-y-2"
+              class="mt-3 space-y-2 sm:max-h-36 sm:overflow-y-auto"
             >
               <div
                 v-for="(cid, i) in cidSelecionadoLista"
@@ -1106,10 +1109,10 @@ async function finalizarConsulta() {
 
         <div
           v-if="index === 2"
-          class="flex min-h-full min-w-0 grow flex-col gap-4 px-2 py-2"
+          class="flex min-h-full min-w-0 grow flex-col gap-4 px-2 py-2 sm:min-h-0"
         >
           <UCard
-            :ui="{ body: 'grow flex flex-col p-0 sm:p-0' }"
+            :ui="{ header: 'p-1 sm:px-2', body: 'p-0 sm:p-0 grow flex flex-col min-h-0' }"
             class="flex min-w-0 grow flex-col"
           >
             <template #title>
@@ -1214,10 +1217,10 @@ async function finalizarConsulta() {
 
         <div
           v-if="index === 1"
-          class="flex min-h-full min-w-0 grow flex-col gap-4 px-2 py-2"
+          class="flex min-h-full min-w-0 grow flex-col gap-4 px-2 py-2 sm:min-h-0"
         >
           <UCard
-            :ui="{ body: 'grow flex flex-col p-0 sm:p-0' }"
+            :ui="{ header: 'p-1 sm:px-2', body: 'p-0 sm:p-0 grow flex flex-col min-h-0' }"
             class="flex min-w-0 grow flex-col"
           >
             <template #title>
@@ -1311,7 +1314,7 @@ async function finalizarConsulta() {
                 class="grow flex flex-col min-h-0"
                 :ui="{
                   body: 'overflow-y-auto h-30 p-3 grow',
-                  header: 'shrink-0'
+                  header: 'shrink-0 p-1 sm:px-2'
                 }"
               >
                 <template #title>
@@ -1373,9 +1376,9 @@ async function finalizarConsulta() {
 
         <div
           v-if="index === 3"
-          class="flex min-h-full min-w-0 grow flex-col gap-4 px-2 py-2"
+          class="flex min-h-full min-w-0 grow flex-col gap-4 px-2 py-2 sm:min-h-0"
         >
-          <UCard>
+          <UCard :ui="{ root: 'overflow-y-auto' }">
             <template #title>
               <div class="flex items-center justify-center gap-2">
                 <UIcon

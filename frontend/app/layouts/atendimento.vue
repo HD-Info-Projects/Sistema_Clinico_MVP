@@ -504,6 +504,7 @@ function voltarDashboard() {
       <template #header>
         <div class="flex items-center justify-between w-full">
           <UButton
+            class="hidden sm:block"
             icon="i-lucide-arrow-left"
             label="Voltar pro Dashboard"
             variant="ghost"
@@ -511,7 +512,8 @@ function voltarDashboard() {
             @click="voltarDashboard"
           />
           <UButton
-            icon="i-lucide-x"
+            icon="i-lucide-arrow-left"
+            label="Voltar para o Atendimento"
             color="neutral"
             variant="ghost"
             class="lg:hidden"
