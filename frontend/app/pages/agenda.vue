@@ -353,7 +353,7 @@ const statuses: { id: string, name: string, color: string }[] = [
 
               <div class="text-left">
                 <p class="text-sm text-muted font-bold">
-                  Tipo
+                  Tipo de Atend.
                 </p>
                 <UBadge
                   :label="rotuloTipo(item)"

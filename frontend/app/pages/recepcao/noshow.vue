@@ -685,7 +685,7 @@ watch(() => auth.activeClinicaId, () => {
               />
             </UBadge>
             <div class="min-w-0 flex-1">
-              <p class="break-words text-sm font-bold">
+              <p class="wrap-break-word text-sm font-bold">
                 Impacto Financeiro (estimado)
               </p>
               <p :class="`text-2xl font-black text-error`">

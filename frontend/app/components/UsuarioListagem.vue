@@ -169,8 +169,11 @@ function onSaved() {
             class="border-b border-muted rounded-none"
             :ui="{ container: 'px-4 sm:p-1 pb-3 sm:px-4' }"
           >
-            <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-12 lg:items-center">
-              <div :class="role === 'medico' ? 'lg:col-span-3' : 'lg:col-span-4'">
+            <div
+              class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2"
+              :class="role === 'medico' ? 'lg:grid-cols-[max-content_4fr_1fr_1fr_2fr_1fr_1fr_1fr_2fr]' : 'md:grid-cols-12'"
+            >
+              <div :class="role === 'medico' ? 'lg:col-span-2' : 'lg:col-span-4'">
                 <p class="text-sm font-bold text-muted">
                   Nome
                 </p>
@@ -244,7 +247,7 @@ function onSaved() {
                 />
               </div>
 
-              <div :class="role === 'medico' ? 'sm:col-span-2 lg:col-span-3' : 'sm:col-span-2 lg:col-span-2'">
+              <div :class="role === 'medico' ? '' : 'sm:col-span-2 lg:col-span-2'">
                 <p class="text-sm font-bold text-muted">
                   Ações
                 </p>

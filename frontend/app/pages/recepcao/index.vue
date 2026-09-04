@@ -601,7 +601,7 @@ onUnmounted(() => {
 
               <div class="md:col-span-1">
                 <p class="text-sm text-muted font-bold">
-                  Tipo
+                  Tipo de Atend.
                 </p>
                 <UBadge
                   :label="rotuloTipo(item)"

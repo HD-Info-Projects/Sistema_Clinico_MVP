@@ -285,18 +285,28 @@ const statuses: { id: string, name: string, color: string }[] = [
 
     <div class="min-h-screen min-w-0 space-y-4 bg-muted p-3 sm:space-y-6 sm:p-6">
       <div class="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 xl:grid-cols-[14rem_14rem_minmax(0,1fr)_14rem]">
-        <UInputMenu
-          v-model="selectedMedico"
-          :items="medicosOpcoes"
-          size="sm"
-          class="w-full"
-        />
-        <UInputMenu
-          v-model="selectedEspecialidade"
-          :items="especialidadesOpcoes"
-          size="sm"
-          class="w-full"
-        />
+        <div>
+          <p class="text-sm text-muted font-bold">
+            Filtrar por Médico
+          </p>
+          <UInputMenu
+            v-model="selectedMedico"
+            :items="medicosOpcoes"
+            size="sm"
+            class="w-full"
+          />
+        </div>
+        <div>
+          <p class="text-sm text-muted font-bold">
+            Filtrar por Especialidade
+          </p>
+          <UInputMenu
+            v-model="selectedEspecialidade"
+            :items="especialidadesOpcoes"
+            size="sm"
+            class="w-full"
+          />
+        </div>
         <div class="grid grid-cols-2 gap-2 sm:col-span-2 sm:grid-cols-3 xl:col-span-1 xl:grid-cols-6">
           <UButton
             v-for="status in filtrosStatus"
@@ -309,17 +319,22 @@ const statuses: { id: string, name: string, color: string }[] = [
             @click="void (selectedStatus = status.value)"
           />
         </div>
-        <USelectMenu
-          :model-value="selectedTipo || undefined"
-          :items="filtrosTipo"
-          value-key="value"
-          label-key="label"
-          placeholder="Filtrar por tipo"
-          clear
-          size="sm"
-          class="w-full sm:col-span-2 xl:col-span-1"
-          @update:model-value="selecionarTipo"
-        />
+        <div>
+          <p class="text-sm text-muted font-bold">
+            Tipo de Atend.
+          </p>
+          <USelectMenu
+            :model-value="selectedTipo || undefined"
+            :items="filtrosTipo"
+            value-key="value"
+            label-key="label"
+            placeholder="Filtrar por tipo"
+            clear
+            size="sm"
+            class="w-full sm:col-span-2 xl:col-span-1"
+            @update:model-value="selecionarTipo"
+          />
+        </div>
       </div>
 
       <div class="grid grid-cols-[2.5rem_minmax(0,1fr)_2.5rem] items-center gap-1 sm:gap-3">
@@ -522,7 +537,7 @@ const statuses: { id: string, name: string, color: string }[] = [
 
               <div class="text-left md:text-left">
                 <p class="text-sm text-muted font-bold">
-                  Tipo
+                  Tipo de Atend.
                 </p>
                 <UTooltip
                   :text="rotuloTipo(item)"
