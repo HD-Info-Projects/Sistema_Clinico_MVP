@@ -103,7 +103,7 @@ function onSaved() {
       </template>
     </UHeader>
 
-    <div class="min-h-screen space-y-6 bg-neutral-100 p-4 dark:bg-neutral-950 sm:p-6">
+    <div class="min-h-screen space-y-6 bg-muted p-4 sm:p-6">
       <UInput
         v-model="busca"
         icon="i-lucide-search"

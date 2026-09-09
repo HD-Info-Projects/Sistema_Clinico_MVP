@@ -66,7 +66,7 @@ onMounted(() => {
       </template>
     </UHeader>
 
-    <div class="min-h-screen bg-neutral-100 p-4 dark:bg-neutral-950 sm:p-6">
+    <div class="min-h-screen bg-muted p-4 sm:p-6">
       <PadroesGerenciador :medico-id="Number.isFinite(medicoId) ? medicoId : null" />
     </div>
   </div>

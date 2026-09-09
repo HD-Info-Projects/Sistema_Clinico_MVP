@@ -77,7 +77,7 @@ function formatarData(data: string) {
       </template>
     </UHeader>
 
-    <div class="min-h-screen space-y-6 bg-neutral-100 p-4 dark:bg-neutral-950 sm:p-6">
+    <div class="min-h-screen space-y-6 bg-muted p-4 sm:p-6">
       <div class="min-w-0">
         <p class="break-words text-2xl font-semibold sm:text-3xl">
           Bem-vindo, {{ userName }}

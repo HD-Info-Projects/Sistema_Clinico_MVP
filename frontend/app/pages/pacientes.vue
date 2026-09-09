@@ -592,7 +592,7 @@ function dropdownItems(ag: AgendamentoComPaciente) {
         />
       </template>
     </UHeader>
-    <div class="min-h-screen min-w-0 space-y-6 bg-neutral-100 p-3 dark:bg-neutral-950 sm:p-6">
+    <div class="min-h-screen min-w-0 space-y-6 bg-muted p-3 sm:p-6">
       <div class="flex flex-col sm:flex-row gap-3">
         <UInput
           v-model="buscaNome"

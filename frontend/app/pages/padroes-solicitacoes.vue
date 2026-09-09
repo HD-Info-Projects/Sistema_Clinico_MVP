@@ -189,7 +189,7 @@ function activeTabEmpty(): boolean {
       </template>
     </UHeader>
 
-    <div class="min-h-screen min-w-0 space-y-6 bg-neutral-100 p-3 dark:bg-neutral-950 sm:p-6">
+    <div class="min-h-screen min-w-0 space-y-6 bg-muted p-3 sm:p-6">
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4 xl:gap-6">
         <UCard :class="cardOrder(1)">
           <template #title>

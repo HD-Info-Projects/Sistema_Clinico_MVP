@@ -961,14 +961,14 @@ function voltarDashboard() {
       </div>
     </USidebar>
     <main
-      class="min-h-0 min-w-0 flex-1 overflow-hidden bg-neutral-100 dark:bg-neutral-950"
+      class="min-h-0 min-w-0 flex-1 overflow-hidden bg-muted"
     >
       <slot />
     </main>
   </div>
   <div
     v-else-if="agendamentosStore.loading"
-    class="flex h-dvh items-center justify-center bg-neutral-100 dark:bg-neutral-950"
+    class="flex h-dvh items-center justify-center bg-muted"
     role="status"
   >
     <UCard class="w-full max-w-md">
@@ -994,7 +994,7 @@ function voltarDashboard() {
   </div>
   <div
     v-else
-    class="flex h-dvh items-center justify-center bg-neutral-100 dark:bg-neutral-950"
+    class="flex h-dvh items-center justify-center bg-muted"
   >
     <UCard>
       <div class="flex flex-col items-center py-12 gap-4">

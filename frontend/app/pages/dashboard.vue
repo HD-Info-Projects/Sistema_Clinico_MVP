@@ -332,7 +332,7 @@ const tempoMedioEspera = computed(() => {
         class="min-w-0 max-w-[55vw] truncate"
       />
     </div>
-    <div class="min-h-screen min-w-0 space-y-6 bg-neutral-100 p-3 dark:bg-neutral-950 sm:space-y-8 sm:p-6">
+    <div class="min-h-screen min-w-0 space-y-6 bg-muted p-3 sm:space-y-8 sm:p-6">
       <div class="min-w-0">
         <p class="wrap-break-word text-2xl font-semibold text-foreground sm:text-3xl">
           {{ getSaudacao(agora) }}, Dr. {{ userName }}

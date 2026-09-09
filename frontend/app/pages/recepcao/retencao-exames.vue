@@ -469,7 +469,7 @@ watch(() => auth.activeClinicaId, () => {
         </div>
       </template>
     </UHeader>
-    <div class="min-h-screen min-w-0 space-y-6 bg-neutral-100 p-3 dark:bg-neutral-950 sm:space-y-8 sm:p-6">
+    <div class="min-h-screen min-w-0 space-y-6 bg-muted p-3 sm:space-y-8 sm:p-6">
       <UCard class="w-full">
         <template #title>
           <p class="text-lg font-medium">
