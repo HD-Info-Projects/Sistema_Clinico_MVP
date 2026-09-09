@@ -21,6 +21,7 @@ TIPO_PROCEDIMENTO_NAO_INFORMADO = "nao-informado"
 
 CODIGOS_TUSS_CONSULTA_EXATOS = {"5001"}
 FAIXAS_TUSS_CONSULTA = ((10000000, 19999999),)
+CODIGOS_TUSS_VISIVEIS_MEDICO_EXTRAS = {"41301307", "41301471"}
 
 TIPO_PROCEDIMENTO_LABELS = {
     TIPO_PROCEDIMENTO_CONSULTA: "Consultas",
@@ -105,6 +106,17 @@ def tipo_procedimento_codigo(codigo):
             return tipo
 
     return TIPO_PROCEDIMENTO_OUTROS
+
+
+def codigo_tuss_visivel_medico(codigo):
+    codigo_texto = normalizar_codigo_tuss(codigo)
+    if not codigo_texto:
+        return False
+
+    return (
+        codigo_texto in CODIGOS_TUSS_VISIVEIS_MEDICO_EXTRAS
+        or tipo_procedimento_codigo(codigo_texto) == TIPO_PROCEDIMENTO_CONSULTA
+    )
 
 
 def label_tipo_procedimento(tipo):

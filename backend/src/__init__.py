@@ -17,9 +17,12 @@ from src.commands.convenios_commands import (
 from src.commands.especialidades_commands import importar_especialidades_spdata_command
 from src.commands.medicos_commands import registrar_medico_spdata_command
 from src.commands.usuarios_commands import (
+    desbloquear_usuario_command,
     registrar_admin_command,
     registrar_dpo_command,
     registrar_recepcao_command,
+    resetar_senha_usuario_command,
+    usuarios_senhas_legadas_command,
 )
 from src.commands.unidades_commands import (
     criar_unidade_command,
@@ -142,6 +145,9 @@ def create_app():
     app.cli.add_command(registrar_admin_command)
     app.cli.add_command(registrar_dpo_command)
     app.cli.add_command(registrar_recepcao_command)
+    app.cli.add_command(usuarios_senhas_legadas_command)
+    app.cli.add_command(resetar_senha_usuario_command)
+    app.cli.add_command(desbloquear_usuario_command)
     app.cli.add_command(criar_unidade_command)
     app.cli.add_command(listar_unidades_command)
     app.cli.add_command(vincular_unidade_usuario_command)
@@ -204,6 +210,7 @@ def create_app():
     from src.routes.usuarios_route import usuarios_bp
     from src.routes.auditoria_route import auditoria_bp
     from src.routes.unidades_route import unidades_bp
+    from src.routes.spdata_exames_pacs_route import exames_pacs_bp
 
     app.register_blueprint(login_bp)
     app.register_blueprint(dashboard_bp)
@@ -223,5 +230,6 @@ def create_app():
     app.register_blueprint(usuarios_bp)
     app.register_blueprint(auditoria_bp)
     app.register_blueprint(unidades_bp)
+    app.register_blueprint(exames_pacs_bp)
 
     return app

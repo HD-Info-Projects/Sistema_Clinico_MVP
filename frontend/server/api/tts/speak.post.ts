@@ -47,7 +47,7 @@ export default defineEventHandler(async (event) => {
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ text, voice: body?.voice })
+    body: JSON.stringify({ text, voice: body?.voice, chamadoId })
   })
 
   if (!res.ok) {

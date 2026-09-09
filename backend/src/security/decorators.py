@@ -23,6 +23,31 @@ def _usuario_autenticado_ativo():
     return usuario
 
 
+def _registrar_acesso_negado_usuario_inativo():
+    registrar_auditoria(
+        AcaoAuditoria.ACESSO_NEGADO,
+        entidade="rota",
+        descricao="Usuário inativo, bloqueado ou inexistente tentou acessar rota autenticada",
+    )
+
+
+def active_user_required():
+    def wrapper(fn):
+        @wraps(fn)
+        def decorator(*args, **kwargs):
+            verify_jwt_in_request()
+
+            if not _usuario_autenticado_ativo():
+                _registrar_acesso_negado_usuario_inativo()
+                return jsonify({"error": "Não autorizado"}), 401
+
+            return fn(*args, **kwargs)
+
+        return decorator
+
+    return wrapper
+
+
 def roles_required(*roles):
     def wrapper(fn):
         @wraps(fn)
@@ -33,11 +58,7 @@ def roles_required(*roles):
             usuario = _usuario_autenticado_ativo()
 
             if not usuario:
-                registrar_auditoria(
-                    AcaoAuditoria.ACESSO_NEGADO,
-                    entidade="rota",
-                    descricao="Usuário inativo, bloqueado ou inexistente tentou acessar rota autenticada",
-                )
+                _registrar_acesso_negado_usuario_inativo()
                 return jsonify({"error": "Não autorizado"}), 401
 
             role = usuario.role or claims.get("role")

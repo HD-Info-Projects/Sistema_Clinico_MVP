@@ -84,7 +84,15 @@ def atualizar_motivo(agenda_id):
         if agenda.unidade_id != unidade.id:
             raise PermissionError("Agenda não pertence à unidade selecionada")
 
-        return jsonify(registrar_motivo_no_show(agenda_id, body.get("motivo"))), 200
+        resultado = registrar_motivo_no_show(agenda_id, body.get("motivo"))
+        registrar_auditoria(
+            AcaoAuditoria.ALTEROU_MOTIVO_NO_SHOW,
+            entidade="no_show",
+            entidade_id=agenda_id,
+            usuario_id=int(get_jwt_identity()),
+            descricao=f"Motivo do no-show atualizado. motivo={resultado.get('motivo')}",
+        )
+        return jsonify(resultado), 200
 
     except LookupError as e:
         return jsonify({"error": str(e)}), 404

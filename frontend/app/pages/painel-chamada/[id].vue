@@ -9,7 +9,9 @@ const unidade = ref<Clinica | null>(null)
 const painelError = ref('')
 
 const clinicaId = computed(() => {
-  const raw = Array.isArray(route.params.id) ? route.params.id[0] : route.params.id
+  const raw = Array.isArray(route.params.id)
+    ? route.params.id[0]
+    : route.params.id
   const id = Number(raw)
   return Number.isInteger(id) && id > 0 ? id : null
 })
@@ -136,7 +138,10 @@ async function falarChamado(chamadoId: number) {
       let message = 'Erro ao gerar áudio'
 
       try {
-        const body = await res.json() as { statusMessage?: string, message?: string }
+        const body = (await res.json()) as {
+          statusMessage?: string
+          message?: string
+        }
         message = body.statusMessage || body.message || message
       } catch {
         // Mantém a mensagem padrão quando a resposta não é JSON.
@@ -184,7 +189,8 @@ async function falarChamado(chamadoId: number) {
 
     ttsLoading.value = false
     ttsError.value = true
-    ttsErrorMensagem.value = error instanceof Error ? error.message : 'Erro ao gerar áudio'
+    ttsErrorMensagem.value
+      = error instanceof Error ? error.message : 'Erro ao gerar áudio'
     limparAudioAtual()
   }
 }
@@ -219,17 +225,66 @@ onBeforeUnmount(() => {
   ttsRequestId.value += 1
   ttsAbortController.value?.abort()
   limparAudioAtual()
+  limparTimerChamado()
 })
 
 const { horaFormatada, dataFormatada } = useRelogio()
 
-const unidadeLabel = computed(() => unidade.value?.nome || (clinicaId.value ? `Unidade #${clinicaId.value}` : 'Unidade'))
+const unidadeLabel = computed(
+  () =>
+    unidade.value?.nome
+    || (clinicaId.value ? `Unidade #${clinicaId.value}` : 'Unidade')
+)
+
+const youtubePlaylistUrl
+  = 'https://www.youtube-nocookie.com/embed/videoseries?list=PLFYrrL1WwjfP6Ta2uXVZYoTq_j_9By8am&autoplay=1&mute=1&loop=1&controls=0&disablekb=1&fs=0&iv_load_policy=3&modestbranding=1&playsinline=1&rel=0'
 const ultimoChamado = computed(() => chamadosStore.ultimoChamado)
-const ultimasChamadas = computed(() => chamadosStore.historicoChamados.slice(0, 4))
-const mostrarDesbloqueioAudio = computed(() => !audioAtivo.value && !painelError.value)
-const mensagemAudio = computed(() => audioBloqueado.value
-  ? 'Áudio bloqueado pelo navegador'
-  : 'Tentando ativar áudio automaticamente')
+const timerChamadoRef = ref<ReturnType<typeof setTimeout> | null>(null)
+const chamadoAtualIdRef = ref<number | null>(null)
+
+function limparTimerChamado() {
+  if (timerChamadoRef.value) {
+    clearTimeout(timerChamadoRef.value)
+    timerChamadoRef.value = null
+  }
+  chamadoAtualIdRef.value = null
+}
+
+function agendarConclusaoAutomatica(chamadoId: number) {
+  limparTimerChamado()
+  chamadoAtualIdRef.value = chamadoId
+  timerChamadoRef.value = setTimeout(async () => {
+    if (chamadoAtualIdRef.value === chamadoId && clinicaId.value) {
+      try {
+        await chamadosStore.concluirChamadoPublico(chamadoId, clinicaId.value)
+      } catch (error) {
+        console.error('Erro ao concluir chamado automaticamente', error)
+      }
+    }
+  }, 10000)
+}
+
+watch(ultimoChamado, (novoChamado) => {
+  if (novoChamado) {
+    if (novoChamado.id !== chamadoAtualIdRef.value) {
+      agendarConclusaoAutomatica(novoChamado.id)
+    }
+  } else {
+    limparTimerChamado()
+  }
+})
+
+const ultimasChamadas = computed(() =>
+  chamadosStore.historicoChamados.slice(0, 4)
+)
+const mostrarDesbloqueioAudio = computed(
+  () => !audioAtivo.value && !painelError.value
+)
+const mensagemAudio = computed(() =>
+  audioBloqueado.value
+    ? 'Áudio bloqueado pelo navegador'
+    : 'Tentando ativar áudio automaticamente'
+)
 </script>
 
 <template>
@@ -256,7 +311,9 @@ const mensagemAudio = computed(() => audioBloqueado.value
     </div>
 
     <template v-else>
-      <header class="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <header
+        class="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+      >
         <div class="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
           <LogoMed :tipo="0" />
           <UBadge
@@ -274,7 +331,11 @@ const mensagemAudio = computed(() => audioBloqueado.value
             color="primary"
             variant="soft"
             :loading="audioAtivando"
-            :aria-label="audioBloqueado ? 'Ativar áudio das chamadas' : 'Áudio sendo ativado'"
+            :aria-label="
+              audioBloqueado
+                ? 'Ativar áudio das chamadas'
+                : 'Áudio sendo ativado'
+            "
             @click.stop="ativarAudioPorInteracao"
           />
           <div
@@ -295,7 +356,7 @@ const mensagemAudio = computed(() => audioBloqueado.value
             role="alert"
           >
             <UIcon name="i-lucide-volume-x" />
-            {{ ttsErrorMensagem || 'Erro no áudio' }}
+            {{ ttsErrorMensagem || "Erro no áudio" }}
           </div>
           <UBadge
             v-else
@@ -308,7 +369,9 @@ const mensagemAudio = computed(() => audioBloqueado.value
           <p class="text-[clamp(1rem,2.5vw,1.5rem)] font-light text-muted">
             {{ dataFormatada }}
           </p>
-          <p class="text-[clamp(2rem,5vw,3rem)] font-bold tracking-tight text-foreground tabular-nums">
+          <p
+            class="text-[clamp(2rem,5vw,3rem)] font-bold tracking-tight text-foreground tabular-nums"
+          >
             {{ horaFormatada }}
           </p>
         </div>
@@ -316,33 +379,57 @@ const mensagemAudio = computed(() => audioBloqueado.value
 
       <main class="flex flex-1 flex-col gap-3 lg:min-h-0 lg:flex-row lg:gap-4">
         <div class="flex min-h-96 min-w-0 flex-2 flex-col gap-4 lg:min-h-0">
-          <template v-if="ultimoChamado">
-            <UCard
-              class="flex flex-1 flex-col items-center justify-center bg-primary-600 p-4 sm:p-6 lg:p-10 dark:bg-primary-700/80"
+          <UCard
+            class="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-primary-600 dark:bg-primary-700/80"
+            :ui="{ body: 'relative flex min-h-0 flex-1 p-0 sm:p-0' }"
+          >
+            <div class="absolute inset-0 overflow-hidden bg-black">
+              <iframe
+                :src="youtubePlaylistUrl"
+                title="Vídeos informativos"
+                class="size-full pointer-events-none border-0"
+                allow="autoplay; encrypted-media"
+                referrerpolicy="strict-origin-when-cross-origin"
+              />
+            </div>
+
+            <div
+              v-if="ultimoChamado"
+              class="absolute inset-0 flex flex-col items-center justify-center bg-primary-600 p-10 dark:bg-primary-700/80"
               role="status"
               aria-live="assertive"
               aria-atomic="true"
             >
               <div class="w-full">
-                <p class="mb-3 text-center text-[clamp(0.875rem,2vw,1.25rem)] font-medium uppercase tracking-widest text-white sm:mb-4">
+                <p
+                  class="mb-3 text-center text-[clamp(0.875rem,2vw,1.25rem)] font-medium uppercase tracking-widest text-white sm:mb-4"
+                >
                   Chamando Agora
                 </p>
 
-                <p class="mb-4 break-words text-center text-[clamp(2rem,6vw,4.5rem)] font-bold leading-tight text-white [overflow-wrap:anywhere] sm:mb-6">
+                <p
+                  class="mb-4 break-words text-center text-[clamp(2rem,6vw,4.5rem)] font-bold leading-tight text-white [overflow-wrap:anywhere] sm:mb-6"
+                >
                   {{ ultimoChamado.pacienteNome }}
                 </p>
               </div>
 
-              <div class="mb-6 flex w-full flex-col items-center justify-center gap-4">
+              <div
+                class="mb-6 flex w-full flex-col items-center justify-center gap-4"
+              >
                 <UPageCard
                   class="w-full flex-1 bg-white/20 p-2! text-center"
                   variant="subtle"
                   :ui="{ container: 'p-0 sm:p-0' }"
                 >
-                  <p class="text-[clamp(0.75rem,1.8vw,1.125rem)] uppercase tracking-wider text-white">
+                  <p
+                    class="text-[clamp(0.75rem,1.8vw,1.125rem)] uppercase tracking-wider text-white"
+                  >
                     Local de Atendimento
                   </p>
-                  <p class="break-words text-[clamp(1.5rem,4vw,2.25rem)] font-semibold text-white [overflow-wrap:anywhere]">
+                  <p
+                    class="break-words text-[clamp(1.5rem,4vw,2.25rem)] font-semibold text-white [overflow-wrap:anywhere]"
+                  >
                     {{ ultimoChamado.localAtendimento }}
                   </p>
                 </UPageCard>
@@ -351,11 +438,15 @@ const mensagemAudio = computed(() => audioBloqueado.value
                   variant="subtle"
                   :ui="{ container: 'p-0 sm:p-0' }"
                 >
-                  <p class="text-[clamp(0.75rem,1.8vw,1.125rem)] uppercase tracking-wider text-white">
+                  <p
+                    class="text-[clamp(0.75rem,1.8vw,1.125rem)] uppercase tracking-wider text-white"
+                  >
                     Médico Responsável
                   </p>
-                  <p class="break-words text-[clamp(1.5rem,4vw,2.25rem)] font-semibold text-white [overflow-wrap:anywhere]">
-                    {{ ultimoChamado.medicoResponsavel || 'Atendimento' }}
+                  <p
+                    class="break-words text-[clamp(1.5rem,4vw,2.25rem)] font-semibold text-white [overflow-wrap:anywhere]"
+                  >
+                    {{ ultimoChamado.medicoResponsavel || "Atendimento" }}
                   </p>
                 </UPageCard>
               </div>
@@ -365,27 +456,14 @@ const mensagemAudio = computed(() => audioBloqueado.value
                   name="i-lucide-arrow-right"
                   class="animate-pulse text-white"
                 />
-                <p class="animate-pulse text-center text-[clamp(1rem,3vw,1.875rem)] font-medium text-white">
+                <p
+                  class="animate-pulse text-center text-[clamp(1rem,3vw,1.875rem)] font-medium text-white"
+                >
                   Por favor, dirija-se à sala indicada.
                 </p>
               </div>
-            </UCard>
-          </template>
-
-          <template v-else>
-            <UCard class="flex flex-1 flex-col items-center justify-center bg-primary-600 p-4 text-center sm:p-6 lg:p-10 dark:bg-primary-700/80">
-              <UIcon
-                name="i-lucide-stethoscope"
-                class="text-7xl text-white"
-              />
-              <p class="mt-4 text-[clamp(1.25rem,3vw,1.5rem)] font-medium text-white">
-                Nenhuma chamada no momento
-              </p>
-              <p class="mt-1 text-base text-white">
-                A lista de chamadas aparecerá aqui automaticamente.
-              </p>
-            </UCard>
-          </template>
+            </div>
+          </UCard>
         </div>
 
         <UCard
@@ -398,7 +476,9 @@ const mensagemAudio = computed(() => audioBloqueado.value
                 name="i-lucide-list-check"
                 class="shrink-0 text-2xl text-primary"
               />
-              <p class="break-words text-base font-bold uppercase tracking-widest text-primary sm:text-lg">
+              <p
+                class="break-words text-base font-bold uppercase tracking-widest text-primary sm:text-lg"
+              >
                 Últimas Chamadas
               </p>
             </div>
@@ -412,10 +492,14 @@ const mensagemAudio = computed(() => audioBloqueado.value
               v-for="chamado in ultimasChamadas"
               :key="chamado.id"
             >
-              <p class="line-clamp-2 break-words text-xl font-semibold text-foreground [overflow-wrap:anywhere] sm:text-2xl">
+              <p
+                class="line-clamp-2 break-words text-xl font-semibold text-foreground [overflow-wrap:anywhere] sm:text-2xl"
+              >
                 {{ chamado.pacienteNome }}
               </p>
-              <div class="mt-1 flex flex-wrap items-center justify-between gap-2 text-sm text-muted">
+              <div
+                class="mt-1 flex flex-wrap items-center justify-between gap-2 text-sm text-muted"
+              >
                 <UBadge
                   :label="chamado.localAtendimento"
                   color="primary"
@@ -452,7 +536,9 @@ const mensagemAudio = computed(() => audioBloqueado.value
           class="w-full max-w-xl text-center shadow-2xl"
           :ui="{ body: 'p-8 sm:p-10' }"
         >
-          <div class="mx-auto mb-5 flex size-20 items-center justify-center rounded-full bg-primary/10">
+          <div
+            class="mx-auto mb-5 flex size-20 items-center justify-center rounded-full bg-primary/10"
+          >
             <UIcon
               name="i-lucide-volume-2"
               class="text-5xl text-primary"
@@ -468,7 +554,8 @@ const mensagemAudio = computed(() => audioBloqueado.value
             id="descricao-ativar-audio"
             class="mb-6 text-base text-muted sm:text-lg"
           >
-            {{ mensagemAudio }}. Toque ou clique uma vez para liberar as chamadas sonoras nesta tela.
+            {{ mensagemAudio }}. Toque ou clique uma vez para liberar as
+            chamadas sonoras nesta tela.
           </p>
           <UButton
             icon="i-lucide-volume-2"

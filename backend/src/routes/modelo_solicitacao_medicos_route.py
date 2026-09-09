@@ -3,8 +3,10 @@ from flask_jwt_extended import jwt_required
 from src.security.decorators import roles_required
 
 from src.settings.extensions import db
+from src.models.auditoria_model import AcaoAuditoria
 from src.models.model_padroes_solicitacoes.modelo_receita_model import ModeloReceita
 from src.models.model_padroes_solicitacoes.medicamentos_para_modelo_receita_model import Medicamentos
+from src.services.auditoria_service import registrar_auditoria
 from src.services.padroes_medico_service import resolver_medico_alvo
 
 padrao_medico_receita_bp = Blueprint(
@@ -50,6 +52,16 @@ def _get_medicamento_do_medico(id_medicamento, medico_id):
     )
 
 
+def _auditar_modelo_receita(acao, modelo_id, medico_id, detalhe):
+    registrar_auditoria(
+        acao,
+        entidade="padrao_medico_receita",
+        entidade_id=modelo_id,
+        usuario_id=medico_id,
+        descricao=f"Modelo médico de receita {detalhe}.",
+    )
+
+
 @padrao_medico_receita_bp.route("/criar", methods=["POST"])
 @jwt_required()
 @roles_required("medico", "admin")
@@ -67,6 +79,12 @@ def create_padrao_medico_receita():
         new_padrao_medico_receita = ModeloReceita(nome_modelo, medico_id)
         db.session.add(new_padrao_medico_receita)
         db.session.commit()
+        _auditar_modelo_receita(
+            AcaoAuditoria.CRIOU_MODELO_MEDICO,
+            new_padrao_medico_receita.id,
+            medico_id,
+            "criado",
+        )
 
         return jsonify(new_padrao_medico_receita._to_dict()), 201
 
@@ -104,6 +122,12 @@ def add_medicamento_padrao_medico_receita(id_padrao_medico_receita: int):
 
         db.session.add(new_medicamento)
         db.session.commit()
+        _auditar_modelo_receita(
+            AcaoAuditoria.EDITOU_MODELO_MEDICO,
+            id_padrao_medico_receita,
+            medico_id,
+            "editado: medicamento adicionado",
+        )
 
         return jsonify(new_medicamento._to_dict()), 201
 
@@ -182,6 +206,12 @@ def editar_padrao_medico_receita(id: int):
         padrao.nome_modelo = nome_modelo
 
         db.session.commit()
+        _auditar_modelo_receita(
+            AcaoAuditoria.EDITOU_MODELO_MEDICO,
+            padrao.id,
+            medico_id,
+            "editado",
+        )
 
         return jsonify(_padrao_medico_receita_to_dict(padrao)), 200
 
@@ -232,6 +262,12 @@ def editar_medicamento_padrao_medico_receita(id: int):
             return jsonify({"error": "Nenhum campo válido informado para atualização"}), 400
 
         db.session.commit()
+        _auditar_modelo_receita(
+            AcaoAuditoria.EDITOU_MODELO_MEDICO,
+            medicamento.id_modelo_solicitacao_receita,
+            medico_id,
+            "editado: medicamento atualizado",
+        )
 
         return jsonify(medicamento._to_dict()), 200
 
@@ -257,6 +293,12 @@ def deletar_padrao_medico_receita(id: int):
 
         db.session.delete(padrao)
         db.session.commit()
+        _auditar_modelo_receita(
+            AcaoAuditoria.EXCLUIU_MODELO_MEDICO,
+            id,
+            medico_id,
+            "excluído",
+        )
 
         return jsonify({"message": "Padrão médico de receita deletado com sucesso"}), 200
 
@@ -278,8 +320,15 @@ def deletar_medicamento_padrao_medico_receita(id: int):
         if not medicamento:
             return jsonify({"error": "Medicamento não encontrado"}), 404
 
+        modelo_id = medicamento.id_modelo_solicitacao_receita
         db.session.delete(medicamento)
         db.session.commit()
+        _auditar_modelo_receita(
+            AcaoAuditoria.EDITOU_MODELO_MEDICO,
+            modelo_id,
+            medico_id,
+            "editado: medicamento excluído",
+        )
 
         return jsonify({"message": "Medicamento deletado com sucesso"}), 200
 

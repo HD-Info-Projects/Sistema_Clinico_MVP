@@ -1,14 +1,101 @@
 <script setup lang="ts">
-import type { AgendamentoComPaciente } from '~/types'
+import type { AgendamentoComPaciente, AgendamentoStatus } from '~/types'
+import type { DateValue } from '@internationalized/date'
 import { CalendarDate } from '@internationalized/date'
 import { corTipoProcedimento, rotuloTipoProcedimento } from '~/utils/tuss'
 
 const openNav = inject<() => void>('openNav', () => {})
+
+type MarcadorStatus = Exclude<AgendamentoStatus, 'cancelado'>
+type MarcadorCalendarioResponse = {
+  data?: string | null
+  status?: AgendamentoStatus[] | AgendamentoStatus | null
+}
+
+const ordemMarcadoresStatus: MarcadorStatus[] = [
+  'agendado',
+  'em-espera',
+  'em-atendimento',
+  'atendido',
+  'faltou'
+]
+const classesPontoStatus: Record<MarcadorStatus, string> = {
+  'agendado': 'bg-secondary',
+  'em-espera': 'bg-primary',
+  'em-atendimento': 'bg-warning',
+  'atendido': 'bg-success',
+  'faltou': 'bg-error'
+}
 const agendamentosStore = useAgendamentosStore()
 const auth = useAuthStore()
 
 const selectedDate = ref(new Date())
+const calendarPlaceholder = shallowRef(dateToCalendarDate(selectedDate.value))
 const isPopoverOpen = ref(false)
+const marcadoresCalendario = ref<Record<string, MarcadorStatus[]>>({})
+const cacheMarcadoresCalendario = new Map<
+  string,
+  Record<string, MarcadorStatus[]>
+>()
+let marcadoresRequestId = 0
+
+function dateToCalendarDate(d: Date) {
+  return new CalendarDate(d.getFullYear(), d.getMonth() + 1, d.getDate())
+}
+
+function dataISOCalendar(date: DateValue) {
+  const month = String(date.month).padStart(2, '0')
+  const day = String(date.day).padStart(2, '0')
+  return `${date.year}-${month}-${day}`
+}
+
+function chaveMesCalendar(date: DateValue) {
+  return `${date.year}-${String(date.month).padStart(2, '0')}`
+}
+
+function chaveCacheMarcadores(date: DateValue) {
+  return `${auth.activeClinicaId ?? 'sem-unidade'}:${chaveMesCalendar(date)}`
+}
+
+function intervaloMes(date: DateValue) {
+  const inicio = new Date(date.year, date.month - 1, 1)
+  const fim = new Date(date.year, date.month, 0)
+  return {
+    dataIni: formatarDataISO(inicio),
+    dataFim: formatarDataISO(fim)
+  }
+}
+
+function isMarcadorStatus(status: unknown): status is MarcadorStatus {
+  return ordemMarcadoresStatus.includes(status as MarcadorStatus)
+}
+
+function montarMarcadoresCalendario(items: MarcadorCalendarioResponse[]) {
+  const statusPorData = new Map<string, Set<MarcadorStatus>>()
+
+  for (const item of items) {
+    const data = String(item.data ?? '').slice(0, 10)
+    if (!data) continue
+
+    const statusDia = statusPorData.get(data) ?? new Set<MarcadorStatus>()
+    const statusItem = Array.isArray(item.status) ? item.status : [item.status]
+    for (const status of statusItem) {
+      if (isMarcadorStatus(status)) statusDia.add(status)
+    }
+    if (statusDia.size) statusPorData.set(data, statusDia)
+  }
+
+  return Object.fromEntries(
+    Array.from(statusPorData.entries()).map(([data, statusDia]) => [
+      data,
+      ordemMarcadoresStatus.filter(status => statusDia.has(status))
+    ])
+  )
+}
+
+function marcadoresDoDia(day: DateValue) {
+  return marcadoresCalendario.value[dataISOCalendar(day)] ?? []
+}
 
 const formattedDate = computed(() => {
   const d = selectedDate.value
@@ -18,8 +105,7 @@ const formattedDate = computed(() => {
 
 const calendarDate = computed({
   get: () => {
-    const d = selectedDate.value
-    return new CalendarDate(d.getFullYear(), d.getMonth() + 1, d.getDate())
+    return dateToCalendarDate(selectedDate.value)
   },
   set: (val: CalendarDate) => {
     selectedDate.value = new Date(val.year, val.month - 1, val.day)
@@ -45,34 +131,122 @@ function goToToday() {
 
 function loadAgendamentos() {
   const dataStr = formatarDataISO(selectedDate.value)
-  agendamentosStore.fetchAgendamentos(auth.activeClinicaId ?? undefined, dataStr, auth.user?.id)
+  agendamentosStore.fetchAgendamentos(
+    auth.activeClinicaId ?? undefined,
+    dataStr,
+    auth.user?.id
+  )
+}
+
+async function buscarMarcadoresCalendario(
+  date: DateValue,
+  sincronizar = false
+) {
+  const { dataIni, dataFim } = intervaloMes(date)
+  const params = new URLSearchParams({ dataIni, dataFim })
+  if (auth.activeClinicaId)
+    params.set('clinicaId', String(auth.activeClinicaId))
+  if (sincronizar) params.set('sincronizar', 'true')
+
+  const items = await $fetch<MarcadorCalendarioResponse[]>(
+    `/api/agendamentos/marcadores?${params.toString()}`
+  )
+  return montarMarcadoresCalendario(items)
+}
+
+async function atualizarMarcadoresCalendario(
+  date: DateValue,
+  requestId: number
+) {
+  try {
+    const marcadoresAtualizados = await buscarMarcadoresCalendario(date, true)
+    if (requestId !== marcadoresRequestId) return
+
+    cacheMarcadoresCalendario.set(
+      chaveCacheMarcadores(date),
+      marcadoresAtualizados
+    )
+    marcadoresCalendario.value = marcadoresAtualizados
+  } catch {
+    // Mantém os marcadores locais/cacheados se a sincronização em segundo plano falhar.
+  }
+}
+
+async function loadMarcadoresCalendario(date = calendarPlaceholder.value) {
+  const requestId = ++marcadoresRequestId
+  const chaveCache = chaveCacheMarcadores(date)
+  const marcadoresCache = cacheMarcadoresCalendario.get(chaveCache)
+  marcadoresCalendario.value = marcadoresCache ?? {}
+
+  try {
+    const marcadoresLocais = await buscarMarcadoresCalendario(date)
+    if (requestId !== marcadoresRequestId) return
+
+    cacheMarcadoresCalendario.set(chaveCache, marcadoresLocais)
+    marcadoresCalendario.value = marcadoresLocais
+  } catch {
+    if (requestId === marcadoresRequestId && !marcadoresCache)
+      marcadoresCalendario.value = {}
+  }
+
+  void atualizarMarcadoresCalendario(date, requestId)
 }
 
 function isToday(date: Date) {
   const today = new Date()
-  return date.getDate() === today.getDate()
+  return (
+    date.getDate() === today.getDate()
     && date.getMonth() === today.getMonth()
     && date.getFullYear() === today.getFullYear()
+  )
 }
 
-watch(selectedDate, loadAgendamentos)
+watch(selectedDate, () => {
+  loadAgendamentos()
+
+  const novoPlaceholder = dateToCalendarDate(selectedDate.value)
+  if (
+    chaveMesCalendar(novoPlaceholder)
+    !== chaveMesCalendar(calendarPlaceholder.value)
+  ) {
+    calendarPlaceholder.value = novoPlaceholder
+  }
+})
+
+watch(calendarPlaceholder, (placeholder, anterior) => {
+  if (
+    !anterior
+    || chaveMesCalendar(placeholder) !== chaveMesCalendar(anterior)
+  ) {
+    loadMarcadoresCalendario(placeholder)
+  }
+})
 
 onMounted(() => {
   loadAgendamentos()
+  loadMarcadoresCalendario()
 })
 
 const atendimentosFiltrados = computed(() => agendamentosStore.agendamentos)
 
 const atendimentosOrdenados = computed(() => {
-  return [...atendimentosFiltrados.value].sort((a, b) => a.horario.localeCompare(b.horario))
+  return [...atendimentosFiltrados.value].sort((a, b) =>
+    a.horario.localeCompare(b.horario)
+  )
 })
 
 const resumo = computed(() => ({
-  agendados: atendimentosFiltrados.value.filter(a => a.status === 'agendado').length,
-  emEspera: atendimentosFiltrados.value.filter(a => a.status === 'em-espera').length,
-  emAtendimento: atendimentosFiltrados.value.filter(a => a.status === 'em-atendimento').length,
-  atendidos: atendimentosFiltrados.value.filter(a => a.status === 'atendido').length,
-  faltas: atendimentosFiltrados.value.filter(a => a.status === 'faltou').length
+  agendados: atendimentosFiltrados.value.filter(a => a.status === 'agendado')
+    .length,
+  emEspera: atendimentosFiltrados.value.filter(a => a.status === 'em-espera')
+    .length,
+  emAtendimento: atendimentosFiltrados.value.filter(
+    a => a.status === 'em-atendimento'
+  ).length,
+  atendidos: atendimentosFiltrados.value.filter(a => a.status === 'atendido')
+    .length,
+  faltas: atendimentosFiltrados.value.filter(a => a.status === 'faltou')
+    .length
 }))
 
 function idadePaciente(dataNascimento: string | null | undefined) {
@@ -81,7 +255,11 @@ function idadePaciente(dataNascimento: string | null | undefined) {
   if (Number.isNaN(data.getTime())) return ''
   const hoje = new Date()
   let idade = hoje.getFullYear() - data.getFullYear()
-  const aniversario = new Date(hoje.getFullYear(), data.getMonth(), data.getDate())
+  const aniversario = new Date(
+    hoje.getFullYear(),
+    data.getMonth(),
+    data.getDate()
+  )
   if (aniversario > hoje) idade -= 1
   if (idade < 0) return ''
   return idade === 1 ? '1 ano' : `${idade} anos`
@@ -92,7 +270,10 @@ function textoInformado(valor: string | number | null | undefined) {
   return texto && texto !== '0' ? texto : ''
 }
 
-function textoNaoInformado(valor: string | number | null | undefined, fallback = 'Não informado') {
+function textoNaoInformado(
+  valor: string | number | null | undefined,
+  fallback = 'Não informado'
+) {
   return textoInformado(valor) || fallback
 }
 
@@ -106,23 +287,35 @@ function contatoPrincipal(atendimento: AgendamentoComPaciente) {
 
 function corStatus(s: string) {
   switch (s) {
-    case 'agendado': return 'secondary'
-    case 'em-espera': return 'primary'
-    case 'em-atendimento': return 'warning'
-    case 'atendido': return 'success'
-    case 'faltou': return 'error'
-    default: return 'neutral'
+    case 'agendado':
+      return 'secondary'
+    case 'em-espera':
+      return 'primary'
+    case 'em-atendimento':
+      return 'warning'
+    case 'atendido':
+      return 'success'
+    case 'faltou':
+      return 'error'
+    default:
+      return 'neutral'
   }
 }
 
 function rotuloStatus(s: string) {
   switch (s) {
-    case 'agendado': return 'Agendado'
-    case 'em-espera': return 'Em espera'
-    case 'em-atendimento': return 'Em atendimento'
-    case 'atendido': return 'Atendido'
-    case 'faltou': return 'Faltou'
-    default: return 'Desconhecido'
+    case 'agendado':
+      return 'Agendado'
+    case 'em-espera':
+      return 'Em espera'
+    case 'em-atendimento':
+      return 'Em atendimento'
+    case 'atendido':
+      return 'Atendido'
+    case 'faltou':
+      return 'Faltou'
+    default:
+      return 'Desconhecido'
   }
 }
 
@@ -131,7 +324,10 @@ function corTipo(tipo: string | null | undefined) {
 }
 
 function rotuloTipo(item: AgendamentoComPaciente) {
-  return rotuloTipoProcedimento(item.tipoProcedimento, item.tipoProcedimentoLabel)
+  return rotuloTipoProcedimento(
+    item.tipoProcedimento,
+    item.tipoProcedimentoLabel
+  )
 }
 
 const statuses: { id: string, name: string, color: string }[] = [
@@ -174,8 +370,12 @@ const statuses: { id: string, name: string, color: string }[] = [
       </template>
     </UHeader>
 
-    <div class="min-h-screen min-w-0 space-y-4 bg-muted p-3 sm:space-y-6 sm:p-6">
-      <div class="grid grid-cols-[2.5rem_minmax(0,1fr)_2.5rem] items-center gap-1 sm:gap-3">
+    <div
+      class="min-h-screen min-w-0 space-y-4 bg-muted p-3 sm:space-y-6 sm:p-6"
+    >
+      <div
+        class="grid grid-cols-[2.5rem_minmax(0,1fr)_2.5rem] items-center gap-1 sm:gap-3"
+      >
         <UButton
           icon="i-lucide-chevron-left"
           color="neutral"
@@ -191,11 +391,36 @@ const statuses: { id: string, name: string, color: string }[] = [
               variant="link"
               class="h-auto max-w-full whitespace-normal px-1 text-center text-sm font-semibold leading-snug sm:text-lg"
             >
-              {{ formattedDate }} {{ isToday(selectedDate) ? '(Hoje)' : '' }}
+              {{ formattedDate }} {{ isToday(selectedDate) ? "(Hoje)" : "" }}
             </UButton>
             <template #content>
               <div class="p-2">
-                <UCalendar v-model="calendarDate" />
+                <UCalendar
+                  v-model="calendarDate"
+                  v-model:placeholder="calendarPlaceholder"
+                  size="lg"
+                >
+                  <template #day="{ day }">
+                    <span
+                      class="relative flex size-full items-center justify-center"
+                    >
+                      <span>{{ day.day }}</span>
+                      <span
+                        v-if="marcadoresDoDia(day).length"
+                        class="absolute bottom-0.5 left-1/2 flex -translate-x-1/2 gap-0.5"
+                      >
+                        <span
+                          v-for="status in marcadoresDoDia(day)"
+                          :key="status"
+                          :class="[
+                            'size-1 rounded-full',
+                            classesPontoStatus[status]
+                          ]"
+                        />
+                      </span>
+                    </span>
+                  </template>
+                </UCalendar>
                 <UButton
                   label="Hoje"
                   color="primary"
@@ -248,12 +473,16 @@ const statuses: { id: string, name: string, color: string }[] = [
 
       <UCard>
         <template #title>
-          <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div
+            class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"
+          >
             <p class="text-lg font-medium">
               Pacientes do Dia
             </p>
             <p class="text-sm text-muted">
-              {{ atendimentosFiltrados.length }} registro{{ atendimentosFiltrados.length !== 1 ? 's' : '' }}
+              {{ atendimentosFiltrados.length }} registro{{
+                atendimentosFiltrados.length !== 1 ? "s" : ""
+              }}
             </p>
           </div>
         </template>
@@ -273,7 +502,9 @@ const statuses: { id: string, name: string, color: string }[] = [
             </div>
             <USkeleton class="mx-auto h-5 w-16 md:mx-0" />
             <USkeleton class="h-5 w-36 max-w-full" />
-            <USkeleton class="mx-auto h-6 w-32 max-w-full rounded-full md:mx-0" />
+            <USkeleton
+              class="mx-auto h-6 w-32 max-w-full rounded-full md:mx-0"
+            />
             <USkeleton class="mx-auto h-6 w-24 rounded-full md:mx-0" />
           </div>
         </div>
@@ -296,13 +527,15 @@ const statuses: { id: string, name: string, color: string }[] = [
             class="border-b border-muted rounded-none"
             :ui="{ container: 'px-4 sm:p-1 pb-3 sm:px-4' }"
           >
-            <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-[max-content_2fr_1.5fr_1fr_1fr] md:items-center">
+            <div
+              class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-[max-content_2fr_1.5fr_1fr_1fr] md:items-center"
+            >
               <div class="hidden w-min pr-3 md:block">
                 <p class="text-sm text-muted font-bold">
                   Horário
                 </p>
-                <p class="whitespace-nowrap pt-2  font-mono text-sm">
-                  {{ item.horario || '-' }}
+                <p class="whitespace-nowrap pt-2 font-mono text-sm">
+                  {{ item.horario || "-" }}
                 </p>
               </div>
 
@@ -318,11 +551,21 @@ const statuses: { id: string, name: string, color: string }[] = [
                   />
                   <div class="min-w-0">
                     <p class="wrap-break-word font-medium">
-                      {{ item.paciente.nome || 'Paciente não informado' }}
+                      {{ item.paciente.nome || "Paciente não informado" }}
                     </p>
                     <p class="wrap-break-word text-xs text-muted">
-                      {{ textoInformado(idadePaciente(item.paciente.dataNascimento)) ? `${idadePaciente(item.paciente.dataNascimento)}` : '' }}
-                      {{ textoNaoInformado(item.paciente.convenio, '') ? `· ${item.paciente.convenio}` : '' }}
+                      {{
+                        textoInformado(
+                          idadePaciente(item.paciente.dataNascimento)
+                        )
+                          ? `${idadePaciente(item.paciente.dataNascimento)}`
+                          : ""
+                      }}
+                      {{
+                        textoNaoInformado(item.paciente.convenio, "")
+                          ? `· ${item.paciente.convenio}`
+                          : ""
+                      }}
                     </p>
                   </div>
                 </div>
@@ -337,7 +580,7 @@ const statuses: { id: string, name: string, color: string }[] = [
                     {{ contatoPrincipal(item) }}
                   </p>
                   <p class="break-all text-xs text-muted">
-                    {{ textoNaoInformado(item.paciente.email, '') || '' }}
+                    {{ textoNaoInformado(item.paciente.email, "") || "" }}
                   </p>
                 </div>
               </div>
@@ -347,7 +590,7 @@ const statuses: { id: string, name: string, color: string }[] = [
                   Horário
                 </p>
                 <p class="whitespace-nowrap pt-2 font-mono text-sm">
-                  {{ item.horario || '-' }}
+                  {{ item.horario || "-" }}
                 </p>
               </div>
 

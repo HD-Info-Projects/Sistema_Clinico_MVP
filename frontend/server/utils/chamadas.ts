@@ -19,8 +19,7 @@ const chamados: Chamado[] = []
 const MAX_CHAMADOS = 100
 
 function nomePublicoPaciente(nome: string) {
-  const primeiroNome = String(nome || '').trim().split(/\s+/)[0]
-  return primeiroNome || 'Paciente'
+  return String(nome || '').trim().replace(/\s+/g, ' ') || 'Paciente'
 }
 
 function localPublico(local: string) {

@@ -84,7 +84,10 @@ def primeiro_valor(dados, *campos):
 def descricao_procedimentos(procedimentos):
     linhas = []
     for procedimento in procedimentos:
-        codigo = normalizar_texto(procedimento.get("codigo_procedimento"), 50)
+        codigo = normalizar_texto(
+            procedimento.get("codigo_tuss") or procedimento.get("codigo_procedimento"),
+            50,
+        )
         nome = normalizar_texto(procedimento.get("nome"), 255)
         if not nome:
             continue
@@ -219,6 +222,7 @@ def normalizar_procedimentos_documento(valor):
                 "codigo_procedimento",
                 "codigoProcedimento",
             ),
+            "codigo_tuss": primeiro_valor(item, "codigo_tuss", "codigoTuss"),
             "tipo_ato_codigo": primeiro_valor(
                 item,
                 "tipo_ato_codigo",
@@ -267,6 +271,11 @@ def normalizar_procedimentos_documento(valor):
                 procedimento.codigo_procedimento
                 if procedimento
                 else item["codigo_procedimento"]
+            ),
+            "codigo_tuss": (
+                procedimento.proc_ref_tuss
+                if procedimento
+                else item["codigo_tuss"]
             ),
             "tipo_ato_codigo": (
                 procedimento.tipo_ato_codigo

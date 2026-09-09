@@ -138,6 +138,7 @@ export interface ProcedimentoCatalogo {
   id: number
   nome: string
   codigo_procedimento: number | null
+  codigo_tuss?: number | null
   tipo_ato_codigo: number | null
   tipo_ato_nome: string | null
   apelido_procedimento?: string | null
@@ -149,6 +150,7 @@ export interface ProcedimentoSelecionado {
   procedimento_id: number | null
   nome: string
   codigo_procedimento?: number | null
+  codigo_tuss?: number | null
   tipo_ato_codigo?: number | null
   tipo_ato_nome?: string | null
   exige_autorizacao?: number | null
@@ -171,6 +173,42 @@ export interface HistoricoExame {
   orientacao?: string | null
   codigo_alfanumerico: string | null
   codigo_amb: string | null
+  idTokenLancamentoExame?: number | null
+}
+
+export interface ExameHistoricoItem {
+  nome: string
+  orientacao?: string | null
+  temImagem: boolean
+  temLaudo: boolean
+  idTokenLancamentoExame?: number | null
+  situacao?: string
+  origemLocal?: boolean
+  origemPacs?: boolean
+  dataSolicitacao?: string | null
+  dataRealizacao?: string | null
+  codigoExame?: string | null
+}
+
+export interface ExamePacs {
+  idTokenLancamentoExame: number | null
+  pacienteId?: number | null
+  paciente?: string
+  prontuario?: string
+  dataLancamento?: string | null
+  dataResultado?: string | null
+  codigoExame?: string
+  sequencia?: number | null
+  ato?: number | null
+  nomeExame: string
+  statusExame?: string
+  temLaudo: boolean
+  temImagem: boolean
+}
+
+export interface ExamesPacsResponse {
+  pacienteId: number
+  items: ExamePacs[]
 }
 
 export interface Chamado {

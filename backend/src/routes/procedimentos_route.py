@@ -4,6 +4,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 
 from src.models.model_mydsystem.med_procedimentos_model import Procedimento
+from src.security.decorators import roles_required
 from src.settings.extensions import db
 
 
@@ -15,6 +16,7 @@ def procedimento_para_dict(procedimento):
         "id": procedimento.id,
         "nome": procedimento.nome,
         "codigo_procedimento": procedimento.codigo_procedimento,
+        "codigo_tuss": procedimento.proc_ref_tuss,
         "tipo_ato_codigo": procedimento.tipo_ato_codigo,
         "tipo_ato_nome": procedimento.tipo_ato_nome,
         "apelido_procedimento": procedimento.apelido_procedimento,
@@ -23,25 +25,31 @@ def procedimento_para_dict(procedimento):
     }
 
 
+def filtro_busca_procedimentos(q):
+    like = f"%{q}%"
+    return or_(
+        Procedimento.nome.ilike(like),
+        Procedimento.apelido_procedimento.ilike(like),
+        Procedimento.tipo_ato_nome.ilike(like),
+        cast(Procedimento.codigo_procedimento, String).ilike(like),
+        cast(Procedimento.proc_ref_tuss, String).ilike(like),
+    )
+
+
 @procedimentos_bp.route("/buscar", methods=["GET"])
 @jwt_required()
+@roles_required("medico")
 def buscar_procedimentos():
     q = (request.args.get("q") or "").strip()
 
     if len(q) < 2:
         return jsonify({"procedimentos": []}), 200
 
-    like = f"%{q}%"
     resultados = (
         db.session.query(Procedimento)
         .filter(
             Procedimento.ativo.is_(True),
-            or_(
-                Procedimento.nome.ilike(like),
-                Procedimento.apelido_procedimento.ilike(like),
-                Procedimento.tipo_ato_nome.ilike(like),
-                cast(Procedimento.codigo_procedimento, String).ilike(like),
-            ),
+            filtro_busca_procedimentos(q),
         )
         .order_by(Procedimento.nome)
         .limit(50)
