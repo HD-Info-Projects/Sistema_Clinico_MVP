@@ -461,6 +461,18 @@ watch(() => auth.activeClinicaId, () => {
       <template #right>
         <div class="flex items-center gap-2">
           <UBadge
+            v-if="loading"
+            color="neutral"
+            variant="soft"
+            class="hidden lg:inline-flex"
+          >
+            <UIcon
+              name="i-lucide-loader-circle"
+              class="animate-spin"
+            />
+            <span>Atualizando dados do SPDATA...</span>
+          </UBadge>
+          <UBadge
             :label="userName"
             color="neutral"
             variant="soft"
@@ -562,6 +574,8 @@ watch(() => auth.activeClinicaId, () => {
                 size="sm"
                 color="primary"
                 class="min-h-10 w-full sm:w-auto"
+                :loading="loading"
+                :disabled="loading"
                 @click="aplicarFiltros"
               />
             </div>
@@ -580,6 +594,7 @@ watch(() => auth.activeClinicaId, () => {
       <div class="grid w-full grid-cols-1 items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <CardInformativo
           class="h-full"
+          :loading="loading"
           titulo="Taxa de Recuperação"
           :valor="taxaRecuperacao"
           medida="%"
@@ -588,6 +603,7 @@ watch(() => auth.activeClinicaId, () => {
         />
         <CardInformativo
           class="h-full"
+          :loading="loading"
           titulo="Desistentes"
           :valor="totalNaoConfirmado"
           cor="quinary"
@@ -595,6 +611,7 @@ watch(() => auth.activeClinicaId, () => {
         />
         <CardInformativo
           class="h-full"
+          :loading="loading"
           titulo="Faltou"
           :valor="totalFaltou"
           cor="error"
@@ -602,6 +619,7 @@ watch(() => auth.activeClinicaId, () => {
         />
         <CardInformativo
           class="h-full"
+          :loading="loading"
           titulo="Sem contato"
           :valor="totalSemContato"
           cor="secondary"
@@ -609,6 +627,7 @@ watch(() => auth.activeClinicaId, () => {
         />
         <CardInformativo
           class="h-full"
+          :loading="loading"
           titulo="Lista de resgate"
           :valor="totalFiltrado"
           cor="tertiary"
@@ -622,7 +641,12 @@ watch(() => auth.activeClinicaId, () => {
               Motivos de Falta
             </p>
           </template>
+          <EsqueletoGrafico
+            v-if="loading"
+            tipo="donut"
+          />
           <ChartMotivosFaltas
+            v-else
             :total="totalFiltrado"
             :items="motivosGrafico"
           />
@@ -634,7 +658,12 @@ watch(() => auth.activeClinicaId, () => {
             </p>
           </template>
 
+          <EsqueletoGrafico
+            v-if="loading"
+            tipo="barras"
+          />
           <ChartTendencia
+            v-else
             :labels="chartMeses"
             :dados="chartDados"
           />
@@ -648,7 +677,12 @@ watch(() => auth.activeClinicaId, () => {
             </p>
           </template>
 
+          <EsqueletoGrafico
+            v-if="loading"
+            tipo="barras"
+          />
           <ChartDiaSemana
+            v-else
             :labels="chartDiaSemana.labels"
             :dados="chartDiaSemana.dados"
           />
@@ -659,7 +693,12 @@ watch(() => auth.activeClinicaId, () => {
               Taxa de no show por especialidade
             </p>
           </template>
+          <EsqueletoGrafico
+            v-if="loading"
+            tipo="donut-lista"
+          />
           <ChartEspecialidade
+            v-else
             :labels="chartEspecialidade.labels"
             :dados="chartEspecialidade.dados"
           />
@@ -749,12 +788,18 @@ watch(() => auth.activeClinicaId, () => {
           </div>
         </template>
 
-        <p
+        <div
           v-if="loading"
-          class="py-4 text-sm text-muted"
+          role="status"
+          aria-label="Carregando lista de resgate"
+          class="space-y-3 py-1"
         >
-          Carregando lista de resgate...
-        </p>
+          <div
+            v-for="i in 3"
+            :key="i"
+            class="h-12 animate-pulse rounded-lg bg-neutral-200 dark:bg-neutral-800"
+          />
+        </div>
 
         <p
           v-else-if="!pacientesVisiveis.length"

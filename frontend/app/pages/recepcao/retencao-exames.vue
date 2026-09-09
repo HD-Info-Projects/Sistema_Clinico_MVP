@@ -453,6 +453,18 @@ watch(() => auth.activeClinicaId, () => {
       </template>
       <template #right>
         <div class="flex items-center gap-2">
+          <UBadge
+            v-if="loading"
+            color="neutral"
+            variant="soft"
+            class="hidden lg:inline-flex"
+          >
+            <UIcon
+              name="i-lucide-loader-circle"
+              class="animate-spin"
+            />
+            <span>Atualizando dados do SPDATA...</span>
+          </UBadge>
           <UColorModeButton />
         </div>
       </template>
@@ -559,6 +571,8 @@ watch(() => auth.activeClinicaId, () => {
               size="sm"
               color="primary"
               class="min-h-10 w-full sm:w-auto"
+              :loading="loading"
+              :disabled="loading"
               @click="aplicarFiltros"
             />
           </div>
@@ -600,6 +614,7 @@ watch(() => auth.activeClinicaId, () => {
       <div class="grid w-full grid-cols-1 items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <CardRetencao
           class="h-full"
+          :loading="loading"
           titulo="Exames Solicitados"
           :valor="totalExamesSolicitados"
           cor="info"
@@ -607,6 +622,7 @@ watch(() => auth.activeClinicaId, () => {
         />
         <CardRetencao
           class="h-full"
+          :loading="loading"
           titulo="Realizados"
           :valor="totalRealizadosInternamente"
           cor="success"
@@ -614,6 +630,7 @@ watch(() => auth.activeClinicaId, () => {
         />
         <CardRetencao
           class="h-full"
+          :loading="loading"
           titulo="Pendentes"
           :valor="totalPendentes"
           cor="warning"
@@ -621,6 +638,7 @@ watch(() => auth.activeClinicaId, () => {
         />
         <CardRetencao
           class="h-full"
+          :loading="loading"
           titulo="Não Convertidos"
           :valor="totalNaoConvertidos"
           cor="error"
@@ -628,6 +646,7 @@ watch(() => auth.activeClinicaId, () => {
         />
         <CardRetencao
           class="h-full"
+          :loading="loading"
           titulo="Taxa de Conversão"
           :valor="taxaConversao"
           medida="%"
@@ -636,6 +655,7 @@ watch(() => auth.activeClinicaId, () => {
         />
         <CardRetencao
           class="h-full"
+          :loading="loading"
           titulo="Faturamento Realizado"
           :valor="`R$ ${faturamentoRealizado.toLocaleString('pt-BR')}`"
           cor="success"
@@ -650,7 +670,12 @@ watch(() => auth.activeClinicaId, () => {
               Conversão por Médico
             </p>
           </template>
+          <EsqueletoGrafico
+            v-if="loading"
+            tipo="barras"
+          />
           <ChartConversaoMedico
+            v-else
             :medicos="chartConversaoMedicos"
             :taxas="chartConversaoTaxas"
           />
@@ -661,7 +686,12 @@ watch(() => auth.activeClinicaId, () => {
               Exames mais Solicitados
             </p>
           </template>
+          <EsqueletoGrafico
+            v-if="loading"
+            tipo="barras"
+          />
           <ChartExamesMaisSolicitados
+            v-else
             :labels="chartExamesLabels"
             :dados="chartExamesDados"
           />
@@ -675,7 +705,12 @@ watch(() => auth.activeClinicaId, () => {
               Oportunidade Financeira por Convênio
             </p>
           </template>
+          <EsqueletoGrafico
+            v-if="loading"
+            tipo="donut"
+          />
           <ChartOportunidadeFinanceira
+            v-else
             :labels="chartOportunidadeLabels"
             :dados="chartOportunidadeDados"
           />
@@ -686,7 +721,12 @@ watch(() => auth.activeClinicaId, () => {
               Conversão por Especialidade
             </p>
           </template>
+          <EsqueletoGrafico
+            v-if="loading"
+            tipo="donut-lista"
+          />
           <ChartEspecialidade
+            v-else
             :labels="chartEspecialidadeLabels"
             :dados="chartEspecialidadeDados"
           />
@@ -778,12 +818,18 @@ watch(() => auth.activeClinicaId, () => {
           </div>
         </template>
 
-        <p
+        <div
           v-if="loading"
-          class="py-4 text-sm text-muted"
+          role="status"
+          aria-label="Carregando exames do SPDATA"
+          class="space-y-3 py-1"
         >
-          Carregando exames do SPDATA...
-        </p>
+          <div
+            v-for="i in 3"
+            :key="i"
+            class="h-12 animate-pulse rounded-lg bg-neutral-200 dark:bg-neutral-800"
+          />
+        </div>
 
         <p
           v-else-if="!pacientesVisiveis.length"
