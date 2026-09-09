@@ -618,7 +618,7 @@ const tempoMedioEspera = computed(() => {
                 <p class="text-sm text-muted font-bold">
                   Horário
                 </p>
-                <p class="whitespace-nowrap font-mono text-sm">
+                <p class="whitespace-nowrap font-mono pt-2 text-sm">
                   {{ paciente.horario }}
                 </p>
               </div>
