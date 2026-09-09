@@ -51,9 +51,13 @@ def test_valores_paciente_spdata_recem_nascido_usa_referencia_sem_documentos_beb
             "cpf": "123.456.789-00",
             "identidade": "MG12345",
             "telefone": "(31) 99999-8888",
+            "parentesco": "Mãe",
+            "profissao": "Professora",
+            "dataNascimento": "1995-01-20",
             "cep": "33030-000",
             "logradouro": "Rua da Mãe",
             "numero": "45A",
+            "complemento": "Apto 2",
             "bairro": "Centro",
             "cidade": "Belo Horizonte",
             "uf": "MG",
@@ -66,6 +70,8 @@ def test_valores_paciente_spdata_recem_nascido_usa_referencia_sem_documentos_beb
     assert valores["NASC"] == date.today()
     assert valores["MAE"] == "Maria Silva"
     assert valores["RESP"] == "Maria Silva"
+    assert valores["NOME_GUARDIAO"] == "Maria Silva"
+    assert valores["CPF_GUARDIAO"] == "12345678900"
     assert valores["CPF_REFERENCIA"] == 12345678900
     assert valores["CELULAR"] == "(31) 99999-888"
     assert valores["FONE"] == "(31) 99999-888"
@@ -75,6 +81,19 @@ def test_valores_paciente_spdata_recem_nascido_usa_referencia_sem_documentos_beb
     assert valores["BAIRRO"] == "Centro"
     assert valores["CIDADE"] == "Belo Horizonte"
     assert valores["UF"] == "MG"
+    assert valores["ID_TBCEP_END_GUARDIAO"] == 33030000
+    assert valores["LOGRADOURO_END_GUARDIAO"] == "Rua da Mãe"
+    assert valores["NUMERO_END_GUARDIAO"] == 45
+    assert valores["COMPL_END_GUARDIAO"] == "Apto 2"
+    assert valores["BAIRRO_END_GUARDIAO"] == "Centro"
+    assert valores["CIDADE_END_GUARDIAO"] == "Belo Horizonte"
+    assert valores["ID_TBUF_END_GUARDIAO"] == "MG"
+    assert valores["ID_TBPARENTE_GUARDIAO"] == 8
+    assert valores["TELEFONE_GUARDIAO"] == "(31) 99999-888"
+    assert "RG: MG12345" in valores["OBSERVACOES_GUARDIAO"]
+    assert "Parentesco: Mãe" in valores["OBSERVACOES_GUARDIAO"]
+    assert "Profissão: Professora" in valores["OBSERVACOES_GUARDIAO"]
+    assert "Nascimento: 1995-01-20" in valores["OBSERVACOES_GUARDIAO"]
 
 
 def test_observacao_atendimento_inclui_documentos_do_responsavel():

@@ -166,12 +166,45 @@ def resolver_ibge_spdata(cursor, valor):
     return None
 
 
+def resolver_uf_spdata(cursor, valor):
+    uf = normalizar_texto(valor, 2)
+    if not uf:
+        return None
+
+    uf = uf.upper()
+    cursor.execute("SELECT FIRST 1 UF FROM TBUF WHERE UF = ?", (uf,))
+    row = cursor.fetchone()
+    if row:
+        return normalizar_texto(row[0], 2)
+
+    return None
+
+
+def resolver_parentesco_spdata(cursor, valor):
+    codigo = normalizar_int(valor)
+    if codigo is None:
+        return None
+
+    cursor.execute("SELECT FIRST 1 COD_PAR FROM TBPARENTE WHERE COD_PAR = ?", (codigo,))
+    row = cursor.fetchone()
+    if row:
+        return normalizar_int(row[0])
+
+    return None
+
+
 def normalizar_referencias_paciente(cursor, valores):
     valores = dict(valores)
     if valores.get("CEP") is not None:
         valores["CEP"] = resolver_cep_spdata(cursor, valores["CEP"])
     if valores.get("IBGE") is not None:
         valores["IBGE"] = resolver_ibge_spdata(cursor, valores["IBGE"])
+    if valores.get("ID_TBCEP_END_GUARDIAO") is not None:
+        valores["ID_TBCEP_END_GUARDIAO"] = resolver_cep_spdata(cursor, valores["ID_TBCEP_END_GUARDIAO"])
+    if valores.get("ID_TBUF_END_GUARDIAO") is not None:
+        valores["ID_TBUF_END_GUARDIAO"] = resolver_uf_spdata(cursor, valores["ID_TBUF_END_GUARDIAO"])
+    if valores.get("ID_TBPARENTE_GUARDIAO") is not None:
+        valores["ID_TBPARENTE_GUARDIAO"] = resolver_parentesco_spdata(cursor, valores["ID_TBPARENTE_GUARDIAO"])
     return valores
 
 
@@ -245,6 +278,52 @@ def normalizar_sexo(valor):
     if texto.startswith("i"):
         return "I"
     return None
+
+
+def normalizar_parentesco_guardiao(valor):
+    texto = normalizar_texto(valor)
+    if not texto:
+        return None
+
+    texto = texto.casefold()
+    if texto.startswith(("mae", "mãe")):
+        return 8
+    if texto.startswith("pai"):
+        return 9
+    if texto.startswith(("avo", "avô", "avó")):
+        return 1
+    if texto.startswith("conjuge") or texto.startswith("cônjuge"):
+        return 2
+    if texto.startswith("filh"):
+        return 5
+    if texto.startswith("irma") or texto.startswith("irmã") or texto.startswith("irmão"):
+        return 6
+    return 11
+
+
+def observacoes_guardiao(responsavel, parentesco=None):
+    observacoes = []
+    rg = normalizar_texto(responsavel.get("identidade") or responsavel.get("rg"), 30)
+    if rg:
+        observacoes.append(f"RG: {rg}")
+
+    parentesco = normalizar_texto(parentesco or responsavel.get("parentesco"), 30)
+    if parentesco:
+        observacoes.append(f"Parentesco: {parentesco}")
+
+    profissao = normalizar_texto(responsavel.get("profissao"), 50)
+    if profissao:
+        observacoes.append(f"Profissão: {profissao}")
+
+    data_nascimento = normalizar_data(responsavel.get("dataNascimento"))
+    if data_nascimento:
+        observacoes.append(f"Nascimento: {data_nascimento.isoformat()}")
+
+    cnpj = normalizar_texto(responsavel.get("cnpj"), 18)
+    if cnpj:
+        observacoes.append(f"CNPJ: {cnpj}")
+
+    return " | ".join(observacoes)[:254] or None
 
 
 def row_para_dict(row, nomes_colunas):
@@ -496,6 +575,8 @@ def valores_paciente_spdata(payload):
     cidade = payload.get("cidade") or (responsavel.get("cidade") if recem_nascido else None)
     uf = payload.get("estadoUf") or payload.get("uf") or (responsavel.get("uf") if recem_nascido else None)
     cep = payload.get("cep") or (responsavel.get("cep") if recem_nascido else None)
+    parentesco_guardiao = responsavel.get("parentesco") or ("Mãe" if recem_nascido else None)
+    cpf_guardiao = normalizar_cpf(responsavel.get("cpf")) if recem_nascido else None
     cpf_referencia = normalizar_cpf_firebird(responsavel.get("cpf")) if recem_nascido else None
     agora = datetime.now().replace(microsecond=0)
     return {
@@ -531,6 +612,18 @@ def valores_paciente_spdata(payload):
         "ATIVO": "T",
         "REALIZA_CHAMADO_APELIDO_SOCIAL": "F",
         "RESP": normalizar_texto(responsavel.get("nome"), 70) if recem_nascido else None,
+        "NOME_GUARDIAO": normalizar_texto(responsavel.get("nome"), 70) if recem_nascido else None,
+        "CPF_GUARDIAO": cpf_guardiao,
+        "ID_TBCEP_END_GUARDIAO": normalizar_cep_firebird(responsavel.get("cep") or cep) if recem_nascido else None,
+        "LOGRADOURO_END_GUARDIAO": normalizar_texto(responsavel.get("logradouro") or logradouro, 70) if recem_nascido else None,
+        "NUMERO_END_GUARDIAO": normalizar_digitos_int(responsavel.get("numero") or numero) if recem_nascido else None,
+        "COMPL_END_GUARDIAO": normalizar_texto(responsavel.get("complemento") or complemento, 15) if recem_nascido else None,
+        "BAIRRO_END_GUARDIAO": normalizar_texto(responsavel.get("bairro") or bairro, 30) if recem_nascido else None,
+        "CIDADE_END_GUARDIAO": normalizar_texto(responsavel.get("cidade") or cidade, 30) if recem_nascido else None,
+        "ID_TBUF_END_GUARDIAO": normalizar_texto(responsavel.get("uf") or uf, 2) if recem_nascido else None,
+        "ID_TBPARENTE_GUARDIAO": normalizar_parentesco_guardiao(parentesco_guardiao) if recem_nascido else None,
+        "TELEFONE_GUARDIAO": normalizar_texto(telefone_responsavel, 15) if recem_nascido else None,
+        "OBSERVACOES_GUARDIAO": observacoes_guardiao(responsavel, parentesco_guardiao) if recem_nascido else None,
         "CPF_REFERENCIA": cpf_referencia,
     }
 
