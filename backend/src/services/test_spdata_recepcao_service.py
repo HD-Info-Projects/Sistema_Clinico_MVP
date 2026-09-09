@@ -39,6 +39,73 @@ def test_valores_paciente_spdata_normaliza_campos_reais_ricadpac():
     assert valores["REALIZA_CHAMADO_APELIDO_SOCIAL"] == "F"
 
 
+def test_valores_paciente_spdata_recem_nascido_usa_referencia_sem_documentos_bebe():
+    valores = service.valores_paciente_spdata({
+        "nomeCompleto": "Bebê Silva",
+        "recemNascido": True,
+        "cpf": "123.456.789-00",
+        "rg": "MG12345",
+        "orgaoEmissor": "SSP",
+        "responsavel": {
+            "nome": "Maria Silva",
+            "cpf": "123.456.789-00",
+            "identidade": "MG12345",
+            "telefone": "(31) 99999-8888",
+            "cep": "33030-000",
+            "logradouro": "Rua da Mãe",
+            "numero": "45A",
+            "bairro": "Centro",
+            "cidade": "Belo Horizonte",
+            "uf": "MG",
+        },
+    })
+
+    assert valores["CPF"] is None
+    assert valores["IDENT"] is None
+    assert valores["ORGAO"] is None
+    assert valores["NASC"] == date.today()
+    assert valores["MAE"] == "Maria Silva"
+    assert valores["RESP"] == "Maria Silva"
+    assert valores["CPF_REFERENCIA"] == 12345678900
+    assert valores["CELULAR"] == "(31) 99999-888"
+    assert valores["FONE"] == "(31) 99999-888"
+    assert valores["CEP"] == 33030000
+    assert valores["ENDERECO"] == "Rua da Mãe"
+    assert valores["NUMERO"] == 45
+    assert valores["BAIRRO"] == "Centro"
+    assert valores["CIDADE"] == "Belo Horizonte"
+    assert valores["UF"] == "MG"
+
+
+def test_observacao_atendimento_inclui_documentos_do_responsavel():
+    observacao = service.observacao_atendimento({
+        "recemNascido": True,
+        "responsavel": {
+            "nome": "Maria Silva",
+            "parentesco": "Mãe",
+            "cpf": "123.456.789-00",
+            "identidade": "MG12345",
+            "telefone": "(31) 99999-8888",
+        },
+    })
+
+    assert "Responsável: Maria Silva" in observacao
+    assert "Parentesco: Mãe" in observacao
+    assert "CPF responsável: 12345678900" in observacao
+    assert "RG responsável: MG12345" in observacao
+    assert "Telefone responsável: (31) 99999-8888" in observacao
+
+
+def test_filtrar_colunas_existentes_mantem_nulos_permitidos():
+    valores = service.filtrar_colunas_existentes(
+        {"CPF": None, "IDENT": None, "EMAIL": None, "NOME": "Bebê Silva"},
+        {"CPF", "IDENT", "EMAIL", "NOME"},
+        {"CPF", "IDENT"},
+    )
+
+    assert valores == {"CPF": None, "IDENT": None, "NOME": "Bebê Silva"}
+
+
 def test_paciente_para_frontend_normaliza_cep_e_cpf_numericos():
     paciente = service.paciente_para_frontend({
         "ID": 1,

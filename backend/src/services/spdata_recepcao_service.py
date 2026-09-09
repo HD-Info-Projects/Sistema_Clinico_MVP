@@ -106,6 +106,17 @@ def normalizar_cpf_frontend(valor):
     return normalizar_cpf(texto) or ""
 
 
+def payload_recem_nascido(payload):
+    if not isinstance(payload, dict):
+        return False
+    return bool(payload.get("recemNascido") or payload.get("recem_nascido"))
+
+
+def payload_responsavel(payload):
+    responsavel = payload.get("responsavel") if isinstance(payload, dict) else None
+    return responsavel if isinstance(responsavel, dict) else {}
+
+
 def normalizar_cep_firebird(valor):
     return normalizar_digitos_int(valor, 8)
 
@@ -320,11 +331,12 @@ def proximo_id(cursor, tabela):
     return None
 
 
-def filtrar_colunas_existentes(valores, colunas):
+def filtrar_colunas_existentes(valores, colunas, nulos_permitidos=None):
+    nulos_permitidos = nulos_permitidos or set()
     return {
         coluna: valor
         for coluna, valor in valores.items()
-        if coluna in colunas and valor is not None
+        if coluna in colunas and (valor is not None or coluna in nulos_permitidos)
     }
 
 
@@ -340,8 +352,8 @@ def insert_returning(cursor, tabela, valores, returning):
     return fetchone_dict(cursor)
 
 
-def update_por_id(cursor, tabela, tabela_colunas, registro_id, valores):
-    valores = filtrar_colunas_existentes(valores, tabela_colunas)
+def update_por_id(cursor, tabela, tabela_colunas, registro_id, valores, nulos_permitidos=None):
+    valores = filtrar_colunas_existentes(valores, tabela_colunas, nulos_permitidos)
     if not valores:
         return
 
@@ -468,8 +480,23 @@ def buscar_paciente_por_cpf(cursor, cpf):
 
 
 def valores_paciente_spdata(payload):
-    cpf = normalizar_cpf_firebird(payload.get("cpf"))
+    recem_nascido = payload_recem_nascido(payload)
+    responsavel = payload_responsavel(payload)
+    cpf = None if recem_nascido else normalizar_cpf_firebird(payload.get("cpf"))
     data_nascimento = normalizar_data(payload.get("dataNascimento"))
+    if recem_nascido and not data_nascimento:
+        data_nascimento = date.today()
+
+    nome_mae = payload.get("nomeMae") or (responsavel.get("nome") if recem_nascido else None)
+    telefone_responsavel = responsavel.get("telefone") if recem_nascido else None
+    logradouro = payload.get("logradouro") or payload.get("endereco") or (responsavel.get("logradouro") if recem_nascido else None)
+    numero = payload.get("numero") or (responsavel.get("numero") if recem_nascido else None)
+    complemento = payload.get("complemento") or (responsavel.get("complemento") if recem_nascido else None)
+    bairro = payload.get("bairro") or (responsavel.get("bairro") if recem_nascido else None)
+    cidade = payload.get("cidade") or (responsavel.get("cidade") if recem_nascido else None)
+    uf = payload.get("estadoUf") or payload.get("uf") or (responsavel.get("uf") if recem_nascido else None)
+    cep = payload.get("cep") or (responsavel.get("cep") if recem_nascido else None)
+    cpf_referencia = normalizar_cpf_firebird(responsavel.get("cpf")) if recem_nascido else None
     agora = datetime.now().replace(microsecond=0)
     return {
         "TIPOPAC": "I",
@@ -481,20 +508,20 @@ def valores_paciente_spdata(payload):
         "SEXO": normalizar_sexo(payload.get("sexoBiologico") or payload.get("sexo")),
         "MAE": None
         if payload.get("maeDesconhecida")
-        else normalizar_texto(payload.get("nomeMae"), 70),
+        else normalizar_texto(nome_mae, 70),
         "PAI": normalizar_texto(payload.get("nomePai"), 70),
-        "IDENT": normalizar_texto(payload.get("rg"), 15),
-        "ORGAO": normalizar_texto(payload.get("orgaoEmissor"), 5),
-        "CELULAR": normalizar_texto(payload.get("celularWhatsapp") or payload.get("celular"), 15),
-        "FONE": normalizar_texto(payload.get("telefoneFixo") or payload.get("telefone"), 15),
+        "IDENT": None if recem_nascido else normalizar_texto(payload.get("rg"), 15),
+        "ORGAO": None if recem_nascido else normalizar_texto(payload.get("orgaoEmissor"), 5),
+        "CELULAR": normalizar_texto(payload.get("celularWhatsapp") or payload.get("celular") or telefone_responsavel, 15),
+        "FONE": normalizar_texto(payload.get("telefoneFixo") or payload.get("telefone") or telefone_responsavel, 15),
         "EMAIL": normalizar_texto(payload.get("email"), 50),
-        "CEP": normalizar_cep_firebird(payload.get("cep")),
-        "ENDERECO": normalizar_texto(payload.get("logradouro") or payload.get("endereco"), 40),
-        "NUMERO": normalizar_digitos_int(payload.get("numero")),
-        "COMPL": normalizar_texto(payload.get("complemento"), 15),
-        "BAIRRO": normalizar_texto(payload.get("bairro"), 30),
-        "CIDADE": normalizar_texto(payload.get("cidade"), 30),
-        "UF": normalizar_texto(payload.get("estadoUf") or payload.get("uf"), 2),
+        "CEP": normalizar_cep_firebird(cep),
+        "ENDERECO": normalizar_texto(logradouro, 40),
+        "NUMERO": normalizar_digitos_int(numero),
+        "COMPL": normalizar_texto(complemento, 15),
+        "BAIRRO": normalizar_texto(bairro, 30),
+        "CIDADE": normalizar_texto(cidade, 30),
+        "UF": normalizar_texto(uf, 2),
         "IBGE": normalizar_digitos_int(payload.get("codigoIbge")),
         "NAC": normalizar_texto(payload.get("nacionalidade"), 40) or "BRASILEIRA",
         "NACIONALIDADE": 10,
@@ -503,10 +530,13 @@ def valores_paciente_spdata(payload):
         "DATA_HORA_ULTIMA_ATUALIZACAO": agora,
         "ATIVO": "T",
         "REALIZA_CHAMADO_APELIDO_SOCIAL": "F",
+        "RESP": normalizar_texto(responsavel.get("nome"), 70) if recem_nascido else None,
+        "CPF_REFERENCIA": cpf_referencia,
     }
 
 
 def salvar_paciente_spdata(payload):
+    recem_nascido = payload_recem_nascido(payload)
     valores = valores_paciente_spdata(payload)
     nome = valores.get("NOME")
     if not nome:
@@ -522,7 +552,7 @@ def salvar_paciente_spdata(payload):
         if paciente_id is not None:
             paciente = buscar_paciente_por_id(cursor, paciente_id)
 
-        if paciente is None and valores.get("CPF"):
+        if paciente is None and valores.get("CPF") and not recem_nascido:
             paciente = buscar_paciente_por_cpf(cursor, valores.get("CPF"))
 
         if paciente:
@@ -537,7 +567,8 @@ def salvar_paciente_spdata(payload):
                 "REALIZA_CHAMADO_APELIDO_SOCIAL",
             ):
                 valores_update.pop(campo, None)
-            update_por_id(cursor, "RICADPAC", colunas, paciente_id, valores_update)
+            nulos_permitidos = {"CPF", "IDENT", "ORGAO"} if recem_nascido else None
+            update_por_id(cursor, "RICADPAC", colunas, paciente_id, valores_update, nulos_permitidos)
             paciente = buscar_paciente_por_id(cursor, paciente_id)
             connection.commit()
             return {"paciente": paciente_para_frontend(paciente), "created": False}
@@ -764,6 +795,18 @@ def observacao_atendimento(payload):
     nome_responsavel = normalizar_texto(responsavel.get("nome"), 70)
     if nome_responsavel:
         observacoes.append(f"Responsável: {nome_responsavel}")
+    parentesco = normalizar_texto(responsavel.get("parentesco"), 30)
+    if parentesco:
+        observacoes.append(f"Parentesco: {parentesco}")
+    cpf_responsavel = normalizar_cpf_frontend(responsavel.get("cpf"))
+    if cpf_responsavel:
+        observacoes.append(f"CPF responsável: {cpf_responsavel}")
+    rg_responsavel = normalizar_texto(responsavel.get("identidade") or responsavel.get("rg"), 30)
+    if rg_responsavel:
+        observacoes.append(f"RG responsável: {rg_responsavel}")
+    telefone_responsavel = normalizar_texto(responsavel.get("telefone"), 20)
+    if telefone_responsavel:
+        observacoes.append(f"Telefone responsável: {telefone_responsavel}")
 
     return " | ".join(observacoes)[:500] or None
 
@@ -911,7 +954,13 @@ def salvar_novo_atendimento_spdata(payload, usuario_id, unidade_id=None):
     atendimento_payload = payload.get("atendimento") if isinstance(payload.get("atendimento"), dict) else payload
     responsavel_payload = payload.get("responsavel") if isinstance(payload.get("responsavel"), dict) else {}
 
-    paciente_resultado = salvar_paciente_spdata(paciente_payload)
+    paciente_completo = {
+        **paciente_payload,
+        "recemNascido": payload_recem_nascido(paciente_payload) or payload_recem_nascido(atendimento_payload),
+        "responsavel": responsavel_payload or payload_responsavel(paciente_payload),
+    }
+
+    paciente_resultado = salvar_paciente_spdata(paciente_completo)
     paciente = paciente_resultado.get("paciente") or {}
     atendimento_completo = {
         **atendimento_payload,

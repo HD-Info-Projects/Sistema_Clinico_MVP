@@ -87,11 +87,13 @@ const videoCamera = ref<HTMLVideoElement | null>(null)
 let streamCamera: MediaStream | null = null
 let consultaCepTimer: ReturnType<typeof setTimeout> | null = null
 let buscaPacienteTimer: ReturnType<typeof setTimeout> | null = null
+let buscaMaeResponsavelTimer: ReturnType<typeof setTimeout> | null = null
 let buscaProcedimentoTimer: ReturnType<typeof setTimeout> | null = null
 let buscaConvenioTimer: ReturnType<typeof setTimeout> | null = null
 let consultaCepAtual = 0
 const prontuarioNovo = ref('')
 const pacientesEncontrados = ref<PacienteRecepcao[]>([])
+const maesResponsaveisEncontradas = ref<PacienteRecepcao[]>([])
 const pacienteSpdataId = ref<number | null>(null)
 const procedimentos = ref<ProcedimentoRecepcao[]>([])
 const convenios = ref<ConvenioRecepcao[]>([])
@@ -101,6 +103,7 @@ const buscaTermoConvenio = ref('')
 const carregandoProcedimentos = ref(false)
 const carregandoConvenios = ref(false)
 const carregandoMedicos = ref(false)
+const carregandoMaesResponsaveis = ref(false)
 
 const paciente = reactive({
   nomeCompleto: '', nomeSocial: '', cpf: '', nomeMae: '', rg: '', orgaoEmissor: '', sexoBiologico: '', identidadeGenero: '', estadoCivil: '', nacionalidade: '', naturalidade: '', celularWhatsapp: '', telefoneFixo: '', email: '', cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', estadoUf: '', codigoIbge: ''
@@ -126,6 +129,13 @@ const tabItems = computed(() => [
   { label: 'Responsável', value: 'responsavel', icon: 'i-lucide-users', slot: 'responsavel', disabled: !atendimentoConcluido.value }
 ])
 const sugestoesPacientes = computed(() => pacientesEncontrados.value.map(p => ({ label: p.nome, cpf: p.cpf, prontuario: p.prontuario, onSelect: () => selecionarPaciente(p) })))
+const sugestoesMaesResponsaveis = computed(() => maesResponsaveisEncontradas.value.map(mae => ({
+  label: mae.nome,
+  cpf: mae.cpf || '',
+  prontuario: mae.prontuario || '',
+  telefone: mae.celularWhatsapp || mae.celular || mae.telefoneFixo || mae.telefone || '',
+  onSelect: () => selecionarMaeResponsavel(mae)
+})))
 const unidadesAtendimento = computed(() => auth.clinicas as UnidadeRecepcao[])
 const sugestoesProcedimentos = computed(() => procedimentos.value.map(procedimento => ({
   label: procedimentoLabel(procedimento),
@@ -190,11 +200,36 @@ function horaIso(hora: Time | null) {
   return `${String(hora.hour).padStart(2, '0')}:${String(hora.minute).padStart(2, '0')}`
 }
 
+function hojeCalendarDate() {
+  const hoje = new Date()
+  return new CalendarDate(hoje.getFullYear(), hoje.getMonth() + 1, hoje.getDate())
+}
+
+function calendarDateFromIso(valor?: string | null) {
+  if (!valor) return null
+
+  const [ano, mes, dia] = valor.split('-').map(Number)
+  if (!ano || !mes || !dia) return null
+  return new CalendarDate(ano, mes, dia)
+}
+
+function dataNascimentoPacienteIso() {
+  if (!dataNascimento.value && atendimento.recemNascido) dataNascimento.value = hojeCalendarDate()
+  return dataCalendarIso(dataNascimento.value)
+}
+
 function payloadPaciente() {
+  const responsavelPayload = payloadResponsavel()
   return {
     ...paciente,
+    cpf: atendimento.recemNascido ? '' : paciente.cpf,
+    rg: atendimento.recemNascido ? '' : paciente.rg,
+    orgaoEmissor: atendimento.recemNascido ? '' : paciente.orgaoEmissor,
+    nomeMae: paciente.nomeMae.trim() || (atendimento.recemNascido ? responsavelPayload.nome : ''),
+    recemNascido: atendimento.recemNascido,
+    responsavel: responsavelPayload,
     idPacienteSpdata: pacienteSpdataId.value ?? pacienteSelecionado.value?.idPacienteSpdata,
-    dataNascimento: dataCalendarIso(dataNascimento.value)
+    dataNascimento: dataNascimentoPacienteIso()
   }
 }
 
@@ -299,8 +334,13 @@ async function carregarOpcoesAtendimento() {
 }
 
 function payloadResponsavel() {
+  const nome = responsavel.nome.trim() || (atendimento.recemNascido ? paciente.nomeMae.trim() : '')
+  const telefone = responsavel.telefone.trim() || (atendimento.recemNascido ? paciente.celularWhatsapp || paciente.telefoneFixo : '')
   return {
     ...responsavel,
+    nome,
+    parentesco: responsavel.parentesco.trim() || (atendimento.recemNascido ? 'Mãe' : ''),
+    telefone,
     dataNascimento: dataCalendarIso(dataNascimentoResponsavel.value)
   }
 }
@@ -317,6 +357,25 @@ async function buscarPacientesSpdata(termo: string) {
     pacientesEncontrados.value = response.pacientes ?? []
   } catch {
     pacientesEncontrados.value = []
+  }
+}
+
+async function buscarMaesResponsaveisSpdata(termo: string) {
+  const q = termo.trim()
+  if (!atendimento.recemNascido || q.length < 3) {
+    maesResponsaveisEncontradas.value = []
+    carregandoMaesResponsaveis.value = false
+    return
+  }
+
+  carregandoMaesResponsaveis.value = true
+  try {
+    const response = await $fetch<{ pacientes: PacienteRecepcao[] }>(`/api/recepcao/pacientes/buscar?q=${encodeURIComponent(q)}`)
+    maesResponsaveisEncontradas.value = response.pacientes ?? []
+  } catch {
+    maesResponsaveisEncontradas.value = []
+  } finally {
+    carregandoMaesResponsaveis.value = false
   }
 }
 
@@ -358,12 +417,46 @@ function aplicarPacienteSelecionado(item: PacienteRecepcao) {
   })
 }
 
+function selecionarMaeResponsavel(mae: PacienteRecepcao) {
+  const celular = mae.celularWhatsapp || mae.celular || ''
+  const telefone = mae.telefoneFixo || mae.telefone || ''
+  const telefonePrincipal = celular || telefone
+  const dataResponsavel = calendarDateFromIso(mae.dataNascimento)
+
+  Object.assign(responsavel, {
+    nome: mae.nome || '',
+    cpf: mae.cpf ? formatarCpf(mae.cpf) : '',
+    identidade: mae.rg || '',
+    telefone: telefonePrincipal ? formatarTelefone(telefonePrincipal) : '',
+    parentesco: responsavel.parentesco.trim() || 'Mãe',
+    cep: mae.cep ? formatarCep(mae.cep) : '',
+    logradouro: mae.logradouro || mae.endereco || '',
+    numero: mae.numero || '',
+    complemento: mae.complemento || '',
+    bairro: mae.bairro || '',
+    cidade: mae.cidade || '',
+    uf: mae.estadoUf || mae.uf || ''
+  })
+
+  if (dataResponsavel) dataNascimentoResponsavel.value = dataResponsavel
+  paciente.nomeMae = responsavel.nome
+  if (!paciente.celularWhatsapp && celular) paciente.celularWhatsapp = formatarTelefone(celular)
+  if (!paciente.telefoneFixo && telefone) paciente.telefoneFixo = formatarTelefone(telefone)
+  if (!paciente.email && mae.email) paciente.email = mae.email
+  if (!paciente.cep && mae.cep) paciente.cep = formatarCep(mae.cep)
+  if (!paciente.logradouro) paciente.logradouro = mae.logradouro || mae.endereco || ''
+  if (!paciente.numero) paciente.numero = mae.numero || ''
+  if (!paciente.complemento) paciente.complemento = mae.complemento || ''
+  if (!paciente.bairro) paciente.bairro = mae.bairro || ''
+  if (!paciente.cidade) paciente.cidade = mae.cidade || ''
+  if (!paciente.estadoUf) paciente.estadoUf = mae.estadoUf || mae.uf || ''
+  if (!paciente.codigoIbge && mae.codigoIbge) paciente.codigoIbge = mae.codigoIbge
+  maesResponsaveisEncontradas.value = []
+}
+
 function selecionarPaciente(item: PacienteRecepcao) {
   pacienteSelecionado.value = item
-  if (item.dataNascimento) {
-    const [ano, mes, dia] = item.dataNascimento.split('-').map(Number)
-    dataNascimento.value = new CalendarDate(ano!, mes!, dia!)
-  }
+  dataNascimento.value = calendarDateFromIso(item.dataNascimento)
   prontuarioNovo.value = ''
   aplicarPacienteSelecionado(item)
   limparEtapasSeguintes()
@@ -378,12 +471,9 @@ function iniciarPacienteNovo() {
 }
 
 async function proximoPaciente() {
-  if (!paciente.nomeCompleto.trim()) {
-    toast.add({ title: 'Informe o nome completo do paciente.', color: 'error' })
-    return
-  }
-  if (!auth.activeClinicaId) {
-    toast.add({ title: 'Selecione uma unidade antes de continuar.', color: 'error' })
+  const erro = validarPaciente()
+  if (erro) {
+    toast.add({ title: erro, color: 'error' })
     return
   }
 
@@ -402,6 +492,23 @@ async function proximoPaciente() {
   } catch (error) {
     toast.add({ title: mensagemErro(error, 'Não foi possível salvar o paciente no SPDATA.'), color: 'error' })
   }
+}
+
+function validarPaciente() {
+  if (!paciente.nomeCompleto.trim()) return 'Informe o nome completo do paciente.'
+  if (!auth.activeClinicaId) return 'Selecione uma unidade antes de continuar.'
+
+  if (atendimento.recemNascido) {
+    if (!dataNascimento.value) dataNascimento.value = hojeCalendarDate()
+    const nomeMaeResponsavel = paciente.nomeMae.trim() || responsavel.nome.trim()
+    const cpfResponsavel = responsavel.cpf.replace(/\D/g, '')
+    const rgResponsavel = responsavel.identidade.trim()
+
+    if (!nomeMaeResponsavel) return 'Informe o nome da mãe ou responsável do recém-nascido.'
+    if (!cpfResponsavel && !rgResponsavel) return 'Informe CPF ou RG da mãe/responsável do recém-nascido.'
+  }
+
+  return null
 }
 
 function validarAtendimento() {
@@ -425,6 +532,13 @@ function proximoAtendimento() {
 }
 
 async function finalizarCadastro() {
+  const erroPaciente = validarPaciente()
+  if (erroPaciente) {
+    toast.add({ title: erroPaciente, color: 'error' })
+    tabAtiva.value = 'paciente'
+    return
+  }
+
   const erro = validarAtendimento()
   if (erro) {
     toast.add({ title: erro, color: 'error' })
@@ -555,6 +669,28 @@ watch(() => auth.activeClinicaId, () => {
   aplicarUnidadeAtiva()
   void carregarMedicos()
 })
+watch(() => atendimento.recemNascido, (recemNascido) => {
+  if (!recemNascido) {
+    maesResponsaveisEncontradas.value = []
+    return
+  }
+
+  if (!dataNascimento.value) dataNascimento.value = hojeCalendarDate()
+  paciente.cpf = ''
+  paciente.rg = ''
+  paciente.orgaoEmissor = ''
+  if (!responsavel.parentesco.trim()) responsavel.parentesco = 'Mãe'
+  if (!responsavel.nome.trim() && paciente.nomeMae.trim()) responsavel.nome = paciente.nomeMae
+})
+watch(() => paciente.nomeMae, (nomeMae) => {
+  if (atendimento.recemNascido && nomeMae.trim() && !responsavel.nome.trim()) responsavel.nome = nomeMae
+})
+watch(() => responsavel.nome, (nome) => {
+  if (buscaMaeResponsavelTimer) clearTimeout(buscaMaeResponsavelTimer)
+  buscaMaeResponsavelTimer = setTimeout(() => {
+    void buscarMaesResponsaveisSpdata(nome)
+  }, 350)
+})
 watch(fotoPaciente, (foto) => {
   if (fotoPacienteUrl.value) URL.revokeObjectURL(fotoPacienteUrl.value)
   fotoPacienteUrl.value = foto ? URL.createObjectURL(foto) : null
@@ -576,6 +712,7 @@ onBeforeUnmount(() => {
   encerrarCamera()
   if (consultaCepTimer) clearTimeout(consultaCepTimer)
   if (buscaPacienteTimer) clearTimeout(buscaPacienteTimer)
+  if (buscaMaeResponsavelTimer) clearTimeout(buscaMaeResponsavelTimer)
   if (buscaProcedimentoTimer) clearTimeout(buscaProcedimentoTimer)
   if (buscaConvenioTimer) clearTimeout(buscaConvenioTimer)
   if (fotoPacienteUrl.value) URL.revokeObjectURL(fotoPacienteUrl.value)
@@ -644,6 +781,15 @@ onBeforeUnmount(() => {
                   </template>
                 </UFileUpload>
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                  <UAlert
+                    v-if="atendimento.recemNascido"
+                    color="warning"
+                    variant="soft"
+                    icon="i-lucide-info"
+                    title="Cadastro de recém-nascido"
+                    description="O bebê será cadastrado como paciente próprio. CPF e RG do bebê ficam vazios; os documentos da mãe/responsável devem ser informados nos campos de referência abaixo."
+                    class="sm:col-span-2 xl:col-span-4"
+                  />
                   <UFormField
                     label="Nome completo"
                     name="nomeCompleto"
@@ -673,11 +819,13 @@ onBeforeUnmount(() => {
                   <UFormField
                     label="CPF"
                     name="cpf"
+                    :hint="atendimento.recemNascido ? 'Não preencher para RN' : undefined"
                   >
                     <UInput
                       :model-value="paciente.cpf"
-                      placeholder="000.000.000-00"
+                      :placeholder="atendimento.recemNascido ? 'Usar referência da mãe' : '000.000.000-00'"
                       inputmode="numeric"
+                      :disabled="atendimento.recemNascido"
                       class="w-full"
                       @update:model-value="paciente.cpf = formatarCpf($event)"
                     />
@@ -685,10 +833,20 @@ onBeforeUnmount(() => {
                   <UFormField
                     label="Data de nascimento"
                     name="dataNascimento"
+                    :required="atendimento.recemNascido"
                   >
                     <UInputDate
                       v-model="dataNascimento"
                       class="w-full"
+                    />
+                  </UFormField>
+                  <UFormField
+                    name="recemNascidoPaciente"
+                    class="flex items-end"
+                  >
+                    <USwitch
+                      v-model="atendimento.recemNascido"
+                      label="Recém-nascido?"
                     />
                   </UFormField>
                   <UFormField
@@ -704,6 +862,7 @@ onBeforeUnmount(() => {
                   <UFormField
                     label="Nome da mãe"
                     name="nomeMae"
+                    :required="atendimento.recemNascido"
                   >
                     <UInput
                       v-model="paciente.nomeMae"
@@ -713,9 +872,11 @@ onBeforeUnmount(() => {
                   <UFormField
                     label="RG"
                     name="rg"
+                    :hint="atendimento.recemNascido ? 'Não preencher para RN' : undefined"
                   >
                     <UInput
                       v-model="paciente.rg"
+                      :disabled="atendimento.recemNascido"
                       class="w-full"
                     />
                   </UFormField><UFormField
@@ -725,6 +886,7 @@ onBeforeUnmount(() => {
                     <UInput
                       v-model="paciente.orgaoEmissor"
                       placeholder="Ex.: SSP"
+                      :disabled="atendimento.recemNascido"
                       class="w-full"
                     />
                   </UFormField>
@@ -779,6 +941,91 @@ onBeforeUnmount(() => {
                     />
                   </UFormField>
                 </div>
+              </div>
+            </CardCadastro>
+            <CardCadastro
+              v-if="atendimento.recemNascido"
+              titulo="Mãe/responsável do RN"
+              cor="warning"
+              icone="i-lucide-baby"
+              accordion
+              aberto-inicialmente
+            >
+              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <UAlert
+                  color="warning"
+                  variant="soft"
+                  icon="i-lucide-shield-check"
+                  title="Referência segura"
+                  description="CPF e RG abaixo são da mãe/responsável e não serão gravados como documentos do bebê."
+                  class="sm:col-span-2 xl:col-span-4"
+                />
+                <UFormField
+                  label="Nome da mãe/responsável"
+                  name="responsavel.nome"
+                  required
+                  class="sm:col-span-2"
+                >
+                  <UInputMenu
+                    v-model="responsavel.nome"
+                    mode="autocomplete"
+                    :items="sugestoesMaesResponsaveis"
+                    value-key="label"
+                    :filter-fields="['label', 'cpf', 'prontuario', 'telefone']"
+                    :loading="carregandoMaesResponsaveis"
+                    placeholder="Digite para buscar no SPDATA"
+                    icon="i-lucide-search"
+                    clear
+                    class="w-full"
+                  >
+                    <template #item-label="{ item }">
+                      <div>
+                        <p>{{ item.label }}</p><p class="text-xs text-muted">
+                          {{ item.cpf || 'CPF não informado' }} · {{ item.prontuario || 'Sem prontuário' }} · {{ item.telefone || 'Sem telefone' }}
+                        </p>
+                      </div>
+                    </template>
+                  </UInputMenu>
+                </UFormField><UFormField
+                  label="CPF da mãe/responsável"
+                  name="responsavel.cpf"
+                  hint="CPF ou RG obrigatório"
+                >
+                  <UInput
+                    :model-value="responsavel.cpf"
+                    placeholder="000.000.000-00"
+                    inputmode="numeric"
+                    class="w-full"
+                    @update:model-value="responsavel.cpf = formatarCpf($event)"
+                  />
+                </UFormField><UFormField
+                  label="RG da mãe/responsável"
+                  name="responsavel.identidade"
+                  hint="CPF ou RG obrigatório"
+                >
+                  <UInput
+                    v-model="responsavel.identidade"
+                    class="w-full"
+                  />
+                </UFormField><UFormField
+                  label="Telefone da mãe/responsável"
+                  name="responsavel.telefone"
+                >
+                  <UInput
+                    :model-value="responsavel.telefone"
+                    inputmode="tel"
+                    class="w-full"
+                    @update:model-value="responsavel.telefone = formatarTelefone($event)"
+                  />
+                </UFormField><UFormField
+                  label="Parentesco"
+                  name="responsavel.parentesco"
+                >
+                  <UInput
+                    v-model="responsavel.parentesco"
+                    class="w-full"
+                  />
+                </UFormField>
               </div>
             </CardCadastro>
             <CardCadastro
