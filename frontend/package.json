@@ -34,6 +34,7 @@
     "tailwindcss": "^4.3.0",
     "vue": "^3.5.33",
     "vue-chartjs": "^5.3.3",
+    "xlsx": "^0.18.5",
     "zod": "^4.4.3"
   },
   "devDependencies": {

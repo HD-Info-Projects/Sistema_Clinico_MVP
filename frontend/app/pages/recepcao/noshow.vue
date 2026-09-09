@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui/'
 import { getPaginationRowModel } from '@tanstack/vue-table'
+import { exportTableToPDF, exportToCSV, type ColunaExport } from '~/utils/export-data'
 
 const auth = useAuthStore()
+const toast = useToast()
 
 const userName = computed(() => auth.user?.nome || 'Usuário')
 
@@ -357,6 +359,88 @@ function formatarData(iso: string) {
   return `${dia}/${mes}/${ano}`
 }
 
+const exportando = ref<'pdf' | 'csv' | null>(null)
+
+const colunasExportacao: ColunaExport<PacienteNoShow>[] = [
+  { key: 'nome', header: 'Paciente', value: p => p.nome },
+  { key: 'cpf', header: 'CPF', value: p => p.cpf },
+  { key: 'prontuario', header: 'Prontuário', value: p => p.prontuario },
+  { key: 'telefone', header: 'Telefone', value: p => p.telefone },
+  { key: 'convenio', header: 'Convênio', value: p => p.convenio },
+  { key: 'medico', header: 'Médico', value: p => p.medico },
+  { key: 'especialidade', header: 'Especialidade', value: p => p.especialidade },
+  { key: 'dataFalta', header: 'Data da Falta', value: p => formatarData(p.dataFalta) },
+  { key: 'status', header: 'Status', value: p => rotuloStatus(p.status) },
+  { key: 'motivo', header: 'Motivo', value: p => rotuloMotivo(p.motivo) },
+  { key: 'recuperado', header: 'Recuperado', value: p => p.recuperado ? 'Sim' : 'Não' }
+]
+
+function dataInicioAtiva() {
+  return `${filtroPeriodoInicioActive.value}-01`
+}
+
+function dataFimAtiva() {
+  const [ano, mes] = filtroPeriodoFimActive.value.split('-')
+  const ultimoDia = new Date(Number(ano), Number(mes), 0).getDate()
+  return `${filtroPeriodoFimActive.value}-${String(ultimoDia).padStart(2, '0')}`
+}
+
+function periodoExportacao() {
+  return `${dataInicioAtiva()}_a_${dataFimAtiva()}`
+}
+
+function resumoExportacao() {
+  const dados = dadosFiltrados.value
+  const recuperados = dados.filter(p => p.recuperado).length
+  const taxa = dados.length > 0 ? Math.round((recuperados / dados.length) * 100) : 0
+  return [
+    `Total no-show: ${dados.length}`,
+    `Faltou: ${dados.filter(p => p.status === 'faltou').length}`,
+    `Não confirmado: ${dados.filter(p => p.status === 'nao-confirmado').length}`,
+    `Recuperados: ${recuperados}`,
+    `Taxa de recuperação: ${taxa}%`
+  ]
+}
+
+function exportarNoShowCSV() {
+  if (!dadosFiltrados.value.length) {
+    toast.add({ title: 'Nenhum dado para exportar', color: 'warning' })
+    return
+  }
+  exportando.value = 'csv'
+  try {
+    exportToCSV(dadosFiltrados.value, colunasExportacao, `noshow_${periodoExportacao()}`)
+    toast.add({ title: 'CSV exportado com sucesso', color: 'success' })
+  } catch {
+    toast.add({ title: 'Erro ao exportar CSV', color: 'error' })
+  } finally {
+    exportando.value = null
+  }
+}
+
+async function exportarNoShowPDF() {
+  if (!dadosFiltrados.value.length) {
+    toast.add({ title: 'Nenhum dado para exportar', color: 'warning' })
+    return
+  }
+  exportando.value = 'pdf'
+  try {
+    await exportTableToPDF({
+      title: 'RELATÓRIO DE NO-SHOW',
+      subtitle: `Período: ${formatarData(dataInicioAtiva())} a ${formatarData(dataFimAtiva())}`,
+      summary: resumoExportacao(),
+      rows: dadosFiltrados.value,
+      columns: colunasExportacao,
+      filename: `noshow_${periodoExportacao()}`
+    })
+    toast.add({ title: 'PDF exportado com sucesso', color: 'success' })
+  } catch {
+    toast.add({ title: 'Erro ao exportar PDF', color: 'error' })
+  } finally {
+    exportando.value = null
+  }
+}
+
 function ligar(paciente: PacienteNoShow) {
   const tel = paciente.telefone.replace(/\D/g, '')
   if (!tel) return
@@ -690,12 +774,18 @@ watch(() => auth.activeClinicaId, () => {
                 label="Exportar PDF"
                 color="error"
                 size="sm"
+                :loading="exportando === 'pdf'"
+                :disabled="exportando !== null || loading"
+                @click="exportarNoShowPDF"
               />
               <UButton
                 icon="i-lucide-file-spreadsheet"
                 label="Exportar CSV"
                 color="primary"
                 size="sm"
+                :loading="exportando === 'csv'"
+                :disabled="exportando !== null || loading"
+                @click="exportarNoShowCSV"
               />
             </div>
           </div>

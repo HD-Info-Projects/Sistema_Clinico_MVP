@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui/'
 import { getPaginationRowModel } from '@tanstack/vue-table'
+import { exportTableToPDF, exportToExcel, type ColunaExport } from '~/utils/export-data'
 
 const auth = useAuthStore()
+const toast = useToast()
 
 interface ExameRetencao {
   id: number
@@ -254,6 +256,76 @@ function formatarData(iso: string | null | undefined) {
 function formatarMoeda(valor: number | null) {
   if (valor === null || valor === undefined) return '-'
   return `R$ ${valor.toLocaleString('pt-BR')}`
+}
+
+const exportando = ref<'pdf' | 'excel' | null>(null)
+
+const colunasExportacao: ColunaExport<ExameRetencao>[] = [
+  { key: 'paciente', header: 'Paciente', value: e => e.paciente },
+  { key: 'cpf', header: 'CPF', value: e => e.cpf },
+  { key: 'prontuario', header: 'Prontuário', value: e => e.prontuario },
+  { key: 'telefone', header: 'Telefone', value: e => e.telefone },
+  { key: 'convenio', header: 'Convênio', value: e => e.convenio },
+  { key: 'medico', header: 'Médico', value: e => e.medico },
+  { key: 'crm', header: 'CRM', value: e => e.crm },
+  { key: 'especialidade', header: 'Especialidade', value: e => e.especialidade },
+  { key: 'exame', header: 'Exame', value: e => e.exame },
+  { key: 'codigoTuss', header: 'Código TUSS', value: e => e.codigoTuss },
+  { key: 'dataSolicitacao', header: 'Data Solicitação', value: e => formatarData(e.dataSolicitacao) },
+  { key: 'diasEmAberto', header: 'Dias em Aberto', value: e => e.diasEmAberto },
+  { key: 'status', header: 'Status', value: e => rotuloStatus(e.status) },
+  { key: 'valorEstimado', header: 'Valor Estimado', value: e => e.valorEstimado },
+  { key: 'valorRealizado', header: 'Valor Realizado', value: e => e.valorRealizado }
+]
+
+function periodoExportacao() {
+  return `${dataInicioFiltro()}_a_${dataFimFiltro()}`
+}
+
+function resumoExportacao() {
+  return [
+    `Total solicitado: ${totalExamesSolicitados.value}`,
+    `Realizados: ${totalRealizadosInternamente.value}`,
+    `Pendentes: ${totalPendentes.value}`,
+    `Não convertidos: ${totalNaoConvertidos.value}`,
+    `Taxa de conversão: ${taxaConversao.value}%`,
+    `Faturamento realizado: ${formatarMoeda(faturamentoRealizado.value)}`
+  ]
+}
+
+function exportarRetencaoExcel() {
+  if (!dadosFiltrados.value.length) {
+    toast.add({ title: 'Nenhum dado para exportar', color: 'warning' })
+    return
+  }
+  exportando.value = 'excel'
+  exportToExcel(dadosFiltrados.value, colunasExportacao, `retencao-exames_${periodoExportacao()}`, 'Conversão de Exames')
+    .then(() => toast.add({ title: 'Excel exportado com sucesso', color: 'success' }))
+    .catch(() => toast.add({ title: 'Erro ao exportar Excel', color: 'error' }))
+    .finally(() => { exportando.value = null })
+}
+
+async function exportarRetencaoPDF() {
+  if (!dadosFiltrados.value.length) {
+    toast.add({ title: 'Nenhum dado para exportar', color: 'warning' })
+    return
+  }
+  exportando.value = 'pdf'
+  try {
+    await exportTableToPDF({
+      title: 'RELATÓRIO DE CONVERSÃO DE EXAMES',
+      subtitle: `Período: ${formatarData(dataInicioFiltro())} a ${formatarData(dataFimFiltro())}`,
+      summary: resumoExportacao(),
+      rows: dadosFiltrados.value,
+      columns: colunasExportacao,
+      filename: `retencao-exames_${periodoExportacao()}`
+    })
+    toast.add({ title: 'PDF exportado com sucesso', color: 'success' })
+  } catch {
+    toast.add({ title: 'Erro ao exportar PDF', color: 'error' })
+  } finally {
+    exportando.value = null
+  }
 }
 
 const pacienteSelecionado = ref<ExameRetencao | null>(null)
@@ -703,12 +775,18 @@ watch(() => auth.activeClinicaId, () => {
                 label="Exportar PDF"
                 color="error"
                 size="sm"
+                :loading="exportando === 'pdf'"
+                :disabled="exportando !== null || loading"
+                @click="exportarRetencaoPDF"
               />
               <UButton
                 icon="i-lucide-file-spreadsheet"
                 label="Exportar Excel"
                 color="primary"
                 size="sm"
+                :loading="exportando === 'excel'"
+                :disabled="exportando !== null || loading"
+                @click="exportarRetencaoExcel"
               />
             </div>
           </div>
