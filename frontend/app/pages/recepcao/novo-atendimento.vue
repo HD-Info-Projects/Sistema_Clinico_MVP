@@ -1025,6 +1025,86 @@ onBeforeUnmount(() => {
                     v-model="responsavel.parentesco"
                     class="w-full"
                   />
+                </UFormField><UFormField
+                  label="Data de nascimento da mãe/responsável"
+                  name="responsavel.dataNascimento"
+                >
+                  <UInputDate
+                    v-model="dataNascimentoResponsavel"
+                    class="w-full"
+                  />
+                </UFormField><UFormField
+                  label="Profissão"
+                  name="responsavel.profissao"
+                >
+                  <UInput
+                    v-model="responsavel.profissao"
+                    class="w-full"
+                  />
+                </UFormField><UFormField
+                  label="CEP da mãe/responsável"
+                  name="responsavel.cep"
+                >
+                  <UInput
+                    :model-value="responsavel.cep"
+                    placeholder="00000-000"
+                    inputmode="numeric"
+                    class="w-full"
+                    @update:model-value="responsavel.cep = formatarCep($event)"
+                  />
+                </UFormField><UFormField
+                  label="UF da mãe/responsável"
+                  name="responsavel.uf"
+                >
+                  <USelect
+                    v-model="responsavel.uf"
+                    :items="estadosBr"
+                    placeholder="Selecione"
+                    class="w-full"
+                  />
+                </UFormField><UFormField
+                  label="Endereço da mãe/responsável"
+                  name="responsavel.logradouro"
+                  class="sm:col-span-2 xl:col-span-3"
+                >
+                  <UInput
+                    v-model="responsavel.logradouro"
+                    class="w-full"
+                  />
+                </UFormField><UFormField
+                  label="Número"
+                  name="responsavel.numero"
+                >
+                  <UInput
+                    v-model="responsavel.numero"
+                    class="w-full"
+                  />
+                </UFormField><UFormField
+                  label="Complemento"
+                  name="responsavel.complemento"
+                >
+                  <UInput
+                    v-model="responsavel.complemento"
+                    class="w-full"
+                  />
+                </UFormField><UFormField
+                  label="Bairro"
+                  name="responsavel.bairro"
+                  class="sm:col-span-2"
+                >
+                  <UInput
+                    v-model="responsavel.bairro"
+                    class="w-full"
+                  />
+                </UFormField><UFormField
+                  label="Cidade"
+                  name="responsavel.cidade"
+                  class="sm:col-span-2"
+                >
+                  <UInput
+                    v-model="responsavel.cidade"
+                    class="w-full"
+                  />
                 </UFormField>
               </div>
             </CardCadastro>

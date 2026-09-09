@@ -178,6 +178,25 @@ def test_resolver_ibge_spdata_mapeia_codigo_ibge_com_digito():
     assert service.resolver_ibge_spdata(Cursor(), "3157807") == 315780
 
 
+def test_resolver_uf_spdata_mantem_uf_existente():
+    class Cursor:
+        def execute(self, sql, params):
+            self.params = params
+
+        def fetchone(self):
+            if self.params == ("MG",):
+                return ("MG",)
+            return None
+
+    assert service.resolver_uf_spdata(Cursor(), "mg") == "MG"
+
+
+def test_normalizar_parentesco_guardiao_mapeia_mae_e_outros():
+    assert service.normalizar_parentesco_guardiao("Mãe") == 8
+    assert service.normalizar_parentesco_guardiao("Pai") == 9
+    assert service.normalizar_parentesco_guardiao("Responsável legal") == 11
+
+
 def test_normalizar_referencias_paciente_remove_ibge_e_cep_inexistentes():
     class Cursor:
         def execute(self, sql, params):
@@ -190,6 +209,27 @@ def test_normalizar_referencias_paciente_remove_ibge_e_cep_inexistentes():
 
     assert valores["IBGE"] is None
     assert valores["CEP"] is None
+
+
+def test_normalizar_referencias_paciente_remove_guardiao_invalido():
+    class Cursor:
+        def execute(self, sql, params):
+            self.params = params
+
+        def fetchone(self):
+            return None
+
+    valores = service.normalizar_referencias_paciente(Cursor(), {
+        "ID_TBCEP_END_GUARDIAO": 99999999,
+        "ID_TBUF_END_GUARDIAO": "ZZ",
+        "ID_TBPARENTE_GUARDIAO": 99,
+        "NOME_GUARDIAO": "Maria Silva",
+    })
+
+    assert valores["ID_TBCEP_END_GUARDIAO"] is None
+    assert valores["ID_TBUF_END_GUARDIAO"] is None
+    assert valores["ID_TBPARENTE_GUARDIAO"] is None
+    assert service.filtrar_colunas_existentes(valores, set(valores)) == {"NOME_GUARDIAO": "Maria Silva"}
 
 
 def test_select_paciente_sql_nao_usa_cnpj_cpf_inexistente():
