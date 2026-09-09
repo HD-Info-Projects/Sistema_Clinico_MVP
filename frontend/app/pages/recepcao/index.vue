@@ -350,6 +350,7 @@ onUnmounted(() => {
       <div class="grid min-w-0 grid-cols-1 items-stretch gap-4 lg:grid-cols-2 lg:gap-6">
         <ChartResumo
           class="h-full"
+          :loading="loading"
           :total="resumoTotal"
           :agendados="dados.resumo.agendados"
           :fila="dados.resumo.emEspera"
@@ -379,6 +380,30 @@ onUnmounted(() => {
           </template>
 
           <div class="flex max-h-55 flex-col gap-2 overflow-y-auto">
+            <div
+              v-if="loading && !medicosDoDia.length"
+              role="status"
+              class="space-y-2"
+            >
+              <div
+                v-for="linha in 4"
+                :key="linha"
+                class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-3 rounded-lg border border-muted p-3"
+              >
+                <div class="flex items-center gap-3">
+                  <USkeleton class="size-8 shrink-0 rounded-full" />
+                  <div class="min-w-0 space-y-2">
+                    <USkeleton class="h-4 w-40 max-w-full" />
+                    <USkeleton class="h-3 w-28 max-w-full" />
+                  </div>
+                </div>
+                <div class="flex flex-col items-center gap-1">
+                  <USkeleton class="h-3 w-16" />
+                  <USkeleton class="h-5 w-8 rounded-full" />
+                </div>
+              </div>
+            </div>
+
             <UPageCard
               v-for="medico in medicosDoDia"
               :key="medico.id"

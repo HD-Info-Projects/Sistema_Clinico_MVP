@@ -771,12 +771,21 @@ function montarDiagnosticos(item: HistoricoLocalRecord): string {
       >
         <div
           v-if="isLoadingHistorico"
-          class="flex justify-center py-8"
+          role="status"
+          class="space-y-4"
         >
-          <UIcon
-            name="i-lucide-loader-circle"
-            class="size-6 animate-spin text-muted"
-          />
+          <div
+            v-for="linha in 3"
+            :key="linha"
+            class="flex gap-3"
+          >
+            <USkeleton class="size-6 shrink-0 rounded-full" />
+            <div class="min-w-0 flex-1 space-y-2">
+              <USkeleton class="h-4 w-44 max-w-full" />
+              <USkeleton class="h-3 w-full max-w-full" />
+              <USkeleton class="h-3 w-3/4 max-w-full" />
+            </div>
+          </div>
         </div>
 
         <div
@@ -925,11 +934,20 @@ function montarDiagnosticos(item: HistoricoLocalRecord): string {
         </UTimeline>
 
         <div class="flex justify-center py-3">
-          <UIcon
+          <div
             v-if="isLoadingMaisHistorico"
-            name="i-lucide-loader-circle"
-            class="size-5 animate-spin text-muted"
-          />
+            role="status"
+            class="w-full max-w-md space-y-2"
+          >
+            <div
+              v-for="linha in 2"
+              :key="linha"
+              class="flex items-center gap-3"
+            >
+              <USkeleton class="size-5 shrink-0 rounded-full" />
+              <USkeleton class="h-4 w-56 max-w-full" />
+            </div>
+          </div>
           <UButton
             v-else-if="historicoExternoHasMore"
             label="Carregar mais histórico"

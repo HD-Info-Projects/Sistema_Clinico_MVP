@@ -11,6 +11,10 @@ const padroesAnamneseStore = usePadroesAnamneseStore()
 const padroesOrientacoesStore = usePadroesOrientacoesStore()
 const toast = useToast()
 
+const padroesCarregando = computed(
+  () => padroesStore.loading || padroesAnamneseStore.loading || padroesOrientacoesStore.loading
+)
+
 onMounted(() => {
   const medicoId = props.medicoId ?? undefined
   padroesStore.fetchAll(medicoId)
@@ -353,6 +357,27 @@ function activeTabEmpty(): boolean {
         </template>
 
         <div class="space-y-2">
+          <div
+            v-if="padroesCarregando"
+            role="status"
+            class="space-y-2"
+          >
+            <div
+              v-for="linha in 4"
+              :key="linha"
+              class="flex min-w-0 flex-col gap-2 rounded-lg border border-muted p-3 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div class="min-w-0 space-y-2">
+                <USkeleton class="h-4 w-44 max-w-full" />
+                <USkeleton class="h-3 w-64 max-w-full" />
+              </div>
+              <div class="flex shrink-0 gap-2">
+                <USkeleton class="size-8 rounded-lg" />
+                <USkeleton class="size-8 rounded-lg" />
+              </div>
+            </div>
+          </div>
+
           <template v-if="activeTab === 'receitas'">
             <div
               v-for="p in padroesStore.receitas"
@@ -504,7 +529,7 @@ function activeTabEmpty(): boolean {
           </template>
 
           <p
-            v-if="activeTabEmpty()"
+            v-if="!padroesCarregando && activeTabEmpty()"
             class="text-sm text-muted italic py-4 text-center"
           >
             Nenhum modelo cadastrado.

@@ -622,12 +622,24 @@ function dropdownItems(ag: AgendamentoComPaciente) {
 
       <div
         v-if="isLoading"
-        class="flex justify-center py-12"
+        role="status"
+        class="space-y-3"
       >
-        <UIcon
-          name="i-lucide-loader-circle"
-          class="size-8 animate-spin text-muted"
-        />
+        <UCard
+          v-for="linha in 4"
+          :key="linha"
+          class="border border-muted"
+          :ui="{ body: 'p-4 sm:p-4' }"
+        >
+          <div class="flex min-w-0 items-center gap-4">
+            <USkeleton class="size-12 shrink-0 rounded-full" />
+            <div class="min-w-0 space-y-2">
+              <USkeleton class="h-5 w-48 max-w-full" />
+              <USkeleton class="h-4 w-72 max-w-full" />
+              <USkeleton class="h-4 w-40 max-w-full" />
+            </div>
+          </div>
+        </UCard>
       </div>
 
       <div

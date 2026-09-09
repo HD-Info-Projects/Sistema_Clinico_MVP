@@ -967,6 +967,32 @@ function voltarDashboard() {
     </main>
   </div>
   <div
+    v-else-if="agendamentosStore.loading"
+    class="flex h-dvh items-center justify-center bg-neutral-100 dark:bg-neutral-950"
+    role="status"
+  >
+    <UCard class="w-full max-w-md">
+      <div class="flex flex-col gap-6 p-6 sm:p-8">
+        <div class="flex items-center gap-4">
+          <USkeleton class="size-16 shrink-0 rounded-full" />
+          <div class="min-w-0 flex-1 space-y-2">
+            <USkeleton class="h-5 w-40 max-w-full" />
+            <USkeleton class="h-4 w-56 max-w-full" />
+          </div>
+        </div>
+        <div class="space-y-2">
+          <USkeleton class="h-4 w-full" />
+          <USkeleton class="h-4 w-full" />
+          <USkeleton class="h-4 w-3/4" />
+        </div>
+        <div class="flex gap-2">
+          <USkeleton class="h-10 w-28 rounded-lg" />
+          <USkeleton class="h-10 w-28 rounded-lg" />
+        </div>
+      </div>
+    </UCard>
+  </div>
+  <div
     v-else
     class="flex h-dvh items-center justify-center bg-neutral-100 dark:bg-neutral-950"
   >

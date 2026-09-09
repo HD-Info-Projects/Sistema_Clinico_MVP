@@ -272,14 +272,32 @@ onMounted(() => {
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-100 bg-white dark:divide-slate-800 dark:bg-slate-900">
-            <tr v-if="loading">
-              <td
-                colspan="6"
-                class="px-4 py-8 text-center text-slate-600 dark:text-slate-400"
+            <template v-if="loading">
+              <tr
+                v-for="linha in 5"
+                :key="linha"
+                role="status"
               >
-                Carregando auditoria...
-              </td>
-            </tr>
+                <td class="px-4 py-3">
+                  <USkeleton class="h-4 w-32 max-w-full" />
+                </td>
+                <td class="px-4 py-3">
+                  <USkeleton class="h-5 w-24 max-w-full rounded-full" />
+                </td>
+                <td class="px-4 py-3">
+                  <USkeleton class="h-4 w-28 max-w-full" />
+                </td>
+                <td class="px-4 py-3">
+                  <USkeleton class="h-4 w-24 max-w-full" />
+                </td>
+                <td class="px-4 py-3">
+                  <USkeleton class="h-4 w-24 max-w-full" />
+                </td>
+                <td class="px-4 py-3">
+                  <USkeleton class="h-4 w-64 max-w-full" />
+                </td>
+              </tr>
+            </template>
             <tr v-else-if="!eventos.length">
               <td
                 colspan="6"

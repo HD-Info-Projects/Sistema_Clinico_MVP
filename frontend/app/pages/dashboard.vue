@@ -347,6 +347,7 @@ const tempoMedioEspera = computed(() => {
       >
         <ChartResumo
           class="h-full"
+          :loading="agendamentosStore.loading"
           :total="totalPacientesDashboard"
           :fila="agendamentosStore.fila.length"
           :em-atendimento="agendamentosStore.emAtendimento ? 1 : 0"
@@ -412,12 +413,15 @@ const tempoMedioEspera = computed(() => {
         v-else-if="agendamentosStore.loading"
         class="grid grid-cols-1 items-stretch gap-6 md:grid-cols-2"
       >
-        <UPageCard class="h-full">
-          <div class="flex flex-col gap-4 items-center justify-center h-full">
-            <USkeleton class="h-40 w-40" />
-            <USkeleton class="h-4 w-48" />
-          </div>
-        </UPageCard>
+        <ChartResumo
+          class="h-full"
+          :loading="true"
+          :total="0"
+          :fila="0"
+          :em-atendimento="0"
+          :atendidos="0"
+          :faltas="0"
+        />
         <div class="grid grid-cols-1 items-stretch gap-2 sm:grid-cols-2">
           <UPageCard class="h-full">
             <div class="flex flex-col gap-3 items-center">
