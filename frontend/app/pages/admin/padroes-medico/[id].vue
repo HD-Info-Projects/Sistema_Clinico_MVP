@@ -34,7 +34,7 @@ onMounted(() => {
     >
       <template #toggle>
         <UButton
-          icon="i-lucide-panel-left"
+          icon="i-lucide-menu"
           color="neutral"
           variant="ghost"
           class="min-h-11 min-w-11 lg:hidden"
@@ -53,8 +53,11 @@ onMounted(() => {
             aria-label="Voltar para medicos"
             @click="void(navigateTo('/admin/medicos'))"
           />
-          <p class="min-w-0 break-words text-lg font-semibold">
+          <p class="hidden sm:block min-w-0 wrap-break-word text-lg font-semibold">
             {{ titulo }}
+          </p>
+          <p class="block sm:hidden min-w-0 wrap-break-word text-lg font-semibold">
+            Padrões
           </p>
         </div>
       </template>

@@ -113,11 +113,11 @@ onMounted(() => {
     <header class="flex flex-col gap-2">
       <div class="flex items-center gap-2">
         <UButton
-          icon="i-lucide-panel-left"
-          label="Abrir menu"
+          icon="i-lucide-menu"
           color="neutral"
           variant="ghost"
-          class="min-h-11 lg:hidden"
+          class="min-h-11 min-w-11 lg:hidden"
+          aria-label="Abrir menu"
           @click="openNav()"
         />
         <UBadge

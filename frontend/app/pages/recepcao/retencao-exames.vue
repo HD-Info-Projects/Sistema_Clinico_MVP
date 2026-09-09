@@ -443,10 +443,10 @@ watch(() => auth.activeClinicaId, () => {
     >
       <template #toggle>
         <UButton
-          icon="i-lucide-panel-left"
+          icon="i-lucide-menu"
           color="neutral"
           variant="ghost"
-          class="lg:hidden"
+          class="min-h-11 min-w-11 lg:hidden"
           aria-label="Abrir menu"
           @click="openNav()"
         />

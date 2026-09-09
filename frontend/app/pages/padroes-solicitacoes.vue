@@ -100,19 +100,45 @@ async function executarDeletar() {
 }
 
 function gerenciarReceita() {
-  activeTab.value = 'receitas'
+  activeTab.value = activeTab.value === 'receitas' ? null : 'receitas'
 }
 
 function gerenciarExame() {
-  activeTab.value = 'exames'
+  activeTab.value = activeTab.value === 'exames' ? null : 'exames'
 }
 
 function gerenciarAnamnese() {
-  activeTab.value = 'anamnese'
+  activeTab.value = activeTab.value === 'anamnese' ? null : 'anamnese'
 }
 
 function gerenciarOrientacao() {
-  activeTab.value = 'orientacoes'
+  activeTab.value = activeTab.value === 'orientacoes' ? null : 'orientacoes'
+}
+
+const activeTabOrder = computed(() => {
+  if (activeTab.value === 'receitas') return 'order-2'
+  if (activeTab.value === 'exames') return 'order-3'
+  if (activeTab.value === 'anamnese') return 'order-4'
+  if (activeTab.value === 'orientacoes') return 'order-5'
+  return ''
+})
+
+const activeIndex = computed<number | null>(() => {
+  if (activeTab.value === 'receitas') return 1
+  if (activeTab.value === 'exames') return 2
+  if (activeTab.value === 'anamnese') return 3
+  if (activeTab.value === 'orientacoes') return 4
+  return null
+})
+
+function cardOrder(n: number): string {
+  const i = activeIndex.value
+  if (i !== null && n > i) n += 1
+  if (n === 1) return 'order-1'
+  if (n === 2) return 'order-2'
+  if (n === 3) return 'order-3'
+  if (n === 4) return 'order-4'
+  return 'order-5'
 }
 
 function activeTabIcon(tab: ActiveTab) {
@@ -146,10 +172,10 @@ function activeTabEmpty(): boolean {
     >
       <template #toggle>
         <UButton
-          icon="i-lucide-panel-left"
+          icon="i-lucide-menu"
           color="neutral"
           variant="ghost"
-          class="lg:hidden"
+          class="min-h-11 min-w-11 lg:hidden"
           aria-label="Abrir menu"
           @click="openNav()"
         />
@@ -161,7 +187,7 @@ function activeTabEmpty(): boolean {
 
     <div class="min-h-screen min-w-0 space-y-6 bg-neutral-100 p-3 dark:bg-neutral-950 sm:p-6">
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4 xl:gap-6">
-        <UCard>
+        <UCard :class="cardOrder(1)">
           <template #title>
             <div class="flex items-center gap-2">
               <UIcon
@@ -198,7 +224,7 @@ function activeTabEmpty(): boolean {
           </div>
         </UCard>
 
-        <UCard>
+        <UCard :class="cardOrder(2)">
           <template #title>
             <div class="flex items-center gap-2">
               <UIcon
@@ -235,7 +261,7 @@ function activeTabEmpty(): boolean {
           </div>
         </UCard>
 
-        <UCard>
+        <UCard :class="cardOrder(3)">
           <template #title>
             <div class="flex items-center gap-2">
               <UIcon
@@ -272,7 +298,7 @@ function activeTabEmpty(): boolean {
           </div>
         </UCard>
 
-        <UCard>
+        <UCard :class="cardOrder(4)">
           <template #title>
             <div class="flex items-center gap-2">
               <UIcon
@@ -308,164 +334,166 @@ function activeTabEmpty(): boolean {
             />
           </div>
         </UCard>
-      </div>
+        <UCard
+          v-if="activeTab"
+          :class="[activeTabOrder, 'md:col-span-2 xl:col-span-4 md:order-last']"
+        >
+          <template #title>
+            <div class="flex items-center gap-2">
+              <UIcon
+                :name="activeTabIcon(activeTab)"
+                class="text-primary"
+              />
+              <p class="font-semibold">
+                Modelos de {{ activeTabTitulo(activeTab) }}
+              </p>
+            </div>
+          </template>
 
-      <UCard v-if="activeTab">
-        <template #title>
-          <div class="flex items-center gap-2">
-            <UIcon
-              :name="activeTabIcon(activeTab)"
-              class="text-primary"
-            />
-            <p class="font-semibold">
-              Modelos de {{ activeTabTitulo(activeTab) }}
+          <div class="space-y-2">
+            <template v-if="activeTab === 'receitas'">
+              <div
+                v-for="p in padroesStore.receitas"
+                :key="p.id"
+                class="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-muted p-3 hover:bg-muted/50"
+              >
+                <div class="min-w-0">
+                  <p class="break-words font-medium">
+                    {{ p.nome }}
+                  </p>
+                  <p class="text-xs text-muted">
+                    {{ p.medicamentos.length }} medicamento{{ p.medicamentos.length !== 1 ? 's' : '' }}
+                    &middot; {{ new Date(p.updatedAt).toLocaleDateString('pt-BR') }}
+                  </p>
+                </div>
+                <div class="flex shrink-0 gap-1">
+                  <UButton
+                    icon="i-lucide-pencil"
+                    color="neutral"
+                    variant="ghost"
+                    size="sm"
+                    @click="editarReceita(p)"
+                  />
+                  <UButton
+                    icon="i-lucide-trash-2"
+                    color="error"
+                    variant="ghost"
+                    size="sm"
+                    @click="confirmarDeletar(p, 'receita')"
+                  />
+                </div>
+              </div>
+            </template>
+
+            <template v-else-if="activeTab === 'exames'">
+              <div
+                v-for="p in padroesStore.exames"
+                :key="p.id"
+                class="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-muted p-3 hover:bg-muted/50"
+              >
+                <div class="min-w-0">
+                  <p class="break-words font-medium">
+                    {{ p.nome }}
+                  </p>
+                  <p class="text-xs text-muted">
+                    {{ p.exames.length }} exame{{ p.exames.length !== 1 ? 's' : '' }}
+                    &middot; {{ new Date(p.updatedAt).toLocaleDateString('pt-BR') }}
+                  </p>
+                </div>
+                <div class="flex shrink-0 gap-1">
+                  <UButton
+                    icon="i-lucide-pencil"
+                    color="neutral"
+                    variant="ghost"
+                    size="sm"
+                    @click="editarExame(p)"
+                  />
+                  <UButton
+                    icon="i-lucide-trash-2"
+                    color="error"
+                    variant="ghost"
+                    size="sm"
+                    @click="confirmarDeletar(p, 'exame')"
+                  />
+                </div>
+              </div>
+            </template>
+
+            <template v-else-if="activeTab === 'anamnese'">
+              <div
+                v-for="p in padroesAnamneseStore.padroes"
+                :key="p.id"
+                class="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-muted p-3 hover:bg-muted/50"
+              >
+                <div class="min-w-0">
+                  <p class="break-words font-medium">
+                    {{ p.nome }}
+                  </p>
+                  <p class="text-xs text-muted">
+                    {{ new Date(p.updatedAt).toLocaleDateString('pt-BR') }}
+                  </p>
+                </div>
+                <div class="flex shrink-0 gap-1">
+                  <UButton
+                    icon="i-lucide-pencil"
+                    color="neutral"
+                    variant="ghost"
+                    size="sm"
+                    @click="editarAnamnese(p)"
+                  />
+                  <UButton
+                    icon="i-lucide-trash-2"
+                    color="error"
+                    variant="ghost"
+                    size="sm"
+                    @click="confirmarDeletar(p, 'anamnese')"
+                  />
+                </div>
+              </div>
+            </template>
+
+            <template v-else-if="activeTab === 'orientacoes'">
+              <div
+                v-for="p in padroesOrientacoesStore.padroes"
+                :key="p.id"
+                class="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-muted p-3 hover:bg-muted/50"
+              >
+                <div class="min-w-0">
+                  <p class="break-words font-medium">
+                    {{ p.nome }}
+                  </p>
+                  <p class="text-xs text-muted">
+                    {{ new Date(p.updatedAt).toLocaleDateString('pt-BR') }}
+                  </p>
+                </div>
+                <div class="flex shrink-0 gap-1">
+                  <UButton
+                    icon="i-lucide-pencil"
+                    color="neutral"
+                    variant="ghost"
+                    size="sm"
+                    @click="editarOrientacao(p)"
+                  />
+                  <UButton
+                    icon="i-lucide-trash-2"
+                    color="error"
+                    variant="ghost"
+                    size="sm"
+                    @click="confirmarDeletar(p, 'orientacao')"
+                  />
+                </div>
+              </div>
+            </template>
+
+            <p
+              v-if="activeTabEmpty()"
+              class="text-sm text-muted italic py-4 text-center"
+            >
+              Nenhum modelo cadastrado.
             </p>
           </div>
-        </template>
-
-        <div class="space-y-2">
-          <template v-if="activeTab === 'receitas'">
-            <div
-              v-for="p in padroesStore.receitas"
-              :key="p.id"
-              class="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-muted p-3 hover:bg-muted/50"
-            >
-              <div class="min-w-0">
-                <p class="break-words font-medium">
-                  {{ p.nome }}
-                </p>
-                <p class="text-xs text-muted">
-                  {{ p.medicamentos.length }} medicamento{{ p.medicamentos.length !== 1 ? 's' : '' }}
-                  &middot; {{ new Date(p.updatedAt).toLocaleDateString('pt-BR') }}
-                </p>
-              </div>
-              <div class="flex shrink-0 gap-1">
-                <UButton
-                  icon="i-lucide-pencil"
-                  color="neutral"
-                  variant="ghost"
-                  size="sm"
-                  @click="editarReceita(p)"
-                />
-                <UButton
-                  icon="i-lucide-trash-2"
-                  color="error"
-                  variant="ghost"
-                  size="sm"
-                  @click="confirmarDeletar(p, 'receita')"
-                />
-              </div>
-            </div>
-          </template>
-
-          <template v-else-if="activeTab === 'exames'">
-            <div
-              v-for="p in padroesStore.exames"
-              :key="p.id"
-              class="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-muted p-3 hover:bg-muted/50"
-            >
-              <div class="min-w-0">
-                <p class="break-words font-medium">
-                  {{ p.nome }}
-                </p>
-                <p class="text-xs text-muted">
-                  {{ p.exames.length }} exame{{ p.exames.length !== 1 ? 's' : '' }}
-                  &middot; {{ new Date(p.updatedAt).toLocaleDateString('pt-BR') }}
-                </p>
-              </div>
-              <div class="flex shrink-0 gap-1">
-                <UButton
-                  icon="i-lucide-pencil"
-                  color="neutral"
-                  variant="ghost"
-                  size="sm"
-                  @click="editarExame(p)"
-                />
-                <UButton
-                  icon="i-lucide-trash-2"
-                  color="error"
-                  variant="ghost"
-                  size="sm"
-                  @click="confirmarDeletar(p, 'exame')"
-                />
-              </div>
-            </div>
-          </template>
-
-          <template v-else-if="activeTab === 'anamnese'">
-            <div
-              v-for="p in padroesAnamneseStore.padroes"
-              :key="p.id"
-              class="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-muted p-3 hover:bg-muted/50"
-            >
-              <div class="min-w-0">
-                <p class="break-words font-medium">
-                  {{ p.nome }}
-                </p>
-                <p class="text-xs text-muted">
-                  {{ new Date(p.updatedAt).toLocaleDateString('pt-BR') }}
-                </p>
-              </div>
-              <div class="flex shrink-0 gap-1">
-                <UButton
-                  icon="i-lucide-pencil"
-                  color="neutral"
-                  variant="ghost"
-                  size="sm"
-                  @click="editarAnamnese(p)"
-                />
-                <UButton
-                  icon="i-lucide-trash-2"
-                  color="error"
-                  variant="ghost"
-                  size="sm"
-                  @click="confirmarDeletar(p, 'anamnese')"
-                />
-              </div>
-            </div>
-          </template>
-
-          <template v-else-if="activeTab === 'orientacoes'">
-            <div
-              v-for="p in padroesOrientacoesStore.padroes"
-              :key="p.id"
-              class="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-muted p-3 hover:bg-muted/50"
-            >
-              <div class="min-w-0">
-                <p class="break-words font-medium">
-                  {{ p.nome }}
-                </p>
-                <p class="text-xs text-muted">
-                  {{ new Date(p.updatedAt).toLocaleDateString('pt-BR') }}
-                </p>
-              </div>
-              <div class="flex shrink-0 gap-1">
-                <UButton
-                  icon="i-lucide-pencil"
-                  color="neutral"
-                  variant="ghost"
-                  size="sm"
-                  @click="editarOrientacao(p)"
-                />
-                <UButton
-                  icon="i-lucide-trash-2"
-                  color="error"
-                  variant="ghost"
-                  size="sm"
-                  @click="confirmarDeletar(p, 'orientacao')"
-                />
-              </div>
-            </div>
-          </template>
-
-          <p
-            v-if="activeTabEmpty()"
-            class="text-sm text-muted italic py-4 text-center"
-          >
-            Nenhum modelo cadastrado.
-          </p>
-        </div>
-      </UCard>
+        </UCard>
+      </div>
     </div>
 
     <PadraoReceitaModal
