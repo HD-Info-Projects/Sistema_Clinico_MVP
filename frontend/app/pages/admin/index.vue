@@ -4,6 +4,7 @@ definePageMeta({ layout: 'admin' })
 const auth = useAuthStore()
 const usuariosStore = useUsuariosStore()
 const unidadesStore = useUnidadesStore()
+const openNav = inject<() => void>('openNav', () => {})
 
 const userName = computed(() => auth.user?.nome || 'Administrador')
 
@@ -18,13 +19,6 @@ const ultimosUsuarios = computed(() => {
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 10)
 })
-
-const colunas = [
-  { accessorKey: 'nome', header: 'Nome' },
-  { accessorKey: 'role', header: 'Perfil' },
-  { accessorKey: 'email', header: 'Email' },
-  { accessorKey: 'created_at', header: 'Criado em' }
-]
 
 onMounted(() => {
   usuariosStore.fetchAll()
@@ -56,20 +50,36 @@ function formatarData(data: string) {
 
 <template>
   <div>
-    <UHeader title="Dashboard Administrativo">
-      <template #right>
-        <UBadge
-          :label="userName"
+    <UHeader
+      title="Dashboard Administrativo"
+      toggle-side="left"
+    >
+      <template #toggle>
+        <UButton
+          icon="i-lucide-menu"
           color="neutral"
-          variant="soft"
+          variant="ghost"
+          class="min-h-11 min-w-11 lg:hidden"
+          aria-label="Abrir menu"
+          @click="openNav()"
         />
-        <UColorModeButton />
+      </template>
+      <template #right>
+        <div class="flex min-w-0 items-center justify-end gap-2">
+          <UBadge
+            :label="userName"
+            color="neutral"
+            variant="soft"
+            class="hidden max-w-48 truncate sm:inline-flex"
+          />
+          <UColorModeButton />
+        </div>
       </template>
     </UHeader>
 
-    <div class="p-6 bg-neutral-100 dark:bg-neutral-950 min-h-screen space-y-6">
-      <div>
-        <p class="text-3xl font-semibold">
+    <div class="min-h-screen space-y-6 bg-muted p-4 sm:p-6">
+      <div class="min-w-0">
+        <p class="break-words text-2xl font-semibold sm:text-3xl">
           Bem-vindo, {{ userName }}
         </p>
         <p class="text-base text-muted mt-1">
@@ -179,38 +189,65 @@ function formatarData(data: string) {
           </p>
         </div>
 
-        <UTable
+        <div
           v-else
-          :columns="colunas"
-          :data="ultimosUsuarios"
+          class="flex flex-col"
         >
-          <template #nome-cell="{ row }">
-            <div class="flex items-center gap-3">
-              <UAvatar
-                :alt="row.original.nome_completo"
-                color="primary"
-                size="sm"
-              />
-              <p class="font-medium">
-                {{ row.original.nome_completo }}
-              </p>
+          <UPageCard
+            v-for="usuario in ultimosUsuarios"
+            :key="usuario.id"
+            variant="ghost"
+            class="border-b border-muted rounded-none"
+            :ui="{ container: 'px-4 sm:p-1 pb-3 sm:px-4' }"
+          >
+            <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-12 lg:items-center">
+              <div class="lg:col-span-4">
+                <p class="text-sm font-bold text-muted">
+                  Nome
+                </p>
+                <div class="flex min-w-0 items-center gap-3">
+                  <UAvatar
+                    :alt="usuario.nome_completo"
+                    color="primary"
+                    size="sm"
+                  />
+                  <p class="min-w-0 wrap-break-word font-medium">
+                    {{ usuario.nome_completo }}
+                  </p>
+                </div>
+              </div>
+
+              <div class="lg:col-span-2">
+                <p class="text-sm font-bold text-muted">
+                  Perfil
+                </p>
+                <UBadge
+                  :label="rotuloRole(usuario.role)"
+                  :color="corRole(usuario.role)"
+                  variant="subtle"
+                />
+              </div>
+
+              <div class="lg:col-span-4">
+                <p class="text-sm font-bold text-muted">
+                  Email
+                </p>
+                <p class="break-all text-sm">
+                  {{ usuario.email }}
+                </p>
+              </div>
+
+              <div class="lg:col-span-2">
+                <p class="text-sm font-bold text-muted">
+                  Criado em
+                </p>
+                <span class="text-sm text-muted">
+                  {{ formatarData(usuario.created_at) }}
+                </span>
+              </div>
             </div>
-          </template>
-
-          <template #role-cell="{ row }">
-            <UBadge
-              :label="rotuloRole(row.original.role)"
-              :color="corRole(row.original.role)"
-              variant="subtle"
-            />
-          </template>
-
-          <template #created_at-cell="{ row }">
-            <span class="text-sm text-muted">
-              {{ formatarData(row.original.created_at) }}
-            </span>
-          </template>
-        </UTable>
+          </UPageCard>
+        </div>
       </UCard>
     </div>
   </div>

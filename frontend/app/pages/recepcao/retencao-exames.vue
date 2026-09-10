@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui/'
-import { getPaginationRowModel } from '@tanstack/vue-table'
 import { exportTableToPDF, exportToExcel, type ColunaExport } from '~/utils/export-data'
 
+const openNav = inject<() => void>('openNav', () => {})
 const auth = useAuthStore()
 const toast = useToast()
 
@@ -135,7 +135,7 @@ function aplicarFiltros() {
   filtroEspecialidadeActive.value = filtroEspecialidade.value
   filtroConvenioActive.value = filtroConvenio.value
   filtroStatusActive.value = filtroStatus.value
-  pagination.value.pageIndex = 0
+  page.value = 1
   carregarRetencao()
 }
 
@@ -211,22 +211,13 @@ const faturamentoRealizado = computed(() => {
     .filter(e => e.status === 'realizado' && e.valorRealizado)
     .reduce((acc, e) => acc + (e.valorRealizado || 0), 0)
 })
-const table = useTemplateRef('table')
+const page = ref(1)
+const pageSize = 8
 
-const pagination = ref({
-  pageIndex: 0,
-  pageSize: 8
+const pacientesPaginados = computed(() => {
+  const inicio = (page.value - 1) * pageSize
+  return pacientesVisiveis.value.slice(inicio, inicio + pageSize)
 })
-
-const colunas = [
-  { accessorKey: 'paciente', header: 'Paciente' },
-  { accessorKey: 'medico', header: 'Médico' },
-  { accessorKey: 'exame', header: 'Exame' },
-  { accessorKey: 'dataSolicitacao', header: 'Data Solic.' },
-  { accessorKey: 'diasEmAberto', header: 'Dias' },
-  { accessorKey: 'status', header: 'Status' },
-  { accessorKey: 'valorEstimado', header: 'Valor Est.' }
-]
 
 function corStatus(status: string) {
   switch (status) {
@@ -518,14 +509,39 @@ watch(() => auth.activeClinicaId, () => {
 
 <template>
   <div>
-    <UHeader title="Conversão de Exames">
+    <UHeader
+      title="Conversão de Exames"
+      toggle-side="left"
+    >
+      <template #toggle>
+        <UButton
+          icon="i-lucide-menu"
+          color="neutral"
+          variant="ghost"
+          class="min-h-11 min-w-11 lg:hidden"
+          aria-label="Abrir menu"
+          @click="openNav()"
+        />
+      </template>
       <template #right>
         <div class="flex items-center gap-2">
+          <UBadge
+            v-if="loading"
+            color="neutral"
+            variant="soft"
+            class="hidden lg:inline-flex"
+          >
+            <UIcon
+              name="i-lucide-loader-circle"
+              class="animate-spin"
+            />
+            <span>Atualizando dados do SPDATA...</span>
+          </UBadge>
           <UColorModeButton />
         </div>
       </template>
     </UHeader>
-    <div class="p-6 space-y-8 bg-neutral-100 dark:bg-neutral-950 min-h-screen">
+    <div class="min-h-screen min-w-0 space-y-6 bg-muted p-3 sm:space-y-8 sm:p-6">
       <UCard class="w-full">
         <template #title>
           <p class="text-lg font-medium">
@@ -533,71 +549,92 @@ watch(() => auth.activeClinicaId, () => {
           </p>
         </template>
         <div class="space-y-4">
-          <div class="flex flex-wrap items-end gap-4">
-            <div class="flex items-end gap-2">
-              <UFormField label="Ano">
+          <div class="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 xl:grid-cols-7 2xl:grid-cols-8">
+            <div class="grid grid-cols-2 items-end gap-2 sm:col-span-2 xl:col-span-2 2xl:col-span-3 2xl:grid-cols-[6rem_1fr_auto_1fr]">
+              <UFormField
+                label="Ano"
+                class="w-full"
+              >
                 <UInputMenu
                   v-model="filtroAno"
                   :items="[anoAtual, String(Number(anoAtual) - 1)]"
                   placeholder="Ano"
                   size="sm"
-                  class="w-24"
+                  class="w-full"
                 />
               </UFormField>
-              <UFormField label="Mês início">
+              <UFormField
+                label="Mês início"
+                class="w-full"
+              >
                 <UInputMenu
                   v-model="filtroMesInicio"
                   :items="mesesOpcoes"
                   placeholder="Mês início"
                   size="sm"
-                  class="w-36"
+                  class="w-full"
                 />
               </UFormField>
-              <span class="text-muted mb-1">até</span>
-              <UFormField label="Mês fim">
+              <span class="mb-2 hidden text-muted 2xl:block">até</span>
+              <UFormField
+                label="Mês fim"
+                class="w-full"
+              >
                 <UInputMenu
                   v-model="filtroMesFim"
                   :items="mesesOpcoes"
                   placeholder="Mês fim"
                   size="sm"
-                  class="w-36"
+                  class="w-full"
                 />
               </UFormField>
             </div>
-            <UFormField label="Médico">
+            <UFormField
+              label="Médico"
+              class="w-full"
+            >
               <UInputMenu
                 v-model="filtroMedico"
                 :items="medicosDisponiveis"
                 placeholder="Médico"
                 size="sm"
-                class="w-48"
+                class="w-full"
               />
             </UFormField>
-            <UFormField label="Especialidade">
+            <UFormField
+              label="Especialidade"
+              class="w-full"
+            >
               <UInputMenu
                 v-model="filtroEspecialidade"
                 :items="especialidadesDisponiveis"
                 placeholder="Especialidade"
                 size="sm"
-                class="w-48"
+                class="w-full"
               />
             </UFormField>
-            <UFormField label="Convênio">
+            <UFormField
+              label="Convênio"
+              class="w-full"
+            >
               <UInputMenu
                 v-model="filtroConvenio"
                 :items="conveniosDisponiveis"
                 placeholder="Convênio"
                 size="sm"
-                class="w-48"
+                class="w-full"
               />
             </UFormField>
-            <UFormField label="Status">
+            <UFormField
+              label="Status"
+              class="w-full"
+            >
               <UInputMenu
                 v-model="filtroStatus"
                 :items="statusDisponiveis"
                 placeholder="Status"
                 size="sm"
-                class="w-48"
+                class="w-full"
               />
             </UFormField>
             <UButton
@@ -605,24 +642,33 @@ watch(() => auth.activeClinicaId, () => {
               icon="i-lucide-filter"
               size="sm"
               color="primary"
+              class="min-h-10 w-full sm:w-auto"
+              :loading="loading"
+              :disabled="loading"
               @click="aplicarFiltros"
             />
           </div>
-          <div class="flex flex-wrap items-end gap-4">
-            <UFormField label="Exame">
+          <div class="grid grid-cols-1 items-end gap-3 sm:grid-cols-2">
+            <UFormField
+              label="Exame"
+              class="w-full"
+            >
               <UInput
                 v-model="filtroExame"
                 placeholder="Buscar exame..."
                 size="sm"
-                class="w-48"
+                class="w-full"
               />
             </UFormField>
-            <UFormField label="Paciente">
+            <UFormField
+              label="Paciente"
+              class="w-full"
+            >
               <UInput
                 v-model="filtroPaciente"
                 placeholder="Nome, CPF ou prontuário..."
                 size="sm"
-                class="w-64"
+                class="w-full"
               />
             </UFormField>
           </div>
@@ -637,32 +683,42 @@ watch(() => auth.activeClinicaId, () => {
         icon="i-lucide-circle-alert"
       />
 
-      <div class="w-full grid grid-cols-3 items-center gap-4">
+      <div class="grid w-full grid-cols-1 items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <CardRetencao
+          class="h-full"
+          :loading="loading"
           titulo="Exames Solicitados"
           :valor="totalExamesSolicitados"
           cor="info"
           icone="i-lucide-flask-conical"
         />
         <CardRetencao
+          class="h-full"
+          :loading="loading"
           titulo="Realizados"
           :valor="totalRealizadosInternamente"
           cor="success"
           icone="i-lucide-check-circle"
         />
         <CardRetencao
+          class="h-full"
+          :loading="loading"
           titulo="Pendentes"
           :valor="totalPendentes"
           cor="warning"
           icone="i-lucide-clock"
         />
         <CardRetencao
+          class="h-full"
+          :loading="loading"
           titulo="Não Convertidos"
           :valor="totalNaoConvertidos"
           cor="error"
           icone="i-lucide-x-circle"
         />
         <CardRetencao
+          class="h-full"
+          :loading="loading"
           titulo="Taxa de Conversão"
           :valor="taxaConversao"
           medida="%"
@@ -670,6 +726,8 @@ watch(() => auth.activeClinicaId, () => {
           icone="i-lucide-trending-up"
         />
         <CardRetencao
+          class="h-full"
+          :loading="loading"
           titulo="Faturamento Realizado"
           :valor="`R$ ${faturamentoRealizado.toLocaleString('pt-BR')}`"
           cor="success"
@@ -677,14 +735,19 @@ watch(() => auth.activeClinicaId, () => {
         />
       </div>
 
-      <div class="w-full grid grid-cols-2 gap-4">
+      <div class="w-full grid grid-cols-1 lg:grid-cols-2 gap-4">
         <UCard>
           <template #title>
             <p class="text-lg font-medium">
               Conversão por Médico
             </p>
           </template>
+          <EsqueletoGrafico
+            v-if="loading"
+            tipo="barras"
+          />
           <ChartConversaoMedico
+            v-else
             :medicos="chartConversaoMedicos"
             :taxas="chartConversaoTaxas"
           />
@@ -695,21 +758,31 @@ watch(() => auth.activeClinicaId, () => {
               Exames mais Solicitados
             </p>
           </template>
+          <EsqueletoGrafico
+            v-if="loading"
+            tipo="barras"
+          />
           <ChartExamesMaisSolicitados
+            v-else
             :labels="chartExamesLabels"
             :dados="chartExamesDados"
           />
         </UCard>
       </div>
 
-      <div class="w-full grid grid-cols-2 gap-4">
+      <div class="w-full grid grid-cols-1 lg:grid-cols-2 gap-4">
         <UCard>
           <template #title>
             <p class="text-lg font-medium">
               Oportunidade Financeira por Convênio
             </p>
           </template>
+          <EsqueletoGrafico
+            v-if="loading"
+            tipo="donut"
+          />
           <ChartOportunidadeFinanceira
+            v-else
             :labels="chartOportunidadeLabels"
             :dados="chartOportunidadeDados"
           />
@@ -720,21 +793,26 @@ watch(() => auth.activeClinicaId, () => {
               Conversão por Especialidade
             </p>
           </template>
+          <EsqueletoGrafico
+            v-if="loading"
+            tipo="donut-lista"
+          />
           <ChartEspecialidade
+            v-else
             :labels="chartEspecialidadeLabels"
             :dados="chartEspecialidadeDados"
           />
         </UCard>
       </div>
 
-      <div class="grid grid-cols-5 gap-4 items-stretch">
+      <div class="grid grid-cols-1 lg:grid-cols-5 gap-4 items-stretch">
         <UCard
           :ui="{
-            body: 'p-4 sm:p-4 sm:py-5 min-w-55 flex items-center h-full'
+            body: 'p-4 sm:p-4 sm:py-5 min-w-0 flex items-center h-full'
           }"
-          class="col-span-2"
+          class="col-span-1 lg:col-span-2"
         >
-          <div class="flex items-center gap-3 w-full">
+          <div class="flex min-w-0 items-center gap-3 w-full">
             <UBadge
               class="aspect-square"
               variant="soft"
@@ -745,8 +823,8 @@ watch(() => auth.activeClinicaId, () => {
                 class="size-8 text-info"
               />
             </UBadge>
-            <div class="flex flex-col">
-              <p class="text-sm font-bold text-nowrap">
+            <div class="min-w-0 flex-1">
+              <p class="break-words text-sm font-bold">
                 Tendência de Solicitações
               </p>
               <p class="text-xs text-muted">
@@ -759,9 +837,9 @@ watch(() => auth.activeClinicaId, () => {
           :ui="{
             body: 'p-5 flex items-center h-full'
           }"
-          class="col-span-3"
+          class="col-span-1 lg:col-span-3"
         >
-          <div class="flex items-center justify-between w-full">
+          <div class="flex flex-col gap-3 items-center justify-between w-full sm:flex-row">
             <div class="flex items-center gap-2">
               <UIcon
                 name="i-lucide-download"
@@ -769,7 +847,7 @@ watch(() => auth.activeClinicaId, () => {
               />
               <span class="font-semibold">Exportar Dados</span>
             </div>
-            <div class="flex items-center gap-3">
+            <div class="grid w-full grid-cols-2 gap-2 sm:w-auto">
               <UButton
                 icon="i-lucide-file-text"
                 label="Exportar PDF"
@@ -777,6 +855,7 @@ watch(() => auth.activeClinicaId, () => {
                 size="sm"
                 :loading="exportando === 'pdf'"
                 :disabled="exportando !== null || loading"
+                class="min-h-10 justify-center"
                 @click="exportarRetencaoPDF"
               />
               <UButton
@@ -786,6 +865,7 @@ watch(() => auth.activeClinicaId, () => {
                 size="sm"
                 :loading="exportando === 'excel'"
                 :disabled="exportando !== null || loading"
+                class="min-h-10 justify-center"
                 @click="exportarRetencaoExcel"
               />
             </div>
@@ -795,33 +875,39 @@ watch(() => auth.activeClinicaId, () => {
 
       <UCard class="w-full">
         <template #title>
-          <div class="flex items-center justify-between">
+          <div class="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <p class="text-lg font-medium">
               Exames para Conversão
             </p>
-            <div class="flex items-center gap-2">
+            <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <UInput
                 v-model="filtroExame"
                 placeholder="Filtrar por exame..."
                 size="sm"
-                class="w-56"
+                class="w-full sm:w-56"
               />
               <UInput
                 v-model="filtroPaciente"
                 placeholder="Filtrar por paciente, CPF ou prontuário..."
                 size="sm"
-                class="w-72"
+                class="w-full sm:w-72"
               />
             </div>
           </div>
         </template>
 
-        <p
+        <div
           v-if="loading"
-          class="py-4 text-sm text-muted"
+          role="status"
+          aria-label="Carregando exames do SPDATA"
+          class="space-y-3 py-1"
         >
-          Carregando exames do SPDATA...
-        </p>
+          <div
+            v-for="i in 3"
+            :key="i"
+            class="h-12 animate-pulse rounded-lg bg-neutral-200 dark:bg-neutral-800"
+          />
+        </div>
 
         <p
           v-else-if="!pacientesVisiveis.length"
@@ -830,91 +916,124 @@ watch(() => auth.activeClinicaId, () => {
           Nenhum exame encontrado para conversão.
         </p>
 
-        <UTable
+        <div
           v-else
-          ref="table"
-          v-model:pagination="pagination"
-          :columns="colunas"
-          :data="pacientesVisiveis"
-          :pagination-options="{ getPaginationRowModel: getPaginationRowModel() }"
+          class="flex flex-col gap-2"
         >
-          <template #paciente-cell="{ row }">
-            <div class="flex items-center gap-3">
-              <UAvatar
-                :alt="row.original.paciente"
-                color="primary"
-                size="sm"
-              />
-              <div>
-                <p class="font-medium">
-                  {{ row.original.paciente }}
+          <UPageCard
+            v-for="item in pacientesPaginados"
+            :key="item.id"
+            variant="ghost"
+            class="border-b border-muted rounded-none"
+            :ui="{ container: 'px-4 sm:p-1 pb-3 sm:px-4' }"
+          >
+            <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1.3fr)_minmax(6.5rem,0.7fr)_minmax(0,1.5fr)_4rem_7rem_7rem] xl:items-center">
+              <div class="min-w-0 sm:col-span-2 lg:col-span-2 xl:col-span-1">
+                <p class="text-sm text-muted font-bold">
+                  Paciente
                 </p>
-                <p class="text-xs text-muted">
-                  {{ row.original.convenio }}
+                <div class="flex min-w-0 items-center gap-3">
+                  <UAvatar
+                    :alt="item.paciente"
+                    color="primary"
+                    size="sm"
+                  />
+                  <div class="min-w-0">
+                    <p class="wrap-break-word font-medium">
+                      {{ item.paciente }}
+                    </p>
+                    <p class="wrap-break-word text-xs text-muted">
+                      {{ item.convenio }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="min-w-0">
+                <p class="text-sm text-muted font-bold">
+                  Médico
+                </p>
+                <div class="min-w-0 text-sm">
+                  <p class="wrap-break-word font-medium">
+                    {{ item.medico }}
+                  </p>
+                  <p class="wrap-break-word text-xs text-muted">
+                    {{ item.crm }}
+                  </p>
+                </div>
+              </div>
+
+              <div class="min-w-0">
+                <p class="text-sm text-muted font-bold">
+                  Data Solic.
+                </p>
+                <p class="text-sm">
+                  {{ formatarData(item.dataSolicitacao) }}
+                </p>
+              </div>
+
+              <div class="min-w-0 sm:col-span-2 lg:col-span-2 xl:col-span-1">
+                <p class="text-sm text-muted font-bold">
+                  Exame
+                </p>
+                <div class="min-w-0 text-sm">
+                  <UTooltip :text="item.exame">
+                    <p class="wrap-break-word cursor-default text-sm font-medium">
+                      {{ item.exame }}
+                    </p>
+                  </UTooltip>
+                  <p class="wrap-break-word text-xs text-muted">
+                    {{ item.codigoTuss }}
+                  </p>
+                </div>
+              </div>
+
+              <div class="min-w-0">
+                <p class="text-sm text-muted font-bold">
+                  Dias
+                </p>
+                <UBadge
+                  :label="String(item.diasEmAberto)"
+                  :color="item.diasEmAberto > 60 ? 'error' : item.diasEmAberto > 30 ? 'warning' : 'neutral'"
+                  variant="soft"
+                  size="sm"
+                />
+              </div>
+
+              <div class="min-w-0">
+                <p class="text-sm text-muted font-bold">
+                  Status
+                </p>
+                <UBadge
+                  :label="rotuloStatus(item.status)"
+                  :color="corStatus(item.status)"
+                  variant="subtle"
+                />
+              </div>
+
+              <div class="min-w-0">
+                <p class="text-sm text-muted font-bold">
+                  Valor Est.
+                </p>
+                <p class="text-sm font-medium">
+                  {{ formatarMoeda(item.valorEstimado) }}
                 </p>
               </div>
             </div>
-          </template>
-
-          <template #medico-cell="{ row }">
-            <div>
-              <p class="text-sm font-medium">
-                {{ row.original.medico }}
-              </p>
-              <p class="text-xs text-muted">
-                {{ row.original.crm }}
-              </p>
-            </div>
-          </template>
-
-          <template #exame-cell="{ row }">
-            <div>
-              <UTooltip :text="row.original.exame">
-                <p class="text-sm font-medium truncate max-w-70 cursor-default">
-                  {{ row.original.exame }}
-                </p>
-              </UTooltip>
-              <p class="text-xs text-muted">
-                {{ row.original.codigoTuss }}
-              </p>
-            </div>
-          </template>
-
-          <template #dataSolicitacao-cell="{ row }">
-            <span class="text-sm">{{ formatarData(row.original.dataSolicitacao) }}</span>
-          </template>
-
-          <template #diasEmAberto-cell="{ row }">
-            <UBadge
-              :label="String(row.original.diasEmAberto)"
-              :color="row.original.diasEmAberto > 60 ? 'error' : row.original.diasEmAberto > 30 ? 'warning' : 'neutral'"
-              variant="soft"
-              size="sm"
-            />
-          </template>
-
-          <template #status-cell="{ row }">
-            <UBadge
-              :label="rotuloStatus(row.original.status)"
-              :color="corStatus(row.original.status)"
-              variant="subtle"
-            />
-          </template>
-
-          <template #valorEstimado-cell="{ row }">
-            <span class="text-sm">{{ formatarMoeda(row.original.valorEstimado) }}</span>
-          </template>
-        </UTable>
+          </UPageCard>
+        </div>
 
         <div
           v-if="pacientesVisiveis.length && !loading"
           class="flex justify-center pt-4"
         >
           <UPagination
-            :page="(table?.tableApi?.getState().pagination.pageIndex || 0) + 1"
-            :items-per-page="table?.tableApi?.getState().pagination.pageSize || pagination.pageSize"
-            :total="table?.tableApi?.getFilteredRowModel().rows.length || 0"
-            @update:page="(p) => table?.tableApi?.setPageIndex(p - 1)"
+            :page="page"
+            :items-per-page="pageSize"
+            :total="pacientesVisiveis.length"
+            :sibling-count="1"
+            :ui="{ list: 'flex flex-wrap items-center gap-1 justify-center' }"
+            @update:page="page = $event"
           />
         </div>
       </UCard>
@@ -922,17 +1041,17 @@ watch(() => auth.activeClinicaId, () => {
 
     <USlideover v-model:open="slideoverAberto">
       <template #header>
-        <div class="flex items-center gap-3">
+        <div class="flex min-w-0 items-center gap-3">
           <UAvatar
             :alt="pacienteSelecionado?.paciente"
             color="primary"
             size="md"
           />
-          <div>
-            <p class="font-semibold text-lg">
+          <div class="min-w-0">
+            <p class="break-words font-semibold text-lg">
               {{ pacienteSelecionado?.paciente }}
             </p>
-            <p class="text-sm text-muted">
+            <p class="break-all text-sm text-muted">
               {{ pacienteSelecionado?.convenio }} | {{ pacienteSelecionado?.cpf }}
             </p>
           </div>
@@ -947,12 +1066,12 @@ watch(() => auth.activeClinicaId, () => {
                 Dados do Paciente
               </p>
             </template>
-            <div class="grid grid-cols-2 gap-4 text-sm">
+            <div class="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
               <div>
                 <p class="text-muted">
                   Nome
                 </p>
-                <p class="font-medium">
+                <p class="break-words font-medium">
                   {{ pacienteSelecionado?.paciente }}
                 </p>
               </div>
@@ -997,7 +1116,7 @@ watch(() => auth.activeClinicaId, () => {
                 Dados da Solicitação
               </p>
             </template>
-            <div class="grid grid-cols-2 gap-4 text-sm">
+            <div class="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
               <div>
                 <p class="text-muted">
                   Médico
@@ -1058,49 +1177,51 @@ watch(() => auth.activeClinicaId, () => {
                 Exames Solicitados
               </p>
             </template>
-            <table class="w-full text-sm">
-              <thead>
-                <tr class="border-b border-neutral-200 dark:border-neutral-800">
-                  <th class="text-left py-2 font-medium text-muted">
-                    Exame
-                  </th>
-                  <th class="text-left py-2 font-medium text-muted">
-                    TUSS
-                  </th>
-                  <th class="text-right py-2 font-medium text-muted">
-                    Valor Est.
-                  </th>
-                  <th class="text-left py-2 font-medium text-muted">
-                    Status
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="exame in examesPacienteSelecionado"
-                  :key="exame.id"
-                  class="border-t border-neutral-200 dark:border-neutral-800"
-                >
-                  <td class="py-2">
-                    {{ exame.exame }}
-                  </td>
-                  <td class="py-2">
-                    {{ exame.codigoTuss }}
-                  </td>
-                  <td class="py-2 text-right">
-                    {{ formatarMoeda(exame.valorEstimado) }}
-                  </td>
-                  <td class="py-2">
-                    <UBadge
-                      :label="rotuloStatus(exame.status)"
-                      :color="corStatus(exame.status)"
-                      variant="subtle"
-                      size="sm"
-                    />
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+            <div class="max-w-full overflow-x-auto">
+              <table class="min-w-[36rem] w-full text-sm">
+                <thead>
+                  <tr class="border-b border-neutral-200 dark:border-neutral-800">
+                    <th class="text-left py-2 font-medium text-muted">
+                      Exame
+                    </th>
+                    <th class="text-left py-2 font-medium text-muted">
+                      TUSS
+                    </th>
+                    <th class="text-right py-2 font-medium text-muted">
+                      Valor Est.
+                    </th>
+                    <th class="text-left py-2 font-medium text-muted">
+                      Status
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="exame in examesPacienteSelecionado"
+                    :key="exame.id"
+                    class="border-t border-neutral-200 dark:border-neutral-800"
+                  >
+                    <td class="py-2">
+                      {{ exame.exame }}
+                    </td>
+                    <td class="py-2">
+                      {{ exame.codigoTuss }}
+                    </td>
+                    <td class="py-2 text-right">
+                      {{ formatarMoeda(exame.valorEstimado) }}
+                    </td>
+                    <td class="py-2">
+                      <UBadge
+                        :label="rotuloStatus(exame.status)"
+                        :color="corStatus(exame.status)"
+                        variant="subtle"
+                        size="sm"
+                      />
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </UCard>
 
           <UCard>
@@ -1130,7 +1251,7 @@ watch(() => auth.activeClinicaId, () => {
                   />
                 </div>
                 <div class="flex-1">
-                  <div class="flex items-center justify-between">
+                  <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                     <p class="text-sm font-medium">
                       {{ contato.canal }}
                     </p>
@@ -1158,12 +1279,13 @@ watch(() => auth.activeClinicaId, () => {
                 Ações Rápidas
               </p>
             </template>
-            <div class="flex flex-wrap gap-2">
+            <div class="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
               <UButton
                 icon="i-lucide-message-circle"
                 label="WhatsApp"
                 color="success"
                 size="sm"
+                class="min-h-10 justify-center"
                 @click="pacienteSelecionado ? whatsapp(pacienteSelecionado) : undefined"
               />
               <UButton
@@ -1171,6 +1293,7 @@ watch(() => auth.activeClinicaId, () => {
                 label="Ligar"
                 color="primary"
                 size="sm"
+                class="min-h-10 justify-center"
                 @click="pacienteSelecionado ? ligar(pacienteSelecionado) : undefined"
               />
               <UButton
@@ -1178,6 +1301,7 @@ watch(() => auth.activeClinicaId, () => {
                 label="Agendar"
                 color="warning"
                 size="sm"
+                class="min-h-10 justify-center"
                 @click="pacienteSelecionado ? agendar(pacienteSelecionado) : undefined"
               />
               <UDropdownMenu :items="itensAcoes">
@@ -1186,6 +1310,7 @@ watch(() => auth.activeClinicaId, () => {
                   label="Atualizar Status"
                   color="secondary"
                   size="sm"
+                  class="min-h-10 w-full justify-center sm:w-auto"
                 />
               </UDropdownMenu>
             </div>

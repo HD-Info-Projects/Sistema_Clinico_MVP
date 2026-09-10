@@ -5,21 +5,12 @@ import { formatarTelefone } from '~/utils/masks'
 definePageMeta({ layout: 'admin' })
 
 const unidadesStore = useUnidadesStore()
+const openNav = inject<() => void>('openNav', () => {})
 
 const busca = ref('')
 const showFormModal = ref(false)
 const editingUnidade = ref<Unidade | null>(null)
 const confirmDeleteId = ref<number | null>(null)
-
-const colunas = [
-  { accessorKey: 'id', header: 'ID' },
-  { accessorKey: 'nome', header: 'Nome' },
-  { accessorKey: 'codigo_spdata_centro_custo', header: 'Centro de Custo' },
-  { accessorKey: 'codigo_spdata_agenda', header: 'Agenda' },
-  { accessorKey: 'telefone', header: 'Telefone' },
-  { accessorKey: 'ativa', header: 'Status' },
-  { id: 'acoes', header: 'Acoes' }
-]
 
 const listaFiltrada = computed(() => {
   const lista = unidadesStore.unidades
@@ -71,23 +62,41 @@ function onSaved() {
 
 <template>
   <div>
-    <UHeader title="Unidades">
-      <template #right>
+    <UHeader
+      title="Unidades"
+      toggle-side="left"
+    >
+      <template #toggle>
         <UButton
-          icon="i-lucide-plus"
-          label="Nova Unidade"
-          @click="abrirNovo"
+          icon="i-lucide-menu"
+          color="neutral"
+          variant="ghost"
+          class="min-h-11 min-w-11 lg:hidden"
+          aria-label="Abrir menu"
+          @click="openNav()"
         />
-        <UColorModeButton />
+      </template>
+      <template #right>
+        <div class="flex flex-wrap items-center justify-end gap-2">
+          <UButton
+            icon="i-lucide-plus"
+            label="Nova Unidade"
+            :ui="{ label: 'hidden sm:inline' }"
+            aria-label="Nova Unidade"
+            @click="abrirNovo"
+          />
+          <UColorModeButton />
+        </div>
       </template>
     </UHeader>
 
-    <div class="p-6 bg-neutral-100 dark:bg-neutral-950 min-h-screen space-y-6">
+    <div class="min-h-screen space-y-6 bg-muted p-4 sm:p-6">
       <UInput
         v-model="busca"
         icon="i-lucide-search"
         placeholder="Buscar por nome, endereco, telefone..."
         class="w-full"
+        aria-label="Buscar unidades"
       />
 
       <div
@@ -139,57 +148,106 @@ function onSaved() {
         v-else
         class="w-full"
       >
-        <UTable
-          :columns="colunas"
-          :data="listaFiltrada"
-          class="w-full"
-        >
-          <template #nome-cell="{ row }">
-            <div>
-              <p class="font-medium">
-                {{ row.original.nome }}
-              </p>
-              <p class="text-xs text-muted">
-                {{ row.original.endereco }}
-              </p>
+        <div class="flex flex-col">
+          <UPageCard
+            v-for="unidade in listaFiltrada"
+            :key="unidade.id"
+            variant="ghost"
+            class="border-b border-muted rounded-none"
+            :ui="{ container: 'px-4 sm:p-1 pb-3 sm:px-4' }"
+          >
+            <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-12 lg:items-center">
+              <div class="lg:col-span-1">
+                <p class="text-sm font-bold text-muted">
+                  ID
+                </p>
+                <p class="font-mono text-sm">
+                  {{ unidade.id }}
+                </p>
+              </div>
+
+              <div class="lg:col-span-3">
+                <p class="text-sm font-bold text-muted">
+                  Nome
+                </p>
+                <p class="wrap-break-word font-medium">
+                  {{ unidade.nome }}
+                </p>
+                <p class="wrap-break-word text-xs text-muted">
+                  {{ unidade.endereco }}
+                </p>
+              </div>
+
+              <div class="lg:col-span-2">
+                <p class="text-sm font-bold text-muted">
+                  Centro de Custo
+                </p>
+                <p class="wrap-break-word text-sm">
+                  {{ unidade.codigo_spdata_centro_custo || '-' }}
+                </p>
+              </div>
+
+              <div class="lg:col-span-2">
+                <p class="text-sm font-bold text-muted">
+                  Agenda SPDATA
+                </p>
+                <p class="wrap-break-word text-sm">
+                  {{ unidade.codigo_spdata_agenda || '-' }}
+                </p>
+              </div>
+
+              <div class="lg:col-span-2">
+                <p class="text-sm font-bold text-muted">
+                  Telefone
+                </p>
+                <span class="whitespace-nowrap text-sm">
+                  {{ unidade.telefone ? formatarTelefone(unidade.telefone) : '-' }}
+                </span>
+              </div>
+
+              <div class="lg:col-span-1">
+                <p class="text-sm font-bold text-muted">
+                  Status
+                </p>
+                <UBadge
+                  :label="unidade.ativa ? 'Ativa' : 'Inativa'"
+                  :color="unidade.ativa ? 'success' : 'neutral'"
+                  variant="subtle"
+                  size="sm"
+                />
+              </div>
+
+              <div class="sm:col-span-2 lg:col-span-1">
+                <p class="text-sm font-bold text-muted">
+                  Ações
+                </p>
+                <div class="flex items-center gap-1">
+                  <UButton
+                    icon="i-lucide-pencil"
+                    color="neutral"
+                    variant="ghost"
+                    size="sm"
+                    class="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
+                    :aria-label="`Editar ${unidade.nome}`"
+                    title="Editar unidade"
+                    @click="editar(unidade)"
+                  />
+                  <UButton
+                    icon="i-lucide-trash-2"
+                    color="error"
+                    variant="ghost"
+                    size="sm"
+                    class="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
+                    :aria-label="`Inativar ${unidade.nome}`"
+                    title="Inativar unidade"
+                    :disabled="unidade.ativa === false"
+                    @click="confirmarExclusao(unidade.id)"
+                  />
+                </div>
+              </div>
             </div>
-          </template>
-
-          <template #telefone-cell="{ row }">
-            <span class="text-sm whitespace-nowrap">
-              {{ row.original.telefone ? formatarTelefone(row.original.telefone) : '-' }}
-            </span>
-          </template>
-
-          <template #ativa-cell="{ row }">
-            <UBadge
-              :label="row.original.ativa ? 'Ativa' : 'Inativa'"
-              :color="row.original.ativa ? 'success' : 'neutral'"
-              variant="subtle"
-              size="sm"
-            />
-          </template>
-
-          <template #acoes-cell="{ row }">
-            <div class="flex items-center gap-1">
-              <UButton
-                icon="i-lucide-pencil"
-                color="neutral"
-                variant="ghost"
-                size="sm"
-                @click="editar(row.original)"
-              />
-              <UButton
-                icon="i-lucide-trash-2"
-                color="error"
-                variant="ghost"
-                size="sm"
-                :disabled="row.original.ativa === false"
-                @click="confirmarExclusao(row.original.id)"
-              />
-            </div>
-          </template>
-        </UTable>
+          </UPageCard>
+        </div>
       </UCard>
     </div>
 

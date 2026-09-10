@@ -86,29 +86,38 @@ async function salvar() {
 </script>
 
 <template>
-  <UModal v-model:open="open">
+  <UModal
+    v-model:open="open"
+    :ui="{
+      content: 'max-h-[calc(100dvh-2rem)]',
+      header: 'shrink-0',
+      body: 'overflow-y-auto',
+      footer: 'shrink-0'
+    }"
+  >
     <template #header>
-      <h2 class="text-lg font-semibold">
+      <h2 class="min-w-0 break-words text-lg font-semibold">
         {{ titulo }}
       </h2>
     </template>
 
     <template #body>
       <div class="space-y-4">
-        <div class="flex flex-col gap1">
-          <label class="text-sm font-medium">Nome</label>
+        <UFormField label="Nome">
           <UInput
             v-model="form.nome"
             placeholder="Nome da unidade"
+            class="w-full"
           />
-        </div>
+        </UFormField>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div class="flex flex-col gap-1">
-            <label class="text-sm font-medium">Centro de Custo SPDATA</label>
+          <UFormField label="Centro de Custo SPDATA">
             <UInput
               v-model="form.codigo_spdata_centro_custo"
               placeholder="Centro de Custo"
+              inputmode="numeric"
+              class="w-full"
             />
             <p
               v-if="form.codigo_spdata_centro_custo && !centroCustoValido"
@@ -116,12 +125,12 @@ async function salvar() {
             >
               Informe apenas números.
             </p>
-          </div>
-          <div class="flex flex-col gap-1">
-            <label class="text-sm font-medium">Agenda SPDATA</label>
+          </UFormField>
+          <UFormField label="Agenda SPDATA">
             <UInput
               v-model="form.codigo_spdata_agenda"
               placeholder="Agenda"
+              class="w-full"
             />
             <p
               v-if="!agendaValida"
@@ -129,46 +138,55 @@ async function salvar() {
             >
               Campo obrigatório para integrações SPDATA.
             </p>
-          </div>
+          </UFormField>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div class="flex flex-col gap-1">
-            <label class="text-sm font-medium">Endereco</label>
+          <UFormField label="Endereco">
             <UInput
               v-model="form.endereco"
               placeholder="Endereco completo"
+              class="w-full"
             />
-          </div>
-          <div class="flex flex-col gap-1">
-            <label class="text-sm font-medium">Telefone</label>
+          </UFormField>
+          <UFormField label="Telefone">
             <UInput
               :model-value="form.telefone"
               placeholder="(00) 00000-0000"
+              inputmode="tel"
+              class="w-full"
               @update:model-value="form.telefone = formatarTelefone($event)"
             />
-          </div>
+          </UFormField>
         </div>
 
         <div class="flex items-center gap-3">
-          <USwitch v-model="form.ativa" />
-          <label class="text-sm font-medium">Ativa</label>
+          <USwitch
+            id="unidade-ativa"
+            v-model="form.ativa"
+          />
+          <label
+            for="unidade-ativa"
+            class="text-sm font-medium"
+          >Ativa</label>
         </div>
       </div>
     </template>
 
     <template #footer>
-      <div class="flex justify-end gap-2 w-full">
+      <div class="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <UButton
           label="Cancelar"
           color="neutral"
           variant="ghost"
+          class="w-full justify-center sm:w-auto"
           @click="void (open = false)"
         />
         <UButton
           label="Salvar"
           :loading="saving"
           :disabled="!podeSalvar"
+          class="w-full justify-center sm:w-auto"
           @click="salvar"
         />
       </div>

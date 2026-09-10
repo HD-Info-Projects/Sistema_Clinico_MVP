@@ -625,6 +625,7 @@ onUnmounted(() => {
   <UModal
     v-model:open="open"
     fullscreen
+    :ui="{ content: 'max-h-dvh', body: 'min-h-0 overflow-y-auto p-0', footer: 'shrink-0' }"
   >
     <template #header>
       <div class="flex items-center justify-between">
@@ -633,6 +634,7 @@ onUnmounted(() => {
         </h2>
         <UButton
           icon="i-lucide-x"
+          aria-label="Fechar solicitação de procedimento"
           color="neutral"
           variant="ghost"
           @click="void (open = false)"
@@ -651,14 +653,14 @@ onUnmounted(() => {
             content: 'grow min-h-0 flex flex-col',
             list: 'bg-default/75 backdrop-blur border-b border-default rounded-tl-none rounded-tr-none'
           }"
-          class="flex-1 overflow-hidden max-w-[60%]"
+          class="w-full min-w-0 lg:max-w-[60%]"
         >
           <template #content="{ index }">
             <div
               v-if="index === 0"
-              class="space-y-4 p-4"
+              class="space-y-4 p-4 sm:p-6"
             >
-              <div class="flex gap-4">
+              <div class="flex flex-col gap-4 sm:flex-row">
                 <UFormField
                   label="Paciente"
                   class="flex-1"
@@ -670,18 +672,21 @@ onUnmounted(() => {
                   />
                 </UFormField>
 
-                <UFormField label="Data">
+                <UFormField
+                  label="Data"
+                  class="sm:w-44"
+                >
                   <UInput
                     v-model="data"
                     type="date"
                     :disabled="!podeEditar"
-                    class=""
+                    class="w-full"
                   />
                 </UFormField>
               </div>
 
               <UFormField label="Procedimentos">
-                <div class="flex gap-2">
+                <div class="flex flex-col gap-2 sm:flex-row">
                   <UInputMenu
                     v-model="procedimentoSelecionado"
                     v-model:search-term="buscaTermoProcedimento"
@@ -720,6 +725,7 @@ onUnmounted(() => {
                     label="Adicionar"
                     color="primary"
                     variant="soft"
+                    class="w-full justify-center sm:w-auto"
                     :disabled="!podeEditar || !procedimentoSelecionado"
                     @click="adicionarProcedimento(procedimentoSelecionado)"
                   />
@@ -743,7 +749,7 @@ onUnmounted(() => {
                   <div
                     v-for="(procedimento, posicao) in procedimentosSelecionados"
                     :key="procedimento.procedimento_id ?? `${procedimento.nome}-${posicao}`"
-                    class="flex items-start justify-between gap-3 p-3 rounded-lg border border-muted"
+                    class="flex flex-col items-stretch justify-between gap-3 rounded-lg border border-muted p-3 sm:flex-row sm:items-start"
                   >
                     <div class="min-w-0 space-y-1">
                       <p class="text-sm font-medium truncate">
@@ -779,9 +785,11 @@ onUnmounted(() => {
                     <UButton
                       v-if="podeEditar"
                       icon="i-lucide-x"
+                      :aria-label="`Remover procedimento ${procedimento.nome}`"
                       color="error"
                       variant="ghost"
                       size="sm"
+                      class="self-end sm:self-auto"
                       @click="removerProcedimentoDaLista(posicao)"
                     />
                   </div>
@@ -798,7 +806,7 @@ onUnmounted(() => {
                 v-if="convenioNaoParticular"
                 :ui="{ body: 'p-4 space-y-4' }"
               >
-                <div class="flex gap-4">
+                <div class="flex flex-col gap-4 sm:flex-row">
                   <UFormField label="Caráter de internação">
                     <div class="flex items-center gap-2">
                       <span class="text-sm">
@@ -869,7 +877,7 @@ onUnmounted(() => {
                 </UFormField>
 
                 <UFormField label="Diagnósticos (CID-10)">
-                  <div class="flex gap-2">
+                  <div class="flex flex-col gap-2 sm:flex-row">
                     <UInputMenu
                       v-model="cidTempSelecionado"
                       v-model:search-term="searchCid"
@@ -905,6 +913,7 @@ onUnmounted(() => {
                     </UInputMenu>
                     <UButton
                       icon="i-lucide-plus"
+                      aria-label="Adicionar CID"
                       color="primary"
                       :disabled="!podeEditar || !cidTempSelecionado || cidSelecionadoLista.length >= MAX_CIDS"
                       @click="adicionarCid(cidTempSelecionado!); cidTempSelecionado = null"
@@ -918,7 +927,7 @@ onUnmounted(() => {
                     <div
                       v-for="(cid, posicao) in cidSelecionadoLista"
                       :key="cid.cid"
-                      class="flex items-center justify-between p-2 rounded-lg border border-muted"
+                      class="flex items-start justify-between gap-2 rounded-lg border border-muted p-2"
                     >
                       <span class="text-sm">
                         {{ cid.cid }} — {{ cid.nome }}
@@ -932,6 +941,7 @@ onUnmounted(() => {
                       <UButton
                         v-if="podeEditar"
                         icon="i-lucide-x"
+                        :aria-label="`Remover CID ${cid.cid}`"
                         size="xs"
                         color="error"
                         variant="ghost"
@@ -955,15 +965,15 @@ onUnmounted(() => {
             </div>
             <div
               v-if="index === 1"
-              class="space-y-4 p-4"
+              class="space-y-4 p-4 sm:p-6"
             >
               <UFormField label="OPME solicitados">
-                <div class="flex gap-2">
+                <div class="flex flex-col gap-2 sm:flex-row">
                   <UInput
                     v-model="opmeCodigo"
                     placeholder="Código OPM"
                     :disabled="!podeEditar"
-                    class="w-40"
+                    class="w-full sm:w-40"
                   />
                   <UInput
                     v-model="opmeNome"
@@ -979,13 +989,14 @@ onUnmounted(() => {
                     placeholder="Qtd"
                     :default-value="1"
                     :disabled="!podeEditar"
-                    class="w-24"
+                    class="w-full sm:w-24"
                   />
                   <UButton
                     icon="i-lucide-plus"
                     label="Adicionar"
                     color="primary"
                     variant="soft"
+                    class="w-full justify-center sm:w-auto"
                     :disabled="!podeEditar || !opmeNome.trim()"
                     @click="adicionarOpme"
                   />
@@ -1007,7 +1018,7 @@ onUnmounted(() => {
                   <div
                     v-for="(opme, posicao) in opmeItens"
                     :key="`${opme.codigo}-${opme.nome}-${posicao}`"
-                    class="flex items-start justify-between gap-3 p-3 rounded-lg border border-muted"
+                    class="flex flex-col items-stretch justify-between gap-3 rounded-lg border border-muted p-3 sm:flex-row sm:items-start"
                   >
                     <div class="min-w-0 space-y-1">
                       <p class="text-sm font-medium truncate">
@@ -1027,9 +1038,11 @@ onUnmounted(() => {
                     <UButton
                       v-if="podeEditar"
                       icon="i-lucide-x"
+                      :aria-label="`Remover OPME ${opme.nome}`"
                       color="error"
                       variant="ghost"
                       size="sm"
+                      class="self-end sm:self-auto"
                       @click="removerOpme(posicao)"
                     />
                   </div>
@@ -1048,11 +1061,12 @@ onUnmounted(() => {
     </template>
 
     <template #footer>
-      <div class="flex justify-between">
+      <div class="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-between">
         <UButton
           label="Cancelar"
           color="neutral"
           variant="ghost"
+          class="w-full justify-center sm:w-auto"
           @click="void (open = false)"
         />
         <UButton
@@ -1060,6 +1074,7 @@ onUnmounted(() => {
           :label="botaoLabel"
           :disabled="!podeEnviar"
           :loading="salvando"
+          class="w-full justify-center sm:w-auto"
           @click="salvarEImprimir"
         />
       </div>

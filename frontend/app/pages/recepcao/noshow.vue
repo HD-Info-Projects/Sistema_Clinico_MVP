@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui/'
-import { getPaginationRowModel } from '@tanstack/vue-table'
 import { exportTableToPDF, exportToCSV, type ColunaExport } from '~/utils/export-data'
 
+const openNav = inject<() => void>('openNav', () => {})
 const auth = useAuthStore()
 const toast = useToast()
 
@@ -132,7 +132,7 @@ function aplicarFiltros() {
   filtroMedicoActive.value = filtroMedico.value
   filtroEspecialidadeActive.value = filtroEspecialidade.value
   filtroConvenioActive.value = filtroConvenio.value
-  pagination.value.pageIndex = 0
+  page.value = 1
   carregarNoShow()
 }
 
@@ -317,21 +317,13 @@ const pacientesVisiveis = computed(() => {
   return lista
 })
 
-const table = useTemplateRef('table')
+const page = ref(1)
+const pageSize = 7
 
-const pagination = ref({
-  pageIndex: 0,
-  pageSize: 7
+const pacientesPaginados = computed(() => {
+  const inicio = (page.value - 1) * pageSize
+  return pacientesVisiveis.value.slice(inicio, inicio + pageSize)
 })
-
-const colunas = [
-  { accessorKey: 'paciente', header: 'Paciente' },
-  { accessorKey: 'telefone', header: 'Telefone' },
-  { accessorKey: 'dataFalta', header: 'Data da Falta' },
-  { accessorKey: 'motivo', header: 'Motivo' },
-  { accessorKey: 'status', header: 'Status' },
-  { id: 'acoes', header: 'Ações' }
-]
 
 function corStatus(status: string) {
   switch (status) {
@@ -536,19 +528,45 @@ watch(() => auth.activeClinicaId, () => {
 
 <template>
   <div>
-    <UHeader title="No-show">
+    <UHeader
+      title="No-show"
+      toggle-side="left"
+    >
+      <template #toggle>
+        <UButton
+          icon="i-lucide-menu"
+          color="neutral"
+          variant="ghost"
+          class="lg:hidden"
+          aria-label="Abrir menu"
+          @click="openNav()"
+        />
+      </template>
       <template #right>
         <div class="flex items-center gap-2">
+          <UBadge
+            v-if="loading"
+            color="neutral"
+            variant="soft"
+            class="hidden lg:inline-flex"
+          >
+            <UIcon
+              name="i-lucide-loader-circle"
+              class="animate-spin"
+            />
+            <span>Atualizando dados do SPDATA...</span>
+          </UBadge>
           <UBadge
             :label="userName"
             color="neutral"
             variant="soft"
+            class="hidden lg:inline-flex"
           />
           <UColorModeButton />
         </div>
       </template>
     </UHeader>
-    <div class="p-6 space-y-8 bg-neutral-100 dark:bg-neutral-950 min-h-screen">
+    <div class="min-h-screen min-w-0 space-y-6 bg-muted p-3 sm:space-y-8 sm:p-6">
       <div class="w-full gap-4">
         <UCard class="w-full">
           <template #title>
@@ -557,63 +575,81 @@ watch(() => auth.activeClinicaId, () => {
             </p>
           </template>
           <div class="space-y-4">
-            <div class="flex flex-wrap items-end gap-4">
-              <div class="flex items-end gap-2">
-                <UFormField label="Ano">
+            <div class="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 xl:grid-cols-6 2xl:grid-cols-7">
+              <div class="grid grid-cols-2 items-end gap-2 sm:col-span-2 xl:col-span-2 2xl:col-span-3 2xl:grid-cols-[6rem_1fr_auto_1fr]">
+                <UFormField
+                  label="Ano"
+                  class="w-full"
+                >
                   <UInputMenu
                     v-model="filtroAno"
                     :items="anosDisponiveis"
                     placeholder="Ano"
                     size="sm"
-                    class="w-24"
+                    class="w-full"
                   />
                 </UFormField>
-                <UFormField label="Mês início">
+                <UFormField
+                  label="Mês início"
+                  class="w-full"
+                >
                   <UInputMenu
                     v-model="filtroMesInicio"
                     :items="mesesOpcoes"
                     placeholder="Mês início"
                     size="sm"
-                    class="w-36"
+                    class="w-full"
                   />
                 </UFormField>
-                <span class="text-muted mb-1">até</span>
-                <UFormField label="Mês fim">
+                <span class="mb-2 hidden text-muted 2xl:block">até</span>
+                <UFormField
+                  label="Mês fim"
+                  class="w-full"
+                >
                   <UInputMenu
                     v-model="filtroMesFim"
                     :items="mesesOpcoes"
                     placeholder="Mês fim"
                     size="sm"
-                    class="w-36"
+                    class="w-full"
                   />
                 </UFormField>
               </div>
 
-              <UFormField label="Médico">
+              <UFormField
+                label="Médico"
+                class="w-full"
+              >
                 <UInputMenu
                   v-model="filtroMedico"
                   :items="medicosOptions"
                   placeholder="Médico"
                   size="sm"
-                  class="w-48"
+                  class="w-full"
                 />
               </UFormField>
-              <UFormField label="Especialidade">
+              <UFormField
+                label="Especialidade"
+                class="w-full"
+              >
                 <UInputMenu
                   v-model="filtroEspecialidade"
                   :items="especialidadesOptions"
                   placeholder="Especialidade"
                   size="sm"
-                  class="w-48"
+                  class="w-full"
                 />
               </UFormField>
-              <UFormField label="Convênio">
+              <UFormField
+                label="Convênio"
+                class="w-full"
+              >
                 <UInputMenu
                   v-model="filtroConvenio"
                   :items="conveniosOptions"
                   placeholder="Convênio"
                   size="sm"
-                  class="w-48"
+                  class="w-full"
                 />
               </UFormField>
               <UButton
@@ -621,6 +657,9 @@ watch(() => auth.activeClinicaId, () => {
                 icon="i-lucide-filter"
                 size="sm"
                 color="primary"
+                class="min-h-10 w-full sm:w-auto"
+                :loading="loading"
+                :disabled="loading"
                 @click="aplicarFiltros"
               />
             </div>
@@ -636,8 +675,10 @@ watch(() => auth.activeClinicaId, () => {
         icon="i-lucide-circle-alert"
       />
 
-      <div class="w-full grid grid-cols-5 items-center gap-4">
+      <div class="grid w-full grid-cols-1 items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <CardInformativo
+          class="h-full"
+          :loading="loading"
           titulo="Taxa de Recuperação"
           :valor="taxaRecuperacao"
           medida="%"
@@ -645,64 +686,87 @@ watch(() => auth.activeClinicaId, () => {
           icone="i-lucide-trending-up"
         />
         <CardInformativo
+          class="h-full"
+          :loading="loading"
           titulo="Desistentes"
           :valor="totalNaoConfirmado"
           cor="quinary"
           icone="lucide:user-round-x"
         />
         <CardInformativo
+          class="h-full"
+          :loading="loading"
           titulo="Faltou"
           :valor="totalFaltou"
           cor="error"
           icone="i-lucide-calendar-x"
         />
         <CardInformativo
+          class="h-full"
+          :loading="loading"
           titulo="Sem contato"
           :valor="totalSemContato"
           cor="secondary"
           icone="i-lucide-clock"
         />
         <CardInformativo
+          class="h-full"
+          :loading="loading"
           titulo="Lista de resgate"
           :valor="totalFiltrado"
           cor="tertiary"
           icone="lucide:user-round-search"
         />
       </div>
-      <div class="w-full grid grid-cols-3 gap-4">
+      <div class="w-full grid grid-cols-1 lg:grid-cols-3 gap-4">
         <UCard class="col-span-1">
           <template #title>
             <p class="text-lg font-medium">
               Motivos de Falta
             </p>
           </template>
+          <EsqueletoGrafico
+            v-if="loading"
+            tipo="donut"
+          />
           <ChartMotivosFaltas
+            v-else
             :total="totalFiltrado"
             :items="motivosGrafico"
           />
         </UCard>
-        <UCard class="col-span-2">
+        <UCard class="col-span-1 lg:col-span-2">
           <template #title>
             <p class="text-lg font-medium">
               Tendência de No-Show
             </p>
           </template>
 
+          <EsqueletoGrafico
+            v-if="loading"
+            tipo="barras"
+          />
           <ChartTendencia
+            v-else
             :labels="chartMeses"
             :dados="chartDados"
           />
         </UCard>
       </div>
-      <div class="w-full grid grid-cols-3 gap-4">
-        <UCard class="col-span-2">
+      <div class="w-full grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <UCard class="col-span-1 lg:col-span-2">
           <template #title>
             <p class="text-lg font-medium">
               Taxa de no show por dia da semana
             </p>
           </template>
 
+          <EsqueletoGrafico
+            v-if="loading"
+            tipo="barras"
+          />
           <ChartDiaSemana
+            v-else
             :labels="chartDiaSemana.labels"
             :dados="chartDiaSemana.dados"
           />
@@ -713,21 +777,26 @@ watch(() => auth.activeClinicaId, () => {
               Taxa de no show por especialidade
             </p>
           </template>
+          <EsqueletoGrafico
+            v-if="loading"
+            tipo="donut-lista"
+          />
           <ChartEspecialidade
+            v-else
             :labels="chartEspecialidade.labels"
             :dados="chartEspecialidade.dados"
           />
         </UCard>
       </div>
 
-      <div class="grid grid-cols-5 gap-4 items-stretch">
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-stretch">
         <UCard
           :ui="{
-            body: 'p-4 sm:p-4 sm:py-5 min-w-55 flex items-center h-full'
+            body: 'p-4 sm:p-4 sm:py-5 min-w-0 flex items-center h-full'
           }"
-          class="col-span-2"
+          class="md:col-span-2"
         >
-          <div class="flex items-center gap-3 w-full">
+          <div class="flex min-w-0 flex-wrap items-center gap-3 w-full">
             <UBadge
               class="aspect-square"
               variant="soft"
@@ -738,8 +807,8 @@ watch(() => auth.activeClinicaId, () => {
                 :class="`size-8 text-primary bg-error`"
               />
             </UBadge>
-            <div class="flex flex-col">
-              <p class="text-sm font-bold text-nowrap">
+            <div class="min-w-0 flex-1">
+              <p class="wrap-break-word text-sm font-bold">
                 Impacto Financeiro (estimado)
               </p>
               <p :class="`text-2xl font-black text-error`">
@@ -758,9 +827,9 @@ watch(() => auth.activeClinicaId, () => {
           :ui="{
             body: 'p-5 flex items-center h-full'
           }"
-          class="col-span-3"
+          class="md:col-span-3"
         >
-          <div class="flex items-center justify-between w-full">
+          <div class="flex flex-col gap-3 items-center justify-between w-full sm:flex-row">
             <div class="flex items-center gap-2">
               <UIcon
                 name="i-lucide-download"
@@ -768,7 +837,7 @@ watch(() => auth.activeClinicaId, () => {
               />
               <span class="font-semibold">Exportar Dados</span>
             </div>
-            <div class="flex items-center gap-3">
+            <div class="grid w-full grid-cols-2 gap-2 sm:w-auto">
               <UButton
                 icon="i-lucide-file-text"
                 label="Exportar PDF"
@@ -776,6 +845,7 @@ watch(() => auth.activeClinicaId, () => {
                 size="sm"
                 :loading="exportando === 'pdf'"
                 :disabled="exportando !== null || loading"
+                class="min-h-10 justify-center"
                 @click="exportarNoShowPDF"
               />
               <UButton
@@ -785,6 +855,7 @@ watch(() => auth.activeClinicaId, () => {
                 size="sm"
                 :loading="exportando === 'csv'"
                 :disabled="exportando !== null || loading"
+                class="min-h-10 justify-center"
                 @click="exportarNoShowCSV"
               />
             </div>
@@ -794,7 +865,7 @@ watch(() => auth.activeClinicaId, () => {
 
       <UCard class="w-full">
         <template #title>
-          <div class="flex items-center justify-between">
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p class="text-lg font-medium">
               Resgate de pacientes
             </p>
@@ -802,17 +873,23 @@ watch(() => auth.activeClinicaId, () => {
               v-model="filtro"
               placeholder="Filtrar por paciente ou telefone..."
               size="sm"
-              class="w-72"
+              class="w-full sm:w-72"
             />
           </div>
         </template>
 
-        <p
+        <div
           v-if="loading"
-          class="py-4 text-sm text-muted"
+          role="status"
+          aria-label="Carregando lista de resgate"
+          class="space-y-3 py-1"
         >
-          Carregando lista de resgate...
-        </p>
+          <div
+            v-for="i in 3"
+            :key="i"
+            class="h-12 animate-pulse rounded-lg bg-neutral-200 dark:bg-neutral-800"
+          />
+        </div>
 
         <p
           v-else-if="!pacientesVisiveis.length"
@@ -821,103 +898,137 @@ watch(() => auth.activeClinicaId, () => {
           Nenhum paciente encontrado para resgate.
         </p>
 
-        <UTable
+        <div
           v-else
-          ref="table"
-          v-model:pagination="pagination"
-          :columns="colunas"
-          :data="pacientesVisiveis"
-          :pagination-options="{ getPaginationRowModel: getPaginationRowModel() }"
+          class="flex flex-col gap-2"
         >
-          <template #paciente-cell="{ row }">
-            <div class="flex items-center gap-3">
-              <UAvatar
-                :alt="row.original.nome"
-                color="primary"
-                size="sm"
-              />
-              <div>
-                <p class="font-medium">
-                  {{ row.original.nome }}
+          <UPageCard
+            v-for="item in pacientesPaginados"
+            :key="item.id"
+            variant="ghost"
+            class="border-b border-muted rounded-none"
+            :ui="{ container: 'px-4 sm:p-1 pb-3 sm:px-4' }"
+          >
+            <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,2fr)] xl:items-center">
+              <div class="min-w-0 sm:col-span-2 lg:col-span-1">
+                <p class="text-sm text-muted font-bold">
+                  Paciente
                 </p>
-                <p class="text-xs text-muted">
-                  {{ row.original.convenio || 'Convênio não informado' }}
+                <div class="flex min-w-0 items-center gap-3">
+                  <UAvatar
+                    :alt="item.nome"
+                    color="primary"
+                    size="sm"
+                  />
+                  <div class="min-w-0">
+                    <p class="wrap-break-word font-medium">
+                      {{ item.nome }}
+                    </p>
+                    <p class="wrap-break-word text-xs text-muted">
+                      {{ item.convenio || 'Convênio não informado' }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="min-w-0">
+                <p class="text-sm text-muted font-bold">
+                  Telefone
+                </p>
+                <p class="wrap-break-word text-sm">
+                  {{ item.telefone || 'Não informado' }}
                 </p>
               </div>
-            </div>
-          </template>
 
-          <template #telefone-cell="{ row }">
-            <span class="text-sm">{{ row.original.telefone || 'Não informado' }}</span>
-          </template>
+              <div class="min-w-0">
+                <p class="text-sm text-muted font-bold">
+                  Data da Falta
+                </p>
+                <p class="wrap-break-word text-sm">
+                  {{ formatarData(item.dataFalta) }} {{ item.horario || '' }}
+                </p>
+              </div>
 
-          <template #dataFalta-cell="{ row }">
-            <span class="text-sm">{{ formatarData(row.original.dataFalta) }} {{ row.original.horario || '' }}</span>
-          </template>
-
-          <template #status-cell="{ row }">
-            <UBadge
-              :label="rotuloStatus(row.original.status)"
-              :color="corStatus(row.original.status)"
-              variant="subtle"
-            />
-          </template>
-
-          <template #motivo-cell="{ row }">
-            <UBadge
-              :label="rotuloMotivo(row.original.motivo)"
-              :color="row.original.motivo ? 'info' : 'neutral'"
-              variant="soft"
-            />
-          </template>
-
-          <template #acoes-cell="{ row }">
-            <div class="flex items-center gap-2">
-              <UButton
-                icon="i-lucide-phone"
-                label="Ligar"
-                size="sm"
-                color="primary"
-
-                @click="ligar(row.original)"
-              />
-              <UButton
-                icon="i-lucide-calendar-plus"
-                label="Reagendar"
-                size="sm"
-                color="warning"
-
-                @click="reagendar(row.original)"
-              />
-              <UButton
-                icon="i-lucide-x-circle"
-                label="Recusou"
-                size="sm"
-                color="error"
-
-                @click="pacienteRecusouSelecionado = row.original; modalRecusouAberto = true"
-              />
-              <UDropdownMenu :items="itensMais(row.original)">
-                <UButton
-                  icon="lucide:menu"
-                  label="Mais"
-                  size="sm"
-                  color="secondary"
+              <div class="min-w-0">
+                <p class="text-sm text-muted font-bold">
+                  Motivo
+                </p>
+                <UBadge
+                  :label="rotuloMotivo(item.motivo)"
+                  :color="item.motivo ? 'info' : 'neutral'"
+                  variant="soft"
                 />
-              </UDropdownMenu>
+              </div>
+
+              <div class="min-w-0">
+                <p class="text-sm text-muted font-bold">
+                  Status
+                </p>
+                <UBadge
+                  :label="rotuloStatus(item.status)"
+                  :color="corStatus(item.status)"
+                  variant="subtle"
+                />
+              </div>
+
+              <div class="min-w-0 sm:col-span-2 lg:col-span-3 xl:col-span-1">
+                <p class="text-sm text-muted font-bold">
+                  Ações
+                </p>
+                <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                  <UButton
+                    icon="i-lucide-phone"
+                    label="Ligar"
+                    size="sm"
+                    color="primary"
+                    class="justify-center"
+                    @click="ligar(item)"
+                  />
+                  <UButton
+                    icon="i-lucide-calendar-plus"
+                    label="Reagendar"
+                    size="sm"
+                    color="warning"
+                    class="justify-center"
+                    @click="reagendar(item)"
+                  />
+                  <UButton
+                    icon="i-lucide-x-circle"
+                    label="Recusou"
+                    size="sm"
+                    color="error"
+                    class="justify-center"
+                    @click="pacienteRecusouSelecionado = item; modalRecusouAberto = true"
+                  />
+                  <UDropdownMenu
+                    :items="itensMais(item)"
+                    class="w-full"
+                  >
+                    <UButton
+                      icon="lucide:menu"
+                      label="Mais"
+                      size="sm"
+                      color="secondary"
+                      class="w-full justify-center"
+                    />
+                  </UDropdownMenu>
+                </div>
+              </div>
             </div>
-          </template>
-        </UTable>
+          </UPageCard>
+        </div>
 
         <div
           v-if="!loading && pacientesVisiveis.length"
           class="flex justify-center pt-4"
         >
           <UPagination
-            :page="(table?.tableApi?.getState().pagination.pageIndex || 0) + 1"
-            :items-per-page="table?.tableApi?.getState().pagination.pageSize || pagination.pageSize"
-            :total="table?.tableApi?.getFilteredRowModel().rows.length || 0"
-            @update:page="(p: number) => table?.tableApi?.setPageIndex(p - 1)"
+            :page="page"
+            :items-per-page="pageSize"
+            :total="pacientesVisiveis.length"
+            :sibling-count="1"
+            :ui="{ list: 'flex flex-wrap items-center gap-1 justify-center' }"
+            @update:page="page = $event"
           />
         </div>
       </UCard>
@@ -980,7 +1091,7 @@ watch(() => auth.activeClinicaId, () => {
             color="neutral"
             variant="ghost"
             :disabled="salvandoMotivo"
-            @click="void(motivoModalAberto = false)"
+            @click="void (motivoModalAberto = false)"
           />
           <UButton
             label="Salvar Motivo"

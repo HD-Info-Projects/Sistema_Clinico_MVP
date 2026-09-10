@@ -3,6 +3,8 @@ import type { TipoProcedimentoTuss } from '~/types'
 import { CalendarDate } from '@internationalized/date'
 import { TUSS_PROCEDIMENTO_FILTROS, corTipoProcedimento, rotuloTipoProcedimento } from '~/utils/tuss'
 
+const openNav = inject<() => void>('openNav', () => {})
+
 interface ItemRecepcao {
   id: number | string
   horario: string
@@ -233,15 +235,6 @@ function selecionarTipo(tipo: TipoProcedimentoTuss | '' | null | undefined) {
   loadAgendamentos()
 }
 
-const colunas = [
-  { accessorKey: 'horario', header: 'Horário' },
-  { accessorKey: 'paciente', header: 'Paciente' },
-  { accessorKey: 'contato', header: 'Contato' },
-  { accessorKey: 'medico', header: 'Médico' },
-  { accessorKey: 'tipoProcedimento', header: 'Tipo' },
-  { accessorKey: 'status', header: 'Status' }
-]
-
 const statuses: { id: string, name: string, color: string }[] = [
   { id: 'agendado', name: 'Agendado', color: 'secondary' },
   { id: 'em-espera', name: 'Em espera', color: 'primary' },
@@ -253,8 +246,21 @@ const statuses: { id: string, name: string, color: string }[] = [
 
 <template>
   <div>
-    <UHeader title="Agenda - Recepção">
-      <div class="flex gap-4">
+    <UHeader
+      title="Agenda - Recepção"
+      toggle-side="left"
+    >
+      <template #toggle>
+        <UButton
+          icon="i-lucide-menu"
+          color="neutral"
+          variant="ghost"
+          class="min-h-11 min-w-11 lg:hidden"
+          aria-label="Abrir menu"
+          @click="openNav()"
+        />
+      </template>
+      <div class="hidden flex-wrap justify-center gap-x-4 gap-y-1 xl:flex">
         <div
           v-for="s in statuses"
           :key="s.id"
@@ -269,21 +275,31 @@ const statuses: { id: string, name: string, color: string }[] = [
       </template>
     </UHeader>
 
-    <div class="min-h-screen space-y-4 bg-muted p-4 sm:space-y-6 sm:p-6">
-      <div class="flex flex-wrap items-center gap-2">
-        <UInputMenu
-          v-model="selectedMedico"
-          :items="medicosOpcoes"
-          size="sm"
-          class="w-full sm:w-56"
-        />
-        <UInputMenu
-          v-model="selectedEspecialidade"
-          :items="especialidadesOpcoes"
-          size="sm"
-          class="w-full sm:w-56"
-        />
-        <div class="flex flex-wrap gap-2">
+    <div class="min-h-screen min-w-0 space-y-4 bg-muted p-3 sm:space-y-6 sm:p-6">
+      <div class="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 xl:grid-cols-[14rem_14rem_minmax(0,1fr)_14rem]">
+        <div>
+          <p class="text-sm text-muted font-bold">
+            Filtrar por Médico
+          </p>
+          <UInputMenu
+            v-model="selectedMedico"
+            :items="medicosOpcoes"
+            size="sm"
+            class="w-full"
+          />
+        </div>
+        <div>
+          <p class="text-sm text-muted font-bold">
+            Filtrar por Especialidade
+          </p>
+          <UInputMenu
+            v-model="selectedEspecialidade"
+            :items="especialidadesOpcoes"
+            size="sm"
+            class="w-full"
+          />
+        </div>
+        <div class="grid grid-cols-2 gap-2 sm:col-span-2 sm:grid-cols-3 xl:col-span-1 xl:grid-cols-6">
           <UButton
             v-for="status in filtrosStatus"
             :key="status.value || 'todos'"
@@ -291,36 +307,43 @@ const statuses: { id: string, name: string, color: string }[] = [
             :color="status.value ? corStatus(status.value) : 'neutral'"
             :variant="selectedStatus === status.value ? 'solid' : 'soft'"
             size="sm"
+            class="min-h-10 w-full justify-center"
             @click="void (selectedStatus = status.value)"
           />
         </div>
-        <USelectMenu
-          :model-value="selectedTipo || undefined"
-          :items="filtrosTipo"
-          value-key="value"
-          label-key="label"
-          placeholder="Filtrar por tipo"
-          clearable
-          size="sm"
-          class="w-full sm:w-56"
-          @update:model-value="selecionarTipo"
-        />
+        <div>
+          <p class="text-sm text-muted font-bold">
+            Tipo de Atend.
+          </p>
+          <USelectMenu
+            :model-value="selectedTipo || undefined"
+            :items="filtrosTipo"
+            value-key="value"
+            label-key="label"
+            placeholder="Filtrar por tipo"
+            clear
+            size="sm"
+            class="w-full sm:col-span-2 xl:col-span-1"
+            @update:model-value="selecionarTipo"
+          />
+        </div>
       </div>
 
-      <div class="flex items-center justify-between">
+      <div class="grid grid-cols-[2.5rem_minmax(0,1fr)_2.5rem] items-center gap-1 sm:gap-3">
         <UButton
           icon="i-lucide-chevron-left"
           color="neutral"
           variant="ghost"
           size="lg"
+          class="min-h-10 min-w-10"
           @click="prevDay"
         />
-        <div class="flex items-center gap-4">
+        <div class="min-w-0 text-center">
           <UPopover v-model:open="isPopoverOpen">
             <UButton
               color="neutral"
               variant="link"
-              class="text-lg font-semibold"
+              class="h-auto max-w-full whitespace-normal px-1 text-center text-sm font-semibold leading-snug sm:text-lg"
             >
               {{ formattedDate }} {{ isToday(selectedDate) ? '(Hoje)' : '' }}
             </UButton>
@@ -344,11 +367,12 @@ const statuses: { id: string, name: string, color: string }[] = [
           color="neutral"
           variant="ghost"
           size="lg"
+          class="min-h-10 min-w-10"
           @click="nextDay"
         />
       </div>
 
-      <div class="flex flex-wrap gap-2">
+      <div class="flex flex-wrap justify-center gap-2 sm:justify-start">
         <UBadge
           :label="`${resumo.agendados} agendados`"
           color="warning"
@@ -386,7 +410,7 @@ const statuses: { id: string, name: string, color: string }[] = [
 
       <UCard>
         <template #title>
-          <div class="flex items-center justify-between">
+          <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
             <p class="text-lg font-medium">
               Pacientes do Dia
             </p>
@@ -403,17 +427,17 @@ const statuses: { id: string, name: string, color: string }[] = [
           <div
             v-for="linha in 5"
             :key="linha"
-            class="grid grid-cols-1 gap-3 rounded-lg border border-muted p-3 md:grid-cols-[80px_1.5fr_1fr_1fr_120px_120px]"
+            class="grid grid-cols-1 gap-3 rounded-lg border border-muted p-3 sm:grid-cols-2 md:grid-cols-7 md:items-center"
           >
-            <USkeleton class="h-5 w-16" />
-            <div class="space-y-2">
+            <div class="space-y-2 sm:col-span-2">
               <USkeleton class="h-5 w-48 max-w-full" />
               <USkeleton class="h-4 w-32 max-w-full" />
             </div>
+            <USkeleton class="mx-auto h-5 w-16 md:mx-0" />
             <USkeleton class="h-5 w-36 max-w-full" />
             <USkeleton class="h-5 w-40 max-w-full" />
-            <USkeleton class="h-6 w-24 rounded-full" />
-            <USkeleton class="h-6 w-24 rounded-full" />
+            <USkeleton class="mx-auto h-6 w-24 rounded-full md:mx-0" />
+            <USkeleton class="mx-auto h-6 w-24 rounded-full md:mx-0" />
           </div>
         </div>
 
@@ -426,80 +450,117 @@ const statuses: { id: string, name: string, color: string }[] = [
 
         <div
           v-else
-          class="overflow-x-auto"
+          class="flex flex-col gap-2"
         >
-          <UTable
-            :columns="colunas"
-            :data="atendimentosOrdenados"
-            class="min-w-220"
+          <UPageCard
+            v-for="item in atendimentosOrdenados"
+            :key="item.id"
+            variant="ghost"
+            class="border-b border-muted rounded-none"
+            :ui="{ container: 'p-1 sm:p-1 pb-3 sm:px-4' }"
           >
-            <template #horario-cell="{ row }">
-              <span class="font-mono text-sm">{{ row.original.horario || '-' }}</span>
-            </template>
+            <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-[max-content_2fr_1fr_1.5fr_2fr_1.5fr_1fr] ">
+              <div class="md:col-span-1 w-min hidden md:block pr-3">
+                <p class="text-sm text-muted font-bold">
+                  Horário
+                </p>
+                <p class="whitespace-nowrap pt-2  font-mono text-sm">
+                  {{ item.horario || '-' }}
+                </p>
+              </div>
+              <div class="sm:col-span-2">
+                <p class="text-sm text-muted font-bold">
+                  Paciente
+                </p>
+                <div class="flex min-w-0 items-center gap-3">
+                  <UAvatar
+                    :alt="item.paciente"
+                    color="primary"
+                    size="sm"
+                  />
+                  <div class="min-w-0">
+                    <p class="wrap-break-word font-medium">
+                      {{ item.paciente || 'Paciente não informado' }}
+                    </p>
+                    <p class="text-xs text-muted">
+                      {{ textoInformado(idadePaciente(item.dataNascimento)) ? idadePaciente(item.dataNascimento) : '' }}
+                      {{ textoNaoInformado(item.convenio, '') ? `· ${item.convenio}` : '' }}
+                    </p>
+                  </div>
+                </div>
+              </div>
 
-            <template #paciente-cell="{ row }">
-              <div class="flex min-w-56 items-center gap-3">
-                <UAvatar
-                  :alt="row.original.paciente"
-                  color="primary"
-                  size="sm"
-                />
-                <div>
-                  <p class="font-medium">
-                    {{ row.original.paciente || 'Paciente não informado' }}
+              <div class="text-left">
+                <p class="text-sm text-muted font-bold">
+                  Contato
+                </p>
+                <div class="min-w-0 text-sm">
+                  <p class="break-all">
+                    {{ contatoPrincipal(item) }}
                   </p>
-                  <p class="text-xs text-muted">
-                    {{ textoInformado(idadePaciente(row.original.dataNascimento)) ? idadePaciente(row.original.dataNascimento) : '' }}
-                    {{ textoNaoInformado(row.original.convenio, '') ? `· ${row.original.convenio}` : '' }}
+                  <p class="break-all text-xs text-muted">
+                    {{ textoNaoInformado(item.email, '') || 'Não informado' }}
                   </p>
                 </div>
               </div>
-            </template>
 
-            <template #contato-cell="{ row }">
-              <div class="min-w-40 text-sm">
-                <p>{{ contatoPrincipal(row.original) }}</p>
-                <p class="text-xs text-muted">
-                  {{ textoNaoInformado(row.original.email, '') || '' }}
+              <div class="text-left">
+                <p class="text-sm text-muted font-bold">
+                  Médico
+                </p>
+                <div class="min-w-0 text-sm">
+                  <p class="wrap-break-word font-medium">
+                    {{ item.medico || '-' }}
+                  </p>
+                  <p class="text-xs text-muted">
+                    {{ textoNaoInformado(crmExibicao(item), 'CRM não informado') }}
+                  </p>
+                </div>
+              </div>
+
+              <div class="md:col-span-1 block md:hidden">
+                <p class="text-sm text-muted font-bold">
+                  Horário
+                </p>
+                <p class="whitespace-nowrap pt-2  font-mono text-sm">
+                  {{ item.horario || '-' }}
                 </p>
               </div>
-            </template>
 
-            <template #medico-cell="{ row }">
-              <div class="min-w-44 text-sm">
-                <p class="font-medium">
-                  {{ row.original.medico || '-' }}
+              <div class="text-left md:text-left">
+                <p class="text-sm text-muted font-bold">
+                  Tipo de Atend.
                 </p>
-                <p class="text-xs text-muted">
-                  {{ textoNaoInformado(crmExibicao(row.original), 'CRM não informado') }}
-                </p>
-              </div>
-            </template>
-
-            <template #tipoProcedimento-cell="{ row }">
-              <div class="min-w-40">
-                <UBadge
-                  :label="rotuloTipo(row.original)"
-                  :color="corTipo(row.original.tipoProcedimento)"
-                  variant="subtle"
-                />
+                <UTooltip
+                  :text="rotuloTipo(item)"
+                >
+                  <UBadge
+                    :label="rotuloTipo(item)"
+                    :color="corTipo(item.tipoProcedimento)"
+                    variant="subtle"
+                    class="md:max-w-40 break-all cursor-default"
+                  />
+                </UTooltip>
                 <p
-                  v-if="row.original.codigoProcedimentoSpdata"
+                  v-if="item.codigoProcedimentoSpdata"
                   class="mt-1 text-xs text-muted"
                 >
-                  TUSS {{ row.original.codigoProcedimentoSpdata }}
+                  TUSS {{ item.codigoProcedimentoSpdata }}
                 </p>
               </div>
-            </template>
 
-            <template #status-cell="{ row }">
-              <UBadge
-                :label="rotuloStatus(row.original.status)"
-                :color="corStatus(row.original.status)"
-                variant="subtle"
-              />
-            </template>
-          </UTable>
+              <div class="text-left md:text-left">
+                <p class="text-sm text-muted font-bold">
+                  Status
+                </p>
+                <UBadge
+                  :label="rotuloStatus(item.status)"
+                  :color="corStatus(item.status)"
+                  variant="subtle"
+                />
+              </div>
+            </div>
+          </UPageCard>
         </div>
       </UCard>
     </div>

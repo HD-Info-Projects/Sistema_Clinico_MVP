@@ -1,8 +1,28 @@
 <script setup lang="ts">
 const auth = useAuthStore()
 
+const open = ref(true)
+const isDesktop = useMediaQuery('(min-width: 1024px)')
+const route = useRoute()
+
+watch(
+  () => route.fullPath,
+  () => {
+    if (!isDesktop.value) open.value = false
+  }
+)
+
+provide('openNav', () => {
+  open.value = !open.value
+})
+
 const unidadeAtivaLabel = computed(() => auth.activeClinica?.nome || 'Sem unidade')
 const podeTrocarUnidade = computed(() => auth.clinicas.length > 1)
+
+function trocarUnidade() {
+  if (!isDesktop.value) open.value = false
+  return navigateTo('/selecionar-clinica')
+}
 
 const navItems = [
   { label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: '/recepcao' },
@@ -19,9 +39,15 @@ function trocarAcesso() {
 </script>
 
 <template>
-  <div class="flex">
+  <div class="flex min-h-dvh min-w-0">
     <USidebar
+      v-model:open="open"
       collapsible="icon"
+      :menu="{
+        ui: {
+          content: 'w-64'
+        }
+      }"
       side="left"
     >
       <template #header>
@@ -36,7 +62,7 @@ function trocarAcesso() {
       />
 
       <template #footer>
-        <div class="felx flex-col gap-2 w-full">
+        <div class="flex w-full flex-col gap-2">
           <div class="mb-2 flex flex-col gap-2 px-2">
             <UBadge
               :label="unidadeAtivaLabel"
@@ -51,7 +77,7 @@ function trocarAcesso() {
               color="neutral"
               variant="ghost"
               class="w-full justify-start"
-              to="/selecionar-clinica"
+              @click="void (trocarUnidade())"
             />
             <UButton
               v-if="auth.isAdmin"
@@ -75,8 +101,12 @@ function trocarAcesso() {
       </template>
     </USidebar>
 
-    <div class="flex-1 flex flex-col min-h-screen">
-      <UMain>
+    <div class="flex min-h-dvh min-w-0 flex-1 flex-col">
+      <UMain
+        id="conteudo-principal"
+        tabindex="-1"
+        class="min-w-0"
+      >
         <slot />
       </UMain>
     </div>

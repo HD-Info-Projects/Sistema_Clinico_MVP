@@ -11,7 +11,11 @@ const destinoPrincipal = computed(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+  <main
+    id="conteudo-principal"
+    tabindex="-1"
+    class="flex min-h-dvh items-center justify-center bg-slate-50 px-4 py-6"
+  >
     <UCard class="max-w-lg w-full">
       <div class="space-y-6 text-center">
         <div class="mx-auto size-14 rounded-full bg-red-50 text-red-600 flex items-center justify-center">
@@ -47,5 +51,5 @@ const destinoPrincipal = computed(() => {
         </div>
       </div>
     </UCard>
-  </div>
+  </main>
 </template>

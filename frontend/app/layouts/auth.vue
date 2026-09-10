@@ -16,22 +16,27 @@ const features = ref<PageFeatureProps[]>([
 </script>
 
 <template>
-  <div class="h-dvh flex items-center overflow-hidden">
-    <div class="w-1/2 hidden sm:block h-full relative">
+  <div class="flex h-dvh min-w-0 overflow-hidden">
+    <aside
+      class="relative hidden h-full w-1/2 shrink-0 overflow-hidden lg:block"
+      aria-label="Sobre o MedSystem"
+    >
       <NuxtImg
         src="img/bg-login.png"
         class="absolute inset-0 w-full h-full object-cover"
-        alt="Background"
+        alt=""
       />
       <div class="absolute inset-0 bg-primary-800/80" />
       <UPageSection
+        class="relative flex h-full items-center"
         title="Gestão clínica inteligente para o futuro da saúde."
         description="Centralize Consultas Médicas, Prontuários e Agendamentos em uma plataforma única, segura e projetada para profissionais de alta performance."
         :ui="{
           root: 'text-white',
           title: 'text-white font-medium text-left',
           description: 'text-white text-left',
-          headline: 'pb-15'
+          headline: 'pb-15',
+          features: 'grid grid-cols-2 gap-6'
         }"
       >
         <template #headline>
@@ -57,22 +62,27 @@ const features = ref<PageFeatureProps[]>([
           <UPageFeature
             v-for="feature in features"
             :key="feature.title"
+            as="li"
             :title="feature.title"
             :description="feature.description"
             :icon="feature.icon"
             :ui="{
-              root: 'text-white items-center justify-center',
-              title: 'text-white text-left text-2xl',
-              description: 'text-white text-left',
+              root: 'text-white items-center justify-center text-center',
+              title: 'text-white text-center text-2xl',
+              description: 'text-white text-center',
               leadingIcon: 'size-8 text-primary-200'
             }"
           />
         </template>
       </UPageSection>
-    </div>
-    <div class="w-full sm:w-1/2 h-full flex items-center justify-center bg-[url('/img/bg-login.png')] bg-cover bg-center sm:bg-none">
-      <div class="absolute inset-0 sm:hidden bg-primary-800/80" />
+    </aside>
+    <main
+      id="conteudo-principal"
+      tabindex="-1"
+      class="relative flex h-full min-w-0 w-full items-center justify-center overflow-y-auto bg-[url('/img/bg-login.png')] bg-cover bg-center lg:w-1/2 lg:bg-none"
+    >
+      <div class="absolute inset-0 bg-primary-800/80 lg:hidden" />
       <slot />
-    </div>
+    </main>
   </div>
 </template>

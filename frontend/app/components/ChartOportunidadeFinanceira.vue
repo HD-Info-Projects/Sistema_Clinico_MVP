@@ -46,15 +46,17 @@ const options: ChartOptions<'doughnut'> = {
 </script>
 
 <template>
-  <div class="relative flex items-center justify-center min-h-64">
+  <div class="relative flex min-h-56 w-full min-w-0 items-center justify-center sm:min-h-64">
     <ClientOnly>
       <Doughnut
         :data="data"
         :options="options"
-        class="w-64 h-64"
+        class="aspect-square h-auto max-h-64 w-full max-w-full"
+        role="img"
+        aria-label="Gráfico de oportunidade financeira por categoria"
       />
       <template #fallback>
-        <div class="size-48 rounded-full bg-neutral-200 dark:bg-neutral-800 animate-pulse" />
+        <div class="aspect-square w-48 max-w-full animate-pulse rounded-full bg-neutral-200 dark:bg-neutral-800" />
       </template>
     </ClientOnly>
   </div>

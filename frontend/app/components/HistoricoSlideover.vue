@@ -1,7 +1,19 @@
 <!-- eslint-disable vue/no-v-html -->
 <script setup lang="ts">
-import type { Paciente, AgendamentoComPaciente, HistoricoRecord, HistoricoResponse, HistoricoLocalRecord, ExameHistoricoItem, ExamePacs, ExamesPacsResponse } from '~/types'
-import { abrirExamePacs, montarExamesHistoricoUnificados } from '~/utils/historico-exames'
+import type {
+  Paciente,
+  AgendamentoComPaciente,
+  HistoricoRecord,
+  HistoricoResponse,
+  HistoricoLocalRecord,
+  ExameHistoricoItem,
+  ExamePacs,
+  ExamesPacsResponse
+} from '~/types'
+import {
+  abrirExamePacs,
+  montarExamesHistoricoUnificados
+} from '~/utils/historico-exames'
 import { formatarDataHistorico } from '~/utils/time'
 
 const props = defineProps<{
@@ -15,7 +27,9 @@ const { sanitizeHtml } = useSanitize()
 
 const expandedContent = ref<Record<string, boolean>>({})
 
-const pacienteAtual = computed(() => props.agendamento?.paciente ?? props.paciente ?? null)
+const pacienteAtual = computed(
+  () => props.agendamento?.paciente ?? props.paciente ?? null
+)
 
 function toggleContent(id: string) {
   expandedContent.value[id] = !expandedContent.value[id]
@@ -59,7 +73,9 @@ const examesPacs = ref<ExamePacs[]>([])
 const HISTORICO_BIODATA_LIMIT = 10
 const HISTORICO_SPDATA_LIMIT = 10
 
-const historicoExternoHasMore = computed(() => biodataHasMore.value || spdataHasMore.value)
+const historicoExternoHasMore = computed(
+  () => biodataHasMore.value || spdataHasMore.value
+)
 
 type HistoricoCacheEntry = {
   biodata: HistoricoRecord[]
@@ -78,7 +94,11 @@ let historicoRequestId = 0
 useInfiniteScroll(
   historicoScrollRef,
   () => {
-    if (historicoExternoHasMore.value && !isLoadingHistorico.value && !isLoadingMaisHistorico.value) {
+    if (
+      historicoExternoHasMore.value
+      && !isLoadingHistorico.value
+      && !isLoadingMaisHistorico.value
+    ) {
       void carregarMaisHistoricoExterno()
     }
   },
@@ -122,9 +142,11 @@ const cardHeaderColors: Record<HistoricoCardType, string> = {
 
 function cpfHistorico(valor?: string | null): string | undefined {
   const texto = String(valor || '').trim()
-  const semDecimal = texto.endsWith('.0') && [10, 11].includes(texto.slice(0, -2).replace(/\D/g, '').length)
-    ? texto.slice(0, -2)
-    : texto
+  const semDecimal
+    = texto.endsWith('.0')
+      && [10, 11].includes(texto.slice(0, -2).replace(/\D/g, '').length)
+      ? texto.slice(0, -2)
+      : texto
   const digitos = semDecimal.replace(/\D/g, '')
   const cpf = digitos.length === 10 ? digitos.padStart(11, '0') : digitos
   if (cpf.length !== 11) return undefined
@@ -194,7 +216,11 @@ function salvarHistoricoCache(cacheKey: string) {
 }
 
 function isHistoricoAtual(requestId: number, cacheKey: string) {
-  return open.value && requestId === historicoRequestId && cacheKey === historicoCacheKey.value
+  return (
+    open.value
+    && requestId === historicoRequestId
+    && cacheKey === historicoCacheKey.value
+  )
 }
 
 async function fetchHistorico() {
@@ -228,22 +254,26 @@ async function fetchHistorico() {
         if (!isHistoricoAtual(requestId, cacheKey)) return
         localHistorico.value = local
         remontarHistoricoItems()
-        if (historicoItemsVisiveis.value.length > 0) isLoadingHistorico.value = false
+        if (historicoItemsVisiveis.value.length > 0)
+          isLoadingHistorico.value = false
       })
       .catch(() => {
-        if (isHistoricoAtual(requestId, cacheKey)) console.error('Erro ao buscar histórico local')
+        if (isHistoricoAtual(requestId, cacheKey))
+          console.error('Erro ao buscar histórico local')
       })
 
     const biodataPromise = buscarHistoricoBiodata(0)
       .then((biodataResponse) => {
         if (!isHistoricoAtual(requestId, cacheKey)) return
         adicionarRegistrosBiodata(biodataResponse.items)
-        biodataOffset.value = biodataResponse.offset + biodataResponse.items.length
+        biodataOffset.value
+          = biodataResponse.offset + biodataResponse.items.length
         biodataHasMore.value = biodataResponse.has_more
         remontarHistoricoItems()
       })
       .catch(() => {
-        if (isHistoricoAtual(requestId, cacheKey)) console.error('Erro ao buscar histórico BioData')
+        if (isHistoricoAtual(requestId, cacheKey))
+          console.error('Erro ao buscar histórico BioData')
       })
 
     const pacsPromise = buscarExamesPacs(pacienteId)
@@ -253,22 +283,30 @@ async function fetchHistorico() {
         remontarHistoricoItems()
       })
       .catch(() => {
-        if (isHistoricoAtual(requestId, cacheKey)) console.error('Erro ao buscar exames PACS')
+        if (isHistoricoAtual(requestId, cacheKey))
+          console.error('Erro ao buscar exames PACS')
       })
 
     const spdataPromise = buscarHistoricoSpdata(0)
       .then((spdataResponse) => {
         if (!isHistoricoAtual(requestId, cacheKey)) return
         adicionarRegistrosSpdata(spdataResponse.items)
-        spdataOffset.value = spdataResponse.offset + spdataResponse.items.length
+        spdataOffset.value
+          = spdataResponse.offset + spdataResponse.items.length
         spdataHasMore.value = spdataResponse.has_more
         remontarHistoricoItems()
       })
       .catch(() => {
-        if (isHistoricoAtual(requestId, cacheKey)) console.error('Erro ao buscar histórico SPDATA')
+        if (isHistoricoAtual(requestId, cacheKey))
+          console.error('Erro ao buscar histórico SPDATA')
       })
 
-    await Promise.allSettled([localPromise, biodataPromise, pacsPromise, spdataPromise])
+    await Promise.allSettled([
+      localPromise,
+      biodataPromise,
+      pacsPromise,
+      spdataPromise
+    ])
 
     if (isHistoricoAtual(requestId, cacheKey)) salvarHistoricoCache(cacheKey)
   } catch {
@@ -278,70 +316,120 @@ async function fetchHistorico() {
   }
 }
 
-async function buscarHistoricoLocal(pacienteId: number): Promise<HistoricoLocalRecord[]> {
+async function buscarHistoricoLocal(
+  pacienteId: number
+): Promise<HistoricoLocalRecord[]> {
   const paciente = pacienteAtual.value
 
-  return await $fetch<HistoricoLocalRecord[]>(`/api/historico-local/${pacienteId}`, {
-    query: {
-      cpf: cpfHistorico(paciente?.cpf),
-      nome: paciente?.nome || undefined,
-      spdataAtendimentoId: props.agendamento?.spdataAtendimentoId || undefined
+  return await $fetch<HistoricoLocalRecord[]>(
+    `/api/historico-local/${pacienteId}`,
+    {
+      query: {
+        cpf: cpfHistorico(paciente?.cpf),
+        nome: paciente?.nome || undefined,
+        spdataAtendimentoId:
+          props.agendamento?.spdataAtendimentoId || undefined
+      }
     }
-  })
+  )
 }
 
-async function buscarHistoricoBiodata(offset: number): Promise<HistoricoResponse> {
+async function buscarHistoricoBiodata(
+  offset: number
+): Promise<HistoricoResponse> {
   const paciente = pacienteAtual.value
   const pacienteId = paciente?.id
   if (!pacienteId) {
-    return { items: [], limit: HISTORICO_BIODATA_LIMIT, offset, has_more: false }
-  }
-
-  return await $fetch<HistoricoResponse>(`/api/historico-paciente/${pacienteId}`, {
-    query: {
-      cpf: cpfHistorico(paciente.cpf),
-      nome: paciente.nome || undefined,
-      spdataAtendimentoId: props.agendamento?.spdataAtendimentoId || undefined,
+    return {
+      items: [],
       limit: HISTORICO_BIODATA_LIMIT,
-      offset
+      offset,
+      has_more: false
     }
-  })
+  }
+
+  return await $fetch<HistoricoResponse>(
+    `/api/historico-paciente/${pacienteId}`,
+    {
+      query: {
+        cpf: cpfHistorico(paciente.cpf),
+        nome: paciente.nome || undefined,
+        spdataAtendimentoId:
+          props.agendamento?.spdataAtendimentoId || undefined,
+        limit: HISTORICO_BIODATA_LIMIT,
+        offset
+      }
+    }
+  )
 }
 
-async function buscarExamesPacs(pacienteId: number): Promise<ExamesPacsResponse> {
-  return await $fetch<ExamesPacsResponse>(`/api/exames-pacs/paciente/${pacienteId}`)
+async function buscarExamesPacs(
+  pacienteId: number
+): Promise<ExamesPacsResponse> {
+  return await $fetch<ExamesPacsResponse>(
+    `/api/exames-pacs/paciente/${pacienteId}`
+  )
 }
 
-async function buscarHistoricoSpdata(offset: number): Promise<HistoricoResponse> {
+async function buscarHistoricoSpdata(
+  offset: number
+): Promise<HistoricoResponse> {
   const paciente = pacienteAtual.value
   const pacienteId = paciente?.id
   if (!pacienteId) {
-    return { items: [], limit: HISTORICO_SPDATA_LIMIT, offset, has_more: false }
+    return {
+      items: [],
+      limit: HISTORICO_SPDATA_LIMIT,
+      offset,
+      has_more: false
+    }
   }
 
-  return await $fetch<HistoricoResponse>(`/api/historico-spdata/${pacienteId}`, {
-    query: {
-      cpf: cpfHistorico(paciente.cpf),
-      nome: paciente.nome || undefined,
-      spdataAtendimentoId: props.agendamento?.spdataAtendimentoId || undefined,
-      limit: HISTORICO_SPDATA_LIMIT,
-      offset
+  return await $fetch<HistoricoResponse>(
+    `/api/historico-spdata/${pacienteId}`,
+    {
+      query: {
+        cpf: cpfHistorico(paciente.cpf),
+        nome: paciente.nome || undefined,
+        spdataAtendimentoId:
+          props.agendamento?.spdataAtendimentoId || undefined,
+        limit: HISTORICO_SPDATA_LIMIT,
+        offset
+      }
     }
-  })
+  )
 }
 
 async function carregarMaisHistoricoExterno() {
-  if (!historicoExternoHasMore.value || isLoadingMaisHistorico.value || isLoadingHistorico.value) return
+  if (
+    !historicoExternoHasMore.value
+    || isLoadingMaisHistorico.value
+    || isLoadingHistorico.value
+  )
+    return
 
   isLoadingMaisHistorico.value = true
   try {
-    const requests: Promise<{ origem: 'biodata' | 'spdata', response: HistoricoResponse }>[] = []
+    const requests: Promise<{
+      origem: 'biodata' | 'spdata'
+      response: HistoricoResponse
+    }>[] = []
 
     if (biodataHasMore.value) {
-      requests.push(buscarHistoricoBiodata(biodataOffset.value).then(response => ({ origem: 'biodata' as const, response })))
+      requests.push(
+        buscarHistoricoBiodata(biodataOffset.value).then(response => ({
+          origem: 'biodata' as const,
+          response
+        }))
+      )
     }
     if (spdataHasMore.value) {
-      requests.push(buscarHistoricoSpdata(spdataOffset.value).then(response => ({ origem: 'spdata' as const, response })))
+      requests.push(
+        buscarHistoricoSpdata(spdataOffset.value).then(response => ({
+          origem: 'spdata' as const,
+          response
+        }))
+      )
     }
 
     const results = await Promise.allSettled(requests)
@@ -395,25 +483,46 @@ function adicionarRegistrosSpdata(registros: HistoricoRecord[]) {
 }
 
 function chaveHistoricoBiodata(registro: HistoricoRecord) {
-  return registro.ID_ANAMNESE || `${registro.ID_ATENDIMENTO || ''}-${registro.DATA_ANAMNESE || ''}-${registro.ANAMNESE || ''}`
+  return (
+    registro.ID_ANAMNESE
+    || `${registro.ID_ATENDIMENTO || ''}-${registro.DATA_ANAMNESE || ''}-${registro.ANAMNESE || ''}`
+  )
 }
 
 function chaveHistoricoSpdata(registro: HistoricoRecord) {
-  return registro.ID_ANAMNESE || `spdata-${registro.ID_ATENDIMENTO || ''}-${registro.DATA_ANAMNESE || ''}-${registro.ANAMNESE || ''}`
+  return (
+    registro.ID_ANAMNESE
+    || `spdata-${registro.ID_ATENDIMENTO || ''}-${registro.DATA_ANAMNESE || ''}-${registro.ANAMNESE || ''}`
+  )
 }
 
 function remontarHistoricoItems() {
-  historicoItems.value = montarHistoricoItems(biodataHistorico.value, spdataHistorico.value, localHistorico.value)
+  historicoItems.value = montarHistoricoItems(
+    biodataHistorico.value,
+    spdataHistorico.value,
+    localHistorico.value
+  )
 }
 
-function montarHistoricoItems(biodata: HistoricoRecord[], spdata: HistoricoRecord[], local: HistoricoLocalRecord[]) {
+function montarHistoricoItems(
+  biodata: HistoricoRecord[],
+  spdata: HistoricoRecord[],
+  local: HistoricoLocalRecord[]
+) {
   const items: HistoricoTimelineItem[] = []
-  const historicoExternoPorAtendimento = new Map<string, HistoricoTimelineItem>()
-  const examesUnificados = montarExamesHistoricoUnificados(local, examesPacs.value)
+  const historicoExternoPorAtendimento = new Map<
+    string,
+    HistoricoTimelineItem
+  >()
+  const examesUnificados = montarExamesHistoricoUnificados(
+    local,
+    examesPacs.value
+  )
 
   for (const r of [...biodata, ...spdata]) {
     const origemSpdata = r.ORIGEM === 'SPDATA'
-    const dataHistorico = r.DATA_ANAMNESE || r.DATA_CONSULTA || r.DATA_ENCERRAMENTO || ''
+    const dataHistorico
+      = r.DATA_ANAMNESE || r.DATA_CONSULTA || r.DATA_ENCERRAMENTO || ''
     const idGrupo = origemSpdata
       ? `spdata-${r.ID_ANAMNESE || dataHistorico || r.ID_ATENDIMENTO}`
       : `biodata-${dataHistorico || r.ID_ANAMNESE}`
@@ -426,7 +535,8 @@ function montarHistoricoItems(biodata: HistoricoRecord[], spdata: HistoricoRecor
         time: formatarHoraHistorico(dataHistorico),
         icon: 'i-lucide-calendar',
         subtitle: montarSubtituloHistoricoExterno(r),
-        _sortKey: r.DATA_ANAMNESE || r.DATA_CONSULTA || r.DATA_ENCERRAMENTO || '',
+        _sortKey:
+          r.DATA_ANAMNESE || r.DATA_CONSULTA || r.DATA_ENCERRAMENTO || '',
         cards: []
       }
       historicoExternoPorAtendimento.set(idGrupo, item)
@@ -463,10 +573,35 @@ function montarHistoricoItems(biodata: HistoricoRecord[], spdata: HistoricoRecor
       subtitle: l.medico_nome || undefined,
       _sortKey: dataHistorico,
       cards: [
-        { id: 'anamnese-local', type: 'Anamnese', title: 'Anamnese', icon: 'i-lucide-file-text', description: l.anamnese || '' },
-        { id: 'diagnostico-local', type: 'diagnostico', title: 'diagnostico', icon: 'i-lucide-clipboard-check', description: montarDiagnosticos(l) },
-        { id: 'receita-local', type: 'receita', title: 'receita', icon: 'i-lucide-pill', description: l.medicamentos?.join('\n') || '' },
-        { id: 'exames-local', type: 'exames', title: 'exames', icon: 'i-lucide-flask-conical', description: '', exames: examesUnificados.examesPorRegistroLocal[index] || [] }
+        {
+          id: 'anamnese-local',
+          type: 'Anamnese',
+          title: 'Anamnese',
+          icon: 'i-lucide-file-text',
+          description: l.anamnese || ''
+        },
+        {
+          id: 'diagnostico-local',
+          type: 'diagnostico',
+          title: 'diagnostico',
+          icon: 'i-lucide-clipboard-check',
+          description: montarDiagnosticos(l)
+        },
+        {
+          id: 'receita-local',
+          type: 'receita',
+          title: 'receita',
+          icon: 'i-lucide-pill',
+          description: l.medicamentos?.join('\n') || ''
+        },
+        {
+          id: 'exames-local',
+          type: 'exames',
+          title: 'exames',
+          icon: 'i-lucide-flask-conical',
+          description: '',
+          exames: examesUnificados.examesPorRegistroLocal[index] || []
+        }
       ]
     })
   }
@@ -481,22 +616,34 @@ function montarHistoricoItems(biodata: HistoricoRecord[], spdata: HistoricoRecor
       subtitle: 'SPDATA',
       _sortKey: dataHistorico,
       cards: [
-        { id: 'exames-realizados', type: 'exames', title: 'exames realizados', icon: 'i-lucide-file-search', description: '', exames: grupo.exames }
+        {
+          id: 'exames-realizados',
+          type: 'exames',
+          title: 'exames realizados',
+          icon: 'i-lucide-file-search',
+          description: '',
+          exames: grupo.exames
+        }
       ]
     })
   }
 
-  items.sort((a, b) => timestampHistorico(b._sortKey) - timestampHistorico(a._sortKey))
+  items.sort(
+    (a, b) => timestampHistorico(b._sortKey) - timestampHistorico(a._sortKey)
+  )
 
   return items
 }
 
-function montarSubtituloHistoricoExterno(item: HistoricoRecord): string | undefined {
+function montarSubtituloHistoricoExterno(
+  item: HistoricoRecord
+): string | undefined {
   if (item.ORIGEM !== 'SPDATA') return item.MEDICO || undefined
 
-  return ['SPDATA', item.MODELO_EVOLUCAO, item.MEDICO]
-    .filter(Boolean)
-    .join(' · ') || undefined
+  return (
+    ['SPDATA', item.MODELO_EVOLUCAO, item.MEDICO].filter(Boolean).join(' · ')
+    || undefined
+  )
 }
 
 function timestampHistorico(valor: string): number {
@@ -508,12 +655,17 @@ function formatarHoraHistorico(dataStr: string): string {
   if (!dataStr) return ''
   const data = new Date(dataStr)
   if (Number.isNaN(data.getTime())) return ''
-  return data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  return data.toLocaleTimeString('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit'
+  })
 }
 
 function adicionarCardUnico(item: HistoricoTimelineItem, card: HistoricoCard) {
   if (!temConteudoUtil(card.description)) return
-  const existe = item.cards.some(c => c.type === card.type && c.description === card.description)
+  const existe = item.cards.some(
+    c => c.type === card.type && c.description === card.description
+  )
   if (!existe) item.cards.push(card)
 }
 
@@ -525,12 +677,25 @@ function montarDiagnosticosBiodata(item: HistoricoRecord): string {
   const partes: string[] = []
 
   if (item.CID_PRINCIPAL || item.DIAGNOSTICO_PRINCIPAL) {
-    partes.push([item.CID_PRINCIPAL, item.DIAGNOSTICO_PRINCIPAL].filter(Boolean).join(' — '))
+    partes.push(
+      [item.CID_PRINCIPAL, item.DIAGNOSTICO_PRINCIPAL]
+        .filter(Boolean)
+        .join(' — ')
+    )
   }
 
-  for (const cid of [item.CID_SECUNDARIO, item.CID_TERCIARIO, item.CID_QUATERNARIO]) {
+  for (const cid of [
+    item.CID_SECUNDARIO,
+    item.CID_TERCIARIO,
+    item.CID_QUATERNARIO
+  ]) {
     if (!cid) continue
-    partes.push(...cid.split('\n').map(c => c.trim()).filter(Boolean))
+    partes.push(
+      ...cid
+        .split('\n')
+        .map(c => c.trim())
+        .filter(Boolean)
+    )
   }
 
   if (item.DIAGNOSTICO_SECUNDARIO) {
@@ -543,7 +708,9 @@ function montarDiagnosticosBiodata(item: HistoricoRecord): string {
 function montarDiagnosticos(item: HistoricoLocalRecord): string {
   const partes: string[] = []
   if (item.cid_principal) {
-    partes.push(`${item.cid_principal} — ${item.cid_principal_descricao || ''} (principal)`)
+    partes.push(
+      `${item.cid_principal} — ${item.cid_principal_descricao || ''} (principal)`
+    )
   }
   for (const s of item.cids_secundarios) {
     partes.push(`${s.codigo} — ${s.descricao || ''}`)
@@ -556,7 +723,10 @@ function montarDiagnosticos(item: HistoricoLocalRecord): string {
   <USlideover
     v-model:open="open"
     side="left"
-    :ui="{ content: 'w-[35rem] max-w-full' }"
+    :ui="{
+      content: 'h-dvh max-h-dvh w-[35rem] max-w-full',
+      body: 'min-h-0 overflow-hidden p-0'
+    }"
   >
     <template #header>
       <div class="flex items-center justify-between w-full">
@@ -586,6 +756,7 @@ function montarDiagnosticos(item: HistoricoLocalRecord): string {
         </h2>
         <UButton
           icon="i-lucide-x"
+          aria-label="Fechar histórico"
           color="neutral"
           variant="ghost"
           @click="void (open = false)"
@@ -596,16 +767,25 @@ function montarDiagnosticos(item: HistoricoLocalRecord): string {
     <template #body>
       <div
         ref="historicoScrollRef"
-        class="overflow-y-auto max-h-[calc(100vh-8rem)]"
+        class="h-full overflow-y-auto p-4 sm:p-6 max-h-[calc(100vh-8rem)]"
       >
         <div
           v-if="isLoadingHistorico"
-          class="flex justify-center py-8"
+          role="status"
+          class="space-y-4"
         >
-          <UIcon
-            name="i-lucide-loader-circle"
-            class="size-6 animate-spin text-muted"
-          />
+          <div
+            v-for="linha in 3"
+            :key="linha"
+            class="flex gap-3"
+          >
+            <USkeleton class="size-6 shrink-0 rounded-full" />
+            <div class="min-w-0 flex-1 space-y-2">
+              <USkeleton class="h-4 w-44 max-w-full" />
+              <USkeleton class="h-3 w-full max-w-full" />
+              <USkeleton class="h-3 w-3/4 max-w-full" />
+            </div>
+          </div>
         </div>
 
         <div
@@ -635,7 +815,9 @@ function montarDiagnosticos(item: HistoricoLocalRecord): string {
                 <span
                   v-if="item.time"
                   class="block text-xs text-muted"
-                >{{ item.time }}</span>
+                >{{
+                  item.time
+                }}</span>
               </div>
               <span
                 v-if="item.subtitle"
@@ -650,7 +832,11 @@ function montarDiagnosticos(item: HistoricoLocalRecord): string {
                 :key="card.id"
               >
                 <UCard
-                  v-if="card.type === 'exames' ? (card.exames?.length ?? 0) > 0 : temConteudoUtil(card.description)"
+                  v-if="
+                    card.type === 'exames'
+                      ? (card.exames?.length ?? 0) > 0
+                      : temConteudoUtil(card.description)
+                  "
                   class="rounded-lg border border-muted hover:bg-muted/50"
                   :ui="{
                     header: `p-0.5 sm:px-2 ${cardHeaderColors[card.type]}`,
@@ -668,7 +854,9 @@ function montarDiagnosticos(item: HistoricoLocalRecord): string {
                       </p>
                     </div>
                   </template>
-                  <template v-if="card.type === 'exames' && card.exames?.length">
+                  <template
+                    v-if="card.type === 'exames' && card.exames?.length"
+                  >
                     <div class="text-sm space-y-1.5">
                       <div
                         v-for="(exame, idx) in card.exames"
@@ -680,13 +868,23 @@ function montarDiagnosticos(item: HistoricoLocalRecord): string {
                           v-if="exame.temImagem"
                           name="i-lucide-eye"
                           class="size-4 shrink-0 text-primary cursor-pointer hover:text-primary-600"
-                          @click.stop="abrirExamePacs(exame.idTokenLancamentoExame, 'imagem')"
+                          @click.stop="
+                            abrirExamePacs(
+                              exame.idTokenLancamentoExame,
+                              'imagem'
+                            )
+                          "
                         />
                         <UIcon
                           v-if="exame.temLaudo"
                           name="i-lucide-file-text"
                           class="size-4 shrink-0 text-secondary cursor-pointer hover:text-secondary-600"
-                          @click.stop="abrirExamePacs(exame.idTokenLancamentoExame, 'laudo')"
+                          @click.stop="
+                            abrirExamePacs(
+                              exame.idTokenLancamentoExame,
+                              'laudo'
+                            )
+                          "
                         />
                       </div>
                       <template
@@ -697,7 +895,8 @@ function montarDiagnosticos(item: HistoricoLocalRecord): string {
                           v-if="exame.orientacao"
                           class="text-xs text-muted mt-0.5"
                         >
-                          <strong>{{ exame.nome }}:</strong> {{ exame.orientacao }}
+                          <strong>{{ exame.nome }}:</strong>
+                          {{ exame.orientacao }}
                         </div>
                       </template>
                     </div>
@@ -706,15 +905,23 @@ function montarDiagnosticos(item: HistoricoLocalRecord): string {
                     <div class="relative">
                       <!-- eslint-disable vue/no-v-html -->
                       <div
-                        class="text-sm cursor-pointer whitespace-pre-line"
-                        :class="expandedContent[item.id + '-' + card.id] ? '' : 'line-clamp-3'"
+                        class="cursor-pointer overflow-hidden break-words text-sm whitespace-pre-line [&_*]:max-w-full"
+                        :class="
+                          expandedContent[item.id + '-' + card.id]
+                            ? ''
+                            : 'line-clamp-3'
+                        "
                         @click="toggleContent(item.id + '-' + card.id)"
                         v-html="sanitizeHtml(card.description)"
                       />
                       <!-- eslint-enable vue/no-v-html -->
                       <UIcon
                         v-if="card.description.length > 100"
-                        :name="expandedContent[item.id + '-' + card.id] ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+                        :name="
+                          expandedContent[item.id + '-' + card.id]
+                            ? 'i-lucide-chevron-up'
+                            : 'i-lucide-chevron-down'
+                        "
                         class="absolute bottom-0 right-0 dark:bg-neutral-900 px-1 cursor-pointer text-muted"
                         @click.stop="toggleContent(item.id + '-' + card.id)"
                       />
@@ -727,11 +934,20 @@ function montarDiagnosticos(item: HistoricoLocalRecord): string {
         </UTimeline>
 
         <div class="flex justify-center py-3">
-          <UIcon
+          <div
             v-if="isLoadingMaisHistorico"
-            name="i-lucide-loader-circle"
-            class="size-5 animate-spin text-muted"
-          />
+            role="status"
+            class="w-full max-w-md space-y-2"
+          >
+            <div
+              v-for="linha in 2"
+              :key="linha"
+              class="flex items-center gap-3"
+            >
+              <USkeleton class="size-5 shrink-0 rounded-full" />
+              <USkeleton class="h-4 w-56 max-w-full" />
+            </div>
+          </div>
           <UButton
             v-else-if="historicoExternoHasMore"
             label="Carregar mais histórico"

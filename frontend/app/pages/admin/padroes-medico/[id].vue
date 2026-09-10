@@ -3,6 +3,7 @@ definePageMeta({ layout: 'admin' })
 
 const route = useRoute()
 const usuariosStore = useUsuariosStore()
+const openNav = inject<() => void>('openNav', () => {})
 
 const medicoId = computed(() => Number(route.params.id))
 
@@ -27,19 +28,36 @@ onMounted(() => {
 
 <template>
   <div>
-    <UHeader :title="titulo">
+    <UHeader
+      :title="titulo"
+      toggle-side="left"
+    >
+      <template #toggle>
+        <UButton
+          icon="i-lucide-menu"
+          color="neutral"
+          variant="ghost"
+          class="min-h-11 min-w-11 lg:hidden"
+          aria-label="Abrir menu"
+          @click="openNav()"
+        />
+      </template>
       <template #left>
-        <div class="flex items-center gap-2">
+        <div class="flex min-w-0 items-center gap-2">
           <UButton
             icon="i-lucide-arrow-left"
             color="neutral"
             variant="ghost"
             size="sm"
+            class="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
             aria-label="Voltar para medicos"
             @click="void(navigateTo('/admin/medicos'))"
           />
-          <p class="text-lg font-semibold whitespace-nowrap">
+          <p class="hidden sm:block min-w-0 wrap-break-word text-lg font-semibold">
             {{ titulo }}
+          </p>
+          <p class="block sm:hidden min-w-0 wrap-break-word text-lg font-semibold">
+            Padrões
           </p>
         </div>
       </template>
@@ -48,7 +66,7 @@ onMounted(() => {
       </template>
     </UHeader>
 
-    <div class="p-6 bg-neutral-100 dark:bg-neutral-950 min-h-screen">
+    <div class="min-h-screen bg-muted p-4 sm:p-6">
       <PadroesGerenciador :medico-id="Number.isFinite(medicoId) ? medicoId : null" />
     </div>
   </div>

@@ -1,13 +1,554 @@
+<script setup lang="ts">
+import type { PadraoReceita, PadraoExame, PadraoAnamnese, PadraoOrientacaoExame } from '~/types'
+
+const openNav = inject<() => void>('openNav', () => {})
+const padroesStore = usePadroesStore()
+const padroesAnamneseStore = usePadroesAnamneseStore()
+const padroesOrientacoesStore = usePadroesOrientacoesStore()
+const toast = useToast()
+
+const padroesCarregando = computed(
+  () => padroesStore.loading || padroesAnamneseStore.loading || padroesOrientacoesStore.loading
+)
+
+onMounted(() => {
+  padroesStore.fetchAll()
+  padroesAnamneseStore.fetchAll()
+  padroesOrientacoesStore.fetchAll()
+})
+
+type ActiveTab = 'receitas' | 'exames' | 'anamnese' | 'orientacoes'
+
+const activeTab = ref<ActiveTab | null>(null)
+
+const showReceitaModal = ref(false)
+const showExameModal = ref(false)
+const showAnamneseModal = ref(false)
+const showOrientacaoModal = ref(false)
+
+const editingReceita = ref<PadraoReceita | null>(null)
+const editingExame = ref<PadraoExame | null>(null)
+const editingAnamnese = ref<PadraoAnamnese | null>(null)
+const editingOrientacao = ref<PadraoOrientacaoExame | null>(null)
+
+const confirmDeleteId = ref<string | null>(null)
+const confirmDeleteTipo = ref<'receita' | 'exame' | 'anamnese' | 'orientacao' | null>(null)
+
+function abrirNovaReceita() {
+  editingReceita.value = null
+  showReceitaModal.value = true
+}
+
+function abrirNovaExame() {
+  editingExame.value = null
+  showExameModal.value = true
+}
+
+function abrirNovaAnamnese() {
+  editingAnamnese.value = null
+  showAnamneseModal.value = true
+}
+
+function abrirNovaOrientacao() {
+  editingOrientacao.value = null
+  showOrientacaoModal.value = true
+}
+
+function editarReceita(p: PadraoReceita) {
+  editingReceita.value = p
+  showReceitaModal.value = true
+}
+
+function editarExame(p: PadraoExame) {
+  editingExame.value = p
+  showExameModal.value = true
+}
+
+function editarAnamnese(p: PadraoAnamnese) {
+  editingAnamnese.value = p
+  showAnamneseModal.value = true
+}
+
+function editarOrientacao(p: PadraoOrientacaoExame) {
+  editingOrientacao.value = p
+  showOrientacaoModal.value = true
+}
+
+function confirmarDeletar(p: PadraoReceita | PadraoExame | PadraoAnamnese | PadraoOrientacaoExame, tipo: 'receita' | 'exame' | 'anamnese' | 'orientacao') {
+  confirmDeleteId.value = p.id
+  confirmDeleteTipo.value = tipo
+}
+
+async function executarDeletar() {
+  if (confirmDeleteId.value !== null) {
+    try {
+      if (confirmDeleteTipo.value === 'anamnese') {
+        await padroesAnamneseStore.deletar(confirmDeleteId.value)
+      } else if (confirmDeleteTipo.value === 'orientacao') {
+        await padroesOrientacoesStore.deletar(confirmDeleteId.value)
+      } else {
+        await padroesStore.deletar(confirmDeleteId.value)
+      }
+    } catch {
+      toast.add({
+        title: 'Erro ao Deletar',
+        description: 'Não foi possível deletar o padrão',
+        color: 'error',
+        icon: 'lucide:octagon-x'
+      })
+    } finally {
+      confirmDeleteId.value = null
+      confirmDeleteTipo.value = null
+    }
+  }
+}
+
+function gerenciarReceita() {
+  activeTab.value = activeTab.value === 'receitas' ? null : 'receitas'
+}
+
+function gerenciarExame() {
+  activeTab.value = activeTab.value === 'exames' ? null : 'exames'
+}
+
+function gerenciarAnamnese() {
+  activeTab.value = activeTab.value === 'anamnese' ? null : 'anamnese'
+}
+
+function gerenciarOrientacao() {
+  activeTab.value = activeTab.value === 'orientacoes' ? null : 'orientacoes'
+}
+
+const activeTabOrder = computed(() => {
+  if (activeTab.value === 'receitas') return 'order-2'
+  if (activeTab.value === 'exames') return 'order-3'
+  if (activeTab.value === 'anamnese') return 'order-4'
+  if (activeTab.value === 'orientacoes') return 'order-5'
+  return ''
+})
+
+const activeIndex = computed<number | null>(() => {
+  if (activeTab.value === 'receitas') return 1
+  if (activeTab.value === 'exames') return 2
+  if (activeTab.value === 'anamnese') return 3
+  if (activeTab.value === 'orientacoes') return 4
+  return null
+})
+
+function cardOrder(n: number): string {
+  const i = activeIndex.value
+  if (i !== null && n > i) n += 1
+  if (n === 1) return 'order-1'
+  if (n === 2) return 'order-2'
+  if (n === 3) return 'order-3'
+  if (n === 4) return 'order-4'
+  return 'order-5'
+}
+
+function activeTabIcon(tab: ActiveTab) {
+  if (tab === 'receitas') return 'i-lucide-pill'
+  if (tab === 'exames') return 'i-lucide-flask-conical'
+  if (tab === 'anamnese') return 'i-lucide-notebook-text'
+  return 'i-lucide-message-square-text'
+}
+
+function activeTabTitulo(tab: ActiveTab) {
+  if (tab === 'receitas') return 'Receitas Médicas'
+  if (tab === 'exames') return 'Pedidos de Exames'
+  if (tab === 'anamnese') return 'Anamnese'
+  return 'Orientações de Exames'
+}
+
+function activeTabEmpty(): boolean {
+  if (activeTab.value === 'receitas') return padroesStore.receitas.length === 0
+  if (activeTab.value === 'exames') return padroesStore.exames.length === 0
+  if (activeTab.value === 'anamnese') return padroesAnamneseStore.padroes.length === 0
+  if (activeTab.value === 'orientacoes') return padroesOrientacoesStore.padroes.length === 0
+  return true
+}
+</script>
+
 <template>
   <div>
-    <UHeader title="Padrões de Solicitações">
+    <UHeader
+      title="Padrões de Solicitações"
+      toggle-side="left"
+    >
+      <template #toggle>
+        <UButton
+          icon="i-lucide-menu"
+          color="neutral"
+          variant="ghost"
+          class="min-h-11 min-w-11 lg:hidden"
+          aria-label="Abrir menu"
+          @click="openNav()"
+        />
+      </template>
       <template #right>
         <UColorModeButton />
       </template>
     </UHeader>
 
-    <div class="p-6 bg-neutral-100 dark:bg-neutral-950 min-h-screen">
-      <PadroesGerenciador />
+    <div class="min-h-screen min-w-0 space-y-6 bg-muted p-3 sm:p-6">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4 xl:gap-6">
+        <UCard :class="cardOrder(1)">
+          <template #title>
+            <div class="flex items-center gap-2">
+              <UIcon
+                name="i-lucide-pill"
+                class="text-primary"
+              />
+              <p class="font-semibold">
+                Receitas Médicas
+              </p>
+            </div>
+          </template>
+
+          <template #description>
+            <p class="text-sm text-muted">
+              Modelos de receita com listas de medicamentos pré-definidos.
+            </p>
+          </template>
+
+          <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+            <UButton
+              icon="i-lucide-plus"
+              label="Novo Modelo"
+              size="sm"
+              class="min-h-10 justify-center"
+              @click="abrirNovaReceita"
+            />
+            <UButton
+              label="Gerenciar"
+              color="neutral"
+              size="sm"
+              class="min-h-10 justify-center"
+              @click="gerenciarReceita"
+            />
+          </div>
+        </UCard>
+
+        <UCard :class="cardOrder(2)">
+          <template #title>
+            <div class="flex items-center gap-2">
+              <UIcon
+                name="i-lucide-flask-conical"
+                class="text-primary"
+              />
+              <p class="font-semibold">
+                Pedidos de Exames
+              </p>
+            </div>
+          </template>
+
+          <template #description>
+            <p class="text-sm text-muted">
+              Conjuntos de exames para solicitação. No atendimento você seleciona quais entrarão no pedido.
+            </p>
+          </template>
+
+          <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+            <UButton
+              icon="i-lucide-plus"
+              label="Novo Modelo"
+              size="sm"
+              class="min-h-10 justify-center"
+              @click="abrirNovaExame"
+            />
+            <UButton
+              label="Gerenciar"
+              color="neutral"
+              size="sm"
+              class="min-h-10 justify-center"
+              @click="gerenciarExame"
+            />
+          </div>
+        </UCard>
+
+        <UCard :class="cardOrder(3)">
+          <template #title>
+            <div class="flex items-center gap-2">
+              <UIcon
+                name="i-lucide-notebook-text"
+                class="text-primary"
+              />
+              <p class="font-semibold">
+                Anamnese
+              </p>
+            </div>
+          </template>
+
+          <template #description>
+            <p class="text-sm text-muted">
+              Modelos de anamnese com texto pré-formatado. No atendimento você insere o padrão no editor.
+            </p>
+          </template>
+
+          <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+            <UButton
+              icon="i-lucide-plus"
+              label="Novo Modelo"
+              size="sm"
+              class="min-h-10 justify-center"
+              @click="abrirNovaAnamnese"
+            />
+            <UButton
+              label="Gerenciar"
+              color="neutral"
+              size="sm"
+              class="min-h-10 justify-center"
+              @click="gerenciarAnamnese"
+            />
+          </div>
+        </UCard>
+
+        <UCard :class="cardOrder(4)">
+          <template #title>
+            <div class="flex items-center gap-2">
+              <UIcon
+                name="i-lucide-message-square-text"
+                class="text-primary"
+              />
+              <p class="font-semibold">
+                Orientações de Exames
+              </p>
+            </div>
+          </template>
+
+          <template #description>
+            <p class="text-sm text-muted">
+              Modelos de orientações impressas como folha extra junto da solicitação de exames.
+            </p>
+          </template>
+
+          <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+            <UButton
+              icon="i-lucide-plus"
+              label="Novo Modelo"
+              size="sm"
+              class="min-h-10 justify-center"
+              @click="abrirNovaOrientacao"
+            />
+            <UButton
+              label="Gerenciar"
+              color="neutral"
+              size="sm"
+              class="min-h-10 justify-center"
+              @click="gerenciarOrientacao"
+            />
+          </div>
+        </UCard>
+        <UCard
+          v-if="activeTab"
+          :class="[activeTabOrder, 'md:col-span-2 xl:col-span-4 md:order-last']"
+        >
+          <template #title>
+            <div class="flex items-center gap-2">
+              <UIcon
+                :name="activeTabIcon(activeTab)"
+                class="text-primary"
+              />
+              <p class="font-semibold">
+                Modelos de {{ activeTabTitulo(activeTab) }}
+              </p>
+            </div>
+          </template>
+
+          <div class="space-y-2">
+            <div
+              v-if="padroesCarregando"
+              role="status"
+              class="space-y-2"
+            >
+              <div
+                v-for="linha in 4"
+                :key="linha"
+                class="flex min-w-0 flex-col gap-2 rounded-lg border border-muted p-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div class="min-w-0 space-y-2">
+                  <USkeleton class="h-4 w-44 max-w-full" />
+                  <USkeleton class="h-3 w-64 max-w-full" />
+                </div>
+                <div class="flex shrink-0 gap-2">
+                  <USkeleton class="size-8 rounded-lg" />
+                  <USkeleton class="size-8 rounded-lg" />
+                </div>
+              </div>
+            </div>
+
+            <template v-if="activeTab === 'receitas'">
+              <div
+                v-for="p in padroesStore.receitas"
+                :key="p.id"
+                class="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-muted p-3 hover:bg-muted/50"
+              >
+                <div class="min-w-0">
+                  <p class="break-words font-medium">
+                    {{ p.nome }}
+                  </p>
+                  <p class="text-xs text-muted">
+                    {{ p.medicamentos.length }} medicamento{{ p.medicamentos.length !== 1 ? 's' : '' }}
+                    &middot; {{ new Date(p.updatedAt).toLocaleDateString('pt-BR') }}
+                  </p>
+                </div>
+                <div class="flex shrink-0 gap-1">
+                  <UButton
+                    icon="i-lucide-pencil"
+                    color="neutral"
+                    variant="ghost"
+                    size="sm"
+                    @click="editarReceita(p)"
+                  />
+                  <UButton
+                    icon="i-lucide-trash-2"
+                    color="error"
+                    variant="ghost"
+                    size="sm"
+                    @click="confirmarDeletar(p, 'receita')"
+                  />
+                </div>
+              </div>
+            </template>
+
+            <template v-else-if="activeTab === 'exames'">
+              <div
+                v-for="p in padroesStore.exames"
+                :key="p.id"
+                class="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-muted p-3 hover:bg-muted/50"
+              >
+                <div class="min-w-0">
+                  <p class="break-words font-medium">
+                    {{ p.nome }}
+                  </p>
+                  <p class="text-xs text-muted">
+                    {{ p.exames.length }} exame{{ p.exames.length !== 1 ? 's' : '' }}
+                    &middot; {{ new Date(p.updatedAt).toLocaleDateString('pt-BR') }}
+                  </p>
+                </div>
+                <div class="flex shrink-0 gap-1">
+                  <UButton
+                    icon="i-lucide-pencil"
+                    color="neutral"
+                    variant="ghost"
+                    size="sm"
+                    @click="editarExame(p)"
+                  />
+                  <UButton
+                    icon="i-lucide-trash-2"
+                    color="error"
+                    variant="ghost"
+                    size="sm"
+                    @click="confirmarDeletar(p, 'exame')"
+                  />
+                </div>
+              </div>
+            </template>
+
+            <template v-else-if="activeTab === 'anamnese'">
+              <div
+                v-for="p in padroesAnamneseStore.padroes"
+                :key="p.id"
+                class="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-muted p-3 hover:bg-muted/50"
+              >
+                <div class="min-w-0">
+                  <p class="break-words font-medium">
+                    {{ p.nome }}
+                  </p>
+                  <p class="text-xs text-muted">
+                    {{ new Date(p.updatedAt).toLocaleDateString('pt-BR') }}
+                  </p>
+                </div>
+                <div class="flex shrink-0 gap-1">
+                  <UButton
+                    icon="i-lucide-pencil"
+                    color="neutral"
+                    variant="ghost"
+                    size="sm"
+                    @click="editarAnamnese(p)"
+                  />
+                  <UButton
+                    icon="i-lucide-trash-2"
+                    color="error"
+                    variant="ghost"
+                    size="sm"
+                    @click="confirmarDeletar(p, 'anamnese')"
+                  />
+                </div>
+              </div>
+            </template>
+
+            <template v-else-if="activeTab === 'orientacoes'">
+              <div
+                v-for="p in padroesOrientacoesStore.padroes"
+                :key="p.id"
+                class="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-muted p-3 hover:bg-muted/50"
+              >
+                <div class="min-w-0">
+                  <p class="break-words font-medium">
+                    {{ p.nome }}
+                  </p>
+                  <p class="text-xs text-muted">
+                    {{ new Date(p.updatedAt).toLocaleDateString('pt-BR') }}
+                  </p>
+                </div>
+                <div class="flex shrink-0 gap-1">
+                  <UButton
+                    icon="i-lucide-pencil"
+                    color="neutral"
+                    variant="ghost"
+                    size="sm"
+                    @click="editarOrientacao(p)"
+                  />
+                  <UButton
+                    icon="i-lucide-trash-2"
+                    color="error"
+                    variant="ghost"
+                    size="sm"
+                    @click="confirmarDeletar(p, 'orientacao')"
+                  />
+                </div>
+              </div>
+            </template>
+
+            <p
+              v-if="!padroesCarregando && activeTabEmpty()"
+              class="text-sm text-muted italic py-4 text-center"
+            >
+              Nenhum modelo cadastrado.
+            </p>
+          </div>
+        </UCard>
+      </div>
     </div>
+
+    <PadraoReceitaModal
+      v-model:open="showReceitaModal"
+      :padrao="editingReceita"
+    />
+
+    <PadraoExameModal
+      v-model:open="showExameModal"
+      :padrao="editingExame"
+    />
+
+    <PadraoAnamneseModal
+      v-model:open="showAnamneseModal"
+      :padrao="editingAnamnese"
+    />
+
+    <PadraoOrientacaoModal
+      v-model:open="showOrientacaoModal"
+      :padrao="editingOrientacao"
+    />
+
+    <ModalConfirmacao
+      :abrir="confirmDeleteId !== null"
+      titulo="Excluir padrão?"
+      descricao="Esta ação não pode ser desfeita."
+      texto-confirma="Excluir"
+      cor-confirma="error"
+      @fechar="confirmDeleteId = null; confirmDeleteTipo = null"
+      @confirmar="executarDeletar"
+    />
   </div>
 </template>

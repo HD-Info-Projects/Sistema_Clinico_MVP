@@ -17,9 +17,12 @@ const emit = defineEmits<{
 
 const { transformUpperCase, transformLowerCase, transformCapitalize } = useTextTransform()
 
+const defaultBase = 'min-h-48 flex-1 overflow-y-auto max-h-100 px-2'
+
 const mergedUi = computed(() => {
-  const merged = defu(props.ui ?? {}, { base: 'min-h-full max-h-100 overflow-auto' })
-  return { ...merged, base: `${merged.base} *:my-2 [&_p]:leading-6` }
+  const merged = defu(props.ui ?? {}, { content: 'flex min-h-0 flex-1 flex-col' })
+  const base = [defaultBase, merged.base].filter(Boolean).join(' ')
+  return { ...merged, base: `${base} *:my-2 [&_p]:leading-6` }
 })
 
 const editorRef = ref<{ editor: import('@tiptap/core').Editor | undefined }>()
@@ -84,9 +87,15 @@ onUnmounted(() => {
     @update:model-value="emit('update:modelValue', $event)"
   >
     <template #default="{ editor }">
-      <div class="flex flex-wrap gap-1 p-2 border-b border-muted bg-neutral-50 dark:bg-neutral-900 rounded-t-lg">
+      <div
+        class="flex shrink-0 flex-wrap gap-1 overflow-x-auto border-b border-muted bg-neutral-50 p-2 dark:bg-neutral-900 rounded-t-lg"
+        role="toolbar"
+        aria-label="Formatação de texto"
+      >
         <UButton
           icon="i-lucide-bold"
+          aria-label="Negrito"
+          :aria-pressed="editor?.isActive('bold')"
           size="xs"
           color="neutral"
           variant="ghost"
@@ -95,6 +104,8 @@ onUnmounted(() => {
         />
         <UButton
           icon="i-lucide-italic"
+          aria-label="Itálico"
+          :aria-pressed="editor?.isActive('italic')"
           size="xs"
           color="neutral"
           variant="ghost"
@@ -103,6 +114,8 @@ onUnmounted(() => {
         />
         <UButton
           icon="i-lucide-strikethrough"
+          aria-label="Tachado"
+          :aria-pressed="editor?.isActive('strike')"
           size="xs"
           color="neutral"
           variant="ghost"
@@ -115,6 +128,8 @@ onUnmounted(() => {
         />
         <UButton
           icon="i-lucide-heading-1"
+          aria-label="Título nível 1"
+          :aria-pressed="editor?.isActive('heading', { level: 1 })"
           size="xs"
           color="neutral"
           variant="ghost"
@@ -123,6 +138,8 @@ onUnmounted(() => {
         />
         <UButton
           icon="i-lucide-heading-2"
+          aria-label="Título nível 2"
+          :aria-pressed="editor?.isActive('heading', { level: 2 })"
           size="xs"
           color="neutral"
           variant="ghost"
@@ -131,6 +148,8 @@ onUnmounted(() => {
         />
         <UButton
           icon="i-lucide-heading-3"
+          aria-label="Título nível 3"
+          :aria-pressed="editor?.isActive('heading', { level: 3 })"
           size="xs"
           color="neutral"
           variant="ghost"
@@ -143,6 +162,8 @@ onUnmounted(() => {
         />
         <UButton
           icon="i-lucide-list"
+          aria-label="Lista com marcadores"
+          :aria-pressed="editor?.isActive('bulletList')"
           size="xs"
           color="neutral"
           variant="ghost"
@@ -151,6 +172,8 @@ onUnmounted(() => {
         />
         <UButton
           icon="i-lucide-list-ordered"
+          aria-label="Lista numerada"
+          :aria-pressed="editor?.isActive('orderedList')"
           size="xs"
           color="neutral"
           variant="ghost"
@@ -159,6 +182,8 @@ onUnmounted(() => {
         />
         <UButton
           icon="i-lucide-text-quote"
+          aria-label="Citação"
+          :aria-pressed="editor?.isActive('blockquote')"
           size="xs"
           color="neutral"
           variant="ghost"
@@ -171,6 +196,7 @@ onUnmounted(() => {
         />
         <UButton
           icon="i-lucide-undo"
+          aria-label="Desfazer"
           size="xs"
           color="neutral"
           variant="ghost"
@@ -178,6 +204,7 @@ onUnmounted(() => {
         />
         <UButton
           icon="i-lucide-redo"
+          aria-label="Refazer"
           size="xs"
           color="neutral"
           variant="ghost"
@@ -189,6 +216,7 @@ onUnmounted(() => {
           class="h-6"
         />
         <UButton
+          aria-label="Converter para maiúsculas"
           size="xs"
           color="neutral"
           variant="ghost"
@@ -197,6 +225,7 @@ onUnmounted(() => {
           <span class="font-semibold text-[10px]">AA</span>
         </UButton>
         <UButton
+          aria-label="Converter para minúsculas"
           size="xs"
           color="neutral"
           variant="ghost"
@@ -205,6 +234,7 @@ onUnmounted(() => {
           <span class="text-[10px]">aa</span>
         </UButton>
         <UButton
+          aria-label="Capitalizar texto"
           size="xs"
           color="neutral"
           variant="ghost"

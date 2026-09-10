@@ -1,10 +1,35 @@
 <!-- eslint-disable vue/no-v-html -->
 <script setup lang="ts">
-import type { HistoricoRecord, HistoricoResponse, HistoricoLocalRecord, ExameHistoricoItem, ExamePacs, ExamesPacsResponse } from '~/types'
-import { abrirExamePacs, montarExamesHistoricoUnificados } from '~/utils/historico-exames'
+import type {
+  HistoricoRecord,
+  HistoricoResponse,
+  HistoricoLocalRecord,
+  ExameHistoricoItem,
+  ExamePacs,
+  ExamesPacsResponse
+} from '~/types'
+import {
+  abrirExamePacs,
+  montarExamesHistoricoUnificados
+} from '~/utils/historico-exames'
 import { formatarDataHistorico } from '~/utils/time'
 
 const { sanitizeHtml } = useSanitize()
+
+const open = ref(true)
+const isMobile = useMediaQuery('(max-width: 1023px)')
+const route = useRoute()
+
+watch(
+  () => route.fullPath,
+  () => {
+    if (isMobile.value) open.value = false
+  }
+)
+
+provide('openNav', () => {
+  open.value = !open.value
+})
 
 const agendamentosStore = useAgendamentosStore()
 
@@ -69,9 +94,20 @@ const examesPacs = ref<ExamePacs[]>([])
 let historicoRequestId = 0
 
 watch(
-  () => [agendamento.value?.paciente?.id, agendamento.value?.spdataAtendimentoId] as const,
-  ([pacienteId, spdataAtendimentoId], [pacienteAnterior, spdataAtendimentoAnterior]) => {
-    if (pacienteId === pacienteAnterior && spdataAtendimentoId === spdataAtendimentoAnterior) return
+  () =>
+    [
+      agendamento.value?.paciente?.id,
+      agendamento.value?.spdataAtendimentoId
+    ] as const,
+  (
+    [pacienteId, spdataAtendimentoId],
+    [pacienteAnterior, spdataAtendimentoAnterior]
+  ) => {
+    if (
+      pacienteId === pacienteAnterior
+      && spdataAtendimentoId === spdataAtendimentoAnterior
+    )
+      return
     resetHistoricoState()
     if (pacienteId) void fetchHistorico()
   }
@@ -80,7 +116,13 @@ watch(
 const HISTORICO_BIODATA_LIMIT = 10
 const HISTORICO_SPDATA_LIMIT = 10
 
-const historicoExternoHasMore = computed(() => biodataHasMore.value || spdataHasMore.value)
+const historicoExternoHasMore = computed(
+  () => biodataHasMore.value || spdataHasMore.value
+)
+
+const closeNav = () => {
+  open.value = false
+}
 
 function historicoCacheKeyAtual(): string {
   const ag = agendamento.value
@@ -88,7 +130,9 @@ function historicoCacheKeyAtual(): string {
 }
 
 function isHistoricoAtual(requestId: number, cacheKey: string): boolean {
-  return requestId === historicoRequestId && cacheKey === historicoCacheKeyAtual()
+  return (
+    requestId === historicoRequestId && cacheKey === historicoCacheKeyAtual()
+  )
 }
 
 function resetHistoricoState() {
@@ -108,7 +152,11 @@ function resetHistoricoState() {
 useInfiniteScroll(
   historicoScrollRef,
   () => {
-    if (historicoExternoHasMore.value && !isLoadingHistorico.value && !isLoadingMaisHistorico.value) {
+    if (
+      historicoExternoHasMore.value
+      && !isLoadingHistorico.value
+      && !isLoadingMaisHistorico.value
+    ) {
       void carregarMaisHistoricoExterno()
     }
   },
@@ -152,9 +200,11 @@ const cardHeaderColors: Record<HistoricoCardType, string> = {
 
 function cpfHistorico(valor?: string | null): string | undefined {
   const texto = String(valor || '').trim()
-  const semDecimal = texto.endsWith('.0') && [10, 11].includes(texto.slice(0, -2).replace(/\D/g, '').length)
-    ? texto.slice(0, -2)
-    : texto
+  const semDecimal
+    = texto.endsWith('.0')
+      && [10, 11].includes(texto.slice(0, -2).replace(/\D/g, '').length)
+      ? texto.slice(0, -2)
+      : texto
   const digitos = semDecimal.replace(/\D/g, '')
   const cpf = digitos.length === 10 ? digitos.padStart(11, '0') : digitos
   if (cpf.length !== 11) return undefined
@@ -182,23 +232,29 @@ async function fetchHistorico() {
   spdataHasMore.value = false
 
   try {
-    const [biodataResult, spdataResult, localResult, pacsResult] = await Promise.allSettled([
-      buscarHistoricoBiodata(0),
-      buscarHistoricoSpdata(0),
-      buscarHistoricoLocal(pacienteId),
-      $fetch<ExamesPacsResponse>(`/api/exames-pacs/paciente/${pacienteId}`)
-    ])
+    const [biodataResult, spdataResult, localResult, pacsResult]
+      = await Promise.allSettled([
+        buscarHistoricoBiodata(0),
+        buscarHistoricoSpdata(0),
+        buscarHistoricoLocal(pacienteId),
+        $fetch<ExamesPacsResponse>(`/api/exames-pacs/paciente/${pacienteId}`)
+      ])
 
     if (!isHistoricoAtual(requestId, cacheKey)) return
 
-    const biodataResponse = biodataResult.status === 'fulfilled' ? biodataResult.value : null
-    const spdataResponse = spdataResult.status === 'fulfilled' ? spdataResult.value : null
-    localHistorico.value = localResult.status === 'fulfilled' ? localResult.value : []
-    examesPacs.value = pacsResult.status === 'fulfilled' ? (pacsResult.value.items || []) : []
+    const biodataResponse
+      = biodataResult.status === 'fulfilled' ? biodataResult.value : null
+    const spdataResponse
+      = spdataResult.status === 'fulfilled' ? spdataResult.value : null
+    localHistorico.value
+      = localResult.status === 'fulfilled' ? localResult.value : []
+    examesPacs.value
+      = pacsResult.status === 'fulfilled' ? pacsResult.value.items || [] : []
 
     if (biodataResponse) {
       adicionarRegistrosBiodata(biodataResponse.items)
-      biodataOffset.value = biodataResponse.offset + biodataResponse.items.length
+      biodataOffset.value
+        = biodataResponse.offset + biodataResponse.items.length
       biodataHasMore.value = biodataResponse.has_more
     }
     if (spdataResponse) {
@@ -230,68 +286,111 @@ async function fetchHistorico() {
   }
 }
 
-async function buscarHistoricoLocal(pacienteId: number): Promise<HistoricoLocalRecord[]> {
+async function buscarHistoricoLocal(
+  pacienteId: number
+): Promise<HistoricoLocalRecord[]> {
   const ag = agendamento.value
 
-  return await $fetch<HistoricoLocalRecord[]>(`/api/historico-local/${pacienteId}`, {
-    query: {
-      cpf: cpfHistorico(ag?.paciente.cpf),
-      nome: ag?.paciente.nome || undefined,
-      spdataAtendimentoId: ag?.spdataAtendimentoId || undefined
+  return await $fetch<HistoricoLocalRecord[]>(
+    `/api/historico-local/${pacienteId}`,
+    {
+      query: {
+        cpf: cpfHistorico(ag?.paciente.cpf),
+        nome: ag?.paciente.nome || undefined,
+        spdataAtendimentoId: ag?.spdataAtendimentoId || undefined
+      }
     }
-  })
+  )
 }
 
-async function buscarHistoricoBiodata(offset: number): Promise<HistoricoResponse> {
+async function buscarHistoricoBiodata(
+  offset: number
+): Promise<HistoricoResponse> {
   const ag = agendamento.value
   const paciente = ag?.paciente
   const pacienteId = paciente?.id
   if (!pacienteId) {
-    return { items: [], limit: HISTORICO_BIODATA_LIMIT, offset, has_more: false }
-  }
-
-  return await $fetch<HistoricoResponse>(`/api/historico-paciente/${pacienteId}`, {
-    query: {
-      cpf: cpfHistorico(paciente.cpf),
-      nome: paciente.nome || undefined,
-      spdataAtendimentoId: ag?.spdataAtendimentoId || undefined,
+    return {
+      items: [],
       limit: HISTORICO_BIODATA_LIMIT,
-      offset
+      offset,
+      has_more: false
     }
-  })
+  }
+
+  return await $fetch<HistoricoResponse>(
+    `/api/historico-paciente/${pacienteId}`,
+    {
+      query: {
+        cpf: cpfHistorico(paciente.cpf),
+        nome: paciente.nome || undefined,
+        spdataAtendimentoId: ag?.spdataAtendimentoId || undefined,
+        limit: HISTORICO_BIODATA_LIMIT,
+        offset
+      }
+    }
+  )
 }
 
-async function buscarHistoricoSpdata(offset: number): Promise<HistoricoResponse> {
+async function buscarHistoricoSpdata(
+  offset: number
+): Promise<HistoricoResponse> {
   const ag = agendamento.value
   const paciente = ag?.paciente
   const pacienteId = paciente?.id
   if (!pacienteId) {
-    return { items: [], limit: HISTORICO_SPDATA_LIMIT, offset, has_more: false }
+    return {
+      items: [],
+      limit: HISTORICO_SPDATA_LIMIT,
+      offset,
+      has_more: false
+    }
   }
 
-  return await $fetch<HistoricoResponse>(`/api/historico-spdata/${pacienteId}`, {
-    query: {
-      cpf: cpfHistorico(paciente.cpf),
-      nome: paciente.nome || undefined,
-      spdataAtendimentoId: ag?.spdataAtendimentoId || undefined,
-      limit: HISTORICO_SPDATA_LIMIT,
-      offset
+  return await $fetch<HistoricoResponse>(
+    `/api/historico-spdata/${pacienteId}`,
+    {
+      query: {
+        cpf: cpfHistorico(paciente.cpf),
+        nome: paciente.nome || undefined,
+        spdataAtendimentoId: ag?.spdataAtendimentoId || undefined,
+        limit: HISTORICO_SPDATA_LIMIT,
+        offset
+      }
     }
-  })
+  )
 }
 
 async function carregarMaisHistoricoExterno() {
-  if (!historicoExternoHasMore.value || isLoadingMaisHistorico.value || isLoadingHistorico.value) return
+  if (
+    !historicoExternoHasMore.value
+    || isLoadingMaisHistorico.value
+    || isLoadingHistorico.value
+  )
+    return
 
   isLoadingMaisHistorico.value = true
   try {
-    const requests: Promise<{ origem: 'biodata' | 'spdata', response: HistoricoResponse }>[] = []
+    const requests: Promise<{
+      origem: 'biodata' | 'spdata'
+      response: HistoricoResponse
+    }>[] = []
 
     if (biodataHasMore.value) {
-      requests.push(buscarHistoricoBiodata(biodataOffset.value).then(response => ({ origem: 'biodata' as const, response })))
+      requests.push(
+        buscarHistoricoBiodata(biodataOffset.value).then(response => ({
+          origem: 'biodata' as const,
+          response
+        }))
+      )
     }
     if (spdataHasMore.value) {
-      requests.push(buscarHistoricoSpdata(spdataOffset.value).then(response => ({ origem: 'spdata' as const, response })))
+      requests.push(
+        buscarHistoricoSpdata(spdataOffset.value).then(response => ({
+          origem: 'spdata' as const,
+          response
+        }))
+      )
     }
 
     const results = await Promise.allSettled(requests)
@@ -344,25 +443,46 @@ function adicionarRegistrosSpdata(registros: HistoricoRecord[]) {
 }
 
 function chaveHistoricoBiodata(registro: HistoricoRecord) {
-  return registro.ID_ANAMNESE || `${registro.ID_ATENDIMENTO || ''}-${registro.DATA_ANAMNESE || ''}-${registro.ANAMNESE || ''}`
+  return (
+    registro.ID_ANAMNESE
+    || `${registro.ID_ATENDIMENTO || ''}-${registro.DATA_ANAMNESE || ''}-${registro.ANAMNESE || ''}`
+  )
 }
 
 function chaveHistoricoSpdata(registro: HistoricoRecord) {
-  return registro.ID_ANAMNESE || `spdata-${registro.ID_ATENDIMENTO || ''}-${registro.DATA_ANAMNESE || ''}-${registro.ANAMNESE || ''}`
+  return (
+    registro.ID_ANAMNESE
+    || `spdata-${registro.ID_ATENDIMENTO || ''}-${registro.DATA_ANAMNESE || ''}-${registro.ANAMNESE || ''}`
+  )
 }
 
 function remontarHistoricoItems() {
-  historicoItems.value = montarHistoricoItems(biodataHistorico.value, spdataHistorico.value, localHistorico.value)
+  historicoItems.value = montarHistoricoItems(
+    biodataHistorico.value,
+    spdataHistorico.value,
+    localHistorico.value
+  )
 }
 
-function montarHistoricoItems(biodata: HistoricoRecord[], spdata: HistoricoRecord[], local: HistoricoLocalRecord[]) {
+function montarHistoricoItems(
+  biodata: HistoricoRecord[],
+  spdata: HistoricoRecord[],
+  local: HistoricoLocalRecord[]
+) {
   const items: HistoricoTimelineItem[] = []
-  const historicoExternoPorAtendimento = new Map<string, HistoricoTimelineItem>()
-  const examesUnificados = montarExamesHistoricoUnificados(local, examesPacs.value)
+  const historicoExternoPorAtendimento = new Map<
+    string,
+    HistoricoTimelineItem
+  >()
+  const examesUnificados = montarExamesHistoricoUnificados(
+    local,
+    examesPacs.value
+  )
 
   for (const r of [...biodata, ...spdata]) {
     const origemSpdata = r.ORIGEM === 'SPDATA'
-    const dataHistorico = r.DATA_ANAMNESE || r.DATA_CONSULTA || r.DATA_ENCERRAMENTO || ''
+    const dataHistorico
+      = r.DATA_ANAMNESE || r.DATA_CONSULTA || r.DATA_ENCERRAMENTO || ''
     const idGrupo = origemSpdata
       ? `spdata-${r.ID_ANAMNESE || dataHistorico || r.ID_ATENDIMENTO}`
       : `biodata-${dataHistorico || r.ID_ANAMNESE}`
@@ -375,7 +495,8 @@ function montarHistoricoItems(biodata: HistoricoRecord[], spdata: HistoricoRecor
         time: formatarHoraHistorico(dataHistorico),
         icon: 'i-lucide-calendar',
         subtitle: montarSubtituloHistoricoExterno(r),
-        _sortKey: r.DATA_ANAMNESE || r.DATA_CONSULTA || r.DATA_ENCERRAMENTO || '',
+        _sortKey:
+          r.DATA_ANAMNESE || r.DATA_CONSULTA || r.DATA_ENCERRAMENTO || '',
         cards: []
       }
       historicoExternoPorAtendimento.set(idGrupo, item)
@@ -412,10 +533,35 @@ function montarHistoricoItems(biodata: HistoricoRecord[], spdata: HistoricoRecor
       subtitle: l.medico_nome || undefined,
       _sortKey: dataHistorico,
       cards: [
-        { id: 'anamnese-local', type: 'Anamnese', title: 'Anamnese', icon: 'i-lucide-file-text', description: l.anamnese || '' },
-        { id: 'diagnostico-local', type: 'diagnostico', title: 'diagnostico', icon: 'i-lucide-clipboard-check', description: montarDiagnosticos(l) },
-        { id: 'receita-local', type: 'receita', title: 'receita', icon: 'i-lucide-pill', description: l.medicamentos?.join('\n') || '' },
-        { id: 'exames-local', type: 'exames', title: 'exames', icon: 'i-lucide-flask-conical', description: '', exames: examesUnificados.examesPorRegistroLocal[index] || [] }
+        {
+          id: 'anamnese-local',
+          type: 'Anamnese',
+          title: 'Anamnese',
+          icon: 'i-lucide-file-text',
+          description: l.anamnese || ''
+        },
+        {
+          id: 'diagnostico-local',
+          type: 'diagnostico',
+          title: 'diagnostico',
+          icon: 'i-lucide-clipboard-check',
+          description: montarDiagnosticos(l)
+        },
+        {
+          id: 'receita-local',
+          type: 'receita',
+          title: 'receita',
+          icon: 'i-lucide-pill',
+          description: l.medicamentos?.join('\n') || ''
+        },
+        {
+          id: 'exames-local',
+          type: 'exames',
+          title: 'exames',
+          icon: 'i-lucide-flask-conical',
+          description: '',
+          exames: examesUnificados.examesPorRegistroLocal[index] || []
+        }
       ]
     })
   }
@@ -430,22 +576,34 @@ function montarHistoricoItems(biodata: HistoricoRecord[], spdata: HistoricoRecor
       subtitle: 'SPDATA',
       _sortKey: dataHistorico,
       cards: [
-        { id: 'exames-realizados', type: 'exames', title: 'exames realizados', icon: 'i-lucide-file-search', description: '', exames: grupo.exames }
+        {
+          id: 'exames-realizados',
+          type: 'exames',
+          title: 'exames realizados',
+          icon: 'i-lucide-file-search',
+          description: '',
+          exames: grupo.exames
+        }
       ]
     })
   }
 
-  items.sort((a, b) => timestampHistorico(b._sortKey) - timestampHistorico(a._sortKey))
+  items.sort(
+    (a, b) => timestampHistorico(b._sortKey) - timestampHistorico(a._sortKey)
+  )
 
   return items
 }
 
-function montarSubtituloHistoricoExterno(item: HistoricoRecord): string | undefined {
+function montarSubtituloHistoricoExterno(
+  item: HistoricoRecord
+): string | undefined {
   if (item.ORIGEM !== 'SPDATA') return item.MEDICO || undefined
 
-  return ['SPDATA', item.MODELO_EVOLUCAO, item.MEDICO]
-    .filter(Boolean)
-    .join(' · ') || undefined
+  return (
+    ['SPDATA', item.MODELO_EVOLUCAO, item.MEDICO].filter(Boolean).join(' · ')
+    || undefined
+  )
 }
 
 function timestampHistorico(valor: string): number {
@@ -457,12 +615,17 @@ function formatarHoraHistorico(dataStr: string): string {
   if (!dataStr) return ''
   const data = new Date(dataStr)
   if (Number.isNaN(data.getTime())) return ''
-  return data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  return data.toLocaleTimeString('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit'
+  })
 }
 
 function adicionarCardUnico(item: HistoricoTimelineItem, card: HistoricoCard) {
   if (!temConteudoUtil(card.description)) return
-  const existe = item.cards.some(c => c.type === card.type && c.description === card.description)
+  const existe = item.cards.some(
+    c => c.type === card.type && c.description === card.description
+  )
   if (!existe) item.cards.push(card)
 }
 
@@ -474,12 +637,25 @@ function montarDiagnosticosBiodata(item: HistoricoRecord): string {
   const partes: string[] = []
 
   if (item.CID_PRINCIPAL || item.DIAGNOSTICO_PRINCIPAL) {
-    partes.push([item.CID_PRINCIPAL, item.DIAGNOSTICO_PRINCIPAL].filter(Boolean).join(' — '))
+    partes.push(
+      [item.CID_PRINCIPAL, item.DIAGNOSTICO_PRINCIPAL]
+        .filter(Boolean)
+        .join(' — ')
+    )
   }
 
-  for (const cid of [item.CID_SECUNDARIO, item.CID_TERCIARIO, item.CID_QUATERNARIO]) {
+  for (const cid of [
+    item.CID_SECUNDARIO,
+    item.CID_TERCIARIO,
+    item.CID_QUATERNARIO
+  ]) {
     if (!cid) continue
-    partes.push(...cid.split('\n').map(c => c.trim()).filter(Boolean))
+    partes.push(
+      ...cid
+        .split('\n')
+        .map(c => c.trim())
+        .filter(Boolean)
+    )
   }
 
   if (item.DIAGNOSTICO_SECUNDARIO) {
@@ -493,7 +669,9 @@ function montarDiagnosticos(item: HistoricoLocalRecord): string {
   // Formata CID principal + secundários para exibição no card de diagnóstico
   const partes: string[] = []
   if (item.cid_principal) {
-    partes.push(`${item.cid_principal} — ${item.cid_principal_descricao || ''} (principal)`)
+    partes.push(
+      `${item.cid_principal} — ${item.cid_principal_descricao || ''} (principal)`
+    )
   }
   for (const s of item.cids_secundarios) {
     partes.push(`${s.codigo} — ${s.descricao || ''}`)
@@ -513,20 +691,32 @@ function voltarDashboard() {
 <template>
   <div
     v-if="agendamento"
-    class="h-screen flex overflow-hidden"
+    class="flex h-dvh min-h-0 overflow-hidden"
   >
     <USidebar
+      v-model:open="open"
       collapsible="icon"
-      :style="{ '--sidebar-width': '35rem' }"
+      class="max-w-full min-h-0 shrink-0"
+      :style="{ '--sidebar-width': 'min(35rem, 100vw)' }"
     >
       <template #header>
-        <div class="flex flex-wrap items-center gap-2">
+        <div class="flex items-center justify-between w-full">
           <UButton
+            class="hidden sm:block"
             icon="i-lucide-arrow-left"
             label="Voltar pro Dashboard"
             variant="ghost"
             color="neutral"
             @click="voltarDashboard"
+          />
+          <UButton
+            icon="i-lucide-arrow-left"
+            label="Voltar para o Atendimento"
+            color="neutral"
+            variant="ghost"
+            class="lg:hidden"
+            aria-label="Abrir menu"
+            @click="closeNav()"
           />
         </div>
       </template>
@@ -536,18 +726,25 @@ function voltarDashboard() {
           color="primary"
           :alt="agendamento.paciente.nome"
         />
-        <div>
-          <p class="text-md font-semibold">
+        <div class="min-w-0">
+          <p class="text-base font-semibold wrap-break-word">
             {{ agendamento.paciente.nome }}
           </p>
-          <p class="text-sm text-muted">
-            {{ calcularIdade(agendamento.paciente.dataNascimento) }} anos
-            · {{ agendamento.paciente.sexo === 'masculino' ? 'Masculino' : 'Feminino' }}
+          <p class="text-sm text-muted wrap-break-word">
+            {{ calcularIdade(agendamento.paciente.dataNascimento) }} anos ·
+            {{
+              agendamento.paciente.sexo === "masculino"
+                ? "Masculino"
+                : "Feminino"
+            }}
             · Convênio: {{ agendamento.paciente.convenio }}
           </p>
         </div>
       </div>
-      <div class="space-y-2 flex flex-col gap-1 justify-center items-center overflow-y-hidden">
+      <div
+        ref="historicoScrollRef"
+        class="flex min-h-0 w-full flex-1 flex-col items-center gap-1 overflow-y-auto"
+      >
         <USeparator />
         <div class="flex flex-col items-center justify-center gap-2">
           <div class="flex items-center gap-1">
@@ -608,10 +805,7 @@ function voltarDashboard() {
           </div>
         </div>
         <USeparator />
-        <div
-          ref="historicoScrollRef"
-          class="overflow-y-auto max-h-[calc(100vh-18rem)] w-full px-2"
-        >
+        <div class="w-full px-2">
           <UTimeline
             :items="historicoItemsVisiveis"
             color="primary"
@@ -625,7 +819,9 @@ function voltarDashboard() {
                   <span
                     v-if="item.time"
                     class="block text-xs text-muted"
-                  >{{ item.time }}</span>
+                  >{{
+                    item.time
+                  }}</span>
                 </div>
                 <span
                   v-if="item.subtitle"
@@ -640,7 +836,11 @@ function voltarDashboard() {
                   :key="card.id"
                 >
                   <UCard
-                    v-if="card.type === 'exames' ? (card.exames?.length ?? 0) > 0 : temConteudoUtil(card.description)"
+                    v-if="
+                      card.type === 'exames'
+                        ? (card.exames?.length ?? 0) > 0
+                        : temConteudoUtil(card.description)
+                    "
                     class="rounded-lg border border-muted hover:bg-muted/50"
                     :ui="{
                       header: `p-0.5 sm:px-2 ${cardHeaderColors[card.type]}`,
@@ -658,7 +858,9 @@ function voltarDashboard() {
                         </p>
                       </div>
                     </template>
-                    <template v-if="card.type === 'exames' && card.exames?.length">
+                    <template
+                      v-if="card.type === 'exames' && card.exames?.length"
+                    >
                       <div class="text-sm space-y-1.5">
                         <div
                           v-for="(exame, idx) in card.exames"
@@ -670,13 +872,23 @@ function voltarDashboard() {
                             v-if="exame.temImagem"
                             name="i-lucide-eye"
                             class="size-4 shrink-0 text-primary cursor-pointer hover:text-primary-600"
-                            @click.stop="abrirExamePacs(exame.idTokenLancamentoExame, 'imagem')"
+                            @click.stop="
+                              abrirExamePacs(
+                                exame.idTokenLancamentoExame,
+                                'imagem'
+                              )
+                            "
                           />
                           <UIcon
                             v-if="exame.temLaudo"
                             name="i-lucide-file-text"
                             class="size-4 shrink-0 text-secondary cursor-pointer hover:text-secondary-600"
-                            @click.stop="abrirExamePacs(exame.idTokenLancamentoExame, 'laudo')"
+                            @click.stop="
+                              abrirExamePacs(
+                                exame.idTokenLancamentoExame,
+                                'laudo'
+                              )
+                            "
                           />
                         </div>
                         <template
@@ -687,7 +899,8 @@ function voltarDashboard() {
                             v-if="exame.orientacao"
                             class="text-xs text-muted mt-0.5"
                           >
-                            <strong>{{ exame.nome }}:</strong> {{ exame.orientacao }}
+                            <strong>{{ exame.nome }}:</strong>
+                            {{ exame.orientacao }}
                           </div>
                         </template>
                       </div>
@@ -696,15 +909,23 @@ function voltarDashboard() {
                       <div class="relative">
                         <!-- eslint-disable vue/no-v-html -->
                         <div
-                          class="text-sm cursor-pointer whitespace-pre-line"
-                          :class="expandedContent[item.id + '-' + card.id] ? '' : 'line-clamp-3'"
+                          class="cursor-pointer overflow-hidden wrap-break-word text-sm whitespace-pre-line **:max-w-full"
+                          :class="
+                            expandedContent[item.id + '-' + card.id]
+                              ? ''
+                              : 'line-clamp-3'
+                          "
                           @click="toggleContent(item.id + '-' + card.id)"
                           v-html="sanitizeHtml(card.description)"
                         />
                         <!-- eslint-enable vue/no-v-html -->
                         <UIcon
                           v-if="card.description.length > 100"
-                          :name="expandedContent[item.id + '-' + card.id] ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+                          :name="
+                            expandedContent[item.id + '-' + card.id]
+                              ? 'i-lucide-chevron-up'
+                              : 'i-lucide-chevron-down'
+                          "
                           class="absolute bottom-0 right-0 dark:bg-neutral-900 px-1 cursor-pointer text-muted"
                           @click.stop="toggleContent(item.id + '-' + card.id)"
                         />
@@ -734,13 +955,41 @@ function voltarDashboard() {
         </div>
       </div>
     </USidebar>
-    <main class="flex-1 overflow-y-auto bg-neutral-100 dark:bg-neutral-950">
+    <main
+      class="min-h-0 min-w-0 flex-1 overflow-hidden bg-muted"
+    >
       <slot />
     </main>
   </div>
   <div
+    v-else-if="agendamentosStore.loading"
+    class="flex h-dvh items-center justify-center bg-muted"
+    role="status"
+  >
+    <UCard class="w-full max-w-md">
+      <div class="flex flex-col gap-6 p-6 sm:p-8">
+        <div class="flex items-center gap-4">
+          <USkeleton class="size-16 shrink-0 rounded-full" />
+          <div class="min-w-0 flex-1 space-y-2">
+            <USkeleton class="h-5 w-40 max-w-full" />
+            <USkeleton class="h-4 w-56 max-w-full" />
+          </div>
+        </div>
+        <div class="space-y-2">
+          <USkeleton class="h-4 w-full" />
+          <USkeleton class="h-4 w-full" />
+          <USkeleton class="h-4 w-3/4" />
+        </div>
+        <div class="flex gap-2">
+          <USkeleton class="h-10 w-28 rounded-lg" />
+          <USkeleton class="h-10 w-28 rounded-lg" />
+        </div>
+      </div>
+    </UCard>
+  </div>
+  <div
     v-else
-    class="h-screen flex items-center justify-center bg-neutral-100 dark:bg-neutral-950"
+    class="flex h-dvh items-center justify-center bg-muted"
   >
     <UCard>
       <div class="flex flex-col items-center py-12 gap-4">
@@ -751,7 +1000,8 @@ function voltarDashboard() {
           Nenhum paciente em atendimento
         </p>
         <p class="text-sm text-muted">
-          Selecione um paciente no Dashboard e clique em "Atender" para iniciar o atendimento.
+          Selecione um paciente no Dashboard e clique em "Atender" para iniciar
+          o atendimento.
         </p>
         <UButton
           label="Ir para o Dashboard"

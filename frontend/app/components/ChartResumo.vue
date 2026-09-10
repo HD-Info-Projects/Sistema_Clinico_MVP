@@ -11,6 +11,7 @@ const props = defineProps<{
   emAtendimento: number
   atendidos: number
   faltas: number
+  loading?: boolean
 }>()
 
 const colors = ref({
@@ -81,16 +82,34 @@ const options = {
 </script>
 
 <template>
-  <div class="relative flex items-center justify-center min-h-64">
-    <ClientOnly>
+  <div class="relative flex min-h-56 w-full min-w-0 items-center justify-center sm:min-h-64">
+    <div
+      v-if="loading"
+      role="status"
+      class="flex max-w-full items-center gap-4 sm:gap-8"
+    >
+      <USkeleton class="aspect-square w-48 max-w-full rounded-full sm:w-56" />
+      <div class="space-y-3">
+        <div
+          v-for="i in 5"
+          :key="i"
+        >
+          <USkeleton class="h-4 w-24 max-w-full" />
+        </div>
+      </div>
+    </div>
+
+    <ClientOnly v-else>
       <Doughnut
         :data="data"
         :options="options"
-        class="w-64 h-64"
+        class="aspect-square h-auto max-h-64 w-full max-w-full"
+        role="img"
+        aria-label="Gráfico de resumo dos atendimentos"
       />
       <template #fallback>
-        <div class="flex items-center gap-8">
-          <div class="size-48 rounded-full bg-neutral-200 dark:bg-neutral-800 animate-pulse" />
+        <div class="flex max-w-full items-center gap-4 sm:gap-8">
+          <div class="aspect-square w-48 max-w-full animate-pulse rounded-full bg-neutral-200 dark:bg-neutral-800" />
           <div class="space-y-3">
             <div
               v-for="i in 4"
@@ -101,9 +120,12 @@ const options = {
         </div>
       </template>
     </ClientOnly>
-    <div class="absolute inset-0 flex items-center justify-center pointer-events-none mb-8">
+    <div
+      v-if="!loading"
+      class="pointer-events-none absolute inset-0 mb-8 flex items-center justify-center"
+    >
       <div class="text-center">
-        <p class="text-4xl font-bold">
+        <p class="text-3xl font-bold sm:text-4xl">
           {{ props.total }}
         </p>
         <p class="text-xs text-muted">

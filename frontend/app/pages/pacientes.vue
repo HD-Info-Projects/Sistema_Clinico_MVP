@@ -22,6 +22,7 @@ import {
 } from '~/utils/pdf-documents'
 import { gerarHtmlGuiaInternacao, gerarHtmlGuiaOpme, gerarHtmlGuiaTiss, imprimirGuiaInternacao, imprimirGuiaOpme, imprimirGuiaTiss } from '~/utils/guia-tiss'
 
+const openNav = inject<() => void>('openNav', () => {})
 const auth = useAuthStore()
 
 const df = new DateFormatter('pt-BR', {
@@ -571,8 +572,22 @@ function dropdownItems(ag: AgendamentoComPaciente) {
 
 <template>
   <div>
-    <UHeader title="Meus Pacientes" />
-    <div class="p-6 bg-neutral-100 dark:bg-neutral-950 min-h-screen space-y-6">
+    <UHeader
+      title="Meus Pacientes"
+      toggle-side="left"
+    >
+      <template #toggle>
+        <UButton
+          icon="i-lucide-menu"
+          color="neutral"
+          variant="ghost"
+          class="min-h-11 min-w-11 lg:hidden"
+          aria-label="Abrir menu"
+          @click="openNav()"
+        />
+      </template>
+    </UHeader>
+    <div class="min-h-screen min-w-0 space-y-6 bg-muted p-3 sm:p-6">
       <div class="flex flex-col sm:flex-row gap-3">
         <UInput
           v-model="buscaNome"
@@ -586,6 +601,7 @@ function dropdownItems(ag: AgendamentoComPaciente) {
             color="neutral"
             variant="subtle"
             icon="i-lucide-calendar"
+            class="min-h-10 w-full justify-center whitespace-normal sm:w-auto"
           >
             {{ filtroData ? df.format(filtroData.toDate(getLocalTimeZone())) : 'Select a date' }}
           </UButton>
@@ -601,12 +617,24 @@ function dropdownItems(ag: AgendamentoComPaciente) {
 
       <div
         v-if="isLoading"
-        class="flex justify-center py-12"
+        role="status"
+        class="space-y-3"
       >
-        <UIcon
-          name="i-lucide-loader-circle"
-          class="size-8 animate-spin text-muted"
-        />
+        <UCard
+          v-for="linha in 4"
+          :key="linha"
+          class="border border-muted"
+          :ui="{ body: 'p-4 sm:p-4' }"
+        >
+          <div class="flex min-w-0 items-center gap-4">
+            <USkeleton class="size-12 shrink-0 rounded-full" />
+            <div class="min-w-0 space-y-2">
+              <USkeleton class="h-5 w-48 max-w-full" />
+              <USkeleton class="h-4 w-72 max-w-full" />
+              <USkeleton class="h-4 w-40 max-w-full" />
+            </div>
+          </div>
+        </UCard>
       </div>
 
       <div
@@ -631,7 +659,7 @@ function dropdownItems(ag: AgendamentoComPaciente) {
           class="border border-muted"
           :ui="{ body: 'p-4 sm:p-4' }"
         >
-          <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div class="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div class="flex min-w-0 items-center w-full gap-4">
               <UAvatar
                 :alt="ag.paciente.nome"
@@ -640,13 +668,13 @@ function dropdownItems(ag: AgendamentoComPaciente) {
                 class="shrink-0"
               />
 
-              <div class="min-w-0 w-full ">
-                <div class="flex justify-between w-full items-center gap-2">
+              <div class="min-w-0 w-full">
+                <div class="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <p class="font-semibold text-base text-default truncate">
                     {{ ag.paciente.nome }}
                   </p>
 
-                  <span class="flex items-center font-semibold gap-1">
+                  <span class="flex shrink-0 items-center gap-1 text-sm font-semibold sm:text-base">
                     <UIcon
                       name="i-lucide-calendar"
                       class="size-4"
@@ -655,14 +683,14 @@ function dropdownItems(ag: AgendamentoComPaciente) {
                   </span>
                 </div>
 
-                <p class="text-sm text-muted">
+                <p class="break-words text-sm text-muted">
                   {{ calcularIdade(ag.paciente.dataNascimento) }} anos · {{ ag.paciente.convenio }}
                 </p>
 
                 <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
                   <span
                     v-if="ag.paciente.telefone"
-                    class="inline-flex items-center gap-1"
+                    class="inline-flex min-w-0 items-center gap-1 break-all"
                   >
                     <UIcon
                       name="i-lucide-phone"
@@ -672,7 +700,7 @@ function dropdownItems(ag: AgendamentoComPaciente) {
                   </span>
                   <span
                     v-if="ag.paciente.email"
-                    class="inline-flex items-center gap-1"
+                    class="inline-flex min-w-0 items-center gap-1 break-all"
                   >
                     <UIcon
                       name="i-lucide-mail"
@@ -684,13 +712,14 @@ function dropdownItems(ag: AgendamentoComPaciente) {
               </div>
             </div>
 
-            <div class="flex items-center gap-2 sm:justify-end">
+            <div class="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
               <UButton
                 icon="i-lucide-clock"
                 label="Histórico"
                 color="neutral"
                 variant="outline"
                 size="sm"
+                class="min-h-10 justify-center"
                 @click="abrirHistorico(ag)"
               />
               <UDropdownMenu
@@ -706,6 +735,7 @@ function dropdownItems(ag: AgendamentoComPaciente) {
                   color="primary"
                   variant="outline"
                   size="sm"
+                  class="min-h-10 justify-center"
                 />
               </UDropdownMenu>
             </div>

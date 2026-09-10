@@ -9,6 +9,7 @@ const props = defineProps<{
 }>()
 
 const usuariosStore = useUsuariosStore()
+const openNav = inject<() => void>('openNav', () => {})
 
 const busca = ref('')
 const showFormModal = ref(false)
@@ -16,22 +17,6 @@ const editingUsuario = ref<Usuario | null>(null)
 const confirmDeleteId = ref<number | null>(null)
 
 let buscaTimer: ReturnType<typeof setTimeout> | null = null
-
-const colunas = computed(() => {
-  const base = [
-    { accessorKey: 'nome', header: 'Nome' },
-    { accessorKey: 'email', header: 'Email' },
-    { accessorKey: 'ativo', header: 'Status' },
-    { id: 'acoes', header: 'Acoes' }
-  ]
-  if (props.role === 'medico') {
-    base.splice(1, 0,
-      { accessorKey: 'crm', header: 'CRM' },
-      { accessorKey: 'especialidade', header: 'Especialidade' }
-    )
-  }
-  return base
-})
 
 const listaFiltrada = computed(() => {
   const lista = usuariosStore.porRole(props.role)
@@ -90,23 +75,41 @@ function onSaved() {
 
 <template>
   <div>
-    <UHeader :title="titulo">
-      <template #right>
+    <UHeader
+      :title="titulo"
+      toggle-side="left"
+    >
+      <template #toggle>
         <UButton
-          icon="i-lucide-plus"
-          :label="`Novo ${titulo.replace('s', '')}`"
-          @click="abrirNovo"
+          icon="i-lucide-menu"
+          color="neutral"
+          variant="ghost"
+          class="min-h-11 min-w-11 lg:hidden"
+          aria-label="Abrir menu"
+          @click="openNav()"
         />
-        <UColorModeButton />
+      </template>
+      <template #right>
+        <div class="flex flex-wrap items-center justify-end gap-2">
+          <UButton
+            icon="i-lucide-plus"
+            :label="`Novo ${titulo.replace('s', '')}`"
+            :ui="{ label: 'hidden sm:inline' }"
+            :aria-label="`Novo ${titulo.replace('s', '')}`"
+            @click="abrirNovo"
+          />
+          <UColorModeButton />
+        </div>
       </template>
     </UHeader>
 
-    <div class="p-6 bg-neutral-100 dark:bg-neutral-950 min-h-screen space-y-6">
+    <div class="min-h-screen space-y-6 bg-muted p-4 sm:p-6">
       <UInput
         v-model="busca"
         icon="i-lucide-search"
         :placeholder="placeholderBusca"
         class="w-full"
+        :aria-label="`Buscar ${titulo.toLowerCase()}`"
       />
 
       <div
@@ -158,88 +161,134 @@ function onSaved() {
         v-else
         class="w-full"
       >
-        <UTable
-          :columns="colunas"
-          :data="listaFiltrada"
-          class="w-full"
-        >
-          <template #nome-cell="{ row }">
-            <div class="flex items-center gap-3">
-              <UAvatar
-                :alt="row.original.nome_completo"
-                color="primary"
-                size="sm"
-              />
-              <div>
-                <p class="font-medium">
-                  {{ row.original.nome_completo }}
+        <div class="flex flex-col">
+          <UPageCard
+            v-for="usuario in listaFiltrada"
+            :key="usuario.id"
+            variant="ghost"
+            class="border-b border-muted rounded-none"
+            :ui="{ container: 'px-4 sm:p-1 pb-3 sm:px-4' }"
+          >
+            <div
+              class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2"
+              :class="role === 'medico' ? 'lg:grid-cols-[max-content_4fr_1fr_1fr_2fr_1fr_1fr_1fr_2fr]' : 'md:grid-cols-12'"
+            >
+              <div :class="role === 'medico' ? 'lg:col-span-2' : 'lg:col-span-4'">
+                <p class="text-sm font-bold text-muted">
+                  Nome
                 </p>
-                <p class="text-xs text-muted">
-                  {{ formatarCpfCnpj(row.original.cnpj_cpf) }}
+                <div class="flex min-w-0 items-center gap-3">
+                  <UAvatar
+                    :alt="usuario.nome_completo"
+                    color="primary"
+                    size="sm"
+                  />
+                  <div class="min-w-0">
+                    <p class="wrap-break-word font-medium">
+                      {{ usuario.nome_completo }}
+                    </p>
+                    <p class="text-xs text-muted">
+                      {{ formatarCpfCnpj(usuario.cnpj_cpf) }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                v-if="role === 'medico'"
+                class="lg:col-span-1"
+              >
+                <p class="text-sm font-bold text-muted">
+                  CRM
+                </p>
+                <span class="font-mono text-sm">
+                  {{ usuario.medico?.crm || usuario.medico?.crm_atendimento_spdata || '-' }}
+                </span>
+              </div>
+
+              <div
+                v-if="role === 'medico'"
+                class="lg:col-span-2"
+              >
+                <p class="text-sm font-bold text-muted">
+                  Especialidade
+                </p>
+                <UBadge
+                  v-if="usuario.medico?.especialidade"
+                  :label="usuario.medico.especialidade"
+                  color="neutral"
+                  variant="subtle"
+                  size="sm"
+                />
+                <span
+                  v-else
+                  class="text-sm text-muted"
+                >-</span>
+              </div>
+
+              <div :class="role === 'medico' ? 'lg:col-span-2' : 'lg:col-span-4'">
+                <p class="text-sm font-bold text-muted">
+                  Email
+                </p>
+                <p class="break-all text-sm">
+                  {{ usuario.email }}
                 </p>
               </div>
+
+              <div :class="role === 'medico' ? 'lg:col-span-1' : 'lg:col-span-2'">
+                <p class="text-sm font-bold text-muted">
+                  Status
+                </p>
+                <UBadge
+                  :label="usuario.ativo ? 'Ativo' : 'Inativo'"
+                  :color="usuario.ativo ? 'success' : 'neutral'"
+                  variant="subtle"
+                  size="sm"
+                />
+              </div>
+
+              <div :class="role === 'medico' ? '' : 'sm:col-span-2 lg:col-span-2'">
+                <p class="text-sm font-bold text-muted">
+                  Ações
+                </p>
+                <div class="flex items-center gap-1">
+                  <UButton
+                    v-if="role === 'medico'"
+                    icon="i-lucide-notebook-pen"
+                    color="neutral"
+                    variant="ghost"
+                    size="sm"
+                    class="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
+                    :aria-label="`Padrões de ${usuario.nome_completo}`"
+                    title="Padrões"
+                    @click="void(navigateTo(`/admin/padroes-medico/${usuario.id}`))"
+                  />
+                  <UButton
+                    icon="i-lucide-pencil"
+                    color="neutral"
+                    variant="ghost"
+                    size="sm"
+                    class="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
+                    :aria-label="`Editar ${usuario.nome_completo}`"
+                    title="Editar usuário"
+                    @click="editar(usuario)"
+                  />
+                  <UButton
+                    icon="i-lucide-trash-2"
+                    color="error"
+                    variant="ghost"
+                    size="sm"
+                    class="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
+                    :aria-label="`Inativar ${usuario.nome_completo}`"
+                    title="Inativar usuário"
+                    :disabled="usuario.ativo === false"
+                    @click="confirmarExclusao(usuario.id)"
+                  />
+                </div>
+              </div>
             </div>
-          </template>
-
-          <template #crm-cell="{ row }">
-            <span class="font-mono text-sm">
-              {{ row.original.medico?.crm || row.original.medico?.crm_atendimento_spdata || '-' }}
-            </span>
-          </template>
-
-          <template #especialidade-cell="{ row }">
-            <UBadge
-              v-if="row.original.medico?.especialidade"
-              :label="row.original.medico.especialidade"
-              color="neutral"
-              variant="subtle"
-              size="sm"
-            />
-            <span
-              v-else
-              class="text-muted text-sm"
-            >-</span>
-          </template>
-
-          <template #ativo-cell="{ row }">
-            <UBadge
-              :label="row.original.ativo ? 'Ativo' : 'Inativo'"
-              :color="row.original.ativo ? 'success' : 'neutral'"
-              variant="subtle"
-              size="sm"
-            />
-          </template>
-
-          <template #acoes-cell="{ row }">
-            <div class="flex items-center gap-1">
-              <UButton
-                v-if="role === 'medico'"
-                icon="i-lucide-notebook-pen"
-                color="neutral"
-                variant="ghost"
-                size="sm"
-                aria-label="Padroes"
-                title="Padrões"
-                @click="void(navigateTo(`/admin/padroes-medico/${row.original.id}`))"
-              />
-              <UButton
-                icon="i-lucide-pencil"
-                color="neutral"
-                variant="ghost"
-                size="sm"
-                @click="editar(row.original)"
-              />
-              <UButton
-                icon="i-lucide-trash-2"
-                color="error"
-                variant="ghost"
-                size="sm"
-                :disabled="row.original.ativo === false"
-                @click="confirmarExclusao(row.original.id)"
-              />
-            </div>
-          </template>
-        </UTable>
+          </UPageCard>
+        </div>
       </UCard>
     </div>
 

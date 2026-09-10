@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { AgendamentoComPaciente, AgendamentoStatus } from '~/types'
 
+const openNav = inject<() => void>('openNav', () => {})
 const auth = useAuthStore()
 const agendamentosStore = useAgendamentosStore()
 const chamadosStore = useChamadosStore()
@@ -8,7 +9,7 @@ const toast = useToast()
 const { sala, precisaSelecionar, definirSala } = useSalaAtendimento()
 
 const showSalaModal = ref(false)
-const inputSala = ref('')
+const inputSala = ref('Consultório 1')
 
 watch(showSalaModal, (val) => {
   if (val) inputSala.value = sala.value ?? ''
@@ -33,14 +34,6 @@ onMounted(() => {
 const userName = computed(() => auth.user?.nome || 'Usuário')
 
 const { agora, dataFormatada } = useRelogio(60000)
-
-const colunas = [
-  { accessorKey: 'nome', header: 'Paciente', enableSorting: true },
-  { accessorKey: 'horario', header: 'Horário' },
-  { accessorKey: 'prioridade', header: 'Prioridade' },
-  { accessorKey: 'status', header: 'Status' },
-  { id: 'acoes', header: 'Ações' }
-]
 
 function corPrioridade(prioridade: string) {
   switch (prioridade) {
@@ -246,7 +239,7 @@ const temPacientesDashboard = computed(() => totalPacientesDashboard.value > 0)
 
 function statusLabel(status: AgendamentoStatus) {
   switch (status) {
-    case 'em-atendimento': return 'Em Atendimento'
+    case 'em-atendimento': return 'Em Atend.'
     case 'atendido': return 'Finalizado'
     default: return 'Atender'
   }
@@ -281,18 +274,32 @@ const tempoMedioEspera = computed(() => {
 
 <template>
   <div>
-    <UHeader title="Dashboard">
+    <UHeader
+      title="Dashboard"
+      toggle-side="left"
+    >
+      <template #toggle>
+        <UButton
+          icon="lucide:menu"
+          color="neutral"
+          variant="ghost"
+          class="lg:hidden"
+          aria-label="Abrir menu"
+          @click="openNav()"
+        />
+      </template>
       <template #right>
         <div class="flex items-center gap-2">
           <UBadge
             :label="userName"
             color="neutral"
             variant="soft"
+            class="hidden lg:inline-flex"
           />
           <UBadge
             color="primary"
             variant="soft"
-            class="cursor-pointer gap-1"
+            class="cursor-pointer gap-1 hidden lg:inline-flex"
             @click="void (showSalaModal = true)"
           >
             Sala: {{ sala || '—' }}
@@ -301,27 +308,33 @@ const tempoMedioEspera = computed(() => {
               class="h-3 w-3"
             />
           </UBadge>
-          <UButton
-            icon="i-lucide-bell"
-            color="neutral"
-            variant="ghost"
-            size="lg"
-            aria-label="Notificações"
-          />
-          <UButton
-            icon="i-lucide-circle-help"
-            color="neutral"
-            variant="ghost"
-            size="lg"
-            aria-label="Ajuda"
-          />
           <UColorModeButton />
         </div>
       </template>
     </UHeader>
-    <div class="p-6 space-y-8 bg-neutral-100 dark:bg-neutral-950 min-h-screen">
-      <div>
-        <p class="text-3xl font-semibold text-foreground">
+    <div class="flex min-w-0 items-center justify-between gap-2 border-b border-default bg-default/75 px-3 py-2 backdrop-blur sm:px-6 lg:hidden">
+      <UBadge
+        color="primary"
+        variant="soft"
+        class="cursor-pointer gap-1"
+        @click="void (showSalaModal = true)"
+      >
+        Sala: {{ sala || '—' }}
+        <UIcon
+          name="i-lucide-pencil"
+          class="h-3 w-3"
+        />
+      </UBadge>
+      <UBadge
+        :label="auth.activeClinica?.nome || 'Sem unidade'"
+        color="neutral"
+        variant="soft"
+        class="min-w-0 max-w-[55vw] truncate"
+      />
+    </div>
+    <div class="min-h-screen min-w-0 space-y-6 bg-muted p-3 sm:space-y-8 sm:p-6">
+      <div class="min-w-0">
+        <p class="wrap-break-word text-2xl font-semibold text-foreground sm:text-3xl">
           {{ getSaudacao(agora) }}, Dr. {{ userName }}
         </p>
         <p class="text-base text-muted mt-1">
@@ -330,21 +343,23 @@ const tempoMedioEspera = computed(() => {
       </div>
       <div
         v-if="!agendamentosStore.loading && temPacientesDashboard"
-        class="grid grid-cols-1 md:grid-cols-2 gap-6"
+        class="grid grid-cols-1 items-stretch gap-6 md:grid-cols-2"
       >
         <ChartResumo
+          class="h-full"
+          :loading="agendamentosStore.loading"
           :total="totalPacientesDashboard"
           :fila="agendamentosStore.fila.length"
           :em-atendimento="agendamentosStore.emAtendimento ? 1 : 0"
           :atendidos="agendamentosStore.totalAtendidos"
           :faltas="agendamentosStore.totalFaltas"
         />
-        <div class="grid grid-cols-2 gap-2 items-center ">
-          <UPageCard>
+        <div class="grid grid-cols-1 items-stretch gap-2 sm:grid-cols-2">
+          <UPageCard class="h-full">
             <div class="flex flex-col gap-2 items-center">
               <div class="flex items-center gap-2">
                 <div class="size-3 bg-warning rounded-full" />
-                <p class="text-xl font-medium">
+                <p class="text-center text-lg font-medium sm:text-xl">
                   Tempo médio espera:
                 </p>
               </div>
@@ -353,11 +368,11 @@ const tempoMedioEspera = computed(() => {
               </p>
             </div>
           </UPageCard>
-          <UPageCard>
+          <UPageCard class="h-full">
             <div class="flex flex-col gap-2 items-center">
               <div class="flex items-center gap-2">
                 <div class="size-3 bg-azu-500 rounded-full" />
-                <p class="text-xl font-medium">
+                <p class="text-center text-lg font-medium sm:text-xl">
                   Em espera:
                 </p>
               </div>
@@ -366,11 +381,11 @@ const tempoMedioEspera = computed(() => {
               </p>
             </div>
           </UPageCard>
-          <UPageCard>
+          <UPageCard class="h-full">
             <div class="flex flex-col gap-2 items-center">
               <div class="flex items-center gap-2">
                 <div class="size-3 bg-success rounded-full" />
-                <p class="text-xl font-medium">
+                <p class="text-center text-lg font-medium sm:text-xl">
                   Atendidos:
                 </p>
               </div>
@@ -379,11 +394,11 @@ const tempoMedioEspera = computed(() => {
               </p>
             </div>
           </UPageCard>
-          <UPageCard>
+          <UPageCard class="h-full">
             <div class="flex flex-col gap-2 items-center">
               <div class="flex items-center gap-2">
                 <div class="size-3 bg-error rounded-full" />
-                <p class="text-xl font-medium">
+                <p class="text-center text-lg font-medium sm:text-xl">
                   Faltantes:
                 </p>
               </div>
@@ -396,34 +411,37 @@ const tempoMedioEspera = computed(() => {
       </div>
       <div
         v-else-if="agendamentosStore.loading"
-        class="grid grid-cols-1 md:grid-cols-2 gap-6"
+        class="grid grid-cols-1 items-stretch gap-6 md:grid-cols-2"
       >
-        <UPageCard>
-          <div class="flex flex-col gap-4 items-center justify-center h-full">
-            <USkeleton class="h-40 w-40" />
-            <USkeleton class="h-4 w-48" />
-          </div>
-        </UPageCard>
-        <div class="grid grid-cols-2 gap-2 items-center">
-          <UPageCard>
+        <ChartResumo
+          class="h-full"
+          :loading="true"
+          :total="0"
+          :fila="0"
+          :em-atendimento="0"
+          :atendidos="0"
+          :faltas="0"
+        />
+        <div class="grid grid-cols-1 items-stretch gap-2 sm:grid-cols-2">
+          <UPageCard class="h-full">
             <div class="flex flex-col gap-3 items-center">
               <USkeleton class="h-5 w-32" />
               <USkeleton class="h-8 w-20" />
             </div>
           </UPageCard>
-          <UPageCard>
+          <UPageCard class="h-full">
             <div class="flex flex-col gap-3 items-center">
               <USkeleton class="h-5 w-32" />
               <USkeleton class="h-8 w-20" />
             </div>
           </UPageCard>
-          <UPageCard>
+          <UPageCard class="h-full">
             <div class="flex flex-col gap-3 items-center">
               <USkeleton class="h-5 w-32" />
               <USkeleton class="h-8 w-20" />
             </div>
           </UPageCard>
-          <UPageCard>
+          <UPageCard class="h-full">
             <div class="flex flex-col gap-3 items-center">
               <USkeleton class="h-5 w-32" />
               <USkeleton class="h-8 w-20" />
@@ -437,7 +455,7 @@ const tempoMedioEspera = computed(() => {
         <UPageCard>
           <div class="flex flex-col gap-2 items-center">
             <div class="flex items-center gap-2 text-muted ">
-              <p class="text-xl font-medium">
+              <p class="text-center text-lg font-medium sm:text-xl">
                 Nenhum paciente na fila de espera nesse momento.
               </p>
             </div>
@@ -454,79 +472,127 @@ const tempoMedioEspera = computed(() => {
             Pacientes na Fila de Espera
           </p>
         </template>
-
-        <UTable
-          :columns="colunas"
-          :data="pacientesNaFila"
+        <div
+          v-if="pacientesNaFila.length"
+          class="flex flex-col gap-2"
         >
-          <template #nome-cell="{ row }">
-            <div class="flex items-center gap-3">
-              <UAvatar
-                :alt="row.original.paciente.nome"
-                color="primary"
-                size="sm"
-              />
-              <div>
-                <p class="font-medium">
-                  {{ row.original.paciente.nome }}
+          <UPageCard
+            v-for="paciente in pacientesNaFila"
+            :key="paciente.id"
+            variant="ghost"
+            class="border-b border-muted rounded-none"
+            :ui="{ container: 'px-4 sm:p-1 pb-3 sm:px-4' }"
+          >
+            <div class="grid min-w-0 grid-cols-3 gap-x-4 gap-y-3 md:grid-cols-[max-content_1fr_2fr_1fr_1fr_1fr_2fr]">
+              <div class="hidden w-min pr-3 md:block">
+                <p class="text-sm text-muted font-bold">
+                  Horário
                 </p>
-                <p class="text-xs text-muted">
-                  {{ row.original.paciente.convenio }}
+                <p class="whitespace-nowrap font-mono pt-2 text-sm">
+                  {{ paciente.horario }}
                 </p>
               </div>
+
+              <div class="col-span-3">
+                <p class="text-sm text-muted font-bold">
+                  Paciente
+                </p>
+                <div class="flex min-w-0 items-center gap-3">
+                  <UAvatar
+                    :alt="paciente.paciente.nome"
+                    color="primary"
+                    size="sm"
+                  />
+                  <div class="min-w-0">
+                    <p class="wrap-break-word font-medium">
+                      {{ paciente.paciente.nome }}
+                    </p>
+                    <p class="wrap-break-word text-xs text-muted">
+                      {{ paciente.paciente.convenio }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="block md:hidden">
+                <p class="text-sm text-muted font-bold">
+                  Horário
+                </p>
+                <p class="whitespace-nowrap font-mono text-sm">
+                  {{ paciente.horario }}
+                </p>
+              </div>
+
+              <div class="text-left">
+                <p class="text-sm text-muted font-bold">
+                  Prioridade
+                </p>
+                <UBadge
+                  :label="paciente.prioridade"
+                  :color="corPrioridade(paciente.prioridade)"
+                  variant="subtle"
+                />
+              </div>
+
+              <div class="text-left">
+                <p class="text-sm text-muted font-bold">
+                  Status
+                </p>
+                <UBadge
+                  :label="rotuloStatus(paciente.status)"
+                  :color="corStatus(paciente.status)"
+                  variant="subtle"
+                />
+              </div>
+
+              <div class="text-left col-span-3 md:col-span-1">
+                <p class="text-sm text-muted font-bold">
+                  Ações
+                </p>
+                <div class="grid grid-cols-1 gap-2 sm:flex sm:gap-1">
+                  <UButton
+                    icon="i-lucide-phone"
+                    :label="rotuloChamada(paciente.paciente.id)"
+                    size="sm"
+                    class="min-w-25 justify-center"
+                    :color="isTerminal(paciente.status) ? 'neutral' : 'primary'"
+                    :variant="isTerminal(paciente.status) ? 'soft' : 'solid'"
+                    :loading="isChamadaBloqueada(paciente.paciente.id)"
+                    :disabled="temPacienteEmAtendimento || isTerminal(paciente.status) || isChamadaBloqueada(paciente.paciente.id)"
+                    @click="chamarPaciente(paciente as AgendamentoComPaciente)"
+                  />
+
+                  <UButton
+                    :icon="paciente.status === 'atendido' ? 'i-lucide-check-circle' : 'i-lucide-user-check'"
+                    :label="statusLabel(paciente.status)"
+                    size="sm"
+                    class="min-w-25 justify-center"
+                    :color="statusColor(paciente.status)"
+                    :variant="atendimentoVariant(paciente.status)"
+                    :disabled="temPacienteEmAtendimento || atendimentoDisabled(paciente.status) || isChamadaBloqueada(paciente.paciente.id)"
+                    @click="atenderAgendamento(paciente as AgendamentoComPaciente)"
+                  />
+                  <UButton
+                    icon="i-lucide-user-x"
+                    label="Faltou"
+                    size="sm"
+                    class="min-w-25 justify-center"
+                    :color="paciente.status === 'faltou' ? 'error' : (isTerminal(paciente.status) ? 'neutral' : 'error')"
+                    :variant="isTerminal(paciente.status) ? 'soft' : 'solid'"
+                    :disabled="temPacienteEmAtendimento || isTerminal(paciente.status) || isChamadaBloqueada(paciente.paciente.id)"
+                    @click="abrirModalFalta(paciente as AgendamentoComPaciente)"
+                  />
+                </div>
+              </div>
             </div>
-          </template>
-
-          <template #prioridade-cell="{ row }">
-            <UBadge
-              :label="row.original.prioridade"
-              :color="corPrioridade(row.original.prioridade)"
-              variant="subtle"
-            />
-          </template>
-
-          <template #status-cell="{ row }">
-            <UBadge
-              :label="rotuloStatus(row.original.status)"
-              :color="corStatus(row.original.status)"
-              variant="subtle"
-            />
-          </template>
-
-          <template #acoes-cell="{ row }">
-            <div class="flex items-center gap-1">
-              <UButton
-                icon="i-lucide-phone"
-                :label="rotuloChamada(row.original.paciente.id)"
-                size="sm"
-                class="min-w-20"
-                :color="isTerminal(row.original.status) ? 'neutral' : 'primary'"
-                :variant="isTerminal(row.original.status) ? 'soft' : 'solid'"
-                :loading="isChamadaBloqueada(row.original.paciente.id)"
-                :disabled="temPacienteEmAtendimento || isTerminal(row.original.status) || isChamadaBloqueada(row.original.paciente.id)"
-                @click="chamarPaciente(row.original as AgendamentoComPaciente)"
-              />
-              <UButton
-                icon="i-lucide-user-x"
-                label="Faltou"
-                size="sm"
-                :color="row.original.status === 'faltou' ? 'error' : (isTerminal(row.original.status) ? 'neutral' : 'error')"
-                :variant="isTerminal(row.original.status) ? 'soft' : 'solid'"
-                :disabled="temPacienteEmAtendimento || isTerminal(row.original.status) || isChamadaBloqueada(row.original.paciente.id)"
-                @click="abrirModalFalta(row.original as AgendamentoComPaciente)"
-              />
-              <UButton
-                :icon="row.original.status === 'atendido' ? 'i-lucide-check-circle' : 'i-lucide-user-check'"
-                :label="statusLabel(row.original.status)"
-                size="sm"
-                :color="statusColor(row.original.status)"
-                :variant="atendimentoVariant(row.original.status)"
-                :disabled="temPacienteEmAtendimento || atendimentoDisabled(row.original.status) || isChamadaBloqueada(row.original.paciente.id)"
-                @click="atenderAgendamento(row.original as AgendamentoComPaciente)"
-              />
-            </div>
-          </template>
-        </UTable>
+          </UPageCard>
+        </div>
+        <p
+          v-else
+          class="py-4 text-sm text-muted text-center"
+        >
+          Nenhum paciente na fila de espera.
+        </p>
       </UCard>
 
       <UCard class="w-full">
@@ -536,65 +602,115 @@ const tempoMedioEspera = computed(() => {
           </p>
         </template>
 
-        <UTable
-          :columns="colunas"
-          :data="pacientesFinalizados"
+        <div
+          v-if="pacientesFinalizados.length"
+          class="flex flex-col gap-2"
         >
-          <template #nome-cell="{ row }">
-            <div class="flex items-center gap-3">
-              <UAvatar
-                :alt="row.original.paciente.nome"
-                color="primary"
-                size="sm"
-              />
-              <div>
-                <p class="font-medium">
-                  {{ row.original.paciente.nome }}
+          <UPageCard
+            v-for="paciente in pacientesFinalizados"
+            :key="paciente.id"
+            variant="ghost"
+            class="border-b border-muted rounded-none"
+            :ui="{ container: 'px-4 sm:p-1 pb-3 sm:px-4' }"
+          >
+            <div class="grid min-w-0 grid-cols-3 gap-x-4 gap-y-3 md:grid-cols-[max-content_1fr_2fr_1fr_1fr_2fr]">
+              <div class="hidden w-min pr-3 md:block">
+                <p class="text-sm text-muted font-bold">
+                  Horário
                 </p>
-                <p class="text-xs text-muted">
-                  {{ row.original.paciente.convenio }}
+                <p class="whitespace-nowrap font-mono pt-2 text-sm">
+                  {{ paciente.horario }}
                 </p>
               </div>
+
+              <div class="col-span-3 sm:col-span-2">
+                <p class="text-sm text-muted font-bold">
+                  Paciente
+                </p>
+                <div class="flex min-w-0 items-center gap-3">
+                  <UAvatar
+                    :alt="paciente.paciente.nome"
+                    color="primary"
+                    size="sm"
+                  />
+                  <div class="min-w-0">
+                    <p class="wrap-break-word font-medium">
+                      {{ paciente.paciente.nome }}
+                    </p>
+                    <p class="wrap-break-word text-xs text-muted">
+                      {{ paciente.paciente.convenio }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="block md:hidden">
+                <p class="text-sm text-muted font-bold">
+                  Horário
+                </p>
+                <p class="whitespace-nowrap font-mono text-sm">
+                  {{ paciente.horario }}
+                </p>
+              </div>
+
+              <div class="text-left">
+                <p class="text-sm text-muted font-bold">
+                  Prioridade
+                </p>
+                <UBadge
+                  :label="paciente.prioridade"
+                  :color="corPrioridade(paciente.prioridade)"
+                  variant="subtle"
+                />
+              </div>
+
+              <div class="text-left">
+                <p class="text-sm text-muted font-bold">
+                  Status
+                </p>
+                <UBadge
+                  :label="rotuloStatus(paciente.status)"
+                  :color="corStatus(paciente.status)"
+                  variant="subtle"
+                />
+              </div>
+
+              <div class="text-left col-span-3 sm:col-span-2 md:col-span-1">
+                <p class="text-sm text-muted font-bold">
+                  Ações
+                </p>
+                <div class="grid grid-cols-1 gap-2 sm:flex sm:gap-1">
+                  <UButton
+                    v-if="paciente.status === 'atendido'"
+                    icon="i-lucide-pencil"
+                    label="Editar atendimento"
+                    class="min-w-20 justify-center"
+                    size="sm"
+                    color="primary"
+                    :disabled="temPacienteEmAtendimento"
+                    @click="editarAtendimento(paciente as AgendamentoComPaciente)"
+                  />
+                  <UButton
+                    v-else-if="paciente.status === 'faltou'"
+                    icon="i-lucide-undo-2"
+                    label="Desfazer falta"
+                    class="min-w-20 justify-center"
+                    size="sm"
+                    color="neutral"
+                    :disabled="temPacienteEmAtendimento"
+                    @click="abrirModalDesfazerFalta(paciente as AgendamentoComPaciente)"
+                  />
+                </div>
+              </div>
             </div>
-          </template>
-
-          <template #prioridade-cell="{ row }">
-            <UBadge
-              :label="row.original.prioridade"
-              :color="corPrioridade(row.original.prioridade)"
-              variant="subtle"
-            />
-          </template>
-
-          <template #status-cell="{ row }">
-            <UBadge
-              :label="rotuloStatus(row.original.status)"
-              :color="corStatus(row.original.status)"
-              variant="subtle"
-            />
-          </template>
-
-          <template #acoes-cell="{ row }">
-            <div class="flex items-center gap-1">
-              <UButton
-                v-if="row.original.status === 'atendido'"
-                icon="i-lucide-pencil"
-                label="Editar atendimento"
-                size="sm"
-                color="primary"
-                @click="editarAtendimento(row.original as AgendamentoComPaciente)"
-              />
-              <UButton
-                v-else-if="row.original.status === 'faltou'"
-                icon="i-lucide-undo-2"
-                label="Desfazer falta"
-                size="sm"
-                color="neutral"
-                @click="abrirModalDesfazerFalta(row.original as AgendamentoComPaciente)"
-              />
-            </div>
-          </template>
-        </UTable>
+          </UPageCard>
+        </div>
+        <p
+          v-else
+          class="py-4 text-sm text-muted text-center"
+        >
+          Nenhum paciente atendido ou com falta.
+        </p>
       </UCard>
     </div>
     <UModal
@@ -612,21 +728,28 @@ const tempoMedioEspera = computed(() => {
           <p class="text-sm text-muted">
             Informe a sala de atendimento:
           </p>
-          <UInput
-            v-model="inputSala"
-            placeholder="Ex: Consultório 2"
-            size="lg"
-          />
-        </div>
-      </template>
-
-      <template #footer>
-        <div class="flex justify-end gap-2">
-          <UButton
-            label="Salvar"
-            :disabled="!inputSala"
-            @click="confirmarSala"
-          />
+          <UForm class="flex flex-col gap-3">
+            <UFormItem
+              label="Sala"
+              :error="!inputSala ? 'Informe a sala de atendimento' : ''"
+            >
+              <UInput
+                v-model="inputSala"
+                placeholder="Ex: Consultório 1"
+                class="w-full"
+                default-value="Consultório 1"
+                size="lg"
+              />
+            </UFormItem>
+            <div class="flex justify-end gap-2">
+              <UButton
+                type="submit"
+                label="Salvar"
+                :disabled="!inputSala"
+                @click="confirmarSala"
+              />
+            </div>
+          </UForm>
         </div>
       </template>
     </UModal>
