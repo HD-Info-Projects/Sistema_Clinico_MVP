@@ -90,6 +90,24 @@ def normalizar_int(valor):
             return None
 
 
+def calcular_idade(data_nascimento):
+    if data_nascimento is None:
+        return None
+    if isinstance(data_nascimento, str):
+        try:
+            data_nascimento = datetime.fromisoformat(str(data_nascimento)[:10]).date()
+        except ValueError:
+            return None
+    if not isinstance(data_nascimento, date):
+        return None
+
+    hoje = date.today()
+    idade = hoje.year - data_nascimento.year - (
+        (hoje.month, hoje.day) < (data_nascimento.month, data_nascimento.day)
+    )
+    return idade if idade >= 0 else None
+
+
 def normalizar_codigo_procedimento(valor):
     return normalizar_codigo_tuss(valor)
 
@@ -574,6 +592,7 @@ def item_para_frontend(row, status_local, convenios_por_codigo, especialidades_p
         "procedimento": normalizar_texto(row.get("PROCEDIMENTO")),
         "observacao": normalizar_texto(row.get("OBS")),
         "dataNascimento": row.get("DATA_NASCIMENTO"),
+        "idade": calcular_idade(row.get("DATA_NASCIMENTO")),
         "dataHoraAgendamento": row.get("DATA_HORA_AGENDAMENTO"),
         "atendidoSpdata": normalizar_texto(row.get("ATENDIDO")),
         "status": status,

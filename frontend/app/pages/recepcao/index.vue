@@ -21,6 +21,7 @@ interface AtendimentoRecepcao {
   tipoProcedimento: TipoProcedimentoTuss
   tipoProcedimentoLabel: string
   dataNascimento: string | null
+  idade: number | null
   status: AtendimentoStatus
 }
 
@@ -201,18 +202,7 @@ function contatoPrincipal(atendimento: AtendimentoRecepcao) {
 }
 
 function idadePaciente(dataNascimento: string | null | undefined) {
-  if (!dataNascimento) return 'Idade não informada'
-
-  const data = new Date(dataNascimento)
-  if (Number.isNaN(data.getTime())) return 'Idade não informada'
-
-  const hoje = new Date()
-  let idade = hoje.getFullYear() - data.getFullYear()
-  const aniversario = new Date(hoje.getFullYear(), data.getMonth(), data.getDate())
-  if (aniversario > hoje) idade -= 1
-
-  if (idade < 0) return 'Idade não informada'
-  return idade === 1 ? '1 ano' : `${idade} anos`
+  return formatarIdade(dataNascimento, { semDados: true })
 }
 
 function resetPageAndFetch() {

@@ -17,6 +17,17 @@ export function formatarCpfCnpj(valor: string): string {
   return resultado
 }
 
+export function formatarCpf(valor: string): string {
+  const digitos = (valor ?? '').replace(/\D/g, '').slice(0, 11)
+
+  let resultado = digitos.slice(0, 3)
+  if (digitos.length > 3) resultado += `.${digitos.slice(3, 6)}`
+  if (digitos.length > 6) resultado += `.${digitos.slice(6, 9)}`
+  if (digitos.length > 9) resultado += `-${digitos.slice(9, 11)}`
+
+  return resultado
+}
+
 export function formatarTelefone(valor: string): string {
   const digitos = (valor ?? '').replace(/\D/g, '').slice(0, 11)
 

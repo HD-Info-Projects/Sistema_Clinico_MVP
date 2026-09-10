@@ -172,15 +172,7 @@ const resumo = computed(() => ({
 }))
 
 function idadePaciente(dataNascimento: string | null | undefined) {
-  if (!dataNascimento) return ''
-  const data = new Date(dataNascimento)
-  if (Number.isNaN(data.getTime())) return ''
-  const hoje = new Date()
-  let idade = hoje.getFullYear() - data.getFullYear()
-  const aniversario = new Date(hoje.getFullYear(), data.getMonth(), data.getDate())
-  if (aniversario > hoje) idade -= 1
-  if (idade < 0) return ''
-  return idade === 1 ? '1 ano' : `${idade} anos`
+  return formatarIdade(dataNascimento)
 }
 
 function textoInformado(valor: string | number | null | undefined) {
@@ -299,7 +291,7 @@ const statuses: { id: string, name: string, color: string }[] = [
             :color="status.value ? corStatus(status.value) : 'neutral'"
             :variant="selectedStatus === status.value ? 'solid' : 'soft'"
             size="sm"
-            @click="selectedStatus = status.value"
+            @click="void (selectedStatus = status.value)"
           />
         </div>
         <USelectMenu
@@ -439,7 +431,7 @@ const statuses: { id: string, name: string, color: string }[] = [
           <UTable
             :columns="colunas"
             :data="atendimentosOrdenados"
-            class="min-w-[880px]"
+            class="min-w-220"
           >
             <template #horario-cell="{ row }">
               <span class="font-mono text-sm">{{ row.original.horario || '-' }}</span>
