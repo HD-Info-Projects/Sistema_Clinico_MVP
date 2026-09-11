@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { TipoProcedimentoTuss } from '~/types'
+import { CalendarDate } from '@internationalized/date'
 import { TUSS_PROCEDIMENTO_FILTROS, corTipoProcedimento, rotuloTipoProcedimento } from '~/utils/tuss'
 
 const openNav = inject<() => void>('openNav', () => {})
@@ -60,6 +61,8 @@ const userName = computed(() => auth.user?.nome || 'Usuário')
 
 const page = ref(1)
 const pageSize = ref(20)
+const selectedDate = ref(new Date())
+const isPopoverOpen = ref(false)
 const loading = ref(true)
 const errorMsg = ref('')
 const busca = ref('')
@@ -70,6 +73,46 @@ const selectedEspecialidade = ref<string | undefined>('Todas as especialidades')
 
 let buscaTimer: ReturnType<typeof setTimeout> | null = null
 let requestId = 0
+
+const formattedDate = computed(() => {
+  const d = selectedDate.value
+  const diaSemana = formatarDiaDaSemana(d)
+  return `${d.toLocaleDateString('pt-BR')} - ${diaSemana}`
+})
+
+const calendarDate = computed({
+  get: () => {
+    const d = selectedDate.value
+    return new CalendarDate(d.getFullYear(), d.getMonth() + 1, d.getDate())
+  },
+  set: (val: CalendarDate) => {
+    selectedDate.value = new Date(val.year, val.month - 1, val.day)
+  }
+})
+
+function prevDay() {
+  const d = new Date(selectedDate.value)
+  d.setDate(d.getDate() - 1)
+  selectedDate.value = d
+}
+
+function nextDay() {
+  const d = new Date(selectedDate.value)
+  d.setDate(d.getDate() + 1)
+  selectedDate.value = d
+}
+
+function goToToday() {
+  selectedDate.value = new Date()
+  isPopoverOpen.value = false
+}
+
+function isToday(date: Date) {
+  const today = new Date()
+  return date.getDate() === today.getDate()
+    && date.getMonth() === today.getMonth()
+    && date.getFullYear() === today.getFullYear()
+}
 
 function respostaVazia(): CheckInResponse {
   return {
@@ -217,7 +260,7 @@ async function carregarAtendimentos() {
   const params = new URLSearchParams()
   params.set('page', String(page.value))
   params.set('pageSize', String(pageSize.value))
-  params.set('data', formatarDataISO(new Date()))
+  params.set('data', formatarDataISO(selectedDate.value))
   params.set('unidadeId', String(unidadeId))
   if (selectedStatus.value) params.set('status', selectedStatus.value)
   if (selectedTipo.value) params.set('tipo', selectedTipo.value)
@@ -260,6 +303,8 @@ function selecionarTipo(tipo: TipoProcedimentoTuss | '' | null | undefined) {
 watch(page, () => {
   carregarAtendimentos()
 })
+
+watch(selectedDate, resetPageAndFetch)
 
 watch(() => auth.activeClinicaId, () => {
   selectedMedico.value = null
@@ -323,10 +368,50 @@ onUnmounted(() => {
             {{ formatarData(dados.data) }}. Veja o resumo dos agendamentos da recepção.
           </p>
         </div>
-        <div
-          class="hidden w-72 lg:block"
-          aria-hidden="true"
-        />
+        <div class="grid w-full grid-cols-[2.5rem_minmax(0,1fr)_2.5rem] items-center gap-1 sm:gap-3 lg:w-96">
+          <UButton
+            icon="i-lucide-chevron-left"
+            color="neutral"
+            variant="ghost"
+            size="lg"
+            class="min-h-10 min-w-10"
+            aria-label="Dia anterior"
+            @click="prevDay"
+          />
+          <div class="min-w-0 text-center">
+            <UPopover v-model:open="isPopoverOpen">
+              <UButton
+                color="neutral"
+                variant="link"
+                class="h-auto max-w-full whitespace-normal px-1 text-center text-sm font-semibold leading-snug sm:text-lg"
+              >
+                {{ formattedDate }} {{ isToday(selectedDate) ? '(Hoje)' : '' }}
+              </UButton>
+              <template #content>
+                <div class="p-2">
+                  <UCalendar v-model="calendarDate" />
+                  <UButton
+                    label="Hoje"
+                    color="primary"
+                    variant="soft"
+                    size="sm"
+                    class="mt-2 w-full"
+                    @click="goToToday"
+                  />
+                </div>
+              </template>
+            </UPopover>
+          </div>
+          <UButton
+            icon="i-lucide-chevron-right"
+            color="neutral"
+            variant="ghost"
+            size="lg"
+            class="min-h-10 min-w-10"
+            aria-label="Próximo dia"
+            @click="nextDay"
+          />
+        </div>
       </div>
 
       <UAlert

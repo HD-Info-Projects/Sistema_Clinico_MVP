@@ -37,7 +37,6 @@ const loading = ref(true)
 const errorMsg = ref('')
 const selectedMedico = ref('Todos')
 const selectedEspecialidade = ref('Todos')
-const selectedStatus = ref('')
 const selectedTipo = ref<TipoProcedimentoTuss | ''>('')
 let requestId = 0
 
@@ -99,6 +98,7 @@ async function loadAgendamentos() {
   params.set('data', dataStr)
   params.set('pageSize', '100')
   params.set('unidadeId', String(unidadeId))
+  params.set('status', 'agendado')
   if (selectedTipo.value) params.set('tipo', selectedTipo.value)
 
   try {
@@ -140,22 +140,12 @@ const especialidadesOpcoes = computed(() => {
   return ['Todos', ...Array.from(new Set(especialidades)).sort((a, b) => a.localeCompare(b, 'pt-BR'))]
 })
 
-const filtrosStatus = [
-  { label: 'Todos', value: '' },
-  { label: 'Agendados', value: 'agendado' },
-  { label: 'Em espera', value: 'em-espera' },
-  { label: 'Em atendimento', value: 'em-atendimento' },
-  { label: 'Atendidos', value: 'atendido' },
-  { label: 'Faltosos', value: 'faltou' }
-]
-
 const filtrosTipo = TUSS_PROCEDIMENTO_FILTROS
 
 const atendimentosFiltrados = computed(() => {
   return agendamentos.value.filter((a) => {
     if (selectedMedico.value !== 'Todos' && a.medico !== selectedMedico.value) return false
     if (selectedEspecialidade.value !== 'Todos' && a.especialidade !== selectedEspecialidade.value) return false
-    if (selectedStatus.value && a.status !== selectedStatus.value) return false
     if (selectedTipo.value && a.tipoProcedimento !== selectedTipo.value) return false
     return true
   })
@@ -164,14 +154,6 @@ const atendimentosFiltrados = computed(() => {
 const atendimentosOrdenados = computed(() => {
   return [...atendimentosFiltrados.value].sort((a, b) => a.horario.localeCompare(b.horario))
 })
-
-const resumo = computed(() => ({
-  agendados: atendimentosFiltrados.value.filter(a => a.status === 'agendado').length,
-  emEspera: atendimentosFiltrados.value.filter(a => a.status === 'em-espera').length,
-  emAtendimento: atendimentosFiltrados.value.filter(a => a.status === 'em-atendimento').length,
-  atendidos: atendimentosFiltrados.value.filter(a => a.status === 'atendido').length,
-  faltas: atendimentosFiltrados.value.filter(a => a.status === 'faltou').length
-}))
 
 function idadePaciente(dataNascimento: string | null | undefined) {
   return formatarIdade(dataNascimento)
@@ -234,14 +216,6 @@ function selecionarTipo(tipo: TipoProcedimentoTuss | '' | null | undefined) {
   selectedTipo.value = tipo ?? ''
   loadAgendamentos()
 }
-
-const statuses: { id: string, name: string, color: string }[] = [
-  { id: 'agendado', name: 'Agendado', color: 'secondary' },
-  { id: 'em-espera', name: 'Em espera', color: 'primary' },
-  { id: 'em-atendimento', name: 'Em atendimento', color: 'warning' },
-  { id: 'atendido', name: 'Atendido', color: 'success' },
-  { id: 'faltou', name: 'Falta', color: 'error' }
-]
 </script>
 
 <template>
@@ -260,23 +234,13 @@ const statuses: { id: string, name: string, color: string }[] = [
           @click="openNav()"
         />
       </template>
-      <div class="hidden flex-wrap justify-center gap-x-4 gap-y-1 xl:flex">
-        <div
-          v-for="s in statuses"
-          :key="s.id"
-          class="flex items-center gap-1.5 text-sm"
-        >
-          <div :class="`size-2.5 rounded-full bg-${s.color}`" />
-          {{ s.name }}
-        </div>
-      </div>
       <template #right>
         <UColorModeButton />
       </template>
     </UHeader>
 
     <div class="min-h-screen min-w-0 space-y-4 bg-muted p-3 sm:space-y-6 sm:p-6">
-      <div class="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 xl:grid-cols-[14rem_14rem_minmax(0,1fr)_14rem]">
+      <div class="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 xl:grid-cols-[14rem_14rem_14rem]">
         <div>
           <p class="text-sm text-muted font-bold">
             Filtrar por Médico
@@ -297,18 +261,6 @@ const statuses: { id: string, name: string, color: string }[] = [
             :items="especialidadesOpcoes"
             size="sm"
             class="w-full"
-          />
-        </div>
-        <div class="grid grid-cols-2 gap-2 sm:col-span-2 sm:grid-cols-3 xl:col-span-1 xl:grid-cols-6">
-          <UButton
-            v-for="status in filtrosStatus"
-            :key="status.value || 'todos'"
-            :label="status.label"
-            :color="status.value ? corStatus(status.value) : 'neutral'"
-            :variant="selectedStatus === status.value ? 'solid' : 'soft'"
-            size="sm"
-            class="min-h-10 w-full justify-center"
-            @click="void (selectedStatus = status.value)"
           />
         </div>
         <div>
@@ -374,28 +326,8 @@ const statuses: { id: string, name: string, color: string }[] = [
 
       <div class="flex flex-wrap justify-center gap-2 sm:justify-start">
         <UBadge
-          :label="`${resumo.agendados} agendados`"
+          :label="`${atendimentosFiltrados.length} agendados`"
           color="warning"
-          variant="subtle"
-        />
-        <UBadge
-          :label="`${resumo.emEspera} em espera`"
-          color="primary"
-          variant="subtle"
-        />
-        <UBadge
-          :label="`${resumo.emAtendimento} em atendimento`"
-          color="warning"
-          variant="subtle"
-        />
-        <UBadge
-          :label="`${resumo.atendidos} atendidos`"
-          color="success"
-          variant="subtle"
-        />
-        <UBadge
-          :label="`${resumo.faltas} faltas`"
-          color="error"
           variant="subtle"
         />
       </div>
