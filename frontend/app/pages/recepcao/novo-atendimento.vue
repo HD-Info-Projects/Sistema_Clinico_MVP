@@ -517,6 +517,7 @@ function validarAtendimento() {
   if (!dataEntrada.value) return 'Informe a data de entrada.'
   if (!horaEntrada.value) return 'Informe a hora de entrada.'
   if (!atendimento.crm.trim() && !atendimento.nomeMedico.trim()) return 'Informe o CRM ou o nome do médico.'
+  if (!atendimento.procedimentoIdSpdata && !atendimento.codigoProcedimento.trim() && !atendimento.nomeProcedimento.trim()) return 'Selecione o procedimento antes de criar o atendimento.'
   return null
 }
 

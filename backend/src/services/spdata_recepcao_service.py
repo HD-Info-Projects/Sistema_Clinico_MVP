@@ -997,6 +997,8 @@ def salvar_atendimento_spdata(payload, usuario_id, unidade_id=None):
 
         medico = buscar_medico_payload(cursor, payload)
         procedimento = buscar_procedimento_atendimento(cursor, payload)
+        if not procedimento:
+            raise ValueError("Procedimento é obrigatório para criar o atendimento.")
 
         existente = buscar_atendimento_existente(
             cursor,

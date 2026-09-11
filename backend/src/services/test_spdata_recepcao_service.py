@@ -382,3 +382,48 @@ def test_salvar_atendimento_nao_insere_quando_ja_existe(monkeypatch):
     )
 
     assert resultado == {"created": False, "atendimento": {"id": 1}}
+
+
+def test_salvar_atendimento_exige_procedimento_spdata(monkeypatch):
+    class FakeConnection:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            return None
+
+        def cursor(self):
+            return SimpleNamespace()
+
+        def commit(self):
+            raise AssertionError("não deve commitar atendimento sem procedimento")
+
+    unidade = SimpleNamespace(id=1, codigo_spdata_centro_custo=340)
+
+    monkeypatch.setattr(service, "ConnectionDBFireBird", lambda: FakeConnection())
+    monkeypatch.setattr(service, "resolver_unidade_usuario", lambda usuario_id, unidade_id=None: unidade)
+    monkeypatch.setattr(service, "buscar_paciente_por_id", lambda cursor, paciente_id: {"ID": paciente_id})
+    monkeypatch.setattr(service, "buscar_medico_payload", lambda cursor, payload: {"ID_TBCBOPRO": 20})
+    monkeypatch.setattr(service, "buscar_procedimento_atendimento", lambda cursor, payload: None)
+    monkeypatch.setattr(
+        service,
+        "buscar_atendimento_existente",
+        lambda *args, **kwargs: pytest.fail("não deve buscar duplicidade sem procedimento"),
+    )
+    monkeypatch.setattr(
+        service,
+        "criar_atendimento_firebird",
+        lambda *args, **kwargs: pytest.fail("não deve inserir atendimento sem procedimento"),
+    )
+
+    with pytest.raises(ValueError, match="Procedimento é obrigatório"):
+        service.salvar_atendimento_spdata(
+            {
+                "idPacienteSpdata": 10,
+                "crm": "123",
+                "dataEntrada": "2026-09-02",
+                "horaEntrada": "08:00",
+            },
+            usuario_id=7,
+            unidade_id=1,
+        )
