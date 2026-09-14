@@ -4,7 +4,7 @@ FROM node:22-alpine AS build
 WORKDIR /app
 
 ENV NUXT_TELEMETRY_DISABLED=1 \
-    NODE_OPTIONS=--max-old-space-size=4096 \
+    NODE_OPTIONS=--max-old-space-size=8192 \
     PNPM_HOME=/pnpm
 
 ENV PATH=${PNPM_HOME}:${PATH}
