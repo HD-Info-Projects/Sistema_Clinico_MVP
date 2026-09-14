@@ -20,7 +20,7 @@ from src.services.spdata_atendimentos_service import (
     normalizar_texto,
     spdata_agenda_id_do_atendimento,
 )
-from src.services.unidades_service import resolver_unidade_usuario
+from src.modules.unidades.service import resolver_unidade_usuario
 from src.settings.extensions import db
 
 

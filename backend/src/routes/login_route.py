@@ -14,7 +14,7 @@ from src.security.passwords import validate_password_strength
 from src.controllers.login_controller import LoginController
 from src.models.auditoria_model import AcaoAuditoria
 from src.models.usuario_model import Usuario
-from src.services.unidades_service import listar_unidades_ativas_frontend, listar_unidades_usuario_frontend, vincular_usuario_unidade
+from src.modules.unidades.service import listar_unidades_ativas_frontend, listar_unidades_usuario_frontend, vincular_usuario_unidade
 
 from src.settings.extensions import db, limiter
 from src.services.auditoria_service import registrar_auditoria

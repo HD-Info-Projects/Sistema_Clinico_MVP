@@ -20,7 +20,7 @@ from src.services.spdata_atendimentos_service import (
     agenda_para_frontend,
     buscar_convenios_locais,
 )
-from src.services.unidades_service import resolver_unidade_usuario
+from src.modules.unidades.service import resolver_unidade_usuario
 from src.settings.extensions import db
 from src.utils.normalizar import normalizar_cpf
 
@@ -593,8 +593,8 @@ def valores_paciente_spdata(payload):
         "PAI": normalizar_texto(payload.get("nomePai"), 70),
         "IDENT": None if recem_nascido else normalizar_texto(payload.get("rg"), 15),
         "ORGAO": None if recem_nascido else normalizar_texto(payload.get("orgaoEmissor"), 5),
-        "CELULAR": normalizar_texto(payload.get("celularWhatsapp") or payload.get("celular") or telefone_responsavel, 15),
-        "FONE": normalizar_texto(payload.get("telefoneFixo") or payload.get("telefone") or telefone_responsavel, 15),
+        "CELULAR": normalizar_texto(payload.get("celularWhatsapp") or payload.get("celular") or telefone_responsavel, 14),
+        "FONE": normalizar_texto(payload.get("telefoneFixo") or payload.get("telefone") or telefone_responsavel, 14),
         "EMAIL": normalizar_texto(payload.get("email"), 50),
         "CEP": normalizar_cep_firebird(cep),
         "ENDERECO": normalizar_texto(logradouro, 40),
@@ -622,7 +622,7 @@ def valores_paciente_spdata(payload):
         "CIDADE_END_GUARDIAO": normalizar_texto(responsavel.get("cidade") or cidade, 30) if recem_nascido else None,
         "ID_TBUF_END_GUARDIAO": normalizar_texto(responsavel.get("uf") or uf, 2) if recem_nascido else None,
         "ID_TBPARENTE_GUARDIAO": normalizar_parentesco_guardiao(parentesco_guardiao) if recem_nascido else None,
-        "TELEFONE_GUARDIAO": normalizar_texto(telefone_responsavel, 15) if recem_nascido else None,
+        "TELEFONE_GUARDIAO": normalizar_texto(telefone_responsavel, 14) if recem_nascido else None,
         "OBSERVACOES_GUARDIAO": observacoes_guardiao(responsavel, parentesco_guardiao) if recem_nascido else None,
         "CPF_REFERENCIA": cpf_referencia,
     }

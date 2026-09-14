@@ -14,7 +14,7 @@ from src.services.medicos_spdata_service import (
     normalizar_texto,
     upsert_usuario_medico_spdata,
 )
-from src.services.unidades_service import (
+from src.modules.unidades.service import (
     listar_unidades_usuario_frontend,
     normalizar_unidade_ids,
     sincronizar_unidades_usuario,

@@ -3,7 +3,7 @@ from flask.cli import with_appcontext
 
 from src.models.unidade_model import Unidade
 from src.models.usuario_model import Usuario
-from src.services.unidades_service import gerar_slug, vincular_usuario_unidade
+from src.modules.unidades.service import gerar_slug, vincular_usuario_unidade
 from src.settings.extensions import db
 
 

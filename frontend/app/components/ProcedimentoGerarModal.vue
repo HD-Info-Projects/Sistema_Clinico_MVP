@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import type { AgendamentoComPaciente, DocumentoMedico, Paciente, ProcedimentoCatalogo, ProcedimentoSelecionado, SolicitacaoOpmeDocumentoDados, SolicitacaoProcedimentoDocumentoDados } from '~/types'
+import { buscarProcedimentosCatalogo } from '~/features/procedimentos/services/procedimentosService'
+import type { ProcedimentoCatalogo, ProcedimentoSelecionado } from '~/features/procedimentos/types'
+import type { AgendamentoComPaciente, DocumentoMedico, Paciente, SolicitacaoOpmeDocumentoDados, SolicitacaoProcedimentoDocumentoDados } from '~/types'
 import { usePdfMake } from '~/utils/pdf'
 import { buildSolicitacaoOpme, buildSolicitacaoProcedimento } from '~/utils/pdf-documents'
 import { gerarHtmlGuiaInternacao, gerarHtmlGuiaOpme, imprimirGuiaInternacao, imprimirGuiaOpme } from '~/utils/guia-tiss'
@@ -202,10 +204,7 @@ async function buscarProcedimentos(q: string) {
 
   carregandoProcedimentos.value = true
   try {
-    const data = await $fetch<{ procedimentos: ProcedimentoCatalogo[] }>('/api/procedimentos/buscar', {
-      query: { q: termo },
-      signal: procedimentosController.signal
-    })
+    const data = await buscarProcedimentosCatalogo(termo, procedimentosController.signal)
 
     if (requestId !== procedimentosRequestId) return
     if (buscaTermoProcedimento.value.trim() !== termo) return

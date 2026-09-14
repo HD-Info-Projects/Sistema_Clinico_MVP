@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Usuario, UsuarioForm, RoleUsuario, MedicoSpdata } from '~/types'
+import { useUnidadesStore } from '~/features/unidades/stores/unidadesStore'
 import { formatarCpfCnpj } from '~/utils/masks'
 
 const props = defineProps<{

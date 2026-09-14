@@ -25,7 +25,7 @@ from src.models.model_mydsystem.med_spdata_atendimentos_model import MedSpdataAt
 from src.models.model_mydsystem.med_spdata_agenda_model import MedSpdataAgenda
 from src.services.spdata_atendimentos_service import get_crm_medico_usuario
 from src.security.unidades import unidade_id_request
-from src.services.unidades_service import resolver_unidade_usuario
+from src.modules.unidades.service import resolver_unidade_usuario
 from src.utils.normalizar import normalizar_cpf
 
 

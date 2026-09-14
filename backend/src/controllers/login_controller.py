@@ -6,7 +6,7 @@ from flask_jwt_extended import create_access_token
 from src.models.repositories.usuario_repository import UsuarioRepository
 from src.security.passwords import verify_password
 from src.settings.extensions import db
-from src.services.unidades_service import listar_unidades_usuario_frontend
+from src.modules.unidades.service import listar_unidades_usuario_frontend
 
 class LoginController:
     
