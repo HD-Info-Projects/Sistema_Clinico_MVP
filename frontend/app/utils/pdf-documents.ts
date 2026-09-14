@@ -392,7 +392,7 @@ export async function buildAtestadoComparecimento(params: {
       documentTitle('ATESTADO DE COMPARECIMENTO'),
       { text: `PACIENTE: ${params.paciente.toUpperCase()}`, bold: true, decoration: 'underline', margin: [0, 0, 0, 5] },
       { text: '\n' },
-      { text: `Atesto, para os devidos fins, que o(a) paciente ${params.paciente} compareceu a esta unidade de sa\u00FAdde no dia ${params.data} \u00E0s ${params.horario}, para atendimento m\u00E9dico.`, margin: [0, 0, 0, 10] },
+      { text: `Atesto, para os devidos fins, que o(a) paciente ${params.paciente} compareceu a esta unidade de sa\u00FAde no dia ${params.data} \u00E0s ${params.horario}, para atendimento m\u00E9dico.`, margin: [0, 0, 0, 10] },
       signatureBlock(params.medico, params.crm, params.especialidade)
     ],
     defaultStyle
