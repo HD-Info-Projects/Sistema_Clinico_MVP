@@ -1,3 +1,5 @@
+import { atualizarStatusAtendimento } from '../../features/atendimentos/service'
+
 export default defineEventHandler(async (event) => {
   const id = Number(getRouterParam(event, 'id'))
   const body = await readBody<{ status: string, consulta?: { anamnese?: string, diagnosticos?: { cid: string, descricao?: string, principal: boolean }[], medicamentos?: string, exames?: { nome: string, exame_id?: number | null, orientacao?: string | null }[], duracao?: number } }>(event)
@@ -9,10 +11,7 @@ export default defineEventHandler(async (event) => {
 
   try {
     const clinicaId = getActiveClinicaId(event)
-    const result = await flaskFetch<{ id?: number, status?: string, pacienteId?: number }>(event, `/agenda-medica/${id}/status`, {
-      method: 'PATCH',
-      body
-    })
+    const result = await atualizarStatusAtendimento(event, id, body)
 
     broadcastSse({
       type: 'agendamento:status',

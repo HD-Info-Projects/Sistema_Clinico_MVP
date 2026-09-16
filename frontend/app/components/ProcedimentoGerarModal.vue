@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { salvarDocumentoMedico } from '~/features/documentos/services/documentosService'
+import { buscarCid as buscarCidService } from '~/features/clinico/services/clinicoService'
+import type { CidResultado } from '~/features/clinico/types'
 import { buscarProcedimentosCatalogo } from '~/features/procedimentos/services/procedimentosService'
 import type { ProcedimentoCatalogo, ProcedimentoSelecionado } from '~/features/procedimentos/types'
 import type { AgendamentoComPaciente, DocumentoMedico, Paciente, SolicitacaoOpmeDocumentoDados, SolicitacaoProcedimentoDocumentoDados } from '~/types'
@@ -286,8 +289,6 @@ function removerOpme(index: number) {
 const CID_CODE_PATTERN = /^[A-Za-z][0-9.]*$/
 const MAX_CIDS = 4
 
-type CidResultado = { cid: string, nome: string }
-
 let buscaCidTimeout: ReturnType<typeof setTimeout> | null = null
 let cidController: AbortController | null = null
 let cidRequestId = 0
@@ -351,13 +352,7 @@ async function buscarCid(q: string) {
   erroBuscaCid.value = ''
 
   try {
-    const data = await $fetch<CidResultado[]>('/api/cid', {
-      query: {
-        q: termo,
-        limit: 20
-      },
-      signal: cidController.signal
-    })
+    const data = await buscarCidService({ q: termo, limit: 20 }, cidController.signal)
 
     if (requestId !== cidRequestId) return
     if (searchCid.value.trim() !== termo) return
@@ -591,12 +586,7 @@ async function salvarEImprimir() {
           cids: convenioNaoParticular.value ? cidSelecionadoLista.value.map(c => ({ cid: c.cid, nome: c.nome })) : undefined
         }
 
-    const documento = await $fetch<DocumentoMedico>(`/api/documentos-medicos/${medSpdataAtendimentoId.value}/${tipo}`, {
-      method: 'PUT',
-      body: {
-        dados
-      }
-    })
+    const documento = await salvarDocumentoMedico(medSpdataAtendimentoId.value, tipo, dados)
 
     emit('saved', documento)
     await fecharEAbrirPdf(documento)

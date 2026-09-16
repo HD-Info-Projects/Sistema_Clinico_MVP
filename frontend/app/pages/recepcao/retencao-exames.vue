@@ -1,54 +1,12 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui/'
+import { listarRetencaoExames } from '~/features/lgpd/services/lgpdService'
+import type { ContatoRetencao, ExameRetencao } from '~/features/lgpd/types'
 import { exportTableToPDF, exportToExcel, type ColunaExport } from '~/utils/export-data'
 
 const openNav = inject<() => void>('openNav', () => {})
 const auth = useAuthStore()
 const toast = useToast()
-
-interface ExameRetencao {
-  id: number
-  spdataExameId?: number
-  spdataContaId?: number
-  spdataAtendimentoId?: number | null
-  paciente: string
-  cpf: string
-  prontuario: string
-  convenio: string
-  medico: string
-  crm: string
-  especialidade: string
-  exame: string
-  codigoTuss: string
-  dataSolicitacao: string
-  diasEmAberto: number
-  status: 'pendente' | 'realizado' | 'nao-convertido'
-  valorEstimado: number
-  valorRealizado: number | null
-  ultimoContato: string | null
-  responsavel: string | null
-  telefone: string
-  guia?: string
-  senha?: string
-  dataColeta?: string
-  dataLiberacao?: string
-  pendencia?: string
-  statusSpdata?: string
-}
-
-interface RetencaoExamesResponse {
-  items: ExameRetencao[]
-  dataIni: string
-  dataFim: string
-}
-
-interface ContatoRetencao {
-  data: string
-  canal: string
-  usuario: string
-  resultado: string
-  observacao: string
-}
 
 const examesRetencao = ref<ExameRetencao[]>([])
 const loading = ref(false)
@@ -111,13 +69,12 @@ async function carregarRetencao() {
     return
   }
 
-  const params = new URLSearchParams()
-  params.set('dataIni', dataInicioFiltro())
-  params.set('dataFim', dataFimFiltro())
-  params.set('unidadeId', String(unidadeId))
-
   try {
-    const response = await $fetch<RetencaoExamesResponse>(`/api/retencao-exames?${params.toString()}`)
+    const response = await listarRetencaoExames({
+      dataIni: dataInicioFiltro(),
+      dataFim: dataFimFiltro(),
+      unidadeId
+    })
     examesRetencao.value = response.items
   } catch {
     examesRetencao.value = []

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { TipoProcedimentoTuss } from '~/types'
 import { CalendarDate } from '@internationalized/date'
+import { listarCheckIn } from '~/features/agenda/services/agendaService'
 import { TUSS_PROCEDIMENTO_FILTROS, corTipoProcedimento, rotuloTipoProcedimento } from '~/utils/tuss'
 
 const openNav = inject<() => void>('openNav', () => {})
@@ -22,10 +23,6 @@ interface ItemRecepcao {
   tipoProcedimento: TipoProcedimentoTuss
   tipoProcedimentoLabel: string
   status: string
-}
-
-interface CheckInResponse {
-  items: ItemRecepcao[]
 }
 
 const auth = useAuthStore()
@@ -102,8 +99,8 @@ async function loadAgendamentos() {
   if (selectedTipo.value) params.set('tipo', selectedTipo.value)
 
   try {
-    const response = await $fetch<CheckInResponse>(`/api/check-in?${params.toString()}`)
-    if (currentRequest === requestId) agendamentos.value = response.items ?? []
+    const response = await listarCheckIn(Object.fromEntries(params))
+    if (currentRequest === requestId) agendamentos.value = (response.items ?? []) as unknown as ItemRecepcao[]
   } catch {
     if (currentRequest === requestId) {
       agendamentos.value = []

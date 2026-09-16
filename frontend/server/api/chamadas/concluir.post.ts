@@ -1,3 +1,5 @@
+import { atualizarChamadoStatus, chamadoPublico } from '../../features/chamadas/service'
+
 export default defineEventHandler(async (event) => {
   const body = await readBody<{ chamadoId?: number, clinicaId?: number }>(event)
   const clinicaId = getActiveClinicaId(event) ?? body?.clinicaId

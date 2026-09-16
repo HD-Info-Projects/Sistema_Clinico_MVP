@@ -1,3 +1,5 @@
+import { atualizarChamadoStatus } from '../../features/chamadas/service'
+
 export default defineEventHandler(async (event) => {
   const user = await requireRole(event, ['medico', 'recepcao'])
   const clinicaId = requireClinicaUsuario(event, user)

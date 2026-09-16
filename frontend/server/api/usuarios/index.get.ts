@@ -1,11 +1,10 @@
+import { listarUsuarios } from '../../features/usuarios/service'
+
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
-  const params = new URLSearchParams()
-
-  if (query.role) params.set('role', String(query.role))
 
   try {
-    return await flaskFetch(event, `/usuarios${params.toString() ? `?${params.toString()}` : ''}`)
+    return await listarUsuarios(event, query.role ? String(query.role) : undefined)
   } catch (error) {
     throwProxyError(error, 'Erro ao carregar usuários')
   }

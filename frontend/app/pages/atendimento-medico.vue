@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import { listarDocumentosPorAtendimento } from '~/features/documentos/services/documentosService'
+import { buscarCid as buscarCidService } from '~/features/clinico/services/clinicoService'
+import type { CidResultado } from '~/features/clinico/types'
+import { buscarExamesCatalogo } from '~/features/exames/services/examesService'
+import type { ExameCatalogo, ExameSelecionado } from '~/features/exames/types'
 import type {
   DocumentoMedico,
   DocumentoMedicoTipo,
-  ExameCatalogo,
-  ExameSelecionado,
   HistoricoLocalRecord,
   PadraoAnamnese,
   PadraoExame,
@@ -109,7 +112,7 @@ async function carregarDocumentosMedicosDoAtendimento() {
   }
 
   try {
-    const documentos = await $fetch<DocumentoMedico[]>(`/api/documentos-medicos/${ag.id}`)
+    const documentos = await listarDocumentosPorAtendimento(ag.id)
 
     if (requestId !== documentosMedicosRequestId) return
 
@@ -142,8 +145,6 @@ const tabItems = [
   { label: 'Receita', icon: 'i-lucide-pill' },
   { label: 'Conclusão', icon: 'i-lucide-check-circle' }
 ]
-
-type CidResultado = { cid: string, nome: string }
 
 type AtendimentoDraft = {
   version: 5
@@ -241,13 +242,7 @@ async function buscarCid(q: string) {
   erroBuscaCid.value = ''
 
   try {
-    const data = await $fetch<CidResultado[]>('/api/cid', {
-      query: {
-        q: termo,
-        limit: 20
-      },
-      signal: cidController.signal
-    })
+    const data = await buscarCidService({ q: termo, limit: 20 }, cidController.signal)
 
     if (requestId !== cidRequestId) return
     if (searchCid.value.trim() !== termo) return
@@ -383,10 +378,7 @@ async function buscarExames(q: string) {
   carregandoExames.value = true
   erroBuscaExames.value = ''
   try {
-    const data = await $fetch<{ exames: ExameCatalogo[] }>('/api/exames/buscar', {
-      query: { q: termo },
-      signal: examesController.signal
-    })
+    const data = await buscarExamesCatalogo(termo, examesController.signal)
 
     if (requestId !== examesRequestId) return
     if (buscaTermoExame.value.trim() !== termo) return

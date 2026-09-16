@@ -1,3 +1,5 @@
+import { registrarMotivoNoShow } from '../../../features/agenda/service'
+
 export default defineEventHandler(async (event) => {
   const id = Number(getRouterParam(event, 'id'))
   if (!Number.isInteger(id) || id <= 0) {
@@ -13,10 +15,7 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    return await flaskFetch<{ id: number, motivo: string }>(event, `/no_show/${id}/motivo`, {
-      method: 'PATCH',
-      body: { motivo }
-    })
+    return await registrarMotivoNoShow(event, id, { motivo })
   } catch (error) {
     const fetchError = error as { status?: number, statusCode?: number, response?: { status?: number } }
     const status = fetchError.response?.status || fetchError.statusCode || fetchError.status || 502

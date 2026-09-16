@@ -1,17 +1,10 @@
+import { listarNoShow } from '../features/agenda/service'
+
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
-  const params = new URLSearchParams()
-
-  for (const key of ['dataIni', 'dataFim', 'medico', 'especialidade', 'convenio', 'status', 'q', 'page', 'pageSize', 'unidadeId']) {
-    const value = query[key]
-    if (value !== undefined && value !== null && String(value).trim()) {
-      params.set(key, String(value))
-    }
-  }
 
   try {
-    const qs = params.toString()
-    return await flaskFetch(event, `/no_show/${qs ? `?${qs}` : ''}`)
+    return await listarNoShow(event, query)
   } catch (error) {
     const fetchError = error as { status?: number, statusCode?: number, response?: { status?: number } }
     const status = fetchError.response?.status || fetchError.statusCode || fetchError.status || 502

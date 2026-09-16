@@ -1,3 +1,5 @@
+import { atualizarUsuario } from '../../features/usuarios/service'
+
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
   if (!id) throw createError({ statusCode: 400, statusMessage: 'id é obrigatório' })
@@ -5,10 +7,7 @@ export default defineEventHandler(async (event) => {
   const body = await readBody(event)
 
   try {
-    return await flaskFetch(event, `/usuarios/${id}`, {
-      method: 'PUT',
-      body
-    })
+    return await atualizarUsuario(event, id, body)
   } catch (error) {
     throwProxyError(error, 'Erro ao atualizar usuário')
   }

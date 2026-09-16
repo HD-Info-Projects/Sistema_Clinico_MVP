@@ -311,9 +311,9 @@ def test_tts_auditoria_nao_grava_texto_falado(monkeypatch):
         return b"audio"
 
     eventos = []
-    monkeypatch.setattr("src.routes.tts_route._gerar_audio_edge_tts", gerar_audio_fake)
+    monkeypatch.setattr("src.modules.chamadas.service._gerar_audio_edge_tts", gerar_audio_fake)
     monkeypatch.setattr(
-        "src.routes.tts_route.registrar_auditoria",
+        "src.modules.chamadas.service.registrar_auditoria",
         lambda *args, **kwargs: eventos.append(kwargs),
     )
 

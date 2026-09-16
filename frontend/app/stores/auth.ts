@@ -1,11 +1,6 @@
 import { defineStore } from 'pinia'
-import type { AuthUser, Clinica } from '~/types'
-
-type AuthSessionResponse = {
-  user: AuthUser
-  clinicas: Clinica[]
-  activeClinicaId?: number | null
-}
+import { buscarSessaoAuth, loginAuth, logoutAuth } from '~/features/auth/services/authService'
+import type { AuthSessionResponse, AuthUser, Clinica } from '~/features/auth/types'
 
 export type AccessMode = 'recepcionista' | 'administrador' | 'logs'
 
@@ -110,10 +105,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function login(credentials: Record<string, unknown>) {
     try {
-      const response = await $fetch<AuthSessionResponse>('/api/auth/login', {
-        method: 'POST',
-        body: credentials
-      })
+      const response = await loginAuth(credentials)
 
       aplicarSessao(response)
 
@@ -144,7 +136,7 @@ export const useAuthStore = defineStore('auth', () => {
     limparRascunhosClinicosLocais()
 
     try {
-      await $fetch('/api/auth/logout', { method: 'POST' })
+      await logoutAuth()
     } catch {
       // A limpeza local ainda deve ocorrer se o servidor já encerrou a sessão.
     }
@@ -161,7 +153,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (user.value) return true
 
     try {
-      const response = await $fetch<AuthSessionResponse>('/api/auth/me')
+      const response = await buscarSessaoAuth()
       aplicarSessao(response)
       return true
     } catch {

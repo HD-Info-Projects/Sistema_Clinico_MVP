@@ -1,14 +1,21 @@
 <!-- eslint-disable vue/no-v-html -->
 <script setup lang="ts">
+import {
+  buscarHistoricoLocal as buscarHistoricoLocalApi,
+  buscarHistoricoPaciente as buscarHistoricoPacienteApi,
+  buscarHistoricoSpdata as buscarHistoricoSpdataApi
+} from '~/features/pacientes/services/pacientesService'
+import { buscarExamesPacs } from '~/features/pacs/services/pacsService'
 import type {
-  Paciente,
-  AgendamentoComPaciente,
+  ExamePacs,
+  HistoricoLocalRecord,
   HistoricoRecord,
   HistoricoResponse,
-  HistoricoLocalRecord,
-  ExameHistoricoItem,
-  ExamePacs,
-  ExamesPacsResponse
+  Paciente
+} from '~/features/pacientes/types'
+import type {
+  AgendamentoComPaciente,
+  ExameHistoricoItem
 } from '~/types'
 import {
   abrirExamePacs,
@@ -321,17 +328,12 @@ async function buscarHistoricoLocal(
 ): Promise<HistoricoLocalRecord[]> {
   const paciente = pacienteAtual.value
 
-  return await $fetch<HistoricoLocalRecord[]>(
-    `/api/historico-local/${pacienteId}`,
-    {
-      query: {
-        cpf: cpfHistorico(paciente?.cpf),
-        nome: paciente?.nome || undefined,
-        spdataAtendimentoId:
-          props.agendamento?.spdataAtendimentoId || undefined
-      }
-    }
-  )
+  return await buscarHistoricoLocalApi(pacienteId, {
+    cpf: cpfHistorico(paciente?.cpf),
+    nome: paciente?.nome || undefined,
+    spdataAtendimentoId:
+      props.agendamento?.spdataAtendimentoId || undefined
+  })
 }
 
 async function buscarHistoricoBiodata(
@@ -348,27 +350,14 @@ async function buscarHistoricoBiodata(
     }
   }
 
-  return await $fetch<HistoricoResponse>(
-    `/api/historico-paciente/${pacienteId}`,
-    {
-      query: {
-        cpf: cpfHistorico(paciente.cpf),
-        nome: paciente.nome || undefined,
-        spdataAtendimentoId:
-          props.agendamento?.spdataAtendimentoId || undefined,
-        limit: HISTORICO_BIODATA_LIMIT,
-        offset
-      }
-    }
-  )
-}
-
-async function buscarExamesPacs(
-  pacienteId: number
-): Promise<ExamesPacsResponse> {
-  return await $fetch<ExamesPacsResponse>(
-    `/api/exames-pacs/paciente/${pacienteId}`
-  )
+  return await buscarHistoricoPacienteApi(pacienteId, {
+    cpf: cpfHistorico(paciente.cpf),
+    nome: paciente.nome || undefined,
+    spdataAtendimentoId:
+      props.agendamento?.spdataAtendimentoId || undefined,
+    limit: HISTORICO_BIODATA_LIMIT,
+    offset
+  })
 }
 
 async function buscarHistoricoSpdata(
@@ -385,19 +374,14 @@ async function buscarHistoricoSpdata(
     }
   }
 
-  return await $fetch<HistoricoResponse>(
-    `/api/historico-spdata/${pacienteId}`,
-    {
-      query: {
-        cpf: cpfHistorico(paciente.cpf),
-        nome: paciente.nome || undefined,
-        spdataAtendimentoId:
-          props.agendamento?.spdataAtendimentoId || undefined,
-        limit: HISTORICO_SPDATA_LIMIT,
-        offset
-      }
-    }
-  )
+  return await buscarHistoricoSpdataApi(pacienteId, {
+    cpf: cpfHistorico(paciente.cpf),
+    nome: paciente.nome || undefined,
+    spdataAtendimentoId:
+      props.agendamento?.spdataAtendimentoId || undefined,
+    limit: HISTORICO_SPDATA_LIMIT,
+    offset
+  })
 }
 
 async function carregarMaisHistoricoExterno() {

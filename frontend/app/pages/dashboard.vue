@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { AgendamentoComPaciente, AgendamentoStatus } from '~/types'
+import type { AgendamentoComPaciente, AgendamentoStatus } from '~/features/atendimentos/types'
 
 const openNav = inject<() => void>('openNav', () => {})
 const auth = useAuthStore()
-const agendamentosStore = useAgendamentosStore()
+const agendamentosStore = useAtendimentosStore()
 const chamadosStore = useChamadosStore()
 const toast = useToast()
 const { sala, precisaSelecionar, definirSala } = useSalaAtendimento()

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Clinica } from '~/types'
 import { useSse } from '~/composables/useSse'
+import { gerarAudioChamado } from '~/features/chamadas/services/chamadasService'
 
 const route = useRoute()
 const chamadosStore = useChamadosStore()
@@ -127,31 +128,9 @@ async function falarChamado(chamadoId: number) {
   ttsErrorMensagem.value = ''
 
   try {
-    const res = await fetch('/api/tts/speak', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chamadoId }),
-      signal: abortController.signal
-    })
-
-    if (!res.ok) {
-      let message = 'Erro ao gerar áudio'
-
-      try {
-        const body = (await res.json()) as {
-          statusMessage?: string
-          message?: string
-        }
-        message = body.statusMessage || body.message || message
-      } catch {
-        // Mantém a mensagem padrão quando a resposta não é JSON.
-      }
-
-      throw new Error(message)
-    }
     if (requestId !== ttsRequestId.value) return
 
-    const blob = await res.blob()
+    const blob = await gerarAudioChamado(chamadoId, { signal: abortController.signal })
     if (requestId !== ttsRequestId.value) return
 
     const url = URL.createObjectURL(blob)

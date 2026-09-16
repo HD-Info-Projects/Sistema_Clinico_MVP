@@ -1,1 +1,10 @@
-"""Shared infrastructure package for cross-cutting concerns."""
+"""Stable shared infrastructure imports for modularized domains."""
+
+__all__ = [
+    "cache",
+    "database",
+    "exceptions",
+    "logging",
+    "security",
+    "utils",
+]

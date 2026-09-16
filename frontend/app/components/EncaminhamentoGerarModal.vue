@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { salvarDocumentoMedico } from '~/features/documentos/services/documentosService'
 import type { AgendamentoComPaciente, DocumentoMedico, EncaminhamentoDocumentoDados, Paciente } from '~/types'
 import { usePdfMake } from '~/utils/pdf'
 import { buildEncaminhamento } from '~/utils/pdf-documents'
@@ -98,15 +99,10 @@ async function salvarEImprimir() {
 
   salvando.value = true
   try {
-    const documento = await $fetch<DocumentoMedico>(`/api/documentos-medicos/${medSpdataAtendimentoId.value}/ENCAMINHAMENTO`, {
-      method: 'PUT',
-      body: {
-        dados: {
-          data: data.value,
-          encaminhar_para: encaminharPara.value.trim(),
-          profissional_externo: profissionalExterno.value.trim()
-        }
-      }
+    const documento = await salvarDocumentoMedico(medSpdataAtendimentoId.value, 'ENCAMINHAMENTO', {
+      data: data.value,
+      encaminhar_para: encaminharPara.value.trim(),
+      profissional_externo: profissionalExterno.value.trim()
     })
 
     emit('saved', documento)

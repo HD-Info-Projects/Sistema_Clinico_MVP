@@ -3,8 +3,8 @@ from pathlib import Path
 
 
 def _load_route_module():
-    path = Path(__file__).resolve().parent / "src/routes/spdata_exames_pacs_route.py"
-    spec = importlib.util.spec_from_file_location("spdata_exames_pacs_route", path)
+    path = Path(__file__).resolve().parent / "src/integrations/pacs/routes.py"
+    spec = importlib.util.spec_from_file_location("pacs_routes", path)
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
     spec.loader.exec_module(module)

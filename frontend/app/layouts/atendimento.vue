@@ -5,9 +5,9 @@ import type {
   HistoricoResponse,
   HistoricoLocalRecord,
   ExameHistoricoItem,
-  ExamePacs,
-  ExamesPacsResponse
+  ExamePacs
 } from '~/types'
+import { buscarExamesPacs } from '~/features/pacs/services/pacsService'
 import {
   abrirExamePacs,
   montarExamesHistoricoUnificados
@@ -237,7 +237,7 @@ async function fetchHistorico() {
         buscarHistoricoBiodata(0),
         buscarHistoricoSpdata(0),
         buscarHistoricoLocal(pacienteId),
-        $fetch<ExamesPacsResponse>(`/api/exames-pacs/paciente/${pacienteId}`)
+        buscarExamesPacs(pacienteId)
       ])
 
     if (!isHistoricoAtual(requestId, cacheKey)) return

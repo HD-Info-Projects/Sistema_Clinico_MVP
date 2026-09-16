@@ -2,15 +2,12 @@
 import type { AgendamentoComPaciente, AgendamentoStatus } from '~/types'
 import type { DateValue } from '@internationalized/date'
 import { CalendarDate } from '@internationalized/date'
+import { buscarMarcadores, type MarcadorCalendarioResponse } from '~/features/agenda/services/agendaService'
 import { corTipoProcedimento, rotuloTipoProcedimento } from '~/utils/tuss'
 
 const openNav = inject<() => void>('openNav', () => {})
 
 type MarcadorStatus = Exclude<AgendamentoStatus, 'cancelado'>
-type MarcadorCalendarioResponse = {
-  data?: string | null
-  status?: AgendamentoStatus[] | AgendamentoStatus | null
-}
 
 const ordemMarcadoresStatus: MarcadorStatus[] = [
   'agendado',
@@ -143,14 +140,12 @@ async function buscarMarcadoresCalendario(
   sincronizar = false
 ) {
   const { dataIni, dataFim } = intervaloMes(date)
-  const params = new URLSearchParams({ dataIni, dataFim })
-  if (auth.activeClinicaId)
-    params.set('clinicaId', String(auth.activeClinicaId))
-  if (sincronizar) params.set('sincronizar', 'true')
-
-  const items = await $fetch<MarcadorCalendarioResponse[]>(
-    `/api/agendamentos/marcadores?${params.toString()}`
-  )
+  const items = await buscarMarcadores({
+    dataIni,
+    dataFim,
+    clinicaId: auth.activeClinicaId ?? undefined,
+    sincronizar: sincronizar ? 'true' : undefined
+  })
   return montarMarcadoresCalendario(items)
 }
 

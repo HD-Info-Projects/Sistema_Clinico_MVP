@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { TipoProcedimentoTuss } from '~/types'
+import { listarCheckIn } from '~/features/agenda/services/agendaService'
+import type { CheckInResponse } from '~/features/agenda/types'
 import { TUSS_PROCEDIMENTO_FILTROS, corTipoProcedimento, rotuloTipoProcedimento } from '~/utils/tuss'
 
 const openNav = inject<() => void>('openNav', () => {})
@@ -25,32 +27,6 @@ interface AtendimentoRecepcao {
   dataNascimento: string | null
   idade: number | null
   status: AtendimentoStatus
-}
-
-interface MedicoDia {
-  id: string
-  nome: string
-  especialidade: string
-  pacientesCount: number
-}
-
-interface ResumoRecepcao {
-  agendados: number
-  emEspera: number
-  emAtendimento: number
-  atendidos: number
-  faltas: number
-  desconhecidos: number
-}
-
-interface CheckInResponse {
-  items: AtendimentoRecepcao[]
-  page: number
-  pageSize: number
-  total: number
-  medicos: MedicoDia[]
-  resumo: ResumoRecepcao
-  data: string
 }
 
 const auth = useAuthStore()
@@ -225,7 +201,7 @@ async function carregarAtendimentos() {
   if (busca.value.trim()) params.set('q', busca.value.trim())
 
   try {
-    const response = await $fetch<CheckInResponse>(`/api/check-in?${params.toString()}`)
+    const response = await listarCheckIn(Object.fromEntries(params))
     if (currentRequest === requestId) dados.value = response
   } catch {
     if (currentRequest === requestId) {
