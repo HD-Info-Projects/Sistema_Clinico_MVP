@@ -14,6 +14,7 @@ export default defineEventHandler(async (event) => {
   const authUser = await getAuthenticatedUser(event)
   const clinicaId = requireClinicaUsuario(event, authUser)
   const config = useRuntimeConfig()
+  const requestId = getRequestId(event)
   const dataParam = Array.isArray(query.data) ? query.data[0] : query.data
   const pollAgenda = Boolean(dataParam) && authUser.role === 'medico'
   const data = String(dataParam || hojeISO())
@@ -52,7 +53,8 @@ export default defineEventHandler(async (event) => {
       const items = await $fetch<unknown[]>(`${config.flaskBaseUrl}/agenda-medica/?data=${encodeURIComponent(data)}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'X-Unidade-Id': String(clinicaId)
+          'X-Unidade-Id': String(clinicaId),
+          [REQUEST_ID_HEADER]: requestId
         }
       })
 

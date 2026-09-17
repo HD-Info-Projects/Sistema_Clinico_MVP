@@ -3,8 +3,8 @@ export default defineEventHandler(async (event) => {
   if (!id) throw createError({ statusCode: 400, statusMessage: 'id obrigatório' })
 
   try {
-    return await getClinicaPublica(id)
-  } catch {
-    throw createError({ statusCode: 404, statusMessage: 'Unidade não encontrada' })
+    return await getClinicaPublica(event, id)
+  } catch (error) {
+    throwProxyError(error, 'Falha ao carregar unidade')
   }
 })

@@ -1,13 +1,17 @@
+import { z } from 'zod'
 import { criarChamado } from '../../features/chamadas/service'
+
+const criarChamadoSchema = z.object({
+  pacienteId: z.number().int().positive(),
+  pacienteNome: z.string().trim().min(1),
+  localAtendimento: z.string().trim().min(1),
+  medicoResponsavel: z.string().trim().optional()
+})
 
 export default defineEventHandler(async (event) => {
   const user = await requireRole(event, ['medico', 'recepcao'])
   const clinicaId = requireClinicaUsuario(event, user)
-  const body = await readBody<{ pacienteId: number, pacienteNome: string, localAtendimento: string, medicoResponsavel: string }>(event)
-
-  if (!body.pacienteId || !body.pacienteNome || !body.localAtendimento) {
-    throw createError({ statusCode: 400, statusMessage: 'Campos obrigatórios: pacienteId, pacienteNome, localAtendimento' })
-  }
+  const body = await readBodyWithSchema(event, criarChamadoSchema, 'Dados da chamada inválidos')
 
   return criarChamado({
     clinicaId,

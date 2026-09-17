@@ -1,6 +1,12 @@
+import { z } from 'zod'
 import { loginAuth } from '../../features/auth/service'
 
+const loginSchema = z.object({
+  email: z.email().max(254),
+  password: z.string().min(1).max(256)
+})
+
 export default defineEventHandler(async (event) => {
-  const body = await readBody(event)
+  const body = await readBodyWithSchema(event, loginSchema, 'E-mail e senha inválidos')
   return await loginAuth(event, body)
 })

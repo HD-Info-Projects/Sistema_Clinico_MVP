@@ -1,16 +1,19 @@
 import type { H3Event } from 'h3'
 import { fetchErrorStatus } from '../../utils/proxy-error'
+import { getRequestId, logUpstreamFailure, REQUEST_ID_HEADER } from '../../utils/request-id'
 import { setPrivateNoStore } from '../../utils/response'
 
 export async function loginAuth(event: H3Event, body: { email?: string, password?: string }) {
   setPrivateNoStore(event)
   const { email, password } = body
   const config = useRuntimeConfig()
+  const requestId = getRequestId(event)
 
   let res: { access_token?: string }
   try {
     res = await $fetch(`${config.flaskBaseUrl}/login/auth`, {
       method: 'POST',
+      headers: { [REQUEST_ID_HEADER]: requestId },
       body: { email, senha: password }
     })
   } catch (error: unknown) {
@@ -23,7 +26,7 @@ export async function loginAuth(event: H3Event, body: { email?: string, password
       })
     }
 
-    console.error('[auth] Falha ao autenticar no Flask', { status })
+    logUpstreamFailure(event, error, 'flask', 'autenticar')
     throw createError({
       statusCode: 502,
       statusMessage: 'Falha ao conectar com o backend Flask'
@@ -37,7 +40,8 @@ export async function loginAuth(event: H3Event, body: { email?: string, password
   try {
     const rawUser = await $fetch(`${config.flaskBaseUrl}/login/me`, {
       headers: {
-        Authorization: `Bearer ${res.access_token}`
+        Authorization: `Bearer ${res.access_token}`,
+        [REQUEST_ID_HEADER]: requestId
       }
     })
 
@@ -45,7 +49,7 @@ export async function loginAuth(event: H3Event, body: { email?: string, password
     return buildLoginSessionPayload(event, rawUser as Parameters<typeof buildLoginSessionPayload>[1])
   } catch (error: unknown) {
     const status = fetchErrorStatus(error)
-    console.error('[auth] Falha ao validar sessão recém-criada', { status })
+    logUpstreamFailure(event, error, 'flask', 'validar nova sessão')
     if (status === 401 || status === 403) {
       throw createError({ statusCode: 401, statusMessage: 'Credenciais inválidas' })
     }
@@ -61,6 +65,7 @@ export async function buscarSessaoAuth(event: H3Event) {
 
 export async function logoutAuth(event: H3Event) {
   setPrivateNoStore(event)
+  const requestId = getRequestId(event)
   const token = getCookie(event, AUTH_COOKIE_NAME)
   if (token) {
     const config = useRuntimeConfig()
@@ -68,10 +73,12 @@ export async function logoutAuth(event: H3Event) {
       await $fetch(`${config.flaskBaseUrl}/login/logout`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
+          [REQUEST_ID_HEADER]: requestId
         }
       })
-    } catch {
+    } catch (error) {
+      logUpstreamFailure(event, error, 'flask', 'registrar logout')
       // A sessão local deve ser encerrada mesmo se a auditoria do logout falhar.
     }
   }
