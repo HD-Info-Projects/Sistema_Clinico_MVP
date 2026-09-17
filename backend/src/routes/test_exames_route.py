@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from src.routes.exames_route import exame_para_dict, filtro_busca_exames
+from src.modules.exames.service import exame_para_dict, filtro_busca_exames
 
 
 def test_exame_para_dict_retorna_catalogo_basico():

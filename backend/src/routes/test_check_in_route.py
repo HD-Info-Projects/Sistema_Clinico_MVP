@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.routes.check_in_route import (
+from src.modules.agenda.check_in import (
     buscar_agendamentos_firebird,
     filtrar_rows_por_tipo,
     item_para_frontend,

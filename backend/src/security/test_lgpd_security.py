@@ -5,7 +5,7 @@ from src import create_app
 from src.controllers.login_controller import LoginController
 from flask_jwt_extended import create_access_token
 
-from src.routes.dashboard_route import _item_dashboard
+from src.modules.atendimentos.routes import _item_dashboard
 from src.security.decorators import active_user_required, roles_required
 from src.security.jwt_blocklist import is_jti_revoked, revoke_jti
 from src.security.passwords import (
