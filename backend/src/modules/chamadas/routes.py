@@ -1,6 +1,6 @@
 from flask import Blueprint, Response, current_app, jsonify, request
 
-from src.modules.chamadas import service
+from src.modules.chamadas.service import _tts_rate_limit, gerar_audio_tts
 from src.settings.extensions import limiter
 
 
@@ -8,13 +8,13 @@ tts_bp = Blueprint("tts", __name__, url_prefix="/tts")
 
 
 @tts_bp.route("/speak", methods=["POST"])
-@limiter.limit(service._tts_rate_limit)
+@limiter.limit(_tts_rate_limit)
 def speak():
     if not current_app.config.get("ENABLE_TTS", False):
         return jsonify({"error": "TTS desabilitado"}), 503
 
     try:
-        audio_bytes = service.gerar_audio_tts(request.get_json(silent=True) or {})
+        audio_bytes = gerar_audio_tts(request.get_json(silent=True) or {})
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
     except ModuleNotFoundError as e:
