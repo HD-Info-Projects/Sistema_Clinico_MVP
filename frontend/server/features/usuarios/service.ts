@@ -1,5 +1,6 @@
 import type { H3Event } from 'h3'
 import { flaskFetch } from '../../utils/flask'
+import type { AtualizarUsuarioBody, CriarUsuarioBody } from './schema'
 
 export function listarUsuarios(event: H3Event, role?: string) {
   const params = new URLSearchParams()
@@ -8,14 +9,14 @@ export function listarUsuarios(event: H3Event, role?: string) {
   return flaskFetch(event, `/usuarios${params.toString() ? `?${params.toString()}` : ''}`)
 }
 
-export function criarUsuario(event: H3Event, body: unknown) {
+export function criarUsuario(event: H3Event, body: CriarUsuarioBody) {
   return flaskFetch(event, '/usuarios', {
     method: 'POST',
     body
   })
 }
 
-export function atualizarUsuario(event: H3Event, id: string, body: unknown) {
+export function atualizarUsuario(event: H3Event, id: string, body: AtualizarUsuarioBody) {
   return flaskFetch(event, `/usuarios/${id}`, {
     method: 'PUT',
     body
