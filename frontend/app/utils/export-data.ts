@@ -33,15 +33,19 @@ function textoCelula(valor: string | number | null | undefined) {
   return valor
 }
 
-function escaparCsv(valor: string) {
-  if (/[";\n\r]/.test(valor)) return `"${valor.replace(/"/g, '""')}"`
-  return valor
+function escaparCsv(valor: string | number | null | undefined) {
+  let texto = textoCelula(valor)
+  if (typeof valor === 'string' && /^[\t\r\n ]*[=+\-@]/.test(valor)) {
+    texto = `'${texto}`
+  }
+  if (/[";\n\r]/.test(texto)) return `"${texto.replace(/"/g, '""')}"`
+  return texto
 }
 
 export function exportToCSV<T>(rows: T[], columns: ColunaExport<T>[], filename: string) {
   const linhas = [
     columns.map(c => escaparCsv(c.header)).join(';'),
-    ...rows.map(row => columns.map(c => escaparCsv(textoCelula(c.value(row)))).join(';'))
+    ...rows.map(row => columns.map(c => escaparCsv(c.value(row))).join(';'))
   ]
   const blob = new Blob([`\uFEFF${linhas.join('\r\n')}`], { type: 'text/csv;charset=utf-8;' })
   baixarArquivo(blob, filename.endsWith('.csv') ? filename : `${filename}.csv`)

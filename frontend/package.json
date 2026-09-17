@@ -12,8 +12,6 @@
   },
   "dependencies": {
     "@iconify-json/lucide": "^1.2.106",
-    "@iconify-json/material-symbols": "^1.2.75",
-    "@iconify-json/simple-icons": "^1.2.81",
     "@internationalized/date": "^3.12.2",
     "@nuxt/image": "2.0.0",
     "@nuxt/ui": "^4.8.0",
@@ -37,7 +35,6 @@
   },
   "devDependencies": {
     "@nuxt/eslint": "^1.15.2",
-    "@types/dompurify": "^3.2.0",
     "@types/pdfmake": "^0.3.3",
     "eslint": "^10.3.0",
     "typescript": "^6.0.3",

@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { H3Event } from 'h3'
+import { setPrivateNoStore } from './response'
 
 export function medicoAlvoParams(event: H3Event): Record<string, number> {
   const bruto = getQuery(event).medicoId ?? getQuery(event).medico_id
@@ -10,6 +11,7 @@ export function medicoAlvoParams(event: H3Event): Record<string, number> {
 }
 
 export async function flaskFetch<T>(event: H3Event, path: string, opts?: any): Promise<T> {
+  setPrivateNoStore(event)
   const token = requireAuthToken(event)
   const config = useRuntimeConfig()
   const { activeClinica = true, ...fetchOpts } = opts ?? {}

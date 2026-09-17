@@ -1,11 +1,9 @@
 import type { H3Event } from 'h3'
-
-function fetchStatus(error: unknown) {
-  const fetchError = error as { status?: number, statusCode?: number, response?: { status?: number } }
-  return fetchError.response?.status || fetchError.statusCode || fetchError.status
-}
+import { fetchErrorStatus } from '../../utils/proxy-error'
+import { setPrivateNoStore } from '../../utils/response'
 
 export async function loginAuth(event: H3Event, body: { email?: string, password?: string }) {
+  setPrivateNoStore(event)
   const { email, password } = body
   const config = useRuntimeConfig()
 
@@ -16,7 +14,7 @@ export async function loginAuth(event: H3Event, body: { email?: string, password
       body: { email, senha: password }
     })
   } catch (error: unknown) {
-    const status = fetchStatus(error)
+    const status = fetchErrorStatus(error)
 
     if (status === 400 || status === 401 || status === 429) {
       throw createError({
@@ -36,8 +34,6 @@ export async function loginAuth(event: H3Event, body: { email?: string, password
     throw createError({ statusCode: 401, statusMessage: 'Credenciais inválidas' })
   }
 
-  setAuthTokenCookie(event, res.access_token)
-
   try {
     const rawUser = await $fetch(`${config.flaskBaseUrl}/login/me`, {
       headers: {
@@ -45,24 +41,26 @@ export async function loginAuth(event: H3Event, body: { email?: string, password
       }
     })
 
+    setAuthTokenCookie(event, res.access_token)
     return buildLoginSessionPayload(event, rawUser as Parameters<typeof buildLoginSessionPayload>[1])
   } catch (error: unknown) {
-    clearAuthTokenCookie(event)
-    console.error('[auth] Falha ao validar sessão recém-criada', { status: fetchStatus(error) })
+    const status = fetchErrorStatus(error)
+    console.error('[auth] Falha ao validar sessão recém-criada', { status })
+    if (status === 401 || status === 403) {
+      throw createError({ statusCode: 401, statusMessage: 'Credenciais inválidas' })
+    }
     throw createError({ statusCode: 502, statusMessage: 'Falha ao carregar sessão' })
   }
 }
 
 export async function buscarSessaoAuth(event: H3Event) {
-  try {
-    const rawUser = await getAuthenticatedUser(event)
-    return buildAuthSessionPayload(event, rawUser)
-  } catch {
-    throw createError({ statusCode: 401, statusMessage: 'Não autorizado' })
-  }
+  setPrivateNoStore(event)
+  const rawUser = await getAuthenticatedUser(event)
+  return buildAuthSessionPayload(event, rawUser)
 }
 
 export async function logoutAuth(event: H3Event) {
+  setPrivateNoStore(event)
   const token = getCookie(event, AUTH_COOKIE_NAME)
   if (token) {
     const config = useRuntimeConfig()

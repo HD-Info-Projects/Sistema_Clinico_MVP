@@ -20,18 +20,26 @@ type FetchErrorLike = {
   }
 }
 
+const SAFE_MESSAGE_STATUS = new Set([400, 401, 403, 404, 409, 422, 429])
+
+export function fetchErrorStatus(error: unknown) {
+  const fetchError = error as FetchErrorLike
+  return fetchError.response?.status
+    || fetchError.statusCode
+    || fetchError.status
+}
+
 export function throwProxyError(error: unknown, fallback: string): never {
   const fetchError = error as FetchErrorLike
   const data = fetchError.data || fetchError.response?._data
-  const message = data?.error
+  const statusCode = fetchErrorStatus(error) || 502
+  const upstreamMessage = data?.error
     || data?.message
     || data?.statusMessage
     || fetchError.statusMessage
-    || fallback
-  const statusCode = fetchError.response?.status
-    || fetchError.statusCode
-    || fetchError.status
-    || 500
+  const message = SAFE_MESSAGE_STATUS.has(statusCode) && upstreamMessage
+    ? upstreamMessage
+    : fallback
 
   throw createError({
     statusCode,
