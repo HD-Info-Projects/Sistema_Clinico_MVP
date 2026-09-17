@@ -3,8 +3,8 @@ from pathlib import Path
 
 
 def _load_route_module():
-    path = Path(__file__).resolve().parent / "src/integrations/pacs/routes.py"
-    spec = importlib.util.spec_from_file_location("pacs_routes", path)
+    path = Path(__file__).resolve().parent / "src/integrations/pacs/service.py"
+    spec = importlib.util.spec_from_file_location("pacs_service", path)
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
     spec.loader.exec_module(module)
@@ -41,7 +41,7 @@ def test_chamar_viewer_exame_envia_treatment_id_823525(monkeypatch):
 
     monkeypatch.setattr(route_module.requests, "post", post_fake)
 
-    payload, status_code = route_module._chamar_viewer_exame(823525)
+    payload, status_code = route_module.chamar_viewer_exame(823525)
 
     assert status_code == 200
     assert payload == {
@@ -86,7 +86,7 @@ def test_chamar_viewer_exame_reescreve_host_viewer_publico(monkeypatch):
         lambda *args, **kwargs: FakeViewerResponse(),
     )
 
-    payload, status_code = route_module._chamar_viewer_exame(823525)
+    payload, status_code = route_module.chamar_viewer_exame(823525)
 
     assert status_code == 200
     assert payload["message"] == (
@@ -99,7 +99,7 @@ def test_chamar_viewer_exame_reescreve_host_viewer_publico(monkeypatch):
 def test_normalizar_base64_pdf_remove_data_url_e_espacos():
     route_module = _load_route_module()
 
-    assert route_module._normalizar_base64_pdf(
+    assert route_module.normalizar_base64_pdf(
         "data:application/pdf;base64, JVBERi0xLjQ=\n"
     ) == "JVBERi0xLjQ="
 
@@ -107,16 +107,16 @@ def test_normalizar_base64_pdf_remove_data_url_e_espacos():
 def test_extrair_viewer_url_usa_message():
     route_module = _load_route_module()
 
-    assert route_module._extrair_viewer_url({
+    assert route_module.extrair_viewer_url({
         "message": " https://exemplo.com/viewer?aet=SP1972&token= "
     }) == "https://exemplo.com/viewer?aet=SP1972&token="
 
 
 def test_exame_para_frontend_marca_tem_imagem(monkeypatch):
     route_module = _load_route_module()
-    monkeypatch.setattr(route_module, "_tem_imagem_pacs", lambda id_lancamento: id_lancamento == 823525)
+    monkeypatch.setattr(route_module, "tem_imagem_pacs", lambda id_lancamento: id_lancamento == 823525)
 
-    assert route_module._exame_para_frontend({
+    assert route_module.exame_para_frontend({
         "ID_TOKEN_LANCAMENTO_EXAME": 823525,
         "ID_PACIENTE_SPDATA": 10,
         "NOME_EXAME": "Tomografia",
@@ -126,18 +126,18 @@ def test_exame_para_frontend_marca_tem_imagem(monkeypatch):
 
 def test_tem_imagem_pacs_usa_cache(monkeypatch):
     route_module = _load_route_module()
-    monkeypatch.setattr(route_module, "_cache_get_tem_imagem", lambda id_lancamento: True)
-    monkeypatch.setattr(route_module, "_chamar_viewer_exame", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("não deveria chamar PACS")))
+    monkeypatch.setattr(route_module, "cache_get_tem_imagem", lambda id_lancamento: True)
+    monkeypatch.setattr(route_module, "chamar_viewer_exame", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("não deveria chamar PACS")))
 
-    assert route_module._tem_imagem_pacs(823525) is True
+    assert route_module.tem_imagem_pacs(823525) is True
 
 
 def test_tem_imagem_pacs_cacheia_resposta_com_message(monkeypatch):
     route_module = _load_route_module()
     chamadas_cache = []
-    monkeypatch.setattr(route_module, "_cache_get_tem_imagem", lambda id_lancamento: None)
-    monkeypatch.setattr(route_module, "_chamar_viewer_exame", lambda *args, **kwargs: ({"message": "https://exemplo.com/viewer"}, 200))
-    monkeypatch.setattr(route_module, "_cache_set_tem_imagem", lambda id_lancamento, tem_imagem: chamadas_cache.append((id_lancamento, tem_imagem)))
+    monkeypatch.setattr(route_module, "cache_get_tem_imagem", lambda id_lancamento: None)
+    monkeypatch.setattr(route_module, "chamar_viewer_exame", lambda *args, **kwargs: ({"message": "https://exemplo.com/viewer"}, 200))
+    monkeypatch.setattr(route_module, "cache_set_tem_imagem", lambda id_lancamento, tem_imagem: chamadas_cache.append((id_lancamento, tem_imagem)))
 
-    assert route_module._tem_imagem_pacs(823525) is True
+    assert route_module.tem_imagem_pacs(823525) is True
     assert chamadas_cache == [(823525, True)]

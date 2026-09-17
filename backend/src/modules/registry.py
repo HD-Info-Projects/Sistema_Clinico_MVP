@@ -21,7 +21,7 @@ def register_modules(app):
     from src.modules.procedimentos.routes import procedimentos_bp
     from src.modules.recepcao import recepcao_bp
     from src.modules.lgpd import auditoria_bp, retencao_exames_bp
-    from src.integrations.pacs import exames_pacs_bp
+    from src.modules.pacs import exames_pacs_bp
     from src.modules.chamadas import tts_bp
     from src.modules.unidades.routes import unidades_bp
     from src.modules.usuarios.routes import usuarios_bp
