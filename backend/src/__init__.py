@@ -15,6 +15,7 @@ from src.commands.convenios_commands import (
     importar_convenios_spdata_command,
 )
 from src.commands.especialidades_commands import importar_especialidades_spdata_command
+from src.commands.cids_commands import importar_cids_spdata_command
 from src.commands.medicos_commands import registrar_medico_spdata_command
 from src.commands.usuarios_commands import (
     desbloquear_usuario_command,
@@ -141,6 +142,7 @@ def create_app():
     app.cli.add_command(importar_convenios_spdata_command)
     app.cli.add_command(exportar_logos_tiss_command)
     app.cli.add_command(importar_especialidades_spdata_command)
+    app.cli.add_command(importar_cids_spdata_command)
     app.cli.add_command(registrar_medico_spdata_command)
     app.cli.add_command(registrar_admin_command)
     app.cli.add_command(registrar_dpo_command)
@@ -176,6 +178,7 @@ def create_app():
     from src.models.model_mydsystem.med_atendimentos_model import MedAtendimentos
     from src.models.model_mydsystem.med_spdata_convenios_model import MedSpdataConvenio
     from src.models.model_mydsystem.med_spdata_especialidades_model import MedSpdataEspecialidade
+    from src.models.model_mydsystem.med_spdata_cids_model import MedSpdataCid
     from src.models.model_mydsystem.med_procedimentos_model import Procedimento
 
     # Modelos Médicos:

@@ -195,11 +195,11 @@ function podeBuscarCid(q: string) {
 
   if (!termo) return false
 
-  if (CID_CODE_PATTERN.test(termo)) {
-    return termo.length >= 2
-  }
+  return termo.length >= minimoCaracteresCid(termo)
+}
 
-  return termo.length >= 3
+function minimoCaracteresCid(q: string) {
+  return CID_CODE_PATTERN.test(q.trim()) ? 2 : 3
 }
 
 function limparResultadosCid() {
@@ -1060,14 +1060,30 @@ async function finalizarConsulta() {
                   <span class="truncate">{{ item.nome }}</span>
                 </template>
                 <template #empty>
+                  <div
+                    v-if="isLoadingCid"
+                    role="status"
+                    aria-label="Carregando resultados de CID"
+                    class="space-y-2 px-3 py-3"
+                  >
+                    <USkeleton class="h-4 w-20" />
+                    <USkeleton class="h-4 w-full" />
+                    <USkeleton class="h-4 w-3/4" />
+                  </div>
                   <p
-                    v-if="erroBuscaCid"
+                    v-else-if="erroBuscaCid"
                     class="px-3 py-4 text-sm text-error text-center"
                   >
                     {{ erroBuscaCid }}
                   </p>
                   <p
-                    v-else-if="searchCid"
+                    v-else-if="searchCid && searchCid.trim().length < minimoCaracteresCid(searchCid)"
+                    class="px-3 py-4 text-sm text-muted text-center"
+                  >
+                    Digite pelo menos {{ minimoCaracteresCid(searchCid) }} caracteres
+                  </p>
+                  <p
+                    v-else-if="searchCid && podeBuscarCid(searchCid)"
                     class="px-3 py-4 text-sm text-muted text-center"
                   >
                     Nenhum CID encontrado

@@ -27,6 +27,7 @@ from src.models.evolucoes_medicas_model import EvolucaoMedica
 from src.models.unidade_model import Unidade
 from src.models.model_mydsystem.med_spdata_atendimentos_model import MedSpdataAtendimento
 from src.models.model_mydsystem.med_spdata_agenda_model import MedSpdataAgenda
+from src.models.model_mydsystem.med_spdata_cids_model import MedSpdataCid
 from src.services.spdata_atendimentos_service import get_crm_medico_usuario
 from src.security.unidades import unidade_id_request
 from src.modules.unidades.service import resolver_unidade_usuario
@@ -967,39 +968,23 @@ def doenca_cid():
         if cached is not None:
             return jsonify(json.loads(cached)), 200
 
-        row_start = offset + 1
-        row_end = offset + limit
+        filtro = (
+            MedSpdataCid.codigo.ilike(f"{q.upper()}%")
+            if is_codigo_cid
+            else MedSpdataCid.nome.ilike(f"%{q}%")
+        )
 
-        where = [
-            "COD IS NOT NULL",
-            "NOME IS NOT NULL"
+        rows = db.session.execute(
+            select(MedSpdataCid.codigo, MedSpdataCid.nome)
+            .where(filtro)
+            .order_by(MedSpdataCid.codigo)
+            .offset(offset)
+            .limit(limit)
+        ).all()
+        result = [
+            {"CID": codigo, "DOENCA": nome}
+            for codigo, nome in rows
         ]
-        params = []
-
-        if is_codigo_cid:
-            where.append("COD STARTING WITH ?")
-            params.append(q.upper())
-        else:
-            where.append("NOME CONTAINING ?")
-            params.append(q)
-
-        sql = f"""
-            SELECT
-                COD AS CID,
-                NOME AS DOENCA
-            FROM TBCID10
-            WHERE {' AND '.join(where)}
-            ORDER BY COD
-            ROWS {row_start} TO {row_end};
-        """
-
-        with ConnectionDBFireBird() as con:
-            cursor = con.cursor()
-            cursor.execute(sql, params)
-
-            columns = [desc[0] for desc in cursor.description]
-            rows = cursor.fetchall()
-            result = [dict(zip(columns, row)) for row in rows]
 
         response = {
             "items": result,
