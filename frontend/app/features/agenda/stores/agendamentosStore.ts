@@ -7,6 +7,7 @@ import {
   type AtualizarStatusAgendamentoResponse
 } from '../services/agendaService'
 import type { Agendamento, AgendamentoComPaciente, AgendamentoStatus } from '../types'
+import { minutosDoHorario, normalizarHorario } from '~/utils/time'
 
 type AgendaSnapshotEvent = {
   data?: string
@@ -54,7 +55,7 @@ export const useAgendamentosStore = defineStore('agendamentos', () => {
     [...agendamentos.value].sort((a, b) => {
       const statusDiff = (ordemStatus[a.status] ?? 99) - (ordemStatus[b.status] ?? 99)
       if (statusDiff !== 0) return statusDiff
-      return a.horario.localeCompare(b.horario)
+      return minutosDoHorario(a.horario) - minutosDoHorario(b.horario)
     })
   )
 
@@ -70,12 +71,14 @@ export const useAgendamentosStore = defineStore('agendamentos', () => {
     const index = agendamentos.value.findIndex(ag => ag.id === evento.id)
 
     if (index === -1) {
-      if (isAgendamentoComPaciente(evento)) agendamentos.value.push(evento)
+      if (isAgendamentoComPaciente(evento)) {
+        agendamentos.value.push({ ...evento, horario: normalizarHorario(evento.horario) })
+      }
       return
     }
 
     if (isAgendamentoComPaciente(evento)) {
-      agendamentos.value[index] = evento
+      agendamentos.value[index] = { ...evento, horario: normalizarHorario(evento.horario) }
       return
     }
 
@@ -96,7 +99,7 @@ export const useAgendamentosStore = defineStore('agendamentos', () => {
       if (payload.data && filtrosAtuais.data && payload.data !== filtrosAtuais.data) return
       if (!Array.isArray(payload.items)) return
 
-      agendamentos.value = payload.items
+      agendamentos.value = payload.items.map(item => ({ ...item, horario: normalizarHorario(item.horario) }))
       loading.value = false
     })
 
@@ -118,7 +121,7 @@ export const useAgendamentosStore = defineStore('agendamentos', () => {
       const raw = await listarAgendamentos({ clinicaId, data, medicoId })
 
       if (raw.every(a => 'paciente' in a)) {
-        agendamentos.value = raw as AgendamentoComPaciente[]
+        agendamentos.value = (raw as AgendamentoComPaciente[]).map(item => ({ ...item, horario: normalizarHorario(item.horario) }))
         return
       }
 
@@ -129,6 +132,7 @@ export const useAgendamentosStore = defineStore('agendamentos', () => {
         .filter(a => pacienteMap.has(a.pacienteId))
         .map(a => ({
           ...a,
+          horario: normalizarHorario(a.horario),
           paciente: pacienteMap.get(a.pacienteId)!
         }))
     } catch {

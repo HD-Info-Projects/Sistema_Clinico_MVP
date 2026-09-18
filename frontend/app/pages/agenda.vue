@@ -226,7 +226,7 @@ const atendimentosFiltrados = computed(() => agendamentosStore.agendamentos)
 
 const atendimentosOrdenados = computed(() => {
   return [...atendimentosFiltrados.value].sort((a, b) =>
-    a.horario.localeCompare(b.horario)
+    minutosDoHorario(a.horario) - minutosDoHorario(b.horario)
   )
 })
 

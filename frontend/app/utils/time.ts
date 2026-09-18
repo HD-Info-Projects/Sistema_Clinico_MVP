@@ -1,8 +1,47 @@
 export function calcularMinutosDesde(horarioOriginal: string, agora: Date = new Date()) {
-  const [h, m] = horarioOriginal.split(':').map(Number) as [number, number]
+  const horario = normalizarHorario(horarioOriginal)
+  if (!/^\d{2}:\d{2}$/.test(horario)) return 0
+
+  const [h, m] = horario.split(':').map(Number) as [number, number]
   const date = new Date(agora)
   date.setHours(h, m, 0, 0)
   return Math.max(0, Math.round((agora.getTime() - date.getTime()) / 60000))
+}
+
+export function minutosDoHorario(valor: unknown): number {
+  const horario = normalizarHorario(valor)
+  if (!/^\d{2}:\d{2}$/.test(horario)) return Number.MAX_SAFE_INTEGER
+  const [hora, minuto] = horario.split(':').map(Number) as [number, number]
+  return hora * 60 + minuto
+}
+
+/** Converte horários vindos como HHmm, HH:mm ou HH:mm:ss para HH:mm. */
+export function normalizarHorario(valor: unknown): string {
+  if (valor === null || valor === undefined) return ''
+
+  const texto = String(valor).trim()
+  if (!texto) return ''
+
+  const comSeparador = texto.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/)
+  if (comSeparador) {
+    const hora = Number(comSeparador[1])
+    const minuto = Number(comSeparador[2])
+    if (hora < 24 && minuto < 60) {
+      return `${String(hora).padStart(2, '0')}:${String(minuto).padStart(2, '0')}`
+    }
+    return ''
+  }
+
+  if (/^\d{1,4}$/.test(texto)) {
+    const preenchido = texto.padStart(4, '0')
+    const hora = Number(preenchido.slice(0, 2))
+    const minuto = Number(preenchido.slice(2))
+    if (hora < 24 && minuto < 60) {
+      return `${String(hora).padStart(2, '0')}:${String(minuto).padStart(2, '0')}`
+    }
+  }
+
+  return texto
 }
 
 export function formatarTempoEspera(minutos: number) {

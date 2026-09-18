@@ -8,6 +8,7 @@ import type {
   NoShowResponse,
   TipoProcedimentoTuss
 } from '../types'
+import { normalizarHorario } from '~/utils/time'
 
 export type { CheckInResponse, MotivoNoShow, NoShowResponse, PacienteNoShow } from '../types'
 
@@ -43,7 +44,9 @@ export function listarAgendamentos(filtros?: AgendamentoComFiltro) {
   if (filtros?.clinicaId) params.set('clinicaId', String(filtros.clinicaId))
   if (filtros?.medicoId) params.set('medicoId', String(filtros.medicoId))
 
-  return $fetch<(Agendamento | AgendamentoComPaciente)[]>(`/api/agendamentos${params.toString() ? `?${params.toString()}` : ''}`)
+  return $fetch<(Agendamento | AgendamentoComPaciente)[]>(`/api/agendamentos${params.toString() ? `?${params.toString()}` : ''}`).then(items =>
+    items.map(item => ({ ...item, horario: normalizarHorario(item.horario) }))
+  )
 }
 
 export function atualizarStatusAgendamento(id: number, status: AgendamentoStatus, consulta?: ConsultaStatusPayload, clinicaId?: number) {
@@ -94,7 +97,10 @@ export function listarCheckIn(filtros?: Record<string, unknown>) {
     }
   }
 
-  return $fetch<CheckInResponse>(`/api/check-in${params.toString() ? `?${params.toString()}` : ''}`)
+  return $fetch<CheckInResponse>(`/api/check-in${params.toString() ? `?${params.toString()}` : ''}`).then(response => ({
+    ...response,
+    items: response.items.map(item => ({ ...item, horario: normalizarHorario(item.horario) }))
+  }))
 }
 
 export function listarNoShow(filtros?: Record<string, unknown>) {
@@ -107,7 +113,10 @@ export function listarNoShow(filtros?: Record<string, unknown>) {
     }
   }
 
-  return $fetch<NoShowResponse>(`/api/no-show${params.toString() ? `?${params.toString()}` : ''}`)
+  return $fetch<NoShowResponse>(`/api/no-show${params.toString() ? `?${params.toString()}` : ''}`).then(response => ({
+    ...response,
+    items: response.items.map(item => ({ ...item, horario: normalizarHorario(item.horario) }))
+  }))
 }
 
 export function registrarMotivoNoShow(id: number, motivo: MotivoNoShow, unidadeId?: number) {

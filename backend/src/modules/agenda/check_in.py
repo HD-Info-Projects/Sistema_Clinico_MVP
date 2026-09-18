@@ -73,6 +73,23 @@ def normalizar_texto(valor):
     return str(valor).strip()
 
 
+def horario_para_frontend(valor):
+    if valor is None:
+        return ""
+    if isinstance(valor, time):
+        return valor.strftime("%H:%M")
+
+    texto = str(valor).strip()
+    if not texto:
+        return ""
+    if texto.isdigit():
+        texto = texto.zfill(4)
+        hora, minuto = int(texto[:2]), int(texto[2:4])
+        if hora < 24 and minuto < 60:
+            return f"{hora:02d}:{minuto:02d}"
+    return texto[:5] if len(texto) >= 5 and texto[2] == ":" else texto
+
+
 def normalizar_int(valor):
     if valor is None:
         return None
@@ -568,7 +585,7 @@ def item_para_frontend(row, status_local, convenios_por_codigo, especialidades_p
         "medsystemAtendimentoId": local["medsystemAtendimentoId"] if local else None,
         "idPacienteSpdata": row.get("ID_PACIENTE_SPDATA"),
         "data": row.get("DATA"),
-        "horario": row.get("HORA") or row.get("HR_AGE") or "",
+        "horario": horario_para_frontend(row.get("HORA") or row.get("HR_AGE")),
         "paciente": normalizar_texto(row.get("PACIENTE")),
         "cpf": normalizar_texto(row.get("CPF")),
         "prontuario": normalizar_texto(row.get("PRONTUARIO")),
