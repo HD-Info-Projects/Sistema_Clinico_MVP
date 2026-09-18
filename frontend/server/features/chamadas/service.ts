@@ -32,6 +32,13 @@ function localPublico(local: string) {
   return String(local || '').trim().slice(0, 80) || 'sala de atendimento'
 }
 
+function localParaTts(local: string) {
+  const valor = localPublico(local)
+  const numero = valor.match(/^(?:consult[oó]rio\s*)?(\d+)$/i)?.[1]
+
+  return numero ? `Consultório ${numero}` : `Consultório ${valor}`
+}
+
 function medicoPublico(nome: string) {
   return String(nome || '').trim().slice(0, 80)
 }
@@ -74,7 +81,7 @@ export function textoChamadoParaTts(id: number) {
   const chamado = getChamadoPorId(id)
   if (!chamado) return null
 
-  return `${nomePublicoPaciente(chamado.pacienteNome)}, por favor dirija-se à ${localPublico(chamado.localAtendimento)}`
+  return `${nomePublicoPaciente(chamado.pacienteNome)}, por favor dirija-se ao ${localParaTts(chamado.localAtendimento)}`
 }
 
 export function getChamadoAtivo(clinicaId: number) {

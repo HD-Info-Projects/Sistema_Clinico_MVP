@@ -9,14 +9,16 @@ const toast = useToast()
 const { sala, precisaSelecionar, definirSala } = useSalaAtendimento()
 
 const showSalaModal = ref(false)
-const inputSala = ref('Consultório 1')
+const inputSala = ref('')
+const salaValida = computed(() => /^\d+$/.test(inputSala.value) && Number(inputSala.value) > 0)
+const salaFormatada = computed(() => sala.value ? `Consultório ${sala.value}` : '—')
 
 watch(showSalaModal, (val) => {
   if (val) inputSala.value = sala.value ?? ''
 })
 
 function confirmarSala() {
-  if (inputSala.value) {
+  if (salaValida.value) {
     definirSala(inputSala.value)
     showSalaModal.value = false
   }
@@ -130,7 +132,7 @@ async function chamarPaciente(ag: AgendamentoComPaciente) {
   chamadaEmEnvio.value = ag.paciente.id
 
   try {
-    await chamadosStore.chamarPaciente(ag.paciente.id, nomePacienteChamada(ag), sala.value, auth.user?.nome ?? 'Dr.', clinicaId)
+    await chamadosStore.chamarPaciente(ag.paciente.id, nomePacienteChamada(ag), `Consultório ${sala.value}`, auth.user?.nome ?? 'Dr.', clinicaId)
   } catch (error) {
     toast.add({
       title: 'Erro ao chamar paciente',
@@ -302,7 +304,7 @@ const tempoMedioEspera = computed(() => {
             class="cursor-pointer gap-1 hidden lg:inline-flex"
             @click="void (showSalaModal = true)"
           >
-            Sala: {{ sala || '—' }}
+            Sala: {{ salaFormatada }}
             <UIcon
               name="i-lucide-pencil"
               class="h-3 w-3"
@@ -319,7 +321,7 @@ const tempoMedioEspera = computed(() => {
         class="cursor-pointer gap-1"
         @click="void (showSalaModal = true)"
       >
-        Sala: {{ sala || '—' }}
+        Sala: {{ salaFormatada }}
         <UIcon
           name="i-lucide-pencil"
           class="h-3 w-3"
@@ -726,18 +728,19 @@ const tempoMedioEspera = computed(() => {
       <template #body>
         <div class="space-y-4">
           <p class="text-sm text-muted">
-            Informe a sala de atendimento:
+            Informe o número do consultório:
           </p>
           <UForm class="flex flex-col gap-3">
             <UFormItem
-              label="Sala"
-              :error="!inputSala ? 'Informe a sala de atendimento' : ''"
+              label="Número do consultório"
+              :error="!salaValida ? 'Informe um número de consultório válido' : ''"
             >
               <UInput
                 v-model="inputSala"
-                placeholder="Ex: Consultório 1"
+                min="1"
+                step="1"
+                placeholder="Ex: 1"
                 class="w-full"
-                default-value="Consultório 1"
                 size="lg"
               />
             </UFormItem>
@@ -745,7 +748,7 @@ const tempoMedioEspera = computed(() => {
               <UButton
                 type="submit"
                 label="Salvar"
-                :disabled="!inputSala"
+                :disabled="!salaValida"
                 @click="confirmarSala"
               />
             </div>
