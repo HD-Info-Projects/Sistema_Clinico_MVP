@@ -703,8 +703,8 @@ function voltarDashboard() {
         <div class="flex items-center justify-between w-full">
           <UButton
             class="hidden sm:block"
-            icon="i-lucide-arrow-left"
-            label="Voltar pro Dashboard"
+            icon="lucide:arrow-left"
+            label="Voltar para o Dashboard"
             variant="ghost"
             color="neutral"
             @click="voltarDashboard"

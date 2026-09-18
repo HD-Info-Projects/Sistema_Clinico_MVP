@@ -380,6 +380,7 @@ export async function buildAtestadoComparecimento(params: {
   paciente: string
   data: string
   horario: string
+  cids?: string[]
   medico?: string
   crm?: string
   especialidade?: string
@@ -393,6 +394,9 @@ export async function buildAtestadoComparecimento(params: {
       { text: `PACIENTE: ${params.paciente.toUpperCase()}`, bold: true, decoration: 'underline', margin: [0, 0, 0, 5] },
       { text: '\n' },
       { text: `Atesto, para os devidos fins, que o(a) paciente ${params.paciente} compareceu a esta unidade de sa\u00FAdde no dia ${params.data} \u00E0s ${params.horario}, para atendimento m\u00E9dico.`, margin: [0, 0, 0, 10] },
+      ...(params.cids?.length
+        ? [{ text: `CID. ${params.cids.join(', ')}`, margin: [0, 10, 0, 0] }]
+        : []),
       signatureBlock(params.medico, params.crm, params.especialidade)
     ],
     defaultStyle
@@ -402,6 +406,7 @@ export async function buildAtestadoComparecimento(params: {
 export async function buildAtestado(params: {
   paciente: string
   conteudoHtml: string
+  cids?: string[]
   medico?: string
   crm?: string
   especialidade?: string
@@ -415,6 +420,9 @@ export async function buildAtestado(params: {
       ...(await hospitalHeader()),
       documentTitle('ATESTADO MÉDICO'),
       ...htmlToPdfmake(params.conteudoHtml, { window }),
+      ...(params.cids?.length
+        ? [{ text: `CID. ${params.cids.join(', ')}`, margin: [0, 10, 0, 0] }]
+        : []),
       signatureBlock(params.medico, params.crm, params.especialidade)
     ],
     defaultStyle

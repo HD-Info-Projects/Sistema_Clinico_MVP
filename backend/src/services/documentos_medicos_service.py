@@ -129,6 +129,29 @@ def normalizar_cids_documento(valor):
     return cids
 
 
+def cids_atendimento_para_documento(atendimento):
+    diagnosticos = sorted(
+        (diagnostico for diagnostico in atendimento.diagnosticos if diagnostico.cid_codigo),
+        key=lambda diagnostico: (
+            not diagnostico.principal,
+            diagnostico.created_at or datetime.min,
+        ),
+    )
+
+    cids = []
+    vistos = set()
+    for diagnostico in diagnosticos:
+        cid = normalizar_texto(diagnostico.cid_codigo, 20)
+        if not cid or cid.casefold() in vistos:
+            continue
+        vistos.add(cid.casefold())
+        cids.append(cid)
+        if len(cids) >= 4:
+            break
+
+    return cids
+
+
 def normalizar_opme_documento(valor):
     if valor is None or valor == "":
         return []
@@ -416,10 +439,15 @@ def validar_dados_documento(tipo, dados):
         if dias <= 0:
             raise ValueError("dias_afastamento deve ser maior que zero")
 
-        return {
+        dados_normalizados = {
             "data_inicio": parse_data_iso(dados.get("data_inicio") or dados.get("dataInicio"), "data_inicio"),
             "dias_afastamento": dias,
         }
+        cids = normalizar_cids_documento(dados.get("cids"))
+        if cids:
+            dados_normalizados["cids"] = [item["cid"] for item in cids]
+
+        return dados_normalizados
 
     if tipo == TIPO_ENCAMINHAMENTO:
         encaminhar_para = normalizar_texto(dados.get("encaminhar_para") or dados.get("encaminharPara"), 255)
@@ -552,6 +580,10 @@ def salvar_documento(usuario_id, med_spdata_atendimento_id, tipo, dados, unidade
         **validar_dados_documento(tipo, dados),
         **snapshot_medico(usuario_id),
     }
+    if tipo == TIPO_ATESTADO and not dados_normalizados.get("cids"):
+        cids = cids_atendimento_para_documento(atendimento)
+        if cids:
+            dados_normalizados["cids"] = cids
 
     documento = db.session.execute(
         select(DocumentoMedico).where(

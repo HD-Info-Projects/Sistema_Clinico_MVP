@@ -822,6 +822,7 @@ async function gerarComparecimento() {
     paciente: ag.paciente.nome,
     data: dataFormatada,
     horario: ag.horario.slice(0, 5),
+    cids: cidSelecionadoLista.value.map(cid => cid.cid),
     medico: auth.user?.nome,
     crm: auth.user?.crm,
     especialidade: auth.user?.especialidades?.join(', ')
@@ -1079,7 +1080,9 @@ async function finalizarConsulta() {
                 class="w-full sm:w-auto"
                 :disabled="!cidTempSelecionado"
                 @click="adicionarCid(cidTempSelecionado!); cidTempSelecionado = null"
-              />
+              >
+                <span class="sm:hidden"> Adicionar</span>
+              </UButton>
             </div>
 
             <div
@@ -1483,6 +1486,7 @@ async function finalizarConsulta() {
       :agendamento="agendamento"
       :data-atendimento="agendamento?.data"
       :documento="documentoAtestado"
+      :cids="cidSelecionadoLista.map(cid => cid.cid)"
       @saved="atualizarDocumentoMedico"
     />
     <EncaminhamentoGerarModal

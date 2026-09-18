@@ -263,6 +263,17 @@ function encontrarRegistroPorData(historico: HistoricoLocalRecord[], dataISO: st
   return null
 }
 
+function cidsDoRegistro(registro: HistoricoLocalRecord | null) {
+  if (!registro) return []
+
+  return [
+    registro.cid_principal,
+    ...(registro.cids_secundarios ?? []).map(cid => cid.codigo)
+  ]
+    .filter((cid): cid is string => Boolean(cid))
+    .slice(0, 4)
+}
+
 function registroTemExames(registro: HistoricoLocalRecord | null) {
   return Boolean(registro?.exames?.some((e) => {
     if (typeof e === 'string') return e.trim().length > 0
@@ -348,6 +359,7 @@ async function imprimirDocumentoMedico(ag: AgendamentoComPaciente, documento: Do
     const doc = await buildAtestado({
       paciente: ag.paciente.nome,
       conteudoHtml: `<p>${textoAtestado(ag.paciente.nome, dados)}</p>`,
+      cids: dados.cids,
       medico: dados.medico ?? undefined,
       crm: dados.crm ?? undefined,
       especialidade: dados.especialidade ?? undefined
@@ -443,11 +455,14 @@ async function imprimirDocumentoMedico(ag: AgendamentoComPaciente, documento: Do
 }
 
 async function gerarAtestadoComparecimento(ag: AgendamentoComPaciente) {
+  const historico = await obterHistoricoLocal(ag)
+  const registro = encontrarRegistroPorData(historico, ag.data)
   const pdfMake = await usePdfMake()
   const doc = await buildAtestadoComparecimento({
     paciente: ag.paciente.nome,
     data: formatarDataParaPdf(ag.data),
     horario: ag.horario,
+    cids: cidsDoRegistro(registro),
     medico: auth.user?.nome,
     crm: auth.user?.crm,
     especialidade: auth.user?.especialidades?.join(', ')

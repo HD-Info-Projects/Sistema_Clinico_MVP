@@ -9,6 +9,7 @@ const props = defineProps<{
   agendamento?: AgendamentoComPaciente | null
   dataAtendimento?: string
   documento?: DocumentoMedico | null
+  cids?: string[]
 }>()
 
 const emit = defineEmits<{
@@ -81,6 +82,7 @@ async function gerarPdf(documento: DocumentoMedico) {
   const doc = await buildAtestado({
     paciente: paciente.value?.nome ?? 'Paciente',
     conteudoHtml: `<p>${textoAtestado(dados)}</p>`,
+    cids: dados.cids,
     medico: dados.medico ?? undefined,
     crm: dados.crm ?? undefined,
     especialidade: dados.especialidade ?? undefined
@@ -106,7 +108,8 @@ async function salvarEImprimir() {
   try {
     const documento = await salvarDocumentoMedico(medSpdataAtendimentoId.value, 'ATESTADO', {
       data_inicio: data.value,
-      dias_afastamento: dias.value
+      dias_afastamento: dias.value,
+      cids: props.cids?.map(cid => ({ cid }))
     })
 
     emit('saved', documento)

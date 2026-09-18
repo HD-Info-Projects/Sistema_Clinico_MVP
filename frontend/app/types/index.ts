@@ -284,6 +284,7 @@ export interface DocumentoMedicoDadosBase {
 export interface AtestadoDocumentoDados extends DocumentoMedicoDadosBase {
   data_inicio: string
   dias_afastamento: number
+  cids?: string[]
 }
 
 export interface EncaminhamentoDocumentoDados extends DocumentoMedicoDadosBase {
