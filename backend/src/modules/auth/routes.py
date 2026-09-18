@@ -4,7 +4,7 @@ from sqlalchemy.orm import joinedload, selectinload
 
 from src.models.auditoria_model import AcaoAuditoria
 from src.models.usuario_model import Usuario
-from src.modules.auth.service import LoginController
+from src.modules.auth.service import AccountLockedError, LoginController
 from src.modules.unidades.service import (
     listar_unidades_ativas_frontend,
     listar_unidades_usuario_frontend,
@@ -31,7 +31,13 @@ def _login_email_rate_limit_key():
     email = str(data.get("email") or "").strip().lower()
 
     if email:
-        return f"login-email:{email[:255]}"
+        usuario = (
+            db.session.query(Usuario.id, Usuario.login_rate_limit_version)
+            .filter(db.func.lower(Usuario.email) == email[:255])
+            .first()
+        )
+        version = usuario.login_rate_limit_version if usuario else 0
+        return f"login-email:{email[:255]}:v{version}"
 
     return f"login-email-ip:{request.remote_addr or 'unknown'}"
 
@@ -44,9 +50,17 @@ def _login_email_rate_limit():
     return current_app.config.get("LOGIN_RATE_LIMIT_EMAIL", "5 per minute")
 
 
+def _deduct_failed_login(response):
+    return response.status_code == 401
+
+
 @login_bp.route("/auth", methods=["POST"])
-@limiter.limit(_login_ip_rate_limit)
-@limiter.limit(_login_email_rate_limit, key_func=_login_email_rate_limit_key)
+@limiter.limit(_login_ip_rate_limit, deduct_when=_deduct_failed_login)
+@limiter.limit(
+    _login_email_rate_limit,
+    key_func=_login_email_rate_limit_key,
+    deduct_when=_deduct_failed_login,
+)
 def login():
     try:
         data = request.get_json(silent=True) or {}
@@ -76,6 +90,11 @@ def login():
         )
 
         return jsonify(access_token=token), 200
+
+    except AccountLockedError:
+        return jsonify({
+            "error": "Conta bloqueada. Solicite o desbloqueio ao administrador."
+        }), 423
 
     except Exception:
         current_app.logger.exception("Erro inesperado no login")

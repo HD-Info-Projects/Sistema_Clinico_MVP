@@ -379,6 +379,9 @@ export interface Usuario {
   email: string
   role: 'medico' | 'recepcao' | 'admin'
   ativo?: boolean
+  bloqueado?: boolean
+  bloqueado_em?: string | null
+  bloqueio_motivo?: string | null
   created_at: string
   updated_at: string
   medico?: Medico

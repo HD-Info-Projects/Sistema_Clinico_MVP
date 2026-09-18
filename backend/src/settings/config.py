@@ -49,7 +49,7 @@ class Config:
 
     RATELIMIT_STORAGE_URI = os.getenv('RATELIMIT_STORAGE_URI', 'memory://')
     LOGIN_RATE_LIMIT_IP = os.getenv('LOGIN_RATE_LIMIT_IP', '10 per minute')
-    LOGIN_RATE_LIMIT_EMAIL = os.getenv('LOGIN_RATE_LIMIT_EMAIL', '5 per minute')
+    LOGIN_RATE_LIMIT_EMAIL = os.getenv('LOGIN_RATE_LIMIT_EMAIL', '10 per minute')
     LOGIN_MAX_FAILED_ATTEMPTS = int(os.getenv('LOGIN_MAX_FAILED_ATTEMPTS', 5))
     LOGIN_ACCOUNT_LOCK_ENABLED = os.getenv('LOGIN_ACCOUNT_LOCK_ENABLED', 'true').lower() == 'true'
     CORS_ORIGINS = [

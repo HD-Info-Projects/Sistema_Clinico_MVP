@@ -28,6 +28,10 @@ export function excluirUsuario(id: number) {
   return $fetch<UsuarioResponse>(`/api/usuarios/${id}`, { method: 'DELETE' })
 }
 
+export function desbloquearUsuario(id: number) {
+  return $fetch<UsuarioResponse>(`/api/usuarios/${id}/desbloquear`, { method: 'POST' })
+}
+
 export function buscarMedicosSpdataUsuarios(filtros: { spdata_id?: number | string, cpf?: string, nome?: string }) {
   const params = new URLSearchParams()
   if (filtros.spdata_id) params.set('spdata_id', String(filtros.spdata_id))

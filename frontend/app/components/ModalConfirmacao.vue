@@ -5,6 +5,7 @@ const props = defineProps<{
   descricao: string
   textoConfirma?: string
   corConfirma?: 'error' | 'success' | 'warning' | 'info' | 'neutral'
+  icone?: string
 }>()
 
 const emit = defineEmits<{
@@ -27,7 +28,7 @@ const proxyOpen = computed({
       <div class="space-y-4 p-4 sm:p-6">
         <div class="flex min-w-0 items-start gap-2">
           <UIcon
-            name="lucide:trash-2"
+            :name="icone ?? 'lucide:trash-2'"
             class="mt-1 shrink-0"
           />
           <h3 class="min-w-0 break-words text-xl font-black">

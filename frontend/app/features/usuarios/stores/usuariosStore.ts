@@ -4,6 +4,7 @@ import {
   atualizarUsuario,
   buscarMedicosSpdataUsuarios,
   criarUsuario,
+  desbloquearUsuario,
   excluirUsuario,
   listarUsuarios
 } from '../services/usuariosService'
@@ -112,6 +113,26 @@ export const useUsuariosStore = defineStore('usuarios', () => {
     }
   }
 
+  async function desbloquear(id: number) {
+    loading.value = true
+    error.value = null
+    try {
+      const data = await desbloquearUsuario(id)
+      if (data.usuario) {
+        const index = usuarios.value.findIndex(u => u.id === id)
+        if (index !== -1) usuarios.value[index] = data.usuario
+      }
+      return { success: true, message: data.message || 'Usuário desbloqueado com sucesso' }
+    } catch (e) {
+      const message = mensagemErro(e, 'Erro ao desbloquear usuario')
+      error.value = message
+      console.error(e)
+      return { success: false, message }
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function buscarMedicosSpdata(filtros: { spdata_id?: number | string, cpf?: string, nome?: string }) {
     loading.value = true
     error.value = null
@@ -146,6 +167,7 @@ export const useUsuariosStore = defineStore('usuarios', () => {
     fetchAll,
     criar,
     atualizar,
+    desbloquear,
     excluir,
     buscarMedicosSpdata,
     limparMedicosSpdata,

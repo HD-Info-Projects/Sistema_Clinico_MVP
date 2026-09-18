@@ -6,6 +6,9 @@ from src.controllers.login_controller import LoginController
 from flask_jwt_extended import create_access_token
 
 from src.modules.atendimentos.routes import _item_dashboard
+from src.modules.auth.routes import _deduct_failed_login
+from src.modules.auth.service import AccountLockedError
+from src.models.usuario_model import Usuario
 from src.security.decorators import active_user_required, roles_required
 from src.security.jwt_blocklist import is_jti_revoked, revoke_jti
 from src.security.passwords import (
@@ -107,6 +110,29 @@ def test_login_controller_rejeita_usuario_inativo(monkeypatch):
     assert controller.generate_JWT_usuario("medico@example.com", "senha-segura") is None
 
 
+def test_login_controller_identifica_conta_bloqueada(monkeypatch):
+    usuario = SimpleNamespace(
+        id=123,
+        email="medico@example.com",
+        senha=hash_password("senha-segura"),
+        ativo=True,
+        bloqueado_em=time.time(),
+    )
+    controller = LoginController()
+    monkeypatch.setattr(
+        controller,
+        "_LoginController__repo",
+        SimpleNamespace(get_usuario=lambda _email: usuario),
+    )
+
+    try:
+        controller.generate_JWT_usuario("medico@example.com", "senha-segura")
+    except AccountLockedError:
+        pass
+    else:
+        raise AssertionError("Conta bloqueada deveria gerar AccountLockedError")
+
+
 def test_login_controller_bloqueia_usuario_apos_tentativas_falhas(monkeypatch):
     app = create_app()
     app.config["TESTING"] = True
@@ -149,6 +175,33 @@ def test_login_controller_bloqueia_usuario_apos_tentativas_falhas(monkeypatch):
     assert usuario.tentativas_login_falhas == 2
     assert usuario.bloqueado_em is not None
     assert usuario.bloqueio_motivo == "Excesso de tentativas de login falhas"
+
+
+def test_desbloquear_usuario_limpa_bloqueio_sem_reativar_conta():
+    usuario = SimpleNamespace(
+        ativo=False,
+        bloqueado_em=time.time(),
+        bloqueio_motivo="Excesso de tentativas de login falhas",
+        tentativas_login_falhas=5,
+        ultimo_login_falho_em=time.time(),
+        login_rate_limit_version=2,
+    )
+
+    Usuario.desbloquear(usuario)
+
+    assert usuario.ativo is False
+    assert usuario.bloqueado_em is None
+    assert usuario.bloqueio_motivo is None
+    assert usuario.tentativas_login_falhas == 0
+    assert usuario.ultimo_login_falho_em is None
+    assert usuario.login_rate_limit_version == 3
+
+
+def test_rate_limit_consumes_apenas_respostas_de_credenciais_invalidas():
+    assert _deduct_failed_login(SimpleNamespace(status_code=401)) is True
+    assert _deduct_failed_login(SimpleNamespace(status_code=200)) is False
+    assert _deduct_failed_login(SimpleNamespace(status_code=423)) is False
+    assert _deduct_failed_login(SimpleNamespace(status_code=429)) is False
 
 
 def test_registrar_auditoria_grava_metadados_sem_banco_real(monkeypatch):

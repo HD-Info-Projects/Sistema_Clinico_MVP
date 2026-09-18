@@ -19,6 +19,7 @@ class Usuario(db.Model):
     bloqueio_motivo = Column(String(255), nullable=True)
     tentativas_login_falhas = Column(Integer, nullable=False, default=0)
     ultimo_login_falho_em = Column(DateTime, nullable=True)
+    login_rate_limit_version = Column(Integer, nullable=False, default=0)
     ultimo_login_em = Column(DateTime, nullable=True)
     senha_alterada_em = Column(DateTime, nullable=True)
     forcar_troca_senha = Column(Boolean, nullable=False, default=False)
@@ -110,6 +111,7 @@ class Usuario(db.Model):
         self.bloqueio_motivo = None
         self.tentativas_login_falhas = 0
         self.ultimo_login_falho_em = None
+        self.login_rate_limit_version = int(self.login_rate_limit_version or 0) + 1
 
 
     def __repr__(self):
@@ -124,6 +126,8 @@ class Usuario(db.Model):
             "role": self.role,
             "ativo": self.ativo,
             "bloqueado": self.bloqueado_em is not None,
+            "bloqueado_em": self.bloqueado_em.isoformat() if self.bloqueado_em else None,
+            "bloqueio_motivo": self.bloqueio_motivo,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "medico": self.medico._to_dict() if self.medico else None,

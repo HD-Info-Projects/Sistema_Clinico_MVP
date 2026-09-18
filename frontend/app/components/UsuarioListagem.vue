@@ -15,6 +15,7 @@ const busca = ref('')
 const showFormModal = ref(false)
 const editingUsuario = ref<Usuario | null>(null)
 const confirmDeleteId = ref<number | null>(null)
+const confirmUnlockId = ref<number | null>(null)
 
 let buscaTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -66,6 +67,16 @@ async function executarExclusao() {
     useToast().add({ title: res.message, color: 'error' })
   }
   confirmDeleteId.value = null
+}
+
+async function executarDesbloqueio() {
+  if (confirmUnlockId.value === null) return
+  const res = await usuariosStore.desbloquear(confirmUnlockId.value)
+  useToast().add({
+    title: res.message,
+    color: res.success ? 'success' : 'error'
+  })
+  confirmUnlockId.value = null
 }
 
 function onSaved() {
@@ -240,8 +251,17 @@ function onSaved() {
                   Status
                 </p>
                 <UBadge
+                  v-if="!usuario.bloqueado"
                   :label="usuario.ativo ? 'Ativo' : 'Inativo'"
                   :color="usuario.ativo ? 'success' : 'neutral'"
+                  variant="subtle"
+                  size="sm"
+                />
+
+                <UBadge
+                  v-if="usuario.bloqueado"
+                  label="Conta bloqueada"
+                  color="error"
                   variant="subtle"
                   size="sm"
                 />
@@ -284,6 +304,17 @@ function onSaved() {
                     :disabled="usuario.ativo === false"
                     @click="confirmarExclusao(usuario.id)"
                   />
+                  <UButton
+                    v-if="usuario.bloqueado"
+                    icon="i-lucide-lock-open"
+                    color="success"
+                    variant="ghost"
+                    size="sm"
+                    class="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
+                    :aria-label="`Desbloquear ${usuario.nome_completo}`"
+                    title="Desbloquear conta"
+                    @click="void(confirmUnlockId = usuario.id)"
+                  />
                 </div>
               </div>
             </div>
@@ -306,6 +337,17 @@ function onSaved() {
       texto-confirma="Inativar"
       @fechar="confirmDeleteId = null"
       @confirmar="executarExclusao"
+    />
+
+    <ModalConfirmacao
+      :abrir="confirmUnlockId !== null"
+      titulo="Desbloquear conta?"
+      descricao="O usuário poderá tentar fazer login novamente. Esta ação não altera o status ativo ou inativo da conta."
+      texto-confirma="Desbloquear"
+      cor-confirma="success"
+      icone="lucide:lock-open"
+      @fechar="confirmUnlockId = null"
+      @confirmar="executarDesbloqueio"
     />
   </div>
 </template>

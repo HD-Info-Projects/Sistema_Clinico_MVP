@@ -10,8 +10,10 @@ from src.modules.unidades.service import (
     sincronizar_unidades_usuario,
 )
 from src.modules.usuarios.models import Medico, Usuario
+from src.models.auditoria_model import AcaoAuditoria
 from src.security.decorators import roles_required
 from src.security.passwords import validate_password_strength
+from src.modules.lgpd.service import registrar_auditoria
 from src.services.medicos_spdata_service import (
     buscar_medicos_spdata,
     normalizar_int,
@@ -356,6 +358,29 @@ def atualizar_usuario(usuario_id):
     except IntegrityError:
         db.session.rollback()
         return jsonify({"error": "Dados duplicados ou inválidos."}), 409
+
+
+@usuarios_bp.route("/<int:usuario_id>/desbloquear", methods=["POST"])
+@jwt_required()
+@roles_required("admin")
+def desbloquear_usuario(usuario_id):
+    usuario = _usuario_por_id(usuario_id)
+    if not usuario:
+        return jsonify({"error": "Usuário não encontrado."}), 404
+
+    usuario.desbloquear()
+    db.session.commit()
+    registrar_auditoria(
+        AcaoAuditoria.DESBLOQUEOU_USUARIO,
+        entidade="usuarios",
+        entidade_id=usuario.id,
+        descricao="Usuário desbloqueado no painel administrativo",
+    )
+
+    return jsonify({
+        "message": "Usuário desbloqueado com sucesso.",
+        "usuario": _usuario_admin_dict(usuario),
+    }), 200
 
 
 @usuarios_bp.route("/<int:usuario_id>", methods=["DELETE"])

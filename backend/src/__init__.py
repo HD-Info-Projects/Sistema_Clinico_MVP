@@ -134,7 +134,7 @@ def create_app():
     @app.errorhandler(RateLimitExceeded)
     def handle_rate_limit(_error):
         return jsonify({
-            "error": "Muitas tentativas de login. Aguarde alguns minutos e tente novamente."
+            "error": "Muitas tentativas de login. Aguarde 60 segundos e tente novamente."
         }), 429
 
     app.cli.add_command(importar_exames_spdata_command)

@@ -9,6 +9,10 @@ from src.security.passwords import verify_password
 from src.settings.extensions import db
 
 
+class AccountLockedError(Exception):
+    """Indicates that login was rejected by the persistent account lock."""
+
+
 class LoginController:
     def __init__(self):
         self.__repo = UsuarioRepository()
@@ -57,8 +61,11 @@ class LoginController:
         if not usuario:
             return None
 
-        if not getattr(usuario, "ativo", True) or getattr(usuario, "bloqueado_em", None):
+        if not getattr(usuario, "ativo", True):
             return None
+
+        if getattr(usuario, "bloqueado_em", None):
+            raise AccountLockedError
 
         senha_valida, senha_legada = verify_password(usuario.senha, senha)
 
@@ -94,4 +101,4 @@ class LoginController:
         return token
 
 
-__all__ = ["LoginController"]
+__all__ = ["AccountLockedError", "LoginController"]

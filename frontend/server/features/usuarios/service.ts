@@ -27,6 +27,10 @@ export function excluirUsuario(event: H3Event, id: string) {
   return flaskFetch(event, `/usuarios/${id}`, { method: 'DELETE' })
 }
 
+export function desbloquearUsuario(event: H3Event, id: string) {
+  return flaskFetch(event, `/usuarios/${id}/desbloquear`, { method: 'POST' })
+}
+
 export function buscarMedicosSpdata(event: H3Event, query: Record<string, unknown>) {
   const params = new URLSearchParams()
 

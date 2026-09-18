@@ -19,10 +19,14 @@ export async function loginAuth(event: H3Event, body: { email?: string, password
   } catch (error: unknown) {
     const status = fetchErrorStatus(error)
 
-    if (status === 400 || status === 401 || status === 429) {
+    if (status === 400 || status === 401 || status === 423 || status === 429) {
       throw createError({
         statusCode: status,
-        statusMessage: status === 429 ? 'Muitas tentativas de login' : 'Credenciais inválidas'
+        statusMessage: status === 429
+          ? 'Muitas tentativas de login. Aguarde 60 segundos e tente novamente.'
+          : status === 423
+            ? 'Conta bloqueada. Solicite o desbloqueio ao administrador.'
+            : 'Credenciais inválidas'
       })
     }
 
