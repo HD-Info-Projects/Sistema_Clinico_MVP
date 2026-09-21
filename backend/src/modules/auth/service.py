@@ -86,11 +86,12 @@ class LoginController:
             if getattr(usuario, "unidades", [])
             else []
         )
+        usuario_username = getattr(usuario, "username", None) or usuario.email
         token = create_access_token(
             identity=str(usuario.id),
             additional_claims={
                 "id": usuario.id,
-                "username": usuario.username,
+                "username": usuario_username,
                 "email": usuario.email,
                 "nome_completo": usuario.nome_completo,
                 "role": usuario.role,
