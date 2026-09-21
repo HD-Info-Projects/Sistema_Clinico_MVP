@@ -185,9 +185,6 @@ def dados_medico_normalizados(medico_spdata, email=None, crm_atendimento_spdata=
         raise ValueError("Registro do SPDATA não possui NOME.")
     if not documento:
         raise ValueError("Registro do SPDATA não possui CNPJ_CPF ou CPF.")
-    if not email:
-        raise ValueError("Informe email ou preencha EMAIL/EMAIL_CONSULTORIO no SPDATA.")
-
     return {
         "spdata_id": spdata_id,
         "nome_completo": nome_completo,
@@ -200,7 +197,7 @@ def dados_medico_normalizados(medico_spdata, email=None, crm_atendimento_spdata=
     }
 
 
-def upsert_usuario_medico_spdata(medico_spdata, email=None, senha=None, crm_atendimento_spdata=None):
+def upsert_usuario_medico_spdata(medico_spdata, username=None, email=None, senha=None, crm_atendimento_spdata=None):
     if senha is not None:
         validate_password_strength(senha)
 
@@ -213,7 +210,7 @@ def upsert_usuario_medico_spdata(medico_spdata, email=None, senha=None, crm_aten
     usuarios = db.session.execute(
         select(Usuario).where(
             or_(
-                Usuario.email == dados["email"],
+                Usuario.email == dados["email"] if dados["email"] else False,
                 Usuario.cnpj_cpf == dados["documento"],
             )
         )
@@ -245,6 +242,7 @@ def upsert_usuario_medico_spdata(medico_spdata, email=None, senha=None, crm_aten
             email=dados["email"],
             senha=senha,
             role="medico",
+            username=username,
         )
         db.session.add(usuario)
         db.session.flush()
@@ -297,7 +295,7 @@ def upsert_usuario_medico_spdata(medico_spdata, email=None, senha=None, crm_aten
     }
 
 
-def criar_usuario_medico_spdata(medico_spdata, email=None, senha=None, crm_atendimento_spdata=None):
+def criar_usuario_medico_spdata(medico_spdata, username=None, email=None, senha=None, crm_atendimento_spdata=None):
     validate_password_strength(senha)
 
     dados = dados_medico_normalizados(
@@ -309,7 +307,7 @@ def criar_usuario_medico_spdata(medico_spdata, email=None, senha=None, crm_atend
     usuario_existente = db.session.execute(
         select(Usuario).where(
             or_(
-                Usuario.email == dados["email"],
+                Usuario.email == dados["email"] if dados["email"] else False,
                 Usuario.cnpj_cpf == dados["documento"],
             )
         )
@@ -334,7 +332,8 @@ def criar_usuario_medico_spdata(medico_spdata, email=None, senha=None, crm_atend
         cnpj_cpf=dados["documento"],
         email=dados["email"],
         senha=senha,
-        role="medico"
+        role="medico",
+        username=username,
     )
 
     db.session.add(usuario)

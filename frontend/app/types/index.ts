@@ -401,7 +401,8 @@ export interface Usuario {
   id: number
   nome_completo: string
   cnpj_cpf: string
-  email: string
+  username?: string | null
+  email?: string | null
   role: 'medico' | 'recepcao' | 'admin'
   ativo?: boolean
   bloqueado?: boolean
@@ -429,7 +430,8 @@ export interface Medico {
 export interface UsuarioForm {
   nome_completo: string
   cnpj_cpf: string
-  email: string
+  username: string
+  email?: string
   senha?: string
   role: 'medico' | 'recepcao' | 'admin'
   ativo?: boolean

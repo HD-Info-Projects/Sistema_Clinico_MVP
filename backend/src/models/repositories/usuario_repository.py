@@ -7,9 +7,26 @@ from src.models.usuario_model import Usuario
 
 class UsuarioRepository(IUsuario):
     
-    def get_usuario(self, email: str):
+    def get_usuario(self, username: str):
         try:    
             usuario = (
+                db.session.query(Usuario)
+                .options(
+                    joinedload(Usuario.medico),
+                    selectinload(Usuario.unidades),
+                )
+                .filter(Usuario.username == username)
+                .first()
+            )
+            return usuario
+        
+        except Exception:
+            db.session.rollback()
+            return None
+
+    def get_usuario_by_email(self, email: str):
+        try:
+            return (
                 db.session.query(Usuario)
                 .options(
                     joinedload(Usuario.medico),
@@ -18,8 +35,6 @@ class UsuarioRepository(IUsuario):
                 .filter(Usuario.email == email)
                 .first()
             )
-            return usuario
-        
         except Exception:
             db.session.rollback()
             return None

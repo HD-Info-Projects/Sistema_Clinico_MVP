@@ -1,4 +1,5 @@
 from flask import Blueprint, current_app, jsonify, request
+import re
 from flask_jwt_extended import jwt_required
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -51,7 +52,26 @@ def _normalizar_email(valor):
     return email.lower() if email else None
 
 
+def _normalizar_username(valor):
+    username = normalizar_texto(valor, 30)
+    return username.lower() if username else None
+
+
+def _validar_username(username):
+    if not username or not re.fullmatch(r"[a-z0-9._-]{3,30}", username):
+        raise ValueError("Usuário deve ter de 3 a 30 caracteres: letras, números, ponto, hífen ou underscore")
+
+
+def _username_existente(username, usuario_id=None):
+    query = select(Usuario).where(db.func.lower(Usuario.username) == username)
+    if usuario_id is not None:
+        query = query.where(Usuario.id != usuario_id)
+    return db.session.execute(query).scalars().first()
+
+
 def _email_existente(email, usuario_id=None):
+    if not email:
+        return None
     query = select(Usuario).where(Usuario.email == email)
     if usuario_id is not None:
         query = query.where(Usuario.id != usuario_id)
@@ -189,18 +209,23 @@ def criar_usuario():
         return erro_role
 
     try:
+        username = _normalizar_username(data.get("username"))
         email = _normalizar_email(data.get("email"))
         senha = data.get("senha")
         unidade_ids = _payload_unidade_ids(data) or []
 
-        if not email or not senha:
-            return jsonify({"error": "Campos obrigatórios ausentes.", "fields": ["email", "senha"]}), 400
+        if not username or not senha:
+            return jsonify({"error": "Campos obrigatórios ausentes.", "fields": ["username", "senha"]}), 400
+
+        _validar_username(username)
+        if _username_existente(username):
+            return jsonify({"error": "Usuário já cadastrado."}), 409
 
         validate_password_strength(senha, _senha_minima())
         _validar_unidades_role(role, unidade_ids)
 
         if role == "medico":
-            return _criar_medico_spdata(data, email, senha, unidade_ids)
+            return _criar_medico_spdata(data, username, email, senha, unidade_ids)
 
         nome_completo = normalizar_texto(data.get("nome_completo"), 255)
         documento = normalizar_texto(data.get("cnpj_cpf"), 255)
@@ -216,6 +241,7 @@ def criar_usuario():
             email=email,
             senha=senha,
             role=role,
+            username=username,
         )
         usuario.ativo = _bool_payload(data.get("ativo", True))
 
@@ -238,7 +264,7 @@ def criar_usuario():
         return jsonify({"error": "Dados duplicados ou inválidos."}), 409
 
 
-def _criar_medico_spdata(data, email, senha, unidade_ids):
+def _criar_medico_spdata(data, username, email, senha, unidade_ids):
     payload_medico = _medico_payload(data)
     spdata_id = normalizar_int(payload_medico.get("spdata_id") or data.get("spdata_id"))
 
@@ -268,6 +294,7 @@ def _criar_medico_spdata(data, email, senha, unidade_ids):
 
     resultado = upsert_usuario_medico_spdata(
         medico_spdata,
+        username=username,
         email=email,
         senha=senha,
         crm_atendimento_spdata=payload_medico.get("crm_atendimento_spdata"),
@@ -309,9 +336,13 @@ def atualizar_usuario(usuario_id):
             unidade_ids = [unidade["id"] for unidade in listar_unidades_usuario_frontend(usuario.id)]
         _validar_unidades_role(role, unidade_ids or [])
 
+        username = _normalizar_username(data.get("username")) if "username" in data else usuario.username
+        if not username:
+            return jsonify({"error": "Informe o usuário."}), 400
+        _validar_username(username)
+        if _username_existente(username, usuario_id=usuario.id):
+            return jsonify({"error": "Usuário já cadastrado."}), 409
         email = _normalizar_email(data.get("email")) if "email" in data else usuario.email
-        if not email:
-            return jsonify({"error": "Informe o e-mail."}), 400
         if _email_existente(email, usuario_id=usuario.id):
             return jsonify({"error": "E-mail já cadastrado."}), 409
 
@@ -326,6 +357,7 @@ def atualizar_usuario(usuario_id):
             usuario.ativo = _bool_payload(data["ativo"])
 
         usuario.email = email
+        usuario.username = username
         usuario.role = role
 
         if role == "medico":

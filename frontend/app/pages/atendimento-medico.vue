@@ -1490,7 +1490,7 @@ async function finalizarConsulta() {
                 icon="i-lucide-file-pen-line"
                 label="Criar documento médico"
                 color="info"
-                class="w-full p-3 text-lg font-bold col-span-2"
+                class="w-full p-3 text-lg font-bold sm:col-span-2"
                 @click="void (showDocumentoPersonalizadoModal = true)"
               />
             </div>

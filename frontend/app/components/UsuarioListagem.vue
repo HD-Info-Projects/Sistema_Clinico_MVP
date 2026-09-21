@@ -26,7 +26,8 @@ const listaFiltrada = computed(() => {
   const termoDigitos = termo.replace(/\D/g, '')
   return lista.filter(u =>
     u.nome_completo.toLowerCase().includes(termo)
-    || u.email.toLowerCase().includes(termo)
+    || (u.username?.toLowerCase().includes(termo))
+    || (u.email?.toLowerCase().includes(termo))
     || (termoDigitos.length > 0 && u.cnpj_cpf.includes(termoDigitos))
     || (u.medico?.crm?.toLowerCase().includes(termo))
     || (u.medico?.especialidade?.toLowerCase().includes(termo))
@@ -239,10 +240,10 @@ function onSaved() {
 
               <div :class="role === 'medico' ? 'lg:col-span-2' : 'lg:col-span-4'">
                 <p class="text-sm font-bold text-muted">
-                  Email
+                  Usuário
                 </p>
                 <p class="break-all text-sm">
-                  {{ usuario.email }}
+                  {{ usuario.username || '-' }}
                 </p>
               </div>
 

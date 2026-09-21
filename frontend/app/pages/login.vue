@@ -8,10 +8,10 @@ const loading = ref(false)
 const errorMsg = ref('')
 
 const fields: AuthFormField[] = [{
-  name: 'email',
-  type: 'email',
-  label: 'Email',
-  placeholder: 'Digite seu email',
+  name: 'username',
+  type: 'text',
+  label: 'Usuário',
+  placeholder: 'Digite seu usuário',
   required: true
 }, {
   name: 'password',
@@ -26,7 +26,7 @@ const fields: AuthFormField[] = [{
 }]
 
 const schema = z.object({
-  email: z.string('O email é obrigatório.').email('Email inválido'),
+  username: z.string('O usuário é obrigatório.').min(1, 'Usuário inválido').max(254, 'Usuário inválido'),
   password: z.string('A senha é obrigatória.').min(8, 'A senha deve ter pelo menos 8 caracteres')
 })
 

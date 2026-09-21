@@ -15,7 +15,8 @@ export const medicoDadosSchema = z.object({
 export const criarUsuarioSchema = z.object({
   nome_completo: z.string().trim().min(1).max(255),
   cnpj_cpf: z.string().trim().min(1).max(255),
-  email: z.email().max(254),
+  username: z.string().trim().regex(/^[a-z0-9._-]{3,30}$/, 'Usuário inválido'),
+  email: z.email().max(254).optional(),
   senha: z.string().min(8).max(256),
   role: z.enum(ROLES_USUARIO),
   ativo: z.boolean().optional(),
@@ -41,6 +42,7 @@ export const criarUsuarioSchema = z.object({
 export const atualizarUsuarioSchema = z.object({
   nome_completo: z.string().trim().max(255).optional(),
   cnpj_cpf: z.string().trim().max(255).optional(),
+  username: z.string().trim().regex(/^[a-z0-9._-]{3,30}$/, 'Usuário inválido').optional(),
   email: z.email().max(254).optional(),
   senha: z.string().min(8).max(256).optional(),
   role: z.enum(ROLES_USUARIO).optional(),

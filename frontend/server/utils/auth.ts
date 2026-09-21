@@ -10,7 +10,8 @@ export const AUTH_COOKIE_NAME = 'auth_token'
 
 type BackendAuthUser = {
   id: number
-  email: string
+  username?: string | null
+  email?: string | null
   nome_completo: string
   role: 'medico' | 'recepcao' | 'admin' | 'dpo' | 'ti'
   crm?: string | null

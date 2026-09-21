@@ -18,6 +18,7 @@ const toast = useToast()
 const form = ref<UsuarioForm>({
   nome_completo: '',
   cnpj_cpf: '',
+  username: '',
   email: '',
   senha: '',
   role: props.role,
@@ -55,7 +56,7 @@ const podeSalvar = computed(() => {
   const camposBase = Boolean(
     form.value.nome_completo.trim()
     && form.value.cnpj_cpf.trim()
-    && form.value.email.trim()
+    && form.value.username.trim()
   )
   const senhaValida = Boolean(props.usuario || (form.value.senha?.trim().length ?? 0) >= 8)
   const unidadesValidas = !exigeUnidade.value || unidadesSelecionadas.value.length > 0
@@ -75,7 +76,8 @@ watch(open, (isOpen) => {
       form.value = {
         nome_completo: props.usuario.nome_completo,
         cnpj_cpf: formatarCpfCnpj(props.usuario.cnpj_cpf),
-        email: props.usuario.email,
+        username: props.usuario.username || '',
+        email: props.usuario.email || '',
         senha: '',
         role: props.usuario.role,
         ativo: props.usuario.ativo ?? true,
@@ -97,6 +99,7 @@ watch(open, (isOpen) => {
       form.value = {
         nome_completo: '',
         cnpj_cpf: '',
+        username: '',
         email: '',
         senha: '',
         role: props.role,
@@ -274,7 +277,14 @@ async function salvar() {
               @update:model-value="form.cnpj_cpf = formatarCpfCnpj($event)"
             />
           </UFormField>
-          <UFormField label="Email">
+          <UFormField label="Usuário">
+            <UInput
+              v-model="form.username"
+              placeholder="ex.: joao.silva"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Email (opcional)">
             <UInput
               v-model="form.email"
               type="email"

@@ -11,7 +11,8 @@ class Usuario(db.Model):
     id = Column(Integer, primary_key=True)
     nome_completo = Column(String(255), nullable=False)
     cnpj_cpf = Column(String(255), nullable=False)
-    email = Column(String(255), nullable=False)
+    username = Column(String(30), unique=True, nullable=True, index=True)
+    email = Column(String(255), nullable=True)
     senha = Column(String(255), nullable=False)
     role = Column(String(50), nullable=False, default="medico")
     ativo = Column(Boolean, nullable=False, default=True)
@@ -72,9 +73,10 @@ class Usuario(db.Model):
     )
     
     
-    def __init__(self, nome_completo, cnpj_cpf, email, senha, role="medico", ativo=True):
+    def __init__(self, nome_completo, cnpj_cpf, email, senha, role="medico", ativo=True, username=None):
         self.nome_completo = nome_completo
         self.cnpj_cpf = cnpj_cpf
+        self.username = username.strip().lower() if username else None
         self.email = email
         self.set_senha(senha)
         self.role = role
@@ -115,13 +117,14 @@ class Usuario(db.Model):
 
 
     def __repr__(self):
-        return f"Usuario: {self.email}"
+        return f"Usuario: {self.username or self.email}"
     
     def _to_dict(self):
         return {
             "id": self.id,
             "nome_completo": self.nome_completo,
             "cnpj_cpf": self.cnpj_cpf,
+            "username": self.username,
             "email": self.email,
             "role": self.role,
             "ativo": self.ativo,

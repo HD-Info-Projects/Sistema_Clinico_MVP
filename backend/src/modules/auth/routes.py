@@ -26,27 +26,30 @@ login_bp = Blueprint("login", __name__, url_prefix="/login")
 controller = LoginController()
 
 
-def _login_email_rate_limit_key():
+def _login_username_rate_limit_key():
     data = request.get_json(silent=True) or {}
-    email = str(data.get("email") or "").strip().lower()
+    username = str(data.get("username") or data.get("email") or "").strip().lower()
 
-    if email:
+    if username:
         usuario = (
             db.session.query(Usuario.id, Usuario.login_rate_limit_version)
-            .filter(db.func.lower(Usuario.email) == email[:255])
+            .filter(
+                (db.func.lower(Usuario.username) == username[:30])
+                | (db.func.lower(Usuario.email) == username[:255])
+            )
             .first()
         )
         version = usuario.login_rate_limit_version if usuario else 0
-        return f"login-email:{email[:255]}:v{version}"
+        return f"login-username:{username[:255]}:v{version}"
 
-    return f"login-email-ip:{request.remote_addr or 'unknown'}"
+    return f"login-username-ip:{request.remote_addr or 'unknown'}"
 
 
 def _login_ip_rate_limit():
     return current_app.config.get("LOGIN_RATE_LIMIT_IP", "10 per minute")
 
 
-def _login_email_rate_limit():
+def _login_username_rate_limit():
     return current_app.config.get("LOGIN_RATE_LIMIT_EMAIL", "5 per minute")
 
 
@@ -57,26 +60,26 @@ def _deduct_failed_login(response):
 @login_bp.route("/auth", methods=["POST"])
 @limiter.limit(_login_ip_rate_limit, deduct_when=_deduct_failed_login)
 @limiter.limit(
-    _login_email_rate_limit,
-    key_func=_login_email_rate_limit_key,
+    _login_username_rate_limit,
+    key_func=_login_username_rate_limit_key,
     deduct_when=_deduct_failed_login,
 )
 def login():
     try:
         data = request.get_json(silent=True) or {}
-        email = data.get("email")
+        username = data.get("username") or data.get("email")
         senha = data.get("senha")
 
-        if not email or not senha:
-            return jsonify({"error": "Campos obrigatórios: email, senha"}), 400
+        if not username or not senha:
+            return jsonify({"error": "Campos obrigatórios: usuário, senha"}), 400
 
-        token = controller.generate_JWT_usuario(email, senha)
+        token = controller.generate_JWT_usuario(username, senha)
 
         if not token:
             registrar_auditoria(
                 AcaoAuditoria.LOGIN_FALHA,
                 entidade="usuarios",
-                descricao=f"Falha de login para email={str(email).strip().lower()[:255]}",
+                descricao=f"Falha de login para usuario={str(username).strip().lower()[:30]}",
             )
             return jsonify({"error": "Credenciais inválidas"}), 401
 
@@ -125,6 +128,7 @@ def me():
 
         return jsonify({
             "id": usuario.id,
+            "username": usuario.username,
             "email": usuario.email,
             "nome_completo": usuario.nome_completo,
             "role": usuario.role,
@@ -167,7 +171,6 @@ def register_medic():
         data = request.get_json(silent=True) or {}
 
         campos_obrigatorios = [
-            "email_medico",
             "senha_medico",
             "nome_completo_medico",
             "CNPJ_CPF",
@@ -177,13 +180,17 @@ def register_medic():
             if not data.get(campo)
         ]
 
+        if not data.get("username_medico") and not data.get("email_medico"):
+            campos_faltando.append("username_medico")
+
         if campos_faltando:
             return jsonify({
                 "error": "Campos obrigatórios ausentes",
                 "fields": campos_faltando,
             }), 400
 
-        email = data["email_medico"]
+        username = data.get("username_medico") or data.get("email_medico")
+        email = data.get("email_medico")
         senha = data["senha_medico"]
         nome_completo = data["nome_completo_medico"]
         cpf_cnpj = data["CNPJ_CPF"]
@@ -228,6 +235,7 @@ def register_medic():
 
         resultado = criar_usuario_medico_spdata(
             medicos_spdata[0],
+            username=username,
             email=email,
             senha=senha,
             crm_atendimento_spdata=crm_atendimento_spdata,

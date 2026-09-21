@@ -54,9 +54,12 @@ class LoginController:
 
         db.session.commit()
 
-    def generate_JWT_usuario(self, email: str, senha: str):
-        email = (email or "").strip().lower()
-        usuario = self.__repo.get_usuario(email)
+    def generate_JWT_usuario(self, username: str, senha: str):
+        username = (username or "").strip().lower()
+        usuario = self.__repo.get_usuario(username)
+        # Contas antigas continuam podendo usar o e-mail até receberem username.
+        if not usuario and "@" in username:
+            usuario = self.__repo.get_usuario_by_email(username)
 
         if not usuario:
             return None
@@ -87,6 +90,7 @@ class LoginController:
             identity=str(usuario.id),
             additional_claims={
                 "id": usuario.id,
+                "username": usuario.username,
                 "email": usuario.email,
                 "nome_completo": usuario.nome_completo,
                 "role": usuario.role,

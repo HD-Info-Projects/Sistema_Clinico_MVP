@@ -3,9 +3,9 @@ import { fetchErrorStatus } from '../../utils/proxy-error'
 import { getRequestId, logUpstreamFailure, REQUEST_ID_HEADER } from '../../utils/request-id'
 import { setPrivateNoStore } from '../../utils/response'
 
-export async function loginAuth(event: H3Event, body: { email?: string, password?: string }) {
+export async function loginAuth(event: H3Event, body: { username?: string, password?: string }) {
   setPrivateNoStore(event)
-  const { email, password } = body
+  const { username, password } = body
   const config = useRuntimeConfig()
   const requestId = getRequestId(event)
 
@@ -14,7 +14,7 @@ export async function loginAuth(event: H3Event, body: { email?: string, password
     res = await $fetch(`${config.flaskBaseUrl}/login/auth`, {
       method: 'POST',
       headers: { [REQUEST_ID_HEADER]: requestId },
-      body: { email, senha: password }
+      body: { username, senha: password }
     })
   } catch (error: unknown) {
     const status = fetchErrorStatus(error)
