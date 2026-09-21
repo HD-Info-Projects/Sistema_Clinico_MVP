@@ -164,6 +164,7 @@ def create_app():
     from src.models.prescricao_model import Prescricao
     from src.models.solicitacao_exame_model import SolicitacaoExame
     from src.models.documento_medico_model import DocumentoMedico
+    from src.models.documento_personalizado_model import DocumentoPersonalizado
     from src.models.fila_sincronizacao_model import FilaSincronizacao
     from src.models.log_integracao_model import LogIntegracao
     from src.models.auditoria_model import Auditoria

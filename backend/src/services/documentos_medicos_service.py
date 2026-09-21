@@ -11,6 +11,7 @@ from src.models.documento_medico_model import (
     TIPO_SOLICITACAO_PROCEDIMENTO,
     TIPOS_DOCUMENTO_VALIDOS,
 )
+from src.models.documento_personalizado_model import DocumentoPersonalizado
 from src.models.medico_model import Medico
 from src.models.model_mydsystem.med_procedimentos_model import Procedimento
 from src.models.model_mydsystem.med_spdata_atendimentos_model import MedSpdataAtendimento
@@ -566,7 +567,132 @@ def listar_documentos_por_ids(usuario_id, ids, unidade_id=None):
 
 
 def listar_documentos_atendimento(usuario_id, med_spdata_atendimento_id, unidade_id=None):
-    return listar_documentos_por_ids(usuario_id, [med_spdata_atendimento_id], unidade_id=unidade_id)
+    documentos = listar_documentos_por_ids(usuario_id, [med_spdata_atendimento_id], unidade_id=unidade_id)
+    documentos.extend(listar_documentos_personalizados_atendimento(
+        usuario_id, med_spdata_atendimento_id, unidade_id=unidade_id
+    ))
+    return documentos
+
+
+def documento_personalizado_para_dict(documento, med_spdata_atendimento_id, pode_editar):
+    return {
+        "id": documento.id,
+        "atendimentoId": documento.atendimento_id,
+        "medSpdataAtendimentoId": med_spdata_atendimento_id,
+        "tipoDocumento": "DOCUMENTO_PERSONALIZADO",
+        "titulo": documento.titulo,
+        "conteudo": documento.conteudo,
+        "medico": documento.medico,
+        "crm": documento.crm,
+        "especialidade": documento.especialidade,
+        "createdAt": documento.created_at.isoformat() if documento.created_at else None,
+        "updatedAt": documento.updated_at.isoformat() if documento.updated_at else None,
+        "podeEditar": pode_editar,
+    }
+
+
+def listar_documentos_personalizados_atendimento(usuario_id, med_spdata_atendimento_id, unidade_id=None):
+    spdata = buscar_spdata_do_medico(med_spdata_atendimento_id, usuario_id, unidade_id=unidade_id)
+    atendimento = buscar_atendimento_local(spdata, criar=False)
+    if not atendimento:
+        return []
+
+    pode_editar = pode_editar_spdata(spdata)
+    documentos = db.session.execute(
+        select(DocumentoPersonalizado)
+        .where(DocumentoPersonalizado.atendimento_id == atendimento.id)
+        .order_by(DocumentoPersonalizado.created_at.asc(), DocumentoPersonalizado.id.asc())
+    ).scalars()
+    return [
+        documento_personalizado_para_dict(documento, spdata.id, pode_editar)
+        for documento in documentos
+    ]
+
+
+def validar_documento_personalizado(dados):
+    if not isinstance(dados, dict):
+        raise ValueError("Dados do documento inválidos")
+
+    titulo = normalizar_texto(dados.get("titulo"), 255)
+    conteudo = dados.get("conteudo")
+    if not titulo:
+        raise ValueError("titulo é obrigatório")
+    if not isinstance(conteudo, str) or not conteudo.strip():
+        raise ValueError("conteudo é obrigatório")
+
+    return {"titulo": titulo, "conteudo": conteudo}
+
+
+def salvar_documento_personalizado(
+    usuario_id, med_spdata_atendimento_id, dados, unidade_id=None, documento_id=None
+):
+    tipo_spdata = buscar_spdata_do_medico(
+        med_spdata_atendimento_id, usuario_id, unidade_id=unidade_id
+    )
+    if not pode_editar_spdata(tipo_spdata):
+        raise PermissionError("Documentos de atendimentos passados só podem ser impressos")
+
+    atendimento = buscar_atendimento_local(tipo_spdata, criar=True)
+    dados_normalizados = validar_documento_personalizado(dados)
+    dados_normalizados.update(snapshot_medico(usuario_id))
+
+    documento = None
+    if documento_id is not None:
+        documento = db.session.execute(
+            select(DocumentoPersonalizado).where(
+                DocumentoPersonalizado.id == documento_id,
+                DocumentoPersonalizado.atendimento_id == atendimento.id,
+            )
+        ).scalars().first()
+        if documento is None:
+            raise LookupError("Documento personalizado não encontrado")
+
+    if documento is None:
+        documento = DocumentoPersonalizado(
+            atendimento_id=atendimento.id,
+            titulo=dados_normalizados["titulo"],
+            conteudo=dados_normalizados["conteudo"],
+            medico=dados_normalizados["medico"],
+            crm=dados_normalizados["crm"],
+            especialidade=dados_normalizados["especialidade"],
+        )
+        db.session.add(documento)
+    else:
+        documento.titulo = dados_normalizados["titulo"]
+        documento.conteudo = dados_normalizados["conteudo"]
+        documento.medico = dados_normalizados["medico"]
+        documento.crm = dados_normalizados["crm"]
+        documento.especialidade = dados_normalizados["especialidade"]
+        documento.updated_at = datetime.utcnow()
+
+    db.session.commit()
+    return documento_personalizado_para_dict(documento, tipo_spdata.id, True)
+
+
+def excluir_documento_personalizado(
+    usuario_id, med_spdata_atendimento_id, documento_id, unidade_id=None
+):
+    spdata = buscar_spdata_do_medico(
+        med_spdata_atendimento_id, usuario_id, unidade_id=unidade_id
+    )
+    if not pode_editar_spdata(spdata):
+        raise PermissionError("Documentos de atendimentos passados só podem ser impressos")
+
+    atendimento = buscar_atendimento_local(spdata, criar=False)
+    if not atendimento:
+        raise LookupError("Documento personalizado não encontrado")
+
+    documento = db.session.execute(
+        select(DocumentoPersonalizado).where(
+            DocumentoPersonalizado.id == documento_id,
+            DocumentoPersonalizado.atendimento_id == atendimento.id,
+        )
+    ).scalars().first()
+    if documento is None:
+        raise LookupError("Documento personalizado não encontrado")
+
+    db.session.delete(documento)
+    db.session.commit()
 
 
 def salvar_documento(usuario_id, med_spdata_atendimento_id, tipo, dados, unidade_id=None):

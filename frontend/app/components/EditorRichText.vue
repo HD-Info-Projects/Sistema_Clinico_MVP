@@ -88,7 +88,7 @@ onUnmounted(() => {
   >
     <template #default="{ editor }">
       <div
-        class="flex shrink-0 flex-wrap gap-1 overflow-x-auto border-b border-muted bg-neutral-50 p-2 dark:bg-neutral-900 rounded-t-lg"
+        class="flex shrink-0 flex-wrap gap-1 overflow-x-auto rounded-t-lg border-b border-muted bg-muted p-2"
         role="toolbar"
         aria-label="Formatação de texto"
       >

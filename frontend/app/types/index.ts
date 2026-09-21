@@ -326,6 +326,21 @@ export interface DocumentoMedico {
   podeEditar: boolean
 }
 
+export interface DocumentoPersonalizado {
+  id: number
+  atendimentoId: number
+  medSpdataAtendimentoId: number
+  tipoDocumento: 'DOCUMENTO_PERSONALIZADO'
+  titulo: string
+  conteudo: string
+  medico?: string | null
+  crm?: string | null
+  especialidade?: string | null
+  createdAt: string | null
+  updatedAt: string | null
+  podeEditar: boolean
+}
+
 export interface ItemMedicamento {
   nome: string
   dosagem: string

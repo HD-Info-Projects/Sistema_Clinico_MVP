@@ -50,16 +50,15 @@ function salvar() {
 <template>
   <UModal
     v-model:open="open"
-    fullscreen
-    :ui="{ content: 'h-dvh', body: 'flex min-h-0 flex-1 flex-col overflow-y-auto p-0', footer: 'shrink-0' }"
+    :ui="{ content: 'h-dvh max-w-4xl', body: 'flex min-h-0 flex-1 flex-col overflow-y-auto p-0', footer: 'shrink-0' }"
   >
     <template #header>
-      <div class="flex items-center justify-between w-full">
-        <div>
+      <div class="flex w-full items-center justify-between gap-3">
+        <div class="min-w-0">
           <h2 class="text-lg font-semibold">
             Orientação do Exame
           </h2>
-          <p class="text-sm text-muted mt-0.5">
+          <p class="mt-0.5 text-sm text-muted">
             {{ exame?.nome ?? 'Exame não selecionado' }}
           </p>
         </div>
@@ -74,8 +73,8 @@ function salvar() {
     </template>
 
     <template #body>
-      <div class="flex min-h-0 flex-1 flex-col space-y-6 p-4 sm:p-6">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="flex min-h-0 flex-1 flex-col gap-5 p-4 sm:p-6">
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
           <UFormField label="Paciente">
             <UInput
               :model-value="paciente?.nome ?? '—'"
@@ -110,19 +109,20 @@ function salvar() {
           />
         </div>
 
-        <div class="flex min-h-0 flex-1 flex-col space-y-1">
+        <div class="flex min-h-0 flex-1 flex-col gap-1">
           <label class="text-sm font-medium">Texto da orientação</label>
           <EditorRichText
             v-model="orientacaoTexto"
             placeholder="Descreva a orientação para este exame..."
-            class="flex min-h-72 flex-1 flex-col"
+            :ui="{ base: 'min-h-72 max-h-none' }"
+            class="flex min-h-0 flex-1 flex-col"
           />
         </div>
       </div>
     </template>
 
     <template #footer>
-      <div class="flex w-full flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
+      <div class="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <UButton
           label="Cancelar"
           color="neutral"

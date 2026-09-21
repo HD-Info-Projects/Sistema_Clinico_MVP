@@ -6,6 +6,7 @@ import { buscarExamesCatalogo } from '~/features/exames/services/examesService'
 import type { ExameCatalogo, ExameSelecionado } from '~/features/exames/types'
 import type {
   DocumentoMedico,
+  DocumentoPersonalizado,
   DocumentoMedicoTipo,
   HistoricoLocalRecord,
   PadraoAnamnese,
@@ -84,6 +85,7 @@ async function carregarConsultaExistente() {
   }
 }
 const documentosMedicos = shallowRef<Partial<Record<DocumentoMedicoTipo, DocumentoMedico>>>({})
+const documentosPersonalizados = shallowRef<DocumentoPersonalizado[]>([])
 let documentosMedicosRequestId = 0
 
 function documentoMedico(tipo: DocumentoMedicoTipo) {
@@ -102,12 +104,20 @@ function atualizarDocumentoMedico(documento: DocumentoMedico) {
   }
 }
 
+function atualizarDocumentoPersonalizado(documento: DocumentoPersonalizado) {
+  documentosPersonalizados.value = [
+    ...documentosPersonalizados.value.filter(item => item.id !== documento.id),
+    documento
+  ].sort((a, b) => a.id - b.id)
+}
+
 async function carregarDocumentosMedicosDoAtendimento() {
   const requestId = ++documentosMedicosRequestId
   const ag = agendamento.value
 
   if (!ag) {
     documentosMedicos.value = {}
+    documentosPersonalizados.value = []
     return
   }
 
@@ -117,13 +127,22 @@ async function carregarDocumentosMedicosDoAtendimento() {
     if (requestId !== documentosMedicosRequestId) return
 
     const porTipo: Partial<Record<DocumentoMedicoTipo, DocumentoMedico>> = {}
+    const personalizados: DocumentoPersonalizado[] = []
     for (const documento of documentos) {
-      porTipo[documento.tipoDocumento] = documento
+      if (documento.tipoDocumento === 'DOCUMENTO_PERSONALIZADO') {
+        personalizados.push(documento)
+      } else {
+        porTipo[documento.tipoDocumento] = documento
+      }
     }
 
     documentosMedicos.value = porTipo
+    documentosPersonalizados.value = personalizados
   } catch {
-    if (requestId === documentosMedicosRequestId) documentosMedicos.value = {}
+    if (requestId === documentosMedicosRequestId) {
+      documentosMedicos.value = {}
+      documentosPersonalizados.value = []
+    }
     console.error('Erro ao carregar documentos médicos')
   }
 }
@@ -519,6 +538,7 @@ const showAtestadoModal = ref(false)
 const showEncaminhamentoModal = ref(false)
 const showProcedimentoModal = ref(false)
 const showOpmeModal = ref(false)
+const showDocumentoPersonalizadoModal = ref(false)
 const showOrientacaoExamesModal = ref(false)
 const finalizandoConsulta = ref(false)
 const draftSalvoEm = ref<string | null>(null)
@@ -1466,6 +1486,13 @@ async function finalizarConsulta() {
                 :disabled="!receitaTexto.trim()"
                 @click="void (tabAtiva = '2')"
               />
+              <UButton
+                icon="i-lucide-file-pen-line"
+                label="Criar documento médico"
+                color="info"
+                class="w-full p-3 text-lg font-bold col-span-2"
+                @click="void (showDocumentoPersonalizadoModal = true)"
+              />
             </div>
           </UCard>
           <UCard
@@ -1518,6 +1545,12 @@ async function finalizarConsulta() {
       :data-atendimento="agendamento?.data"
       :documento="documentoProcedimento"
       @saved="atualizarDocumentoMedico"
+    />
+    <DocumentoPersonalizadoModal
+      v-model:open="showDocumentoPersonalizadoModal"
+      :agendamento="agendamento"
+      :documentos="documentosPersonalizados"
+      @saved="atualizarDocumentoPersonalizado"
     />
     <ProcedimentoGerarModal
       v-model:open="showOpmeModal"

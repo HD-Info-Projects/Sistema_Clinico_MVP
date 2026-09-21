@@ -1,4 +1,4 @@
-import type { ItemMedicamento } from '~/types'
+import type { DocumentoPersonalizado, ItemMedicamento } from '~/types'
 import { getLogoBase64 } from '~/utils/pdf-assets'
 
 type ExameSolicitacaoPdf = string | {
@@ -44,15 +44,23 @@ function documentTitle(title: string) {
   return { text: title, fontSize: 16, bold: true, alignment: 'center' as const, margin: [0, 10, 0, 20] }
 }
 
-function signatureBlock(medico?: string, crm?: string, especialidade?: string) {
+function signatureBlock(
+  medico?: string,
+  crm?: string,
+  especialidade?: string,
+  options: { compact?: boolean } = {}
+) {
+  const compact = options.compact ?? false
+
   return {
     stack: [
-      { text: '\n\n\n' },
+      ...(compact ? [] : [{ text: '\n\n\n' }]),
       { text: '__________________________________________', alignment: 'center' as const },
       { text: medico ?? 'Médico Responsável', bold: true, fontSize: 10, alignment: 'center' as const },
       ...(especialidade ? [{ text: especialidade, fontSize: 9, alignment: 'center' as const, color: '#555555' }] : []),
       ...(crm ? [{ text: `CRM:${crm}`, fontSize: 9, alignment: 'center' as const, color: '#555555' }] : [])
     ],
+    ...(compact ? { margin: [0, 28, 0, 0] } : {}),
     unbreakable: true
   }
 }
@@ -393,7 +401,7 @@ export async function buildAtestadoComparecimento(params: {
       documentTitle('ATESTADO DE COMPARECIMENTO'),
       { text: `PACIENTE: ${params.paciente.toUpperCase()}`, bold: true, decoration: 'underline', margin: [0, 0, 0, 5] },
       { text: '\n' },
-      { text: `Atesto, para os devidos fins, que o(a) paciente ${params.paciente} compareceu a esta unidade de sa\u00FAdde no dia ${params.data} \u00E0s ${params.horario}, para atendimento m\u00E9dico.`, margin: [0, 0, 0, 10] },
+      { text: `Atesto, para os devidos fins, que o(a) paciente ${params.paciente} compareceu a esta unidade de sa\u00FAde no dia ${params.data} \u00E0s ${params.horario}, para atendimento m\u00E9dico.`, margin: [0, 0, 0, 10] },
       ...(params.cids?.length
         ? [{ text: `CID. ${params.cids.join(', ')}`, margin: [0, 10, 0, 0] }]
         : []),
@@ -425,6 +433,39 @@ export async function buildAtestado(params: {
         : []),
       signatureBlock(params.medico, params.crm, params.especialidade)
     ],
+    defaultStyle
+  }
+}
+
+export async function buildDocumentoPersonalizado(params: {
+  documentos: DocumentoPersonalizado[]
+}) {
+  const htmlToPdfmake = (await import('html-to-pdfmake')).default
+  const content = []
+
+  for (const [index, documento] of params.documentos.entries()) {
+    if (index) content.push({ text: '', pageBreak: 'before' as const })
+    content.push(...await hospitalHeader())
+    content.push(documentTitle(documento.titulo))
+    content.push(...htmlToPdfmake(documento.conteudo, {
+      window,
+      removeExtraBlanks: true,
+      defaultStyles: {
+        p: { margin: [0, 0, 0, 8] }
+      }
+    }))
+    content.push(signatureBlock(
+      documento.medico ?? undefined,
+      documento.crm ?? undefined,
+      documento.especialidade ?? undefined,
+      { compact: true }
+    ))
+  }
+
+  return {
+    pageSize: 'A4' as const,
+    pageMargins: [60, 40, 60, 60] as [number, number, number, number],
+    content,
     defaultStyle
   }
 }
