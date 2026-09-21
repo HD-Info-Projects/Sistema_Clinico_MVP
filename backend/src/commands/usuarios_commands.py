@@ -5,7 +5,7 @@ from flask.cli import with_appcontext
 
 from src.models.usuario_model import Usuario
 from src.security.passwords import is_hashed_password, validate_password_strength
-from src.services.unidades_service import vincular_usuario_unidade
+from src.modules.unidades.service import vincular_usuario_unidade
 from src.settings.extensions import db
 
 

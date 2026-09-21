@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import type { ExameCatalogo, ExameSelecionado, PadraoExame } from '~/types'
+import { buscarExamesCatalogo } from '~/features/exames/services/examesService'
+import type { ExameCatalogo, ExameSelecionado } from '~/features/exames/types'
+import type { PadraoExame } from '~/types'
 
 const props = defineProps<{
   /** Medico alvo quando um admin gerencia os padroes de outro usuario */
@@ -112,10 +114,7 @@ async function buscarExames(q: string) {
 
   carregandoExames.value = true
   try {
-    const data = await $fetch<{ exames: ExameCatalogo[] }>('/api/exames/buscar', {
-      query: { q: termo },
-      signal: examesController.signal
-    })
+    const data = await buscarExamesCatalogo(termo, examesController.signal)
 
     if (requestId !== examesRequestId) return
     if (buscaTermo.value.trim() !== termo) return

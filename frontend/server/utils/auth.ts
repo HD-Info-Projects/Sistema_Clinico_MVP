@@ -2,6 +2,9 @@ import type { H3Event } from 'h3'
 import { createError, deleteCookie, getCookie, setCookie } from 'h3'
 import type { ServerClinica } from './clinicas'
 import { clearActiveClinicaIdCookie, clinicasFromBackend, resolveActiveClinicaIdCookie, setActiveClinicaIdCookie } from './clinicas'
+import { fetchErrorStatus } from './proxy-error'
+import { getRequestId, logUpstreamFailure, REQUEST_ID_HEADER } from './request-id'
+import { setPrivateNoStore } from './response'
 
 export const AUTH_COOKIE_NAME = 'auth_token'
 
@@ -93,19 +96,28 @@ export function buildLoginSessionPayload(event: H3Event, raw: BackendAuthUser) {
 }
 
 export async function getAuthenticatedUser(event: H3Event) {
+  setPrivateNoStore(event)
+  const requestId = getRequestId(event)
   const token = requireAuthToken(event)
   const config = useRuntimeConfig()
 
   try {
     return await $fetch<BackendAuthUser>(`${config.flaskBaseUrl}/login/me`, {
       headers: {
-        Authorization: `Bearer ${token}`
+        Authorization: `Bearer ${token}`,
+        [REQUEST_ID_HEADER]: requestId
       }
     })
-  } catch {
-    clearAuthTokenCookie(event)
-    clearActiveClinicaIdCookie(event)
-    throw createError({ statusCode: 401, statusMessage: 'Não autorizado' })
+  } catch (error) {
+    const status = fetchErrorStatus(error)
+    if (status === 401 || status === 403) {
+      clearAuthTokenCookie(event)
+      clearActiveClinicaIdCookie(event)
+      throw createError({ statusCode: 401, statusMessage: 'Não autorizado' })
+    }
+
+    logUpstreamFailure(event, error, 'flask', 'validar sessão')
+    throw createError({ statusCode: 502, statusMessage: 'Falha ao validar sessão' })
   }
 }
 

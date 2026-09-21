@@ -1,11 +1,10 @@
+import { listarProcedimentosRecepcao } from '../../features/recepcao/service'
+
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
-  const params = new URLSearchParams()
-  if (query.q) params.set('q', String(query.q))
 
   try {
-    const qs = params.toString()
-    return await flaskFetch(event, `/recepcao/procedimentos${qs ? `?${qs}` : ''}`)
+    return await listarProcedimentosRecepcao(event, query)
   } catch (error) {
     throwProxyError(error, 'Falha ao carregar procedimentos')
   }

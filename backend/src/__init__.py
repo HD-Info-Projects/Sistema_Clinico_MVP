@@ -192,46 +192,7 @@ def create_app():
     from .routes import register_routes
     register_routes(app)
 
-    from src.routes.login_route import login_bp
-    from src.routes.dashboard_route import dashboard_bp
-    from src.routes.check_in_route import check_in_bp
-    from src.routes.prontuario_route import prontuario_bp
-    from src.routes.modelo_solicitacao_medicos_route import padrao_medico_receita_bp
-    from src.routes.modelo_solicitacao_exames_route import padrao_medico_exame_bp
-    from src.routes.modelo_solicitacao_anamnese_route import padrao_medico_anamnese_bp
-    from src.routes.modelo_orientacao_exame_route import padrao_medico_orientacao_exame_bp
-    from src.routes.agenda_medica_route import agenda_medica_bp
-    from src.routes.exames_route import exames_bp
-    from src.routes.procedimentos_route import procedimentos_bp
-    from src.routes.no_show_route import no_show_bp
-    from src.routes.retencao_exames_route import retencao_exames_bp
-    from src.routes.tts_route import tts_bp
-    from src.routes.documentos_medicos_route import documentos_medicos_bp
-    from src.routes.usuarios_route import usuarios_bp
-    from src.routes.auditoria_route import auditoria_bp
-    from src.routes.unidades_route import unidades_bp
-    from src.routes.spdata_exames_pacs_route import exames_pacs_bp
-    from src.routes.recepcao_route import recepcao_bp
-
-    app.register_blueprint(login_bp)
-    app.register_blueprint(dashboard_bp)
-    app.register_blueprint(check_in_bp)
-    app.register_blueprint(prontuario_bp)
-    app.register_blueprint(padrao_medico_receita_bp)
-    app.register_blueprint(padrao_medico_exame_bp)
-    app.register_blueprint(padrao_medico_anamnese_bp)
-    app.register_blueprint(padrao_medico_orientacao_exame_bp)
-    app.register_blueprint(agenda_medica_bp)
-    app.register_blueprint(exames_bp)
-    app.register_blueprint(procedimentos_bp)
-    app.register_blueprint(no_show_bp)
-    app.register_blueprint(retencao_exames_bp)
-    app.register_blueprint(tts_bp)
-    app.register_blueprint(documentos_medicos_bp)
-    app.register_blueprint(usuarios_bp)
-    app.register_blueprint(auditoria_bp)
-    app.register_blueprint(unidades_bp)
-    app.register_blueprint(exames_pacs_bp)
-    app.register_blueprint(recepcao_bp)
+    from src.modules import register_modules
+    register_modules(app)
 
     return app

@@ -5,7 +5,7 @@ from src import create_app
 from src.controllers.login_controller import LoginController
 from flask_jwt_extended import create_access_token
 
-from src.routes.dashboard_route import _item_dashboard
+from src.modules.atendimentos.routes import _item_dashboard
 from src.security.decorators import active_user_required, roles_required
 from src.security.jwt_blocklist import is_jti_revoked, revoke_jti
 from src.security.passwords import (
@@ -311,9 +311,9 @@ def test_tts_auditoria_nao_grava_texto_falado(monkeypatch):
         return b"audio"
 
     eventos = []
-    monkeypatch.setattr("src.routes.tts_route._gerar_audio_edge_tts", gerar_audio_fake)
+    monkeypatch.setattr("src.modules.chamadas.service._gerar_audio_edge_tts", gerar_audio_fake)
     monkeypatch.setattr(
-        "src.routes.tts_route.registrar_auditoria",
+        "src.modules.chamadas.service.registrar_auditoria",
         lambda *args, **kwargs: eventos.append(kwargs),
     )
 

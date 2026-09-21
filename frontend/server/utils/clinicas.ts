@@ -1,5 +1,6 @@
 import type { H3Event } from 'h3'
 import { createError, deleteCookie, getCookie, getHeader, getQuery, setCookie } from 'h3'
+import { getRequestId, logUpstreamFailure, REQUEST_ID_HEADER } from './request-id'
 
 export const ACTIVE_CLINICA_COOKIE_NAME = 'active_clinica_id'
 
@@ -148,7 +149,16 @@ export function requireClinicaUsuario(event: H3Event, rawUser: BackendUserWithCl
   return activeId
 }
 
-export async function getClinicaPublica(id: string | number) {
+export async function getClinicaPublica(event: H3Event, id: string | number) {
   const config = useRuntimeConfig()
-  return await $fetch<ServerClinica>(`${config.flaskBaseUrl}/unidades/${encodeURIComponent(String(id))}/publica`)
+  const requestId = getRequestId(event)
+
+  try {
+    return await $fetch<ServerClinica>(`${config.flaskBaseUrl}/unidades/${encodeURIComponent(String(id))}/publica`, {
+      headers: { [REQUEST_ID_HEADER]: requestId }
+    })
+  } catch (error) {
+    logUpstreamFailure(event, error, 'flask', 'carregar unidade pública')
+    throw error
+  }
 }

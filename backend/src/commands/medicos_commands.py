@@ -6,7 +6,7 @@ from src.services.medicos_spdata_service import (
     buscar_medicos_spdata,
     upsert_usuario_medico_spdata,
 )
-from src.services.unidades_service import vincular_usuario_unidade
+from src.modules.unidades.service import vincular_usuario_unidade
 from src.settings.extensions import db
 
 

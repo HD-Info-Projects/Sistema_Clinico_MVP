@@ -1,4 +1,5 @@
 import type { ExameHistoricoItem, ExamePacs, HistoricoExame, HistoricoLocalRecord } from '~/types'
+import { abrirExamePacs as abrirExamePacsFeature } from '~/features/pacs/services/pacsService'
 
 const MS_DIA = 24 * 60 * 60 * 1000
 const JANELA_CODIGO_DIAS = 60
@@ -232,12 +233,5 @@ export function montarExamesHistoricoUnificados(
 }
 
 export function abrirExamePacs(idTokenLancamentoExame: number | null | undefined, tipo: 'imagem' | 'laudo') {
-  if (!import.meta.client || !idTokenLancamentoExame) return
-  const id = Number(idTokenLancamentoExame)
-  if (!Number.isFinite(id) || id <= 0) return
-
-  const url = tipo === 'imagem'
-    ? `/api/exames-pacs/${id}/viewer`
-    : `/api/exames-pacs/${id}/laudo/pdf`
-  window.open(url, '_blank', 'noopener,noreferrer')
+  abrirExamePacsFeature(idTokenLancamentoExame, tipo)
 }

@@ -1,31 +1,6 @@
 <script setup lang="ts">
-type AuditoriaUsuario = {
-  id: number
-  nome_completo: string
-  email: string
-  role: string
-}
-
-type AuditoriaEvento = {
-  id: number
-  usuario_id: number | null
-  medico_id: number | null
-  acao: string
-  entidade: string | null
-  entidade_id: number | null
-  descricao: string | null
-  ip: string | null
-  user_agent: string | null
-  created_at: string | null
-  usuario: AuditoriaUsuario | null
-}
-
-type AuditoriaResponse = {
-  items: AuditoriaEvento[]
-  limit: number
-  offset: number
-  has_more: boolean
-}
+import { listarAuditorias } from '~/features/lgpd/services/lgpdService'
+import type { AuditoriaEvento } from '~/features/lgpd/types'
 
 const openNav = inject<() => void>('openNav', () => {})
 const eventos = ref<AuditoriaEvento[]>([])
@@ -70,16 +45,15 @@ async function carregarAuditoria(novoOffset = 0) {
   loading.value = true
   erro.value = null
 
-  const params = new URLSearchParams()
-  if (dataIni.value) params.set('dataIni', dataIni.value)
-  if (dataFim.value) params.set('dataFim', dataFim.value)
-  if (acao.value.trim()) params.set('acao', acao.value.trim())
-  if (entidade.value.trim()) params.set('entidade', entidade.value.trim())
-  params.set('limit', String(limit.value))
-  params.set('offset', String(novoOffset))
-
   try {
-    const response = await $fetch<AuditoriaResponse>(`/api/auditorias?${params.toString()}`)
+    const response = await listarAuditorias({
+      dataIni: dataIni.value,
+      dataFim: dataFim.value,
+      acao: acao.value.trim(),
+      entidade: entidade.value.trim(),
+      limit: limit.value,
+      offset: novoOffset
+    })
     eventos.value = response.items
     offset.value = response.offset
     hasMore.value = response.has_more

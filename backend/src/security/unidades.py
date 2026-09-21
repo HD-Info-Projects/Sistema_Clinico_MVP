@@ -1,7 +1,7 @@
 from flask import request
 from flask_jwt_extended import get_jwt_identity
 
-from src.services.unidades_service import resolver_unidade_usuario
+from src.modules.unidades.service import resolver_unidade_usuario
 
 
 def unidade_id_request():

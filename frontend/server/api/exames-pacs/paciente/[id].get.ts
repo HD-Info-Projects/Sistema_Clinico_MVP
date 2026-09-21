@@ -1,11 +1,10 @@
+import { listarExamesPacsPaciente, validarIdPacs } from '../../../features/pacs/service'
+
 export default defineEventHandler(async (event) => {
-  const id = Number(getRouterParam(event, 'id'))
-  if (!Number.isFinite(id) || id <= 0) {
-    throw createError({ statusCode: 400, message: 'Paciente inválido' })
-  }
+  const id = validarIdPacs(Number(getRouterParam(event, 'id')), 'Paciente inválido')
 
   try {
-    return await flaskFetch(event, `/exames-pacs/paciente/${id}`)
+    return await listarExamesPacsPaciente(event, id)
   } catch (error) {
     throwProxyError(error, 'Falha ao carregar resultados de exames no backend Flask')
   }

@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.services.unidades_service import resolver_unidade_usuario
+from src.modules.unidades.service import resolver_unidade_usuario
 from src.settings.extensions import db
 
 

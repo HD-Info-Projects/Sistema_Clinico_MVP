@@ -23,7 +23,7 @@ from src.models.prescricao_model import Prescricao
 from src.models.solicitacao_exame_model import SolicitacaoExame
 from src.models.db.handler_fb_db import ConnectionDBFireBird
 from src.services.spdata_agenda_service import sincronizar_agenda_spdata
-from src.services.unidades_service import resolver_unidade_usuario
+from src.modules.unidades.service import resolver_unidade_usuario
 from src.settings.extensions import db
 from src.utils.normalizar import normalizar_cpf
 from src.utils.tuss import (

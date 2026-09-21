@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useUnidadesStore } from '~/features/unidades/stores/unidadesStore'
+
 definePageMeta({ layout: 'admin' })
 
 const auth = useAuthStore()

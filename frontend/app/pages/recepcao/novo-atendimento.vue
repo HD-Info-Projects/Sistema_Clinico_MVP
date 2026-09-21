@@ -1,69 +1,23 @@
 <script setup lang="ts">
 import { CalendarDate, type Time } from '@internationalized/date'
+import {
+  buscarPacientesRecepcao,
+  listarConveniosRecepcao,
+  listarMedicosRecepcao,
+  listarProcedimentosRecepcao,
+  salvarNovoAtendimentoRecepcao,
+  salvarPacienteRecepcao
+} from '~/features/recepcao/services/recepcaoService'
+import type {
+  ConvenioRecepcao,
+  MedicoRecepcao,
+  PacienteRecepcao,
+  ProcedimentoRecepcao,
+  UnidadeRecepcao
+} from '~/features/recepcao/types'
 import { formatarCpf, formatarCpfCnpj, formatarTelefone } from '~/utils/masks'
 
-type PacienteRecepcao = {
-  idPacienteSpdata?: number
-  nome: string
-  nomeSocial?: string | null
-  cpf?: string
-  prontuario?: string
-  dataNascimento?: string | null
-  sexo?: string | null
-  sexoBiologico?: string
-  cidade?: string
-  celular?: string
-  celularWhatsapp?: string
-  telefone?: string
-  telefoneFixo?: string
-  email?: string
-  endereco?: string
-  logradouro?: string
-  numero?: string
-  complemento?: string
-  bairro?: string
-  uf?: string
-  estadoUf?: string
-  cep?: string
-  nomeMae?: string
-  rg?: string
-  orgaoEmissor?: string
-  codigoIbge?: string
-}
-
 type EnderecoViaCep = { erro?: boolean, logradouro?: string, complemento?: string, bairro?: string, localidade?: string, uf?: string, ibge?: string }
-
-type ProcedimentoRecepcao = {
-  id: number
-  spdataTpId?: number | null
-  nome: string
-  codigoProcedimento?: number | string | null
-  codigoTuss?: number | string | null
-}
-
-type ConvenioRecepcao = {
-  idConvenioSpdata: number
-  codigoSpdata?: number | null
-  nome: string
-  registroAns?: string | null
-}
-
-type MedicoRecepcao = {
-  id: number
-  usuarioId?: number
-  nome: string
-  spdataId?: number | null
-  crm?: string | null
-  crmAtendimento?: string | null
-  especialidade?: string | null
-}
-
-type UnidadeRecepcao = {
-  id: number
-  nome: string
-  codigoSpdataCentroCusto?: number | null
-  codigo_spdata_centro_custo?: string | number | null
-}
 
 const auth = useAuthStore()
 const toast = useToast()
@@ -289,8 +243,7 @@ function aplicarUnidadeAtiva() {
 async function carregarProcedimentos(q = '') {
   carregandoProcedimentos.value = true
   try {
-    const params = q.trim() ? `?q=${encodeURIComponent(q.trim())}` : ''
-    const response = await $fetch<{ procedimentos: ProcedimentoRecepcao[] }>(`/api/recepcao/procedimentos${params}`)
+    const response = await listarProcedimentosRecepcao(q.trim())
     procedimentos.value = response.procedimentos ?? []
   } catch (error) {
     toast.add({ title: mensagemErro(error, 'Não foi possível carregar procedimentos.'), color: 'error' })
@@ -302,8 +255,7 @@ async function carregarProcedimentos(q = '') {
 async function carregarConvenios(q = '') {
   carregandoConvenios.value = true
   try {
-    const params = q.trim() ? `?q=${encodeURIComponent(q.trim())}` : ''
-    const response = await $fetch<{ convenios: ConvenioRecepcao[] }>(`/api/recepcao/convenios${params}`)
+    const response = await listarConveniosRecepcao(q.trim())
     convenios.value = response.convenios ?? []
   } catch (error) {
     toast.add({ title: mensagemErro(error, 'Não foi possível carregar convênios.'), color: 'error' })
@@ -315,7 +267,7 @@ async function carregarConvenios(q = '') {
 async function carregarMedicos() {
   carregandoMedicos.value = true
   try {
-    const response = await $fetch<{ medicos: MedicoRecepcao[] }>('/api/recepcao/medicos')
+    const response = await listarMedicosRecepcao()
     medicos.value = response.medicos ?? []
   } catch (error) {
     toast.add({ title: mensagemErro(error, 'Não foi possível carregar médicos.'), color: 'error' })
@@ -353,7 +305,7 @@ async function buscarPacientesSpdata(termo: string) {
   }
 
   try {
-    const response = await $fetch<{ pacientes: PacienteRecepcao[] }>(`/api/recepcao/pacientes/buscar?q=${encodeURIComponent(q)}`)
+    const response = await buscarPacientesRecepcao({ q })
     pacientesEncontrados.value = response.pacientes ?? []
   } catch {
     pacientesEncontrados.value = []
@@ -370,7 +322,7 @@ async function buscarMaesResponsaveisSpdata(termo: string) {
 
   carregandoMaesResponsaveis.value = true
   try {
-    const response = await $fetch<{ pacientes: PacienteRecepcao[] }>(`/api/recepcao/pacientes/buscar?q=${encodeURIComponent(q)}`)
+    const response = await buscarPacientesRecepcao({ q })
     maesResponsaveisEncontradas.value = response.pacientes ?? []
   } catch {
     maesResponsaveisEncontradas.value = []
@@ -380,10 +332,7 @@ async function buscarMaesResponsaveisSpdata(termo: string) {
 }
 
 async function salvarPacienteSpdata() {
-  const response = await $fetch<{ paciente?: PacienteRecepcao, created?: boolean }>('/api/recepcao/pacientes', {
-    method: 'POST',
-    body: payloadPaciente()
-  })
+  const response = await salvarPacienteRecepcao(payloadPaciente())
   const salvo = response.paciente
   if (!salvo?.idPacienteSpdata) throw new Error('SPDATA não retornou o paciente salvo')
 
@@ -548,14 +497,11 @@ async function finalizarCadastro() {
   }
 
   try {
-    const response = await $fetch<{ atendimentoCreated?: boolean }>('/api/recepcao/novo-atendimento', {
-      method: 'POST',
-      body: {
-        unidadeId: atendimento.unidadeId ?? auth.activeClinicaId,
-        paciente: payloadPaciente(),
-        atendimento: payloadAtendimento(),
-        responsavel: payloadResponsavel()
-      }
+    const response = await salvarNovoAtendimentoRecepcao({
+      unidadeId: atendimento.unidadeId ?? auth.activeClinicaId,
+      paciente: payloadPaciente(),
+      atendimento: payloadAtendimento(),
+      responsavel: payloadResponsavel()
     })
 
     toast.add({

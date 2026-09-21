@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import type { Unidade } from '~/types'
+import UnidadeFormModal from '~/features/unidades/components/UnidadeFormModal.vue'
+import { useUnidadesStore } from '~/features/unidades/stores/unidadesStore'
+import type { Unidade } from '~/features/unidades/types'
 import { formatarTelefone } from '~/utils/masks'
 
 definePageMeta({ layout: 'admin' })

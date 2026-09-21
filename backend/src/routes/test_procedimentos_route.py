@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from src.routes.procedimentos_route import filtro_busca_procedimentos, procedimento_para_dict
+from src.modules.procedimentos.service import filtro_busca_procedimentos, procedimento_para_dict
 
 
 def test_procedimento_para_dict_retorna_codigo_tuss():

@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui/'
+import { listarNoShow, registrarMotivoNoShow } from '~/features/agenda/services/agendaService'
+import type { MotivoNoShow, NoShowResponse } from '~/features/agenda/types'
 import { exportTableToPDF, exportToCSV, type ColunaExport } from '~/utils/export-data'
 
 const openNav = inject<() => void>('openNav', () => {})
@@ -13,8 +15,6 @@ const motivosNoShow = [
   { value: 'transporte', label: 'Transporte', description: 'Paciente teve dificuldade de deslocamento.', icon: 'i-lucide-bus' },
   { value: 'outros', label: 'Outros', description: 'Motivo não classificado nas opções anteriores.', icon: 'i-lucide-message-square' }
 ] as const
-
-type MotivoNoShow = typeof motivosNoShow[number]['value']
 
 interface PacienteNoShow {
   id: number
@@ -33,31 +33,6 @@ interface PacienteNoShow {
   recuperado: boolean
   cpf: string
   prontuario: string
-}
-
-interface NoShowResponse {
-  items: PacienteNoShow[]
-  total: number
-  page: number
-  pageSize: number
-  resumo: {
-    totalResgate: number
-    faltou: number
-    naoConfirmado: number
-    recuperados: number
-    semContato: number
-  }
-  filtros: {
-    medicos: string[]
-    especialidades: string[]
-    convenios: string[]
-    anos: string[]
-  }
-  graficos: {
-    porMes: Array<{ label: string, total: number }>
-    porEspecialidade: Array<{ label: string, total: number }>
-    porDiaSemana: Array<{ label: string, total: number }>
-  }
 }
 
 type NoShowResumo = NoShowResponse['resumo']
@@ -178,19 +153,17 @@ async function carregarNoShow() {
     return
   }
 
-  const params = new URLSearchParams()
-  params.set('dataIni', dataInicioFiltro())
-  params.set('dataFim', dataFimFiltro())
-  params.set('page', '1')
-  params.set('pageSize', '500')
-  params.set('unidadeId', String(unidadeId))
-
-  if (filtroMedico.value !== 'Todos') params.set('medico', filtroMedico.value)
-  if (filtroEspecialidade.value !== 'Todos') params.set('especialidade', filtroEspecialidade.value)
-  if (filtroConvenio.value !== 'Todos') params.set('convenio', filtroConvenio.value)
-
   try {
-    const response = await $fetch<NoShowResponse>(`/api/no-show?${params.toString()}`)
+    const response = await listarNoShow({
+      dataIni: dataInicioFiltro(),
+      dataFim: dataFimFiltro(),
+      page: '1',
+      pageSize: '500',
+      unidadeId,
+      medico: filtroMedico.value !== 'Todos' ? filtroMedico.value : undefined,
+      especialidade: filtroEspecialidade.value !== 'Todos' ? filtroEspecialidade.value : undefined,
+      convenio: filtroConvenio.value !== 'Todos' ? filtroConvenio.value : undefined
+    })
     pacientesNoShow.value = response.items
     totalNoShow.value = response.total
     resumoNoShow.value = response.resumo
@@ -494,14 +467,8 @@ async function salvarMotivoFalta() {
   salvandoMotivo.value = true
   motivoErrorMsg.value = ''
 
-  const params = new URLSearchParams()
-  params.set('unidadeId', String(unidadeId))
-
   try {
-    const response = await $fetch<{ id: number, motivo: MotivoNoShow }>(`/api/no-show/${pacienteMotivo.value.id}/motivo?${params.toString()}`, {
-      method: 'PATCH',
-      body: { motivo: motivoSelecionado.value }
-    })
+    const response = await registrarMotivoNoShow(pacienteMotivo.value.id, motivoSelecionado.value, unidadeId)
 
     const idx = pacientesNoShow.value.findIndex(p => p.id === response.id)
     if (idx >= 0) {

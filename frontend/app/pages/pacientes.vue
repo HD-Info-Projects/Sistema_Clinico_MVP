@@ -1,11 +1,15 @@
 <script setup lang="ts">
+import { listarDocumentosPorIds } from '~/features/documentos/services/documentosService'
+import {
+  buscarHistoricoLocal as buscarHistoricoLocalService
+} from '~/features/pacientes/services/pacientesService'
+import type { HistoricoLocalRecord } from '~/features/pacientes/types'
 import type {
   AgendamentoComPaciente,
   AtestadoDocumentoDados,
   DocumentoMedico,
   DocumentoMedicoTipo,
   EncaminhamentoDocumentoDados,
-  HistoricoLocalRecord,
   SolicitacaoOpmeDocumentoDados,
   SolicitacaoProcedimentoDocumentoDados
 } from '~/types'
@@ -227,19 +231,17 @@ function chaveAgendamento(ag: AgendamentoComPaciente) {
   return [ag.spdataAtendimentoId || ag.id, ag.paciente.id, ag.data].join(':')
 }
 
-async function buscarHistoricoLocal(ag: AgendamentoComPaciente): Promise<HistoricoLocalRecord[]> {
+async function obterHistoricoLocal(ag: AgendamentoComPaciente): Promise<HistoricoLocalRecord[]> {
   const chave = chaveAgendamento(ag)
   const cached = historicoLocalPorAgendamento.value[chave]
   if (cached) return cached
 
   try {
-    const historico = await $fetch<HistoricoLocalRecord[]>(`/api/historico-local/${ag.paciente.id}`, {
-      query: {
-        cpf: ag.paciente.cpf || undefined,
-        nome: ag.paciente.nome || undefined,
-        spdataAtendimentoId: ag.spdataAtendimentoId || undefined,
-        data: ag.data
-      }
+    const historico = await buscarHistoricoLocalService(ag.paciente.id, {
+      cpf: ag.paciente.cpf || undefined,
+      nome: ag.paciente.nome || undefined,
+      spdataAtendimentoId: ag.spdataAtendimentoId || undefined,
+      data: ag.data
     })
     historicoLocalPorAgendamento.value = {
       ...historicoLocalPorAgendamento.value,
@@ -288,7 +290,7 @@ async function carregarDisponibilidadeDocumentos(agendamentos: AgendamentoComPac
   const requestId = ++disponibilidadeRequestId
 
   await Promise.all(agendamentos.map(async (ag) => {
-    const historico = await buscarHistoricoLocal(ag)
+    const historico = await obterHistoricoLocal(ag)
     if (requestId !== disponibilidadeRequestId) return
 
     const chave = chaveAgendamento(ag)
@@ -306,9 +308,7 @@ async function carregarDocumentosMedicos(agendamentos: AgendamentoComPaciente[])
   if (!ids.length) return
 
   try {
-    const documentos = await $fetch<DocumentoMedico[]>('/api/documentos-medicos', {
-      query: { ids: ids.join(',') }
-    })
+    const documentos = await listarDocumentosPorIds(ids)
 
     if (requestId !== documentosMedicosRequestId) return
 
@@ -456,7 +456,7 @@ async function gerarAtestadoComparecimento(ag: AgendamentoComPaciente) {
 }
 
 async function gerarSolicitacaoExames(ag: AgendamentoComPaciente) {
-  const historico = await buscarHistoricoLocal(ag)
+  const historico = await obterHistoricoLocal(ag)
   const registro = encontrarRegistroPorData(historico, ag.data)
 
   const exames = registro?.exames?.map((e) => {
@@ -506,7 +506,7 @@ async function gerarSolicitacaoExames(ag: AgendamentoComPaciente) {
 }
 
 async function gerarReceita(ag: AgendamentoComPaciente) {
-  const historico = await buscarHistoricoLocal(ag)
+  const historico = await obterHistoricoLocal(ag)
   const registro = encontrarRegistroPorData(historico, ag.data)
 
   const medicamentos = registro?.medicamentos?.join('\n') ?? ''

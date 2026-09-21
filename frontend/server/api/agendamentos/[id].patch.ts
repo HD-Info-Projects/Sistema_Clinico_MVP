@@ -1,18 +1,21 @@
+import { z } from 'zod'
+import { atualizarStatusAtendimento } from '../../features/atendimentos/service'
+
+const atualizarStatusSchema = z.object({
+  status: z.enum(['em-espera', 'em-atendimento', 'atendido', 'faltou', 'cancelado']),
+  consulta: z.unknown().optional()
+})
+
 export default defineEventHandler(async (event) => {
   const id = Number(getRouterParam(event, 'id'))
-  const body = await readBody<{ status: string, consulta?: { anamnese?: string, diagnosticos?: { cid: string, descricao?: string, principal: boolean }[], medicamentos?: string, exames?: { nome: string, exame_id?: number | null, orientacao?: string | null }[], duracao?: number } }>(event)
-
-  const validStatuses = ['em-espera', 'em-atendimento', 'atendido', 'faltou', 'cancelado']
-  if (!body.status || !validStatuses.includes(body.status)) {
-    throw createError({ statusCode: 400, message: 'Status inválido' })
+  if (!Number.isInteger(id) || id <= 0) {
+    throw createError({ statusCode: 400, statusMessage: 'id inválido' })
   }
+  const body = await readBodyWithSchema(event, atualizarStatusSchema, 'Status inválido')
 
   try {
     const clinicaId = getActiveClinicaId(event)
-    const result = await flaskFetch<{ id?: number, status?: string, pacienteId?: number }>(event, `/agenda-medica/${id}/status`, {
-      method: 'PATCH',
-      body
-    })
+    const result = await atualizarStatusAtendimento(event, id, body)
 
     broadcastSse({
       type: 'agendamento:status',
