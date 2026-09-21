@@ -2,7 +2,7 @@
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { salvarDocumentoPersonalizado } from '~/features/documentos/services/documentosService'
-import type { AgendamentoComPaciente, DocumentoPersonalizado } from '~/types'
+import type { AgendamentoComPaciente, DocumentoPersonalizado, PadraoDocumentoMedico } from '~/types'
 
 const props = defineProps<{
   agendamento?: AgendamentoComPaciente | null
@@ -16,9 +16,12 @@ const emit = defineEmits<{
 
 const open = defineModel<boolean>('open', { default: false })
 const toast = useToast()
+const padroesDocumentosStore = usePadroesDocumentosStore()
 const form = useTemplateRef('form')
 const salvando = ref(false)
 const state = reactive({ titulo: '', conteudo: '' })
+const padraoSelecionado = ref<{ label: string, value: PadraoDocumentoMedico }>()
+const padraoParaAplicar = ref<PadraoDocumentoMedico | null>(null)
 
 const schema = z.object({
   titulo: z.string().trim().min(1, 'Informe o título do documento.'),
@@ -38,6 +41,8 @@ watch(
     if (!isOpen) return
     state.titulo = props.documento?.titulo ?? ''
     state.conteudo = props.documento?.conteudo ?? ''
+    padraoSelecionado.value = undefined
+    void padroesDocumentosStore.fetchAll()
   },
   { immediate: true }
 )
@@ -66,6 +71,27 @@ async function salvar() {
   } finally {
     salvando.value = false
   }
+}
+
+function conteudoTemTexto(conteudo: string) {
+  return conteudo.replace(/<[^>]*>/g, '').replace(/&nbsp;/gi, ' ').trim().length > 0
+}
+
+function aplicarPadrao(padrao: PadraoDocumentoMedico) {
+  state.titulo = padrao.titulo
+  state.conteudo = padrao.conteudo
+  padraoSelecionado.value = undefined
+  padraoParaAplicar.value = null
+}
+
+function solicitarAplicacaoPadrao() {
+  const padrao = padraoSelecionado.value?.value
+  if (!padrao) return
+  if (state.titulo.trim() || conteudoTemTexto(state.conteudo)) {
+    padraoParaAplicar.value = padrao
+    return
+  }
+  aplicarPadrao(padrao)
 }
 
 function onSubmit(_event: FormSubmitEvent<Schema>) {
@@ -127,6 +153,24 @@ function cancelar() {
           />
         </UFormField>
 
+        <div class="flex shrink-0 flex-col gap-2 sm:flex-row">
+          <UInputMenu
+            v-model="padraoSelecionado"
+            :items="padroesDocumentosStore.padroes.map(p => ({ label: p.nome, value: p }))"
+            searchable
+            placeholder="Selecionar padrão de documento médico..."
+            class="flex-1"
+            :disabled="!podeEditar"
+          />
+          <UButton
+            icon="i-lucide-copy-plus"
+            label="Inserir padrão"
+            color="secondary"
+            :disabled="!padraoSelecionado || !podeEditar"
+            @click="solicitarAplicacaoPadrao"
+          />
+        </div>
+
         <UFormField
           name="conteudo"
           label="Texto do documento"
@@ -166,4 +210,15 @@ function cancelar() {
       </div>
     </template>
   </UModal>
+
+  <ModalConfirmacao
+    :abrir="Boolean(padraoParaAplicar)"
+    titulo="Substituir conteúdo?"
+    descricao="O padrão selecionado substituirá o título e o conteúdo atuais do documento."
+    texto-confirma="Substituir"
+    cor-confirma="warning"
+    icone="i-lucide-copy-plus"
+    @fechar="padraoParaAplicar = null; padraoSelecionado = undefined"
+    @confirmar="padraoParaAplicar && aplicarPadrao(padraoParaAplicar)"
+  />
 </template>

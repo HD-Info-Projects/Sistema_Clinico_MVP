@@ -57,6 +57,7 @@ LEGADO_ALLOWLIST = {
         "src.models.db.handler_redis_db",
     },
     "clinico/routes.py": {
+        "src.routes.modelo_documento_medico_route",
         "src.routes.modelo_orientacao_exame_route",
         "src.routes.modelo_solicitacao_anamnese_route",
         "src.routes.modelo_solicitacao_exames_route",

@@ -1,6 +1,7 @@
 export type {
   Padrao,
   PadraoAnamnese,
+  PadraoDocumentoMedico,
   PadraoExame,
   PadraoOrientacaoExame,
   PadraoReceita

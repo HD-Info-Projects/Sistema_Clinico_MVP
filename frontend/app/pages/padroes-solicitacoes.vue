@@ -1,23 +1,25 @@
 <script setup lang="ts">
-import type { PadraoReceita, PadraoExame, PadraoAnamnese, PadraoOrientacaoExame } from '~/types'
+import type { PadraoReceita, PadraoExame, PadraoAnamnese, PadraoDocumentoMedico, PadraoOrientacaoExame } from '~/types'
 
 const openNav = inject<() => void>('openNav', () => {})
 const padroesStore = usePadroesStore()
 const padroesAnamneseStore = usePadroesAnamneseStore()
 const padroesOrientacoesStore = usePadroesOrientacoesStore()
+const padroesDocumentosStore = usePadroesDocumentosStore()
 const toast = useToast()
 
 const padroesCarregando = computed(
-  () => padroesStore.loading || padroesAnamneseStore.loading || padroesOrientacoesStore.loading
+  () => padroesStore.loading || padroesAnamneseStore.loading || padroesOrientacoesStore.loading || padroesDocumentosStore.loading
 )
 
 onMounted(() => {
   padroesStore.fetchAll()
   padroesAnamneseStore.fetchAll()
   padroesOrientacoesStore.fetchAll()
+  padroesDocumentosStore.fetchAll()
 })
 
-type ActiveTab = 'receitas' | 'exames' | 'anamnese' | 'orientacoes'
+type ActiveTab = 'receitas' | 'exames' | 'anamnese' | 'orientacoes' | 'documentos'
 
 const activeTab = ref<ActiveTab | null>(null)
 
@@ -25,14 +27,16 @@ const showReceitaModal = ref(false)
 const showExameModal = ref(false)
 const showAnamneseModal = ref(false)
 const showOrientacaoModal = ref(false)
+const showDocumentoModal = ref(false)
 
 const editingReceita = ref<PadraoReceita | null>(null)
 const editingExame = ref<PadraoExame | null>(null)
 const editingAnamnese = ref<PadraoAnamnese | null>(null)
 const editingOrientacao = ref<PadraoOrientacaoExame | null>(null)
+const editingDocumento = ref<PadraoDocumentoMedico | null>(null)
 
 const confirmDeleteId = ref<string | null>(null)
-const confirmDeleteTipo = ref<'receita' | 'exame' | 'anamnese' | 'orientacao' | null>(null)
+const confirmDeleteTipo = ref<'receita' | 'exame' | 'anamnese' | 'orientacao' | 'documento' | null>(null)
 
 function abrirNovaReceita() {
   editingReceita.value = null
@@ -52,6 +56,11 @@ function abrirNovaAnamnese() {
 function abrirNovaOrientacao() {
   editingOrientacao.value = null
   showOrientacaoModal.value = true
+}
+
+function abrirNovoDocumento() {
+  editingDocumento.value = null
+  showDocumentoModal.value = true
 }
 
 function editarReceita(p: PadraoReceita) {
@@ -74,7 +83,12 @@ function editarOrientacao(p: PadraoOrientacaoExame) {
   showOrientacaoModal.value = true
 }
 
-function confirmarDeletar(p: PadraoReceita | PadraoExame | PadraoAnamnese | PadraoOrientacaoExame, tipo: 'receita' | 'exame' | 'anamnese' | 'orientacao') {
+function editarDocumento(p: PadraoDocumentoMedico) {
+  editingDocumento.value = p
+  showDocumentoModal.value = true
+}
+
+function confirmarDeletar(p: PadraoReceita | PadraoExame | PadraoAnamnese | PadraoOrientacaoExame | PadraoDocumentoMedico, tipo: 'receita' | 'exame' | 'anamnese' | 'orientacao' | 'documento') {
   confirmDeleteId.value = p.id
   confirmDeleteTipo.value = tipo
 }
@@ -86,6 +100,8 @@ async function executarDeletar() {
         await padroesAnamneseStore.deletar(confirmDeleteId.value)
       } else if (confirmDeleteTipo.value === 'orientacao') {
         await padroesOrientacoesStore.deletar(confirmDeleteId.value)
+      } else if (confirmDeleteTipo.value === 'documento') {
+        await padroesDocumentosStore.deletar(confirmDeleteId.value)
       } else {
         await padroesStore.deletar(confirmDeleteId.value)
       }
@@ -119,11 +135,16 @@ function gerenciarOrientacao() {
   activeTab.value = activeTab.value === 'orientacoes' ? null : 'orientacoes'
 }
 
+function gerenciarDocumento() {
+  activeTab.value = activeTab.value === 'documentos' ? null : 'documentos'
+}
+
 const activeTabOrder = computed(() => {
   if (activeTab.value === 'receitas') return 'order-2'
   if (activeTab.value === 'exames') return 'order-3'
   if (activeTab.value === 'anamnese') return 'order-4'
   if (activeTab.value === 'orientacoes') return 'order-5'
+  if (activeTab.value === 'documentos') return 'order-6'
   return ''
 })
 
@@ -132,6 +153,7 @@ const activeIndex = computed<number | null>(() => {
   if (activeTab.value === 'exames') return 2
   if (activeTab.value === 'anamnese') return 3
   if (activeTab.value === 'orientacoes') return 4
+  if (activeTab.value === 'documentos') return 5
   return null
 })
 
@@ -142,13 +164,15 @@ function cardOrder(n: number): string {
   if (n === 2) return 'order-2'
   if (n === 3) return 'order-3'
   if (n === 4) return 'order-4'
-  return 'order-5'
+  if (n === 5) return 'order-5'
+  return 'order-6'
 }
 
 function activeTabIcon(tab: ActiveTab) {
   if (tab === 'receitas') return 'i-lucide-pill'
   if (tab === 'exames') return 'i-lucide-flask-conical'
   if (tab === 'anamnese') return 'i-lucide-notebook-text'
+  if (tab === 'documentos') return 'i-lucide-file-pen-line'
   return 'i-lucide-message-square-text'
 }
 
@@ -156,6 +180,7 @@ function activeTabTitulo(tab: ActiveTab) {
   if (tab === 'receitas') return 'Receitas Médicas'
   if (tab === 'exames') return 'Pedidos de Exames'
   if (tab === 'anamnese') return 'Anamnese'
+  if (tab === 'documentos') return 'Documentos Médicos'
   return 'Orientações de Exames'
 }
 
@@ -164,6 +189,7 @@ function activeTabEmpty(): boolean {
   if (activeTab.value === 'exames') return padroesStore.exames.length === 0
   if (activeTab.value === 'anamnese') return padroesAnamneseStore.padroes.length === 0
   if (activeTab.value === 'orientacoes') return padroesOrientacoesStore.padroes.length === 0
+  if (activeTab.value === 'documentos') return padroesDocumentosStore.padroes.length === 0
   return true
 }
 </script>
@@ -190,7 +216,7 @@ function activeTabEmpty(): boolean {
     </UHeader>
 
     <div class="min-h-screen min-w-0 space-y-6 bg-muted p-3 sm:p-6">
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4 xl:gap-6">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5 xl:gap-6">
         <UCard :class="cardOrder(1)">
           <template #title>
             <div class="flex items-center gap-2">
@@ -338,9 +364,45 @@ function activeTabEmpty(): boolean {
             />
           </div>
         </UCard>
+        <UCard :class="cardOrder(5)">
+          <template #title>
+            <div class="flex items-center gap-2">
+              <UIcon
+                name="i-lucide-file-pen-line"
+                class="text-primary"
+              />
+              <p class="font-semibold">
+                Documentos Médicos
+              </p>
+            </div>
+          </template>
+
+          <template #description>
+            <p class="text-sm text-muted">
+              Modelos de documentos personalizados para impressão no atendimento.
+            </p>
+          </template>
+
+          <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+            <UButton
+              icon="i-lucide-plus"
+              label="Novo Modelo"
+              size="sm"
+              class="min-h-10 justify-center"
+              @click="abrirNovoDocumento"
+            />
+            <UButton
+              label="Gerenciar"
+              color="neutral"
+              size="sm"
+              class="min-h-10 justify-center"
+              @click="gerenciarDocumento"
+            />
+          </div>
+        </UCard>
         <UCard
           v-if="activeTab"
-          :class="[activeTabOrder, 'md:col-span-2 xl:col-span-4 md:order-last']"
+          :class="[activeTabOrder, 'md:col-span-2 xl:col-span-5 md:order-last']"
         >
           <template #title>
             <div class="flex items-center gap-2">
@@ -405,6 +467,41 @@ function activeTabEmpty(): boolean {
                     variant="ghost"
                     size="sm"
                     @click="confirmarDeletar(p, 'receita')"
+                  />
+                </div>
+              </div>
+            </template>
+
+            <template v-else-if="activeTab === 'documentos'">
+              <div
+                v-for="p in padroesDocumentosStore.padroes"
+                :key="p.id"
+                class="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-muted p-3 hover:bg-muted/50"
+              >
+                <div class="min-w-0">
+                  <p class="break-words font-medium">
+                    {{ p.nome }}
+                  </p>
+                  <p class="break-words text-xs text-muted">
+                    {{ p.titulo }} &middot; {{ new Date(p.updatedAt).toLocaleDateString('pt-BR') }}
+                  </p>
+                </div>
+                <div class="flex shrink-0 gap-1">
+                  <UButton
+                    icon="i-lucide-pencil"
+                    color="neutral"
+                    variant="ghost"
+                    size="sm"
+                    aria-label="Editar padrão de documento médico"
+                    @click="editarDocumento(p)"
+                  />
+                  <UButton
+                    icon="i-lucide-trash-2"
+                    color="error"
+                    variant="ghost"
+                    size="sm"
+                    aria-label="Excluir padrão de documento médico"
+                    @click="confirmarDeletar(p, 'documento')"
                   />
                 </div>
               </div>
@@ -539,6 +636,11 @@ function activeTabEmpty(): boolean {
     <PadraoOrientacaoModal
       v-model:open="showOrientacaoModal"
       :padrao="editingOrientacao"
+    />
+
+    <PadraoDocumentoMedicoModal
+      v-model:open="showDocumentoModal"
+      :padrao="editingDocumento"
     />
 
     <ModalConfirmacao

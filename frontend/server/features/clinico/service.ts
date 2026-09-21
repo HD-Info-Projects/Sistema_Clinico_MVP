@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { H3Event } from 'h3'
-import type { PadraoAnamnese, PadraoOrientacaoExame } from '~/types'
+import type { PadraoAnamnese, PadraoDocumentoMedico, PadraoOrientacaoExame } from '~/types'
 import { flaskFetch, medicoAlvoParams } from '../../utils/flask'
 import { mapExameModelo, normalizarExamePayload } from '../../utils/exames'
 
@@ -55,6 +55,18 @@ function mapOrientacao(raw: any): PadraoOrientacaoExame {
     id: String(raw.id),
     medicoId: Number(raw.medico_id) || 0,
     nome: raw.nome_modelo,
+    conteudo: raw.conteudo || '',
+    createdAt: raw.created_at,
+    updatedAt: raw.updated_at
+  }
+}
+
+function mapDocumento(raw: any): PadraoDocumentoMedico {
+  return {
+    id: String(raw.id),
+    medicoId: Number(raw.medico_id) || 0,
+    nome: raw.nome_modelo,
+    titulo: raw.titulo_documento,
     conteudo: raw.conteudo || '',
     createdAt: raw.created_at,
     updatedAt: raw.updated_at
@@ -310,6 +322,53 @@ export async function deletarPadraoOrientacao(event: H3Event, id: string) {
     method: 'DELETE'
   })
 
+  return { ok: true }
+}
+
+export async function listarPadroesDocumentos(event: H3Event): Promise<PadraoDocumentoMedico[]> {
+  const raw = await flaskFetch<{ padroes_documentos: any[] }>(event, '/padrao_medico_documento/lista', { params: medicoAlvoParams(event) })
+  return (raw.padroes_documentos || []).map(mapDocumento)
+}
+
+export async function obterPadraoDocumento(event: H3Event, id: string): Promise<PadraoDocumentoMedico> {
+  const raw = await flaskFetch<any>(event, `/padrao_medico_documento/${id}`, { params: medicoAlvoParams(event) })
+  return mapDocumento(raw)
+}
+
+export async function criarPadraoDocumento(event: H3Event, body: any): Promise<PadraoDocumentoMedico> {
+  if (!body?.nome || !body?.titulo || !body?.conteudo) {
+    throw createError({ statusCode: 400, statusMessage: 'nome, titulo e conteudo são obrigatórios' })
+  }
+  const raw = await flaskFetch<any>(event, '/padrao_medico_documento/criar', {
+    params: medicoAlvoParams(event),
+    method: 'POST',
+    body: {
+      nome_modelo: body.nome,
+      titulo_documento: body.titulo,
+      conteudo: body.conteudo
+    }
+  })
+  return mapDocumento(raw)
+}
+
+export async function atualizarPadraoDocumento(event: H3Event, id: string, body: any): Promise<PadraoDocumentoMedico> {
+  const raw = await flaskFetch<any>(event, `/padrao_medico_documento/editar/${id}`, {
+    params: medicoAlvoParams(event),
+    method: 'PATCH',
+    body: {
+      ...(body.nome !== undefined ? { nome_modelo: body.nome } : {}),
+      ...(body.titulo !== undefined ? { titulo_documento: body.titulo } : {}),
+      ...(body.conteudo !== undefined ? { conteudo: body.conteudo } : {})
+    }
+  })
+  return mapDocumento(raw)
+}
+
+export async function deletarPadraoDocumento(event: H3Event, id: string) {
+  await flaskFetch(event, `/padrao_medico_documento/deletar/${id}`, {
+    params: medicoAlvoParams(event),
+    method: 'DELETE'
+  })
   return { ok: true }
 }
 

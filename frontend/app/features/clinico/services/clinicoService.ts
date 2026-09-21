@@ -2,6 +2,7 @@ import type {
   CidResultado,
   Padrao,
   PadraoAnamnese,
+  PadraoDocumentoMedico,
   PadraoOrientacaoExame,
   PadraoPayload,
   PadraoTextoPayload
@@ -87,6 +88,33 @@ export function atualizarPadraoOrientacao(id: string, data: Partial<PadraoTextoP
 
 export function deletarPadraoOrientacao(id: string, medicoId?: number) {
   return $fetch(`/api/padroes-orientacoes/${id}`, {
+    method: 'DELETE',
+    params: medicoParams(medicoId)
+  })
+}
+
+export function listarPadroesDocumentos(medicoId?: number) {
+  return $fetch<PadraoDocumentoMedico[]>('/api/padroes-documentos', { params: medicoParams(medicoId) })
+}
+
+export function criarPadraoDocumento(data: { nome: string, titulo: string, conteudo: string }, medicoId?: number) {
+  return $fetch<PadraoDocumentoMedico>('/api/padroes-documentos', {
+    method: 'POST',
+    body: data,
+    params: medicoParams(medicoId)
+  })
+}
+
+export function atualizarPadraoDocumento(id: string, data: Partial<{ nome: string, titulo: string, conteudo: string }>, medicoId?: number) {
+  return $fetch<PadraoDocumentoMedico>(`/api/padroes-documentos/${id}`, {
+    method: 'PATCH',
+    body: data,
+    params: medicoParams(medicoId)
+  })
+}
+
+export function deletarPadraoDocumento(id: string, medicoId?: number) {
+  return $fetch(`/api/padroes-documentos/${id}`, {
     method: 'DELETE',
     params: medicoParams(medicoId)
   })

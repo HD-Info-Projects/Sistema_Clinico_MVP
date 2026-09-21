@@ -385,6 +385,16 @@ export interface PadraoOrientacaoExame {
   updatedAt: string
 }
 
+export interface PadraoDocumentoMedico {
+  id: string
+  medicoId: number
+  nome: string
+  titulo: string
+  conteudo: string
+  createdAt: string
+  updatedAt: string
+}
+
 export type Padrao = PadraoReceita | PadraoExame
 
 export interface Usuario {

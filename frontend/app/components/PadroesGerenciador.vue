@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PadraoReceita, PadraoExame, PadraoAnamnese, PadraoOrientacaoExame } from '~/types'
+import type { PadraoReceita, PadraoExame, PadraoAnamnese, PadraoDocumentoMedico, PadraoOrientacaoExame } from '~/types'
 
 const props = defineProps<{
   /** Medico alvo quando um admin gerencia os padroes de outro usuario */
@@ -9,10 +9,11 @@ const props = defineProps<{
 const padroesStore = usePadroesStore()
 const padroesAnamneseStore = usePadroesAnamneseStore()
 const padroesOrientacoesStore = usePadroesOrientacoesStore()
+const padroesDocumentosStore = usePadroesDocumentosStore()
 const toast = useToast()
 
 const padroesCarregando = computed(
-  () => padroesStore.loading || padroesAnamneseStore.loading || padroesOrientacoesStore.loading
+  () => padroesStore.loading || padroesAnamneseStore.loading || padroesOrientacoesStore.loading || padroesDocumentosStore.loading
 )
 
 onMounted(() => {
@@ -20,9 +21,10 @@ onMounted(() => {
   padroesStore.fetchAll(medicoId)
   padroesAnamneseStore.fetchAll(medicoId)
   padroesOrientacoesStore.fetchAll(medicoId)
+  padroesDocumentosStore.fetchAll(medicoId)
 })
 
-type ActiveTab = 'receitas' | 'exames' | 'anamnese' | 'orientacoes'
+type ActiveTab = 'receitas' | 'exames' | 'anamnese' | 'orientacoes' | 'documentos'
 
 const activeTab = ref<ActiveTab | null>(null)
 
@@ -30,14 +32,16 @@ const showReceitaModal = ref(false)
 const showExameModal = ref(false)
 const showAnamneseModal = ref(false)
 const showOrientacaoModal = ref(false)
+const showDocumentoModal = ref(false)
 
 const editingReceita = ref<PadraoReceita | null>(null)
 const editingExame = ref<PadraoExame | null>(null)
 const editingAnamnese = ref<PadraoAnamnese | null>(null)
 const editingOrientacao = ref<PadraoOrientacaoExame | null>(null)
+const editingDocumento = ref<PadraoDocumentoMedico | null>(null)
 
 const confirmDeleteId = ref<string | null>(null)
-const confirmDeleteTipo = ref<'receita' | 'exame' | 'anamnese' | 'orientacao' | null>(null)
+const confirmDeleteTipo = ref<'receita' | 'exame' | 'anamnese' | 'orientacao' | 'documento' | null>(null)
 
 function abrirNovaReceita() {
   editingReceita.value = null
@@ -57,6 +61,11 @@ function abrirNovaAnamnese() {
 function abrirNovaOrientacao() {
   editingOrientacao.value = null
   showOrientacaoModal.value = true
+}
+
+function abrirNovoDocumento() {
+  editingDocumento.value = null
+  showDocumentoModal.value = true
 }
 
 function editarReceita(p: PadraoReceita) {
@@ -79,7 +88,12 @@ function editarOrientacao(p: PadraoOrientacaoExame) {
   showOrientacaoModal.value = true
 }
 
-function confirmarDeletar(p: PadraoReceita | PadraoExame | PadraoAnamnese | PadraoOrientacaoExame, tipo: 'receita' | 'exame' | 'anamnese' | 'orientacao') {
+function editarDocumento(p: PadraoDocumentoMedico) {
+  editingDocumento.value = p
+  showDocumentoModal.value = true
+}
+
+function confirmarDeletar(p: PadraoReceita | PadraoExame | PadraoAnamnese | PadraoOrientacaoExame | PadraoDocumentoMedico, tipo: 'receita' | 'exame' | 'anamnese' | 'orientacao' | 'documento') {
   confirmDeleteId.value = p.id
   confirmDeleteTipo.value = tipo
 }
@@ -92,6 +106,8 @@ async function executarDeletar() {
         await padroesAnamneseStore.deletar(confirmDeleteId.value, medicoId)
       } else if (confirmDeleteTipo.value === 'orientacao') {
         await padroesOrientacoesStore.deletar(confirmDeleteId.value, medicoId)
+      } else if (confirmDeleteTipo.value === 'documento') {
+        await padroesDocumentosStore.deletar(confirmDeleteId.value, medicoId)
       } else {
         await padroesStore.deletar(confirmDeleteId.value, medicoId)
       }
@@ -125,11 +141,16 @@ function gerenciarOrientacao() {
   activeTab.value = activeTab.value === 'orientacoes' ? null : 'orientacoes'
 }
 
+function gerenciarDocumento() {
+  activeTab.value = activeTab.value === 'documentos' ? null : 'documentos'
+}
+
 const activeTabOrder = computed(() => {
   if (activeTab.value === 'receitas') return 'order-2'
   if (activeTab.value === 'exames') return 'order-3'
   if (activeTab.value === 'anamnese') return 'order-4'
   if (activeTab.value === 'orientacoes') return 'order-5'
+  if (activeTab.value === 'documentos') return 'order-6'
   return ''
 })
 
@@ -138,6 +159,7 @@ const activeIndex = computed<number | null>(() => {
   if (activeTab.value === 'exames') return 2
   if (activeTab.value === 'anamnese') return 3
   if (activeTab.value === 'orientacoes') return 4
+  if (activeTab.value === 'documentos') return 5
   return null
 })
 
@@ -148,12 +170,14 @@ function cardOrder(n: number): string {
   if (n === 2) return 'order-2'
   if (n === 3) return 'order-3'
   if (n === 4) return 'order-4'
-  return 'order-5'
+  if (n === 5) return 'order-5'
+  return 'order-6'
 }
 
 function activeTabIcon(tab: ActiveTab) {
   if (tab === 'receitas') return 'i-lucide-pill'
   if (tab === 'exames') return 'i-lucide-flask-conical'
+  if (tab === 'documentos') return 'i-lucide-file-pen-line'
   if (tab === 'anamnese') return 'i-lucide-notebook-text'
   return 'i-lucide-message-square-text'
 }
@@ -161,6 +185,7 @@ function activeTabIcon(tab: ActiveTab) {
 function activeTabTitulo(tab: ActiveTab) {
   if (tab === 'receitas') return 'Receitas Médicas'
   if (tab === 'exames') return 'Pedidos de Exames'
+  if (tab === 'documentos') return 'Documentos Médicos'
   if (tab === 'anamnese') return 'Anamnese'
   return 'Orientações de Exames'
 }
@@ -170,13 +195,14 @@ function activeTabEmpty(): boolean {
   if (activeTab.value === 'exames') return padroesStore.exames.length === 0
   if (activeTab.value === 'anamnese') return padroesAnamneseStore.padroes.length === 0
   if (activeTab.value === 'orientacoes') return padroesOrientacoesStore.padroes.length === 0
+  if (activeTab.value === 'documentos') return padroesDocumentosStore.padroes.length === 0
   return true
 }
 </script>
 
 <template>
   <div class="space-y-6">
-    <div class="grid grid-cols-1 items-stretch gap-6 md:grid-cols-2 xl:grid-cols-4">
+    <div class="grid grid-cols-1 items-stretch gap-6 md:grid-cols-2 xl:grid-cols-5">
       <UCard
         class="flex h-full flex-col"
         :class="cardOrder(1)"
@@ -341,8 +367,48 @@ function activeTabEmpty(): boolean {
         </div>
       </UCard>
       <UCard
+        class="flex h-full flex-col"
+        :class="cardOrder(5)"
+        :ui="{ body: 'flex flex-1 flex-col' }"
+      >
+        <template #title>
+          <div class="flex items-center gap-2">
+            <UIcon
+              name="i-lucide-file-pen-line"
+              class="text-primary"
+            />
+            <p class="min-w-0 wrap-break-word font-semibold">
+              Documentos Médicos
+            </p>
+          </div>
+        </template>
+
+        <template #description>
+          <p class="wrap-break-word text-sm text-muted">
+            Modelos de documentos personalizados para impressão no atendimento.
+          </p>
+        </template>
+
+        <div class="mt-auto flex flex-col gap-2 sm:flex-row">
+          <UButton
+            icon="i-lucide-plus"
+            label="Novo Modelo"
+            size="sm"
+            class="w-full justify-center sm:w-auto"
+            @click="abrirNovoDocumento"
+          />
+          <UButton
+            label="Gerenciar"
+            color="neutral"
+            size="sm"
+            class="w-full justify-center sm:w-auto"
+            @click="gerenciarDocumento"
+          />
+        </div>
+      </UCard>
+      <UCard
         v-if="activeTab"
-        :class="[activeTabOrder, 'md:col-span-2 xl:col-span-4 md:order-last']"
+        :class="[activeTabOrder, 'md:col-span-2 xl:col-span-5 md:order-last']"
       >
         <template #title>
           <div class="flex min-w-0 items-center gap-2">
@@ -528,6 +594,43 @@ function activeTabEmpty(): boolean {
             </div>
           </template>
 
+          <template v-else-if="activeTab === 'documentos'">
+            <div
+              v-for="p in padroesDocumentosStore.padroes"
+              :key="p.id"
+              class="flex min-w-0 flex-col gap-2 rounded-lg border border-muted p-3 hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div class="min-w-0">
+                <p class="wrap-break-word font-medium">
+                  {{ p.nome }}
+                </p>
+                <p class="wrap-break-word text-xs text-muted">
+                  {{ p.titulo }} &middot; {{ new Date(p.updatedAt).toLocaleDateString('pt-BR') }}
+                </p>
+              </div>
+              <div class="flex shrink-0 self-end gap-1 sm:self-auto">
+                <UButton
+                  icon="i-lucide-pencil"
+                  color="neutral"
+                  variant="ghost"
+                  size="sm"
+                  class="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
+                  aria-label="Editar padrão de documento médico"
+                  @click="editarDocumento(p)"
+                />
+                <UButton
+                  icon="i-lucide-trash-2"
+                  color="error"
+                  variant="ghost"
+                  size="sm"
+                  class="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
+                  aria-label="Excluir padrão de documento médico"
+                  @click="confirmarDeletar(p, 'documento')"
+                />
+              </div>
+            </div>
+          </template>
+
           <p
             v-if="!padroesCarregando && activeTabEmpty()"
             class="text-sm text-muted italic py-4 text-center"
@@ -559,6 +662,12 @@ function activeTabEmpty(): boolean {
     <PadraoOrientacaoModal
       v-model:open="showOrientacaoModal"
       :padrao="editingOrientacao"
+      :medico-id="medicoId"
+    />
+
+    <PadraoDocumentoMedicoModal
+      v-model:open="showDocumentoModal"
+      :padrao="editingDocumento"
       :medico-id="medicoId"
     />
 

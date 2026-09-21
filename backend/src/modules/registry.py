@@ -13,6 +13,7 @@ def register_modules(app):
     from src.modules.auth.routes import login_bp
     from src.modules.clinico import (
         padrao_medico_anamnese_bp,
+        padrao_medico_documento_bp,
         padrao_medico_exame_bp,
         padrao_medico_orientacao_exame_bp,
         padrao_medico_receita_bp,
@@ -34,6 +35,7 @@ def register_modules(app):
         padrao_medico_receita_bp,
         padrao_medico_exame_bp,
         padrao_medico_anamnese_bp,
+        padrao_medico_documento_bp,
         padrao_medico_orientacao_exame_bp,
         agenda_medica_bp,
         exames_bp,

@@ -188,6 +188,7 @@ def create_app():
     from src.models.model_padroes_solicitacoes.modelo_exame_model import ModeloExame
     from src.models.model_padroes_solicitacoes.exames_para_modelo_exame_model import ExamesDoModelo
     from src.models.model_padroes_solicitacoes.modelo_anamnese_model import ModeloAnamnese
+    from src.models.model_padroes_solicitacoes.modelo_documento_medico_model import ModeloDocumentoMedico
     from src.models.model_padroes_solicitacoes.modelo_orientacao_exame_model import ModeloOrientacaoExame
 
     from src.models.model_mydsystem.med_exames_model import Exame
