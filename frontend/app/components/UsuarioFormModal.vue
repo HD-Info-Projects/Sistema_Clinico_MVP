@@ -30,6 +30,7 @@ const form = ref<UsuarioForm>({
 const saving = ref(false)
 const buscandoSpdata = ref(false)
 const spdataBusca = ref('')
+const mostrarSenha = ref(false)
 
 const estadosBr = [
   'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA',
@@ -67,6 +68,7 @@ const podeSalvar = computed(() => {
 
 watch(open, (isOpen) => {
   if (isOpen) {
+    mostrarSenha.value = false
     usuariosStore.limparMedicosSpdata()
     if (props.role !== 'admin' && unidadesStore.unidades.length === 0) {
       void unidadesStore.fetchAll()
@@ -297,10 +299,23 @@ async function salvar() {
         <UFormField label="Senha">
           <UInput
             v-model="form.senha"
-            type="password"
+            :type="mostrarSenha ? 'text' : 'password'"
             placeholder="Senha"
             class="w-full"
-          />
+          >
+            <template #trailing>
+              <UButton
+                type="button"
+                color="neutral"
+                variant="link"
+                size="sm"
+                :icon="mostrarSenha ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+                :aria-label="mostrarSenha ? 'Ocultar senha' : 'Mostrar senha'"
+                :aria-pressed="mostrarSenha"
+                @click="mostrarSenha = !mostrarSenha"
+              />
+            </template>
+          </UInput>
           <p
             v-if="usuario"
             class="text-xs text-muted"
