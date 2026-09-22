@@ -7,6 +7,11 @@ const emailOpcionalSchema = z.preprocess(
   z.email().max(254).optional()
 )
 
+const usernameSchema = z.string()
+  .trim()
+  .toLowerCase()
+  .regex(/^[a-z0-9._-]{3,30}$/, 'Usuário inválido')
+
 export const medicoDadosSchema = z.object({
   spdata_id: z.coerce.number().int().positive(),
   crm: z.string().trim().max(20).optional(),
@@ -20,7 +25,7 @@ export const medicoDadosSchema = z.object({
 export const criarUsuarioSchema = z.object({
   nome_completo: z.string().trim().min(1).max(255),
   cnpj_cpf: z.string().trim().min(1).max(255),
-  username: z.string().trim().regex(/^[a-z0-9._-]{3,30}$/, 'Usuário inválido'),
+  username: usernameSchema,
   email: emailOpcionalSchema,
   senha: z.string().min(8).max(256),
   role: z.enum(ROLES_USUARIO),
@@ -47,7 +52,7 @@ export const criarUsuarioSchema = z.object({
 export const atualizarUsuarioSchema = z.object({
   nome_completo: z.string().trim().max(255).optional(),
   cnpj_cpf: z.string().trim().max(255).optional(),
-  username: z.string().trim().regex(/^[a-z0-9._-]{3,30}$/, 'Usuário inválido').optional(),
+  username: usernameSchema.optional(),
   email: emailOpcionalSchema,
   senha: z.string().min(8).max(256).optional(),
   role: z.enum(ROLES_USUARIO).optional(),
