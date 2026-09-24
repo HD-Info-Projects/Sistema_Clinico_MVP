@@ -117,16 +117,7 @@ const sugestoesUnidades = computed(() => unidadesAtendimento.value.map(unidade =
 })))
 const prontuarioAtual = computed(() => pacienteSelecionado.value?.prontuario || prontuarioNovo.value || 'Será gerado ao avançar')
 const idadePaciente = computed(() => {
-  const data = dataNascimento.value
-  const dataSelecionada = pacienteSelecionado.value?.dataNascimento
-  const nasc = dataSelecionada
-    ? new Date(`${dataSelecionada}T12:00:00`)
-    : data ? new Date(`${data.year}-${String(data.month).padStart(2, '0')}-${String(data.day).padStart(2, '0')}T12:00:00`) : null
-  if (!nasc || Number.isNaN(nasc.getTime())) return ''
-  const hoje = new Date()
-  let idade = hoje.getFullYear() - nasc.getFullYear()
-  if (hoje.getMonth() < nasc.getMonth() || (hoje.getMonth() === nasc.getMonth() && hoje.getDate() < nasc.getDate())) idade--
-  return `${idade} anos`
+  return formatarIdade(dataCalendarIso(dataNascimento.value), { semDados: true })
 })
 
 function limparEtapasSeguintes() {

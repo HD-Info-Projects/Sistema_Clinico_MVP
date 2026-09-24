@@ -42,6 +42,7 @@ def test_agenda_para_frontend_expoe_nome_social_sem_substituir_nome_civil():
 
     assert item["paciente"]["nome"] == "MARIA NOME CIVIL"
     assert item["paciente"]["nomeSocial"] == "MARIA NOME SOCIAL"
+    assert item["paciente"]["dataNascimento"] is None
 
 
 def test_agenda_spdata_para_frontend_expoe_nome_social_sem_substituir_nome_civil():
@@ -58,7 +59,7 @@ def test_agenda_spdata_para_frontend_expoe_nome_social_sem_substituir_nome_civil
         obs=None,
         paciente="JOAO NOME CIVIL",
         paciente_nome_social="JOAO NOME SOCIAL",
-        data_nascimento=None,
+        data_nascimento=date(1899, 12, 30),
         celular=None,
         telefone=None,
         email=None,
@@ -70,12 +71,14 @@ def test_agenda_spdata_para_frontend_expoe_nome_social_sem_substituir_nome_civil
         spdata_atendimento_id=-2002,
         id_medico_spdata=8,
         unidade_id=1,
+        data_nascimento=date(1975, 2, 9),
     )
 
     item = agenda_spdata_para_frontend(agenda, spdata_ref)
 
     assert item["paciente"]["nome"] == "JOAO NOME CIVIL"
     assert item["paciente"]["nomeSocial"] == "JOAO NOME SOCIAL"
+    assert item["paciente"]["dataNascimento"] == "1975-02-09"
 
 
 def test_filtro_consultas_medico_inclui_faixa_consulta_e_codigo_5001():

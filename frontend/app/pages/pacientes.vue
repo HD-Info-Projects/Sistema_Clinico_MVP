@@ -152,8 +152,8 @@ watch(buscaNome, () => {
   }, 400)
 })
 
-function calcularIdade(dataNascimento: string) {
-  return formatarIdade(dataNascimento, { semAnos: true })
+function idadePaciente(dataNascimento: string | null | undefined) {
+  return formatarIdade(dataNascimento, { semDados: true })
 }
 
 function formatarDataPtBR(dataISO: string) {
@@ -699,7 +699,7 @@ function dropdownItems(ag: AgendamentoComPaciente) {
                 </div>
 
                 <p class="break-words text-sm text-muted">
-                  {{ calcularIdade(ag.paciente.dataNascimento) }} anos · {{ ag.paciente.convenio }}
+                  {{ idadePaciente(ag.paciente.dataNascimento) }} · {{ ag.paciente.convenio }}
                 </p>
 
                 <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">

@@ -42,6 +42,7 @@ from src.utils.tuss import (
 # 340 - Natus
 # 350 - Centro AMI
 UNIDADE_PADRAO_SPDATA = 340
+DATA_NASCIMENTO_SENTINELA = date(1899, 12, 30)
 
 STATUS_VALIDOS = {
     "em-espera",
@@ -480,6 +481,14 @@ def data_iso(valor):
     return valor.isoformat() if valor else None
 
 
+def data_nascimento_iso(*valores):
+    for valor in valores:
+        data_nascimento = normalizar_data(valor)
+        if data_nascimento and data_nascimento != DATA_NASCIMENTO_SENTINELA:
+            return data_nascimento.isoformat()
+    return None
+
+
 def hora_hhmm(valor):
     return valor.strftime("%H:%M") if valor else ""
 
@@ -802,7 +811,7 @@ def agenda_para_frontend(spdata, atendimento=None, convenios_por_codigo=None):
             "nomeSocial": spdata.paciente_nome_social,
             "encaixado": False,
             "sexo": sexo_para_frontend(spdata.sexo),
-            "dataNascimento": data_iso(spdata.data_nascimento) or "1900-01-01",
+            "dataNascimento": data_nascimento_iso(spdata.data_nascimento),
             "tipoSanguineo": "",
             "alergias": [],
             "medicamentosEmUso": [],
@@ -864,7 +873,10 @@ def agenda_spdata_para_frontend(agenda, spdata_ref, atendimento=None, convenios_
             "nomeSocial": agenda.paciente_nome_social,
             "encaixado": False,
             "sexo": "masculino",
-            "dataNascimento": data_iso(agenda.data_nascimento) or "1900-01-01",
+            "dataNascimento": data_nascimento_iso(
+                getattr(spdata_ref, "data_nascimento", None),
+                agenda.data_nascimento,
+            ),
             "tipoSanguineo": "",
             "alergias": [],
             "medicamentosEmUso": [],

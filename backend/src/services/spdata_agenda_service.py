@@ -159,7 +159,10 @@ def buscar_agenda_spdata(data_ini, data_fim, unidade=None):
             r.FONE AS TELEFONE,
             r.CELULAR AS CELULAR,
             r.EMAIL AS EMAIL,
-            r.DATA_NASCIMENTO AS DATA_NASCIMENTO,
+            COALESCE(
+                NULLIF(paciente.NASC, DATE '1899-12-30'),
+                NULLIF(r.DATA_NASCIMENTO, DATE '1899-12-30')
+            ) AS DATA_NASCIMENTO,
             r.ATENDIDO AS ATENDIDO_SPDATA,
             r.ID_RICADPAC AS ID_PACIENTE_SPDATA,
             r.OBS AS OBS

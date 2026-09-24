@@ -18,7 +18,7 @@ export interface Paciente {
   nomeSocial?: string | null
   encaixado: boolean
   sexo: 'masculino' | 'feminino'
-  dataNascimento: string
+  dataNascimento: string | null
   tipoSanguineo: string
   alergias: string[]
   medicamentosEmUso: MedicamentoUso[]

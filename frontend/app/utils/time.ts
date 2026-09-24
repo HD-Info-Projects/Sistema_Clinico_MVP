@@ -93,8 +93,20 @@ export function getSaudacao(d: Date = new Date()) {
 
 export function calcularIdade(dataNascimento: string | null | undefined, hoje: Date = new Date()): number | null {
   if (!dataNascimento) return null
-  const nasc = new Date(dataNascimento)
-  if (Number.isNaN(nasc.getTime())) return null
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(dataNascimento)
+  if (!match) return null
+
+  const ano = Number(match[1])
+  const mesNascimento = Number(match[2])
+  const dia = Number(match[3])
+  const nasc = new Date(ano, mesNascimento - 1, dia)
+  if (
+    nasc.getFullYear() !== ano
+    || nasc.getMonth() !== mesNascimento - 1
+    || nasc.getDate() !== dia
+    || (ano === 1899 && mesNascimento === 12 && dia === 30)
+    || nasc.getTime() > hoje.getTime()
+  ) return null
 
   let idade = hoje.getFullYear() - nasc.getFullYear()
   const mes = hoje.getMonth() - nasc.getMonth()

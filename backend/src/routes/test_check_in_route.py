@@ -3,12 +3,15 @@ from types import SimpleNamespace
 
 import pytest
 
+from src.modules.agenda import check_in as check_in_module
 from src.modules.agenda.check_in import (
     buscar_agendamentos_firebird,
+    calcular_idade,
     filtrar_rows_por_tipo,
     item_para_frontend,
     tipo_procedimento_row,
 )
+from src.services import spdata_agenda_service
 from src.services.spdata_agenda_service import buscar_agenda_spdata
 
 
@@ -86,3 +89,64 @@ def test_item_check_in_expoe_tipo_procedimento():
     assert item["codigoProcedimentoSpdata"] == "40901300"
     assert item["tipoProcedimento"] == "ultrassonografia-us"
     assert item["tipoProcedimentoLabel"] == "Ultrassonografia (US)"
+
+
+def test_calcular_idade_ignora_data_sentinela_spdata():
+    assert calcular_idade(date(1899, 12, 30)) is None
+
+
+@pytest.mark.parametrize(
+    ("modulo", "buscar", "argumentos"),
+    [
+        (
+            check_in_module,
+            check_in_module.buscar_agendamentos_firebird,
+            (date(2026, 9, 24), SimpleNamespace(codigo_spdata_agenda="16")),
+        ),
+        (
+            spdata_agenda_service,
+            spdata_agenda_service.buscar_agenda_spdata,
+            (
+                date(2026, 9, 24),
+                date(2026, 9, 24),
+                SimpleNamespace(codigo_spdata_agenda="16"),
+            ),
+        ),
+    ],
+)
+def test_consultas_agenda_priorizam_nascimento_cadastro(
+    monkeypatch,
+    modulo,
+    buscar,
+    argumentos,
+):
+    class Cursor:
+        description = []
+
+        def execute(self, sql, params):
+            self.sql = sql
+
+        def fetchall(self):
+            return []
+
+    class Connection:
+        def __init__(self, cursor):
+            self.cursor_instance = cursor
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def cursor(self):
+            return self.cursor_instance
+
+    cursor = Cursor()
+    monkeypatch.setattr(modulo, "ConnectionDBFireBird", lambda: Connection(cursor))
+
+    buscar(*argumentos)
+
+    assert "LEFT JOIN RICADPAC paciente" in cursor.sql
+    assert "NULLIF(paciente.NASC, DATE '1899-12-30')" in cursor.sql
+    assert "NULLIF(r.DATA_NASCIMENTO, DATE '1899-12-30')" in cursor.sql

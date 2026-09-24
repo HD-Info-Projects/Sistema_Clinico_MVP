@@ -25,6 +25,7 @@ from src.utils.tuss import (
 check_in_bp = Blueprint("check_in", __name__, url_prefix="/check_in")
 
 MAX_PAGE_SIZE = 100
+DATA_NASCIMENTO_SENTINELA = date(1899, 12, 30)
 
 STATUS_VALIDOS = {
     "agendado",
@@ -116,6 +117,8 @@ def calcular_idade(data_nascimento):
         except ValueError:
             return None
     if not isinstance(data_nascimento, date):
+        return None
+    if data_nascimento == DATA_NASCIMENTO_SENTINELA:
         return None
 
     hoje = date.today()
@@ -267,11 +270,16 @@ def buscar_agendamentos_firebird(data_ref, unidade, medico=None, q=None):
             r.PROCED AS COD_PROCEDIMENTO_SPDATA,
             r.PROCED AS PROCEDIMENTO,
             r.OBS AS OBS,
-            r.DATA_NASCIMENTO AS DATA_NASCIMENTO,
+            COALESCE(
+                NULLIF(paciente.NASC, DATE '1899-12-30'),
+                NULLIF(r.DATA_NASCIMENTO, DATE '1899-12-30')
+            ) AS DATA_NASCIMENTO,
             r.ATENDIDO AS ATENDIDO,
             r.ID_RICADPAC AS ID_PACIENTE_SPDATA,
             r.DATA_HORA_AGENDAMENTO AS DATA_HORA_AGENDAMENTO
         FROM REPACAGD r
+        LEFT JOIN RICADPAC paciente
+            ON paciente.ID = r.ID_RICADPAC
         LEFT JOIN TBESPEC esp_agenda
             ON esp_agenda.COD = r.ESPEC
         LEFT JOIN TBPROFIS prof

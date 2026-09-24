@@ -679,8 +679,8 @@ function montarDiagnosticos(item: HistoricoLocalRecord): string {
   return partes.join('\n')
 }
 
-function calcularIdade(dataNascimento: string) {
-  return formatarIdade(dataNascimento, { semAnos: true })
+function idadePaciente(dataNascimento: string | null | undefined) {
+  return formatarIdade(dataNascimento, { semDados: true })
 }
 
 function voltarDashboard() {
@@ -731,7 +731,7 @@ function voltarDashboard() {
             {{ agendamento.paciente.nome }}
           </p>
           <p class="text-sm text-muted wrap-break-word">
-            {{ calcularIdade(agendamento.paciente.dataNascimento) }} anos ·
+            {{ idadePaciente(agendamento.paciente.dataNascimento) }} ·
             {{
               agendamento.paciente.sexo === "masculino"
                 ? "Masculino"

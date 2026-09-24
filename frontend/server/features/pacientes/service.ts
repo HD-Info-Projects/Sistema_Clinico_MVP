@@ -20,13 +20,18 @@ function campoTexto(item: Record<string, unknown>, nome: string) {
   return valor === null || valor === undefined ? '' : String(valor)
 }
 
+function campoData(item: Record<string, unknown>, nome: string): string | null {
+  const valor = item[nome]
+  return valor === null || valor === undefined || valor === '' ? null : String(valor)
+}
+
 function normalizarPaciente(item: Record<string, unknown>): Paciente {
   return {
     id: Number(item.ID_PACIENTE) || 0,
     nome: campoTexto(item, 'PACIENTE'),
     encaixado: false,
     sexo: campoTexto(item, 'SEXO') === 'F' ? 'feminino' : 'masculino',
-    dataNascimento: campoTexto(item, 'DATA_NASCIMENTO'),
+    dataNascimento: campoData(item, 'DATA_NASCIMENTO'),
     tipoSanguineo: '',
     alergias: [],
     medicamentosEmUso: [],
@@ -105,7 +110,7 @@ export async function listarPacientesFila(event: H3Event) {
         id: Number(item.ID_PACIENTE) || null,
         nome: String(item.PACIENTE || ''),
         sexo: String(item.SEXO) === 'F' ? 'feminino' : 'masculino',
-        dataNascimento: String(item.DATA_NASCIMENTO || ''),
+        dataNascimento: campoData(item, 'DATA_NASCIMENTO'),
         tipoSanguineo: '',
         alergias: [],
         medicamentosEmUso: [],
