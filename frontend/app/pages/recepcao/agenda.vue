@@ -100,7 +100,10 @@ async function loadAgendamentos() {
 
   try {
     const response = await listarCheckIn(Object.fromEntries(params))
-    if (currentRequest === requestId) agendamentos.value = (response.items ?? []) as unknown as ItemRecepcao[]
+    if (currentRequest === requestId) {
+      const items = (response.items ?? []) as unknown as ItemRecepcao[]
+      agendamentos.value = items
+    }
   } catch {
     if (currentRequest === requestId) {
       agendamentos.value = []

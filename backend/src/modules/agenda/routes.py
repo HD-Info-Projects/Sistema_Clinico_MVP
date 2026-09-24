@@ -8,6 +8,14 @@ from src.models.model_mydsystem.med_spdata_agenda_model import MedSpdataAgenda
 from src.security.decorators import roles_required
 from src.security.unidades import unidade_atual_required, unidade_id_request
 from src.services.auditoria_service import registrar_auditoria
+from src.shared.performance_monitoring import iniciar_probe
+from src.shared.response_cache import (
+    apagar_cache_por_padrao,
+    cache_ttl,
+    chave_cache,
+    obter_cache_json,
+    salvar_cache_json,
+)
 from src.services.no_show_service import listar_no_show, registrar_motivo_no_show
 from src.services.spdata_atendimentos_service import (
     atualizar_status_agenda,
@@ -27,6 +35,19 @@ def _parse_data(valor, default=None):
     return datetime.fromisoformat(str(valor)[:10]).date()
 
 
+def _bool_param(valor):
+    return str(valor or "").strip().lower() in {"1", "true", "sim", "s", "yes", "on"}
+
+
+def _invalidar_cache_recepcao():
+    return sum((
+        apagar_cache_por_padrao("perf:check_in:*"),
+        apagar_cache_por_padrao("perf:agenda_medica:*"),
+        apagar_cache_por_padrao("perf:no_show:*"),
+        apagar_cache_por_padrao("perf:retencao_exames:*"),
+    ))
+
+
 @agenda_medica_bp.route("/", methods=["GET"])
 @jwt_required()
 @roles_required("medico")
@@ -36,6 +57,9 @@ def listar_agenda():
         data = request.args.get("data")
         search = (request.args.get("search") or request.args.get("q") or "").strip() or None
         status = request.args.get("status")
+        tipo = request.args.get("tipo")
+        unidade_id = unidade_id_request()
+        force_refresh = _bool_param(request.args.get("refresh") or request.args.get("sincronizar"))
         tem_filtro_data = any(request.args.get(nome) for nome in ("data", "dataIni", "dataFim"))
 
         if search and not tem_filtro_data:
@@ -45,22 +69,64 @@ def listar_agenda():
             data_ini = _parse_data(request.args.get("dataIni") or data)
             data_fim = _parse_data(request.args.get("dataFim") or data, data_ini)
 
-        resultado = listar_agenda_medica(
-            usuario_id,
-            data_ini,
-            data_fim,
+        probe = iniciar_probe(
+            "agenda_medica",
+            usuario_id=usuario_id,
+            unidade_id=unidade_id,
+            data_ini=data_ini.isoformat() if data_ini else None,
+            data_fim=data_fim.isoformat() if data_fim else None,
+            force_refresh=force_refresh,
+        )
+        cache_key = chave_cache(
+            "agenda_medica:response:v1",
+            usuario_id=usuario_id,
+            unidade_id=unidade_id,
+            data_ini=data_ini.isoformat() if data_ini else None,
+            data_fim=data_fim.isoformat() if data_fim else None,
             status=status,
             search=search,
-            unidade_id=unidade_id_request(),
-            somente_visiveis_medico=True,
+            tipo=tipo,
         )
+        if not force_refresh:
+            with probe.etapa("cache_response_get"):
+                cached = obter_cache_json(cache_key)
+            if cached is not None:
+                registrar_auditoria(
+                    AcaoAuditoria.VISUALIZOU_AGENDA,
+                    entidade="agenda_medica",
+                    usuario_id=usuario_id,
+                    descricao=f"Listagem de agenda médica em cache. data_ini={data_ini} data_fim={data_fim} status={status or ''} visibilidade_medica=true",
+                )
+                probe.valor("cache_response_hit", True)
+                probe.finalizar(source="response_cache", items_count=len(cached))
+                response = jsonify(cached)
+                response.headers["X-Cache"] = "HIT"
+                return response, 200
+
+        probe.valor("cache_response_hit", False)
+
+        with probe.etapa("service_listar_agenda_medica"):
+            resultado = listar_agenda_medica(
+                usuario_id,
+                data_ini,
+                data_fim,
+                status=status,
+                search=search,
+                tipo=tipo,
+                unidade_id=unidade_id,
+                somente_visiveis_medico=True,
+            )
+        salvar_cache_json(cache_key, resultado, ttl=cache_ttl())
         registrar_auditoria(
             AcaoAuditoria.VISUALIZOU_AGENDA,
             entidade="agenda_medica",
             usuario_id=usuario_id,
             descricao=f"Listagem de agenda médica. data_ini={data_ini} data_fim={data_fim} status={status or ''} visibilidade_medica=true",
         )
-        return jsonify(resultado), 200
+        probe.finalizar(source="service", items_count=len(resultado))
+        response = jsonify(resultado)
+        response.headers["X-Cache"] = "MISS"
+        return response, 200
 
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
@@ -120,6 +186,7 @@ def atualizar_status(med_spdata_atendimento_id):
             consulta=consulta,
             unidade_id=unidade_id_request(),
         )
+        _invalidar_cache_recepcao()
         status_final = resultado.get("status") or status
         acao = AcaoAuditoria.ALTEROU_STATUS_AGENDA
         if status_final == "em-atendimento":
@@ -178,26 +245,72 @@ def index():
         page = _parse_int_ns("page", 1)
         page_size = _parse_int_ns("pageSize", 20, maximo=500)
         unidade = unidade_atual_required()
+        force_refresh = _bool_param(request.args.get("refresh") or request.args.get("sincronizar"))
 
-        resultado = listar_no_show(
-            data_ini,
-            data_fim,
-            unidade=unidade,
+        probe = iniciar_probe(
+            "no_show",
+            unidade_id=unidade.id,
+            data_ini=data_ini.isoformat(),
+            data_fim=data_fim.isoformat(),
+            page=page,
+            page_size=page_size,
+            force_refresh=force_refresh,
+        )
+        cache_key = chave_cache(
+            "no_show:response:v1",
+            unidade_id=unidade.id,
+            data_ini=data_ini.isoformat(),
+            data_fim=data_fim.isoformat(),
+            page=page,
+            page_size=page_size,
             medico=request.args.get("medico"),
             especialidade=request.args.get("especialidade"),
             convenio=request.args.get("convenio"),
             status=request.args.get("status"),
             q=request.args.get("q"),
-            page=page,
-            page_size=page_size,
         )
+        if not force_refresh:
+            with probe.etapa("cache_response_get"):
+                cached = obter_cache_json(cache_key)
+            if cached is not None:
+                registrar_auditoria(
+                    AcaoAuditoria.VISUALIZOU_NO_SHOW,
+                    entidade="no_show",
+                    usuario_id=int(get_jwt_identity()),
+                    descricao=f"Listagem de no-show em cache. data_ini={data_ini} data_fim={data_fim} page={page} page_size={page_size}",
+                )
+                probe.valor("cache_response_hit", True)
+                probe.finalizar(source="response_cache", items_count=len(cached.get("items", [])), total=cached.get("total", 0))
+                response = jsonify(cached)
+                response.headers["X-Cache"] = "HIT"
+                return response, 200
+
+        probe.valor("cache_response_hit", False)
+
+        with probe.etapa("service_listar_no_show"):
+            resultado = listar_no_show(
+                data_ini,
+                data_fim,
+                unidade=unidade,
+                medico=request.args.get("medico"),
+                especialidade=request.args.get("especialidade"),
+                convenio=request.args.get("convenio"),
+                status=request.args.get("status"),
+                q=request.args.get("q"),
+                page=page,
+                page_size=page_size,
+            )
+        salvar_cache_json(cache_key, resultado, ttl=cache_ttl())
         registrar_auditoria(
             AcaoAuditoria.VISUALIZOU_NO_SHOW,
             entidade="no_show",
             usuario_id=int(get_jwt_identity()),
             descricao=f"Listagem de no-show. data_ini={data_ini} data_fim={data_fim} page={page} page_size={page_size}",
         )
-        return jsonify(resultado), 200
+        probe.finalizar(source="service", items_count=len(resultado.get("items", [])), total=resultado.get("total", 0))
+        response = jsonify(resultado)
+        response.headers["X-Cache"] = "MISS"
+        return response, 200
 
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
@@ -223,6 +336,7 @@ def atualizar_motivo(agenda_id):
             raise PermissionError("Agenda não pertence à unidade selecionada")
 
         resultado = registrar_motivo_no_show(agenda_id, body.get("motivo"))
+        _invalidar_cache_recepcao()
         registrar_auditoria(
             AcaoAuditoria.ALTEROU_MOTIVO_NO_SHOW,
             entidade="no_show",
