@@ -90,7 +90,7 @@ export function buscarMarcadores(filtros?: BuscarMarcadoresParams) {
 export function listarCheckIn(filtros?: Record<string, unknown>) {
   const params = new URLSearchParams()
 
-  for (const key of ['page', 'pageSize', 'status', 'medico', 'q', 'data', 'unidadeId', 'tipo']) {
+  for (const key of ['page', 'pageSize', 'status', 'medico', 'q', 'data', 'unidadeId', 'tipo', 'refresh', 'sincronizar']) {
     const value = filtros?.[key]
     if (value !== undefined && value !== null && String(value).trim()) {
       params.set(key, String(value))
@@ -101,6 +101,28 @@ export function listarCheckIn(filtros?: Record<string, unknown>) {
     ...response,
     items: response.items.map(item => ({ ...item, horario: normalizarHorario(item.horario) }))
   }))
+}
+
+export type SincronizarCheckInResponse = {
+  ok: boolean
+  data: string
+  unidadeId: number
+  source: string
+  rowsLidas: number
+  cachesApagados: number
+  atualizadoEm: string
+  agenda?: {
+    lidos?: number
+    criados?: number
+    atualizados?: number
+  }
+}
+
+export function sincronizarCheckIn(payload: { data?: string, unidadeId?: number }) {
+  return $fetch<SincronizarCheckInResponse>('/api/check-in-sync', {
+    method: 'POST',
+    body: payload
+  })
 }
 
 export function listarNoShow(filtros?: Record<string, unknown>) {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TipoProcedimentoTuss } from '~/types'
-import { listarCheckIn } from '~/features/agenda/services/agendaService'
+import { listarCheckIn, sincronizarCheckIn } from '~/features/agenda/services/agendaService'
 import type { CheckInResponse } from '~/features/agenda/types'
 import { TUSS_PROCEDIMENTO_FILTROS, corTipoProcedimento, rotuloTipoProcedimento } from '~/utils/tuss'
 
@@ -43,6 +43,9 @@ const selectedStatus = ref<AtendimentoStatus | ''>('')
 const selectedTipo = ref<TipoProcedimentoTuss | ''>('')
 const selectedMedico = ref<string | null>(null)
 const selectedEspecialidade = ref<string | undefined>('Todas as especialidades')
+const sincronizandoSpdata = ref(false)
+const syncMsg = ref('')
+const syncError = ref('')
 
 let buscaTimer: ReturnType<typeof setTimeout> | null = null
 let requestId = 0
@@ -202,7 +205,10 @@ async function carregarAtendimentos() {
 
   try {
     const response = await listarCheckIn(Object.fromEntries(params))
-    if (currentRequest === requestId) dados.value = response
+
+    if (currentRequest === requestId) {
+      dados.value = response
+    }
   } catch {
     if (currentRequest === requestId) {
       dados.value = respostaVazia()
@@ -210,6 +216,31 @@ async function carregarAtendimentos() {
     }
   } finally {
     if (currentRequest === requestId) loading.value = false
+  }
+}
+
+async function sincronizarDadosSpdata() {
+  const unidadeId = auth.activeClinicaId
+  if (!unidadeId) {
+    syncError.value = 'Selecione uma unidade para sincronizar o SPDATA'
+    return
+  }
+
+  sincronizandoSpdata.value = true
+  syncMsg.value = ''
+  syncError.value = ''
+
+  try {
+    const response = await sincronizarCheckIn({
+      data: formatarDataISO(new Date()),
+      unidadeId
+    })
+    syncMsg.value = `SPDATA atualizado: ${response.rowsLidas} registros lidos.`
+    await carregarAtendimentos()
+  } catch {
+    syncError.value = 'Erro ao sincronizar dados do SPDATA'
+  } finally {
+    sincronizandoSpdata.value = false
   }
 }
 
@@ -299,10 +330,24 @@ onUnmounted(() => {
             {{ formatarData(dados.data) }}. Veja o resumo dos agendamentos da recepção.
           </p>
         </div>
-        <div
-          class="hidden w-72 lg:block"
-          aria-hidden="true"
-        />
+        <div class="w-full shrink-0 space-y-2 lg:w-56">
+          <UButton
+            label="Atualizar SPDATA"
+            icon="i-lucide-refresh-cw"
+            color="primary"
+            variant="soft"
+            block
+            :loading="sincronizandoSpdata"
+            :disabled="loading || sincronizandoSpdata"
+            @click="sincronizarDadosSpdata"
+          />
+          <p
+            v-if="syncMsg"
+            class="text-xs text-success"
+          >
+            {{ syncMsg }}
+          </p>
+        </div>
       </div>
 
       <UAlert
@@ -311,6 +356,14 @@ onUnmounted(() => {
         color="error"
         variant="subtle"
         icon="i-lucide-circle-alert"
+      />
+
+      <UAlert
+        v-if="syncError"
+        :title="syncError"
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-triangle-alert"
       />
 
       <div class="grid min-w-0 grid-cols-1 items-stretch gap-4 lg:grid-cols-2 lg:gap-6">

@@ -13,6 +13,14 @@ from src.models.model_mydsystem.med_spdata_convenios_model import MedSpdataConve
 from src.security.decorators import roles_required
 from src.security.unidades import unidade_atual_required
 from src.services.auditoria_service import registrar_auditoria
+from src.shared.performance_monitoring import iniciar_probe
+from src.shared.response_cache import (
+    apagar_cache_por_padrao,
+    cache_ttl,
+    chave_cache,
+    obter_cache_json,
+    salvar_cache_json,
+)
 from src.settings.extensions import db
 from src.utils.tuss import (
     TIPOS_PROCEDIMENTO_VALIDOS,
@@ -34,6 +42,9 @@ STATUS_VALIDOS = {
     "atendido",
     "faltou",
 }
+
+CACHE_PREFIX_CHECK_IN_BASE = "check_in:base:v1"
+CACHE_PREFIX_CHECK_IN_RESPONSE = "check_in:response:v1"
 
 STATUS_LOCAL_ALIASES = {
     "EM_ATENDIMENTO": "em-atendimento",
@@ -200,6 +211,25 @@ def parse_data_param():
     return datetime.fromisoformat(str(valor)[:10]).date()
 
 
+def parse_data_valor(valor):
+    if not valor:
+        return date.today()
+    return datetime.fromisoformat(str(valor)[:10]).date()
+
+
+def bool_param(valor):
+    return str(valor or "").strip().lower() in {"1", "true", "sim", "s", "yes", "on"}
+
+
+def invalidar_cache_check_in():
+    return sum((
+        apagar_cache_por_padrao("perf:check_in:*"),
+        apagar_cache_por_padrao("perf:agenda_medica:*"),
+        apagar_cache_por_padrao("perf:no_show:*"),
+        apagar_cache_por_padrao("perf:retencao_exames:*"),
+    ))
+
+
 def row_para_dict(row, nomes_colunas):
     return {
         nome: normalizar_valor(valor)
@@ -300,6 +330,47 @@ def buscar_agendamentos_firebird(data_ref, unidade, medico=None, q=None):
         cursor.execute(sql, tuple(params))
         nomes_colunas = [desc[0].strip().upper() for desc in cursor.description]
         return [row_para_dict(row, nomes_colunas) for row in cursor.fetchall()]
+
+
+def carregar_rows_check_in(data_ref, unidade, force_refresh=False, probe=None):
+    cache_key = chave_cache(
+        CACHE_PREFIX_CHECK_IN_BASE,
+        unidade_id=unidade.id,
+        data=data_ref.isoformat(),
+    )
+
+    if not force_refresh:
+        if probe:
+            with probe.etapa("cache_base_get"):
+                rows_cached = obter_cache_json(cache_key)
+        else:
+            rows_cached = obter_cache_json(cache_key)
+
+        if rows_cached is not None:
+            if probe:
+                probe.valor("cache_base_hit", True)
+                probe.valor("base_rows_count", len(rows_cached))
+            return rows_cached, "cache"
+
+    if probe:
+        probe.valor("cache_base_hit", False)
+        with probe.etapa("firebird_agenda"):
+            rows_agenda = buscar_agendamentos_firebird(data_ref, unidade)
+        with probe.etapa("firebird_atendimentos"):
+            rows_atendimentos = buscar_atendimentos_firebird(data_ref, unidade)
+        with probe.etapa("merge_rows"):
+            rows_dia = mesclar_agenda_atendimentos(rows_agenda, rows_atendimentos)
+    else:
+        rows_agenda = buscar_agendamentos_firebird(data_ref, unidade)
+        rows_atendimentos = buscar_atendimentos_firebird(data_ref, unidade)
+        rows_dia = mesclar_agenda_atendimentos(rows_agenda, rows_atendimentos)
+
+    salvar_cache_json(cache_key, rows_dia, ttl=cache_ttl())
+    if probe:
+        probe.valor("agenda_rows_count", len(rows_agenda))
+        probe.valor("atendimento_rows_count", len(rows_atendimentos))
+        probe.valor("base_rows_count", len(rows_dia))
+    return rows_dia, "firebird"
 
 
 def buscar_atendimentos_firebird(data_ref, unidade):
@@ -681,6 +752,7 @@ def calcular_medicos(rows, especialidades_por_medico):
 @jwt_required()
 @roles_required("recepcao", "admin")
 def home_check_in():
+    probe = None
     try:
         data_ref = parse_data_param()
         unidade = unidade_atual_required()
@@ -690,29 +762,75 @@ def home_check_in():
         tipo_filtro = normalizar_texto(request.args.get("tipo"))
         medico = request.args.get("medico")
         q = request.args.get("q")
+        force_refresh = bool_param(request.args.get("refresh") or request.args.get("sincronizar"))
+
+        probe = iniciar_probe(
+            "check_in",
+            unidade_id=unidade.id,
+            data=data_ref.isoformat(),
+            page=page,
+            page_size=page_size,
+            force_refresh=force_refresh,
+        )
 
         if status_filtro and status_filtro not in STATUS_VALIDOS:
             return jsonify({"error": "Status inválido"}), 400
         if tipo_filtro and tipo_filtro not in TIPOS_PROCEDIMENTO_VALIDOS:
             return jsonify({"error": "Tipo inválido"}), 400
 
-        rows_agenda = buscar_agendamentos_firebird(data_ref, unidade)
-        rows_atendimentos = buscar_atendimentos_firebird(data_ref, unidade)
-        rows_dia = mesclar_agenda_atendimentos(rows_agenda, rows_atendimentos)
-        rows_tipo = filtrar_rows_por_tipo(rows_dia, tipo_filtro)
-        rows_filtradas = filtrar_rows(rows_tipo, medico=medico, q=q)
+        response_cache_key = chave_cache(
+            CACHE_PREFIX_CHECK_IN_RESPONSE,
+            unidade_id=unidade.id,
+            data=data_ref.isoformat(),
+            page=page,
+            page_size=page_size,
+            status=status_filtro,
+            tipo=tipo_filtro,
+            medico=medico,
+            q=q,
+        )
+        if not force_refresh:
+            with probe.etapa("cache_response_get"):
+                response_cached = obter_cache_json(response_cache_key)
+            if response_cached is not None:
+                probe.valor("cache_response_hit", True)
+                registrar_auditoria(
+                    AcaoAuditoria.VISUALIZOU_CHECK_IN,
+                    entidade="check_in",
+                    usuario_id=int(get_jwt_identity()),
+                    descricao=f"Listagem de check-in em cache. data={data_ref} page={page} page_size={page_size} total={response_cached.get('total', 0)}",
+                )
+                probe.finalizar(
+                    source="response_cache",
+                    items_count=len(response_cached.get("items", [])),
+                    total=response_cached.get("total", 0),
+                )
+                response = jsonify(response_cached)
+                response.headers["X-Cache"] = "HIT"
+                return response, 200
+
+        probe.valor("cache_response_hit", False)
+
+        rows_dia, source = carregar_rows_check_in(data_ref, unidade, force_refresh=force_refresh, probe=probe)
+        with probe.etapa("filter_rows"):
+            rows_tipo = filtrar_rows_por_tipo(rows_dia, tipo_filtro)
+            rows_filtradas = filtrar_rows(rows_tipo, medico=medico, q=q)
 
         registros = [row.get("REGISTRO") for row in rows_filtradas]
-        status_local = buscar_status_local(registros, unidade)
-        convenios_por_codigo = buscar_convenios_locais(
-            row.get("ID_CONVENIO_SPDATA") or row.get("CONVENIO")
-            for row in rows_filtradas
-        )
-        especialidades_por_medico = buscar_especialidades_medicos_locais(rows_dia)
-        items_com_status = [
-            item_para_frontend(row, status_local, convenios_por_codigo, especialidades_por_medico, unidade)
-            for row in rows_filtradas
-        ]
+        with probe.etapa("mysql_status_local"):
+            status_local = buscar_status_local(registros, unidade)
+        with probe.etapa("mysql_convenios"):
+            convenios_por_codigo = buscar_convenios_locais(
+                row.get("ID_CONVENIO_SPDATA") or row.get("CONVENIO")
+                for row in rows_filtradas
+            )
+        with probe.etapa("mysql_especialidades"):
+            especialidades_por_medico = buscar_especialidades_medicos_locais(rows_dia)
+        with probe.etapa("serialize_items"):
+            items_com_status = [
+                item_para_frontend(row, status_local, convenios_por_codigo, especialidades_por_medico, unidade)
+                for row in rows_filtradas
+            ]
 
         resumo = calcular_resumo(items_com_status)
 
@@ -725,14 +843,7 @@ def home_check_in():
         start = (page - 1) * page_size
         end = start + page_size
 
-        registrar_auditoria(
-            AcaoAuditoria.VISUALIZOU_CHECK_IN,
-            entidade="check_in",
-            usuario_id=int(get_jwt_identity()),
-            descricao=f"Listagem de check-in. data={data_ref} page={page} page_size={page_size} total={total}",
-        )
-
-        return jsonify({
+        payload = {
             "items": items_filtrados[start:end],
             "page": page,
             "pageSize": page_size,
@@ -740,7 +851,30 @@ def home_check_in():
             "medicos": calcular_medicos(rows_tipo, especialidades_por_medico),
             "resumo": resumo,
             "data": data_ref.isoformat(),
-        }), 200
+            "sync": {
+                "source": source,
+                "cached": source == "cache",
+            },
+        }
+
+        salvar_cache_json(response_cache_key, payload, ttl=cache_ttl())
+
+        registrar_auditoria(
+            AcaoAuditoria.VISUALIZOU_CHECK_IN,
+            entidade="check_in",
+            usuario_id=int(get_jwt_identity()),
+            descricao=f"Listagem de check-in. data={data_ref} page={page} page_size={page_size} total={total}",
+        )
+
+        probe.finalizar(
+            source=source,
+            rows_filtradas_count=len(rows_filtradas),
+            items_count=len(payload["items"]),
+            total=total,
+        )
+        response = jsonify(payload)
+        response.headers["X-Cache"] = "MISS"
+        return response, 200
 
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
@@ -750,3 +884,45 @@ def home_check_in():
         db.session.rollback()
         current_app.logger.exception("Erro ao listar check-in")
         return jsonify({"error": "Erro interno ao listar check-in"}), 500
+
+
+@check_in_bp.route("/sincronizar", methods=["POST"])
+@jwt_required()
+@roles_required("recepcao", "admin")
+def sincronizar_check_in():
+    try:
+        body = request.get_json(silent=True) or {}
+        data_ref = parse_data_valor(body.get("data") or request.args.get("data"))
+        unidade = unidade_atual_required()
+        probe = iniciar_probe("check_in_sincronizar", unidade_id=unidade.id, data=data_ref.isoformat())
+
+        caches_apagados = invalidar_cache_check_in()
+        rows_dia, source = carregar_rows_check_in(data_ref, unidade, force_refresh=True, probe=probe)
+        atualizado_em = datetime.utcnow().isoformat() + "Z"
+        payload = {
+            "ok": True,
+            "data": data_ref.isoformat(),
+            "unidadeId": unidade.id,
+            "source": source,
+            "rowsLidas": len(rows_dia),
+            "cachesApagados": caches_apagados,
+            "atualizadoEm": atualizado_em,
+        }
+
+        registrar_auditoria(
+            AcaoAuditoria.SINCRONIZOU_SPDATA,
+            entidade="check_in",
+            usuario_id=int(get_jwt_identity()),
+            descricao=f"Sincronização manual do check-in. data={data_ref} unidade_id={unidade.id} rows={len(rows_dia)}",
+        )
+        probe.finalizar(rows_count=len(rows_dia), caches_apagados=caches_apagados)
+        return jsonify(payload), 200
+
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except PermissionError as e:
+        return jsonify({"error": str(e)}), 403
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("Erro ao sincronizar check-in")
+        return jsonify({"error": "Erro interno ao sincronizar check-in"}), 500
