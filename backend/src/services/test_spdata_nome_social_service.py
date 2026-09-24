@@ -68,10 +68,11 @@ def test_agenda_spdata_para_frontend_expoe_nome_social_sem_substituir_nome_civil
     )
     spdata_ref = SimpleNamespace(
         id=11,
-        spdata_atendimento_id=-2002,
+        spdata_atendimento_id=2002,
         id_medico_spdata=8,
         unidade_id=1,
         data_nascimento=date(1975, 2, 9),
+        hora_entrada=time(10, 26),
     )
 
     item = agenda_spdata_para_frontend(agenda, spdata_ref)
@@ -79,6 +80,46 @@ def test_agenda_spdata_para_frontend_expoe_nome_social_sem_substituir_nome_civil
     assert item["paciente"]["nome"] == "JOAO NOME CIVIL"
     assert item["paciente"]["nomeSocial"] == "JOAO NOME SOCIAL"
     assert item["paciente"]["dataNascimento"] == "1975-02-09"
+    assert item["horario"] == "10:26"
+    assert item["horarioAgendado"] == "10:00"
+    assert item["horarioEntrada"] == "10:26"
+
+
+def test_agenda_spdata_placeholder_mantem_horario_agendado():
+    agenda = SimpleNamespace(
+        id=3,
+        spdata_agenda_id=2002,
+        registro=None,
+        id_paciente_spdata=66,
+        unidade_id=1,
+        id_convenio_spdata=None,
+        convenio=None,
+        data_agenda=date(2026, 8, 5),
+        hora_agenda=time(10, 0),
+        obs=None,
+        paciente="PACIENTE",
+        paciente_nome_social=None,
+        data_nascimento=None,
+        celular=None,
+        telefone=None,
+        email=None,
+        cpf=None,
+        atendido_spdata="N",
+    )
+    spdata_ref = SimpleNamespace(
+        id=11,
+        spdata_atendimento_id=-2002,
+        id_medico_spdata=8,
+        unidade_id=1,
+        hora_entrada=time(10, 0),
+    )
+
+    item = agenda_spdata_para_frontend(agenda, spdata_ref)
+
+    assert item["status"] == "agendado"
+    assert item["horario"] == "10:00"
+    assert item["horarioAgendado"] == "10:00"
+    assert item["horarioEntrada"] is None
 
 
 def test_filtro_consultas_medico_inclui_faixa_consulta_e_codigo_5001():

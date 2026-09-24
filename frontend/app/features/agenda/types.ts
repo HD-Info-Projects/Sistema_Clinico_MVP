@@ -23,6 +23,8 @@ export interface AtendimentoRecepcao {
   tipoProcedimento: TipoProcedimentoTuss
   tipoProcedimentoLabel: string
   dataNascimento: string | null
+  horarioAgendado?: string | null
+  horarioEntrada?: string | null
   idade: number | null
   status: AtendimentoStatusRecepcao
 }

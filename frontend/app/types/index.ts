@@ -79,6 +79,8 @@ export interface Agendamento {
   clinicaId: number
   data: string
   horario: string
+  horarioAgendado?: string | null
+  horarioEntrada?: string | null
   prioridade: 'normal' | 'preferencial'
   status: AgendamentoStatus
   descricao: string

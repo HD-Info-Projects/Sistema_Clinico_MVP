@@ -311,6 +311,8 @@ def buscar_atendimentos_firebird(data_ref, unidade):
             a.ID_RICADPAC AS ID_PACIENTE_SPDATA,
             CAST(a.DATA_HORA_ENTRADA AS DATE) AS DATA,
             CAST(a.DATA_HORA_ENTRADA AS TIME) AS HORA,
+            CAST(a.DATA_HORA_ENTRADA AS TIME) AS HORA_ENTRADA,
+            a.DATA_HORA_ENTRADA AS DATA_HORA_ENTRADA,
             a.DATA_HORA_ENTRADA AS DATA_HORA_AGENDAMENTO,
             a.DATA_HORA_ALTA_MEDICA AS DATA_HORA_ALTA_MEDICA,
             a.OBS_ATENDIMENTO AS OBS,
@@ -412,6 +414,8 @@ def mesclar_agenda_atendimentos(rows_agenda, rows_atendimentos):
             merged = preencher_vazios(por_registro[key], row)
             merged["TEM_ATENDIMENTO"] = "S"
             merged["ID_ATENDIMENTO"] = row.get("ID_ATENDIMENTO")
+            merged["HORA_ENTRADA"] = row.get("HORA_ENTRADA")
+            merged["DATA_HORA_ENTRADA"] = row.get("DATA_HORA_ENTRADA")
             merged["DATA_HORA_ALTA_MEDICA"] = row.get("DATA_HORA_ALTA_MEDICA")
             por_registro[key] = merged
         else:
@@ -583,6 +587,13 @@ def item_para_frontend(row, status_local, convenios_por_codigo, especialidades_p
     crm = normalizar_texto(row.get("CRM"))
     crm_atendimento_key = normalizar_identificador_medico(row.get("CRM_ATEND"))
     crm_key = normalizar_identificador_medico(row.get("CRM"))
+    horario_agendado = (
+        horario_para_frontend(row.get("HORA") or row.get("HR_AGE"))
+        if row.get("ID_AGENDAMENTO") is not None
+        else ""
+    )
+    horario_entrada = horario_para_frontend(row.get("HORA_ENTRADA"))
+    horario = horario_entrada or horario_agendado
 
     return {
         "id": row.get("ID_AGENDAMENTO") or registro,
@@ -593,7 +604,9 @@ def item_para_frontend(row, status_local, convenios_por_codigo, especialidades_p
         "medsystemAtendimentoId": local["medsystemAtendimentoId"] if local else None,
         "idPacienteSpdata": row.get("ID_PACIENTE_SPDATA"),
         "data": row.get("DATA"),
-        "horario": horario_para_frontend(row.get("HORA") or row.get("HR_AGE")),
+        "horario": horario,
+        "horarioAgendado": horario_agendado,
+        "horarioEntrada": horario_entrada or None,
         "paciente": normalizar_texto(row.get("PACIENTE")),
         "cpf": normalizar_texto(row.get("CPF")),
         "prontuario": normalizar_texto(row.get("PRONTUARIO")),

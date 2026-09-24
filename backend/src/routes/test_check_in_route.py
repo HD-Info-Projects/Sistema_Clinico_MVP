@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, time
 from types import SimpleNamespace
 
 import pytest
@@ -9,6 +9,7 @@ from src.modules.agenda.check_in import (
     calcular_idade,
     filtrar_rows_por_tipo,
     item_para_frontend,
+    mesclar_agenda_atendimentos,
     tipo_procedimento_row,
 )
 from src.services import spdata_agenda_service
@@ -93,6 +94,52 @@ def test_item_check_in_expoe_tipo_procedimento():
 
 def test_calcular_idade_ignora_data_sentinela_spdata():
     assert calcular_idade(date(1899, 12, 30)) is None
+
+
+def test_check_in_exibe_horario_de_entrada_sem_perder_horario_agendado():
+    agenda = {
+        "ID_AGENDAMENTO": 10,
+        "REGISTRO": "123",
+        "HORA": time(8, 0),
+        "ATENDIDO": "N",
+    }
+    atendimento = {
+        "ID_ATENDIMENTO": 20,
+        "REGISTRO": "123",
+        "HORA": time(8, 37),
+        "HORA_ENTRADA": time(8, 37),
+        "DATA_HORA_ENTRADA": datetime(2026, 9, 24, 8, 37),
+    }
+
+    [row] = mesclar_agenda_atendimentos([agenda], [atendimento])
+    item = item_para_frontend(row, {}, {}, {}, SimpleNamespace(id=1))
+
+    assert row["HORA"] == time(8, 0)
+    assert row["HORA_ENTRADA"] == time(8, 37)
+    assert item["status"] == "em-espera"
+    assert item["horario"] == "08:37"
+    assert item["horarioAgendado"] == "08:00"
+    assert item["horarioEntrada"] == "08:37"
+
+
+def test_check_in_agendado_sem_entrada_mantem_horario_agendado():
+    item = item_para_frontend(
+        {
+            "ID_AGENDAMENTO": 10,
+            "REGISTRO": "123",
+            "HORA": time(8, 0),
+            "ATENDIDO": "N",
+        },
+        {},
+        {},
+        {},
+        SimpleNamespace(id=1),
+    )
+
+    assert item["status"] == "agendado"
+    assert item["horario"] == "08:00"
+    assert item["horarioAgendado"] == "08:00"
+    assert item["horarioEntrada"] is None
 
 
 @pytest.mark.parametrize(

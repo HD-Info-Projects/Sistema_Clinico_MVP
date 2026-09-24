@@ -797,6 +797,8 @@ def agenda_para_frontend(spdata, atendimento=None, convenios_por_codigo=None):
         "clinicaId": unidade_id,
         "data": data_atendimento,
         "horario": horario,
+        "horarioAgendado": None,
+        "horarioEntrada": horario or None,
         "prioridade": "normal",
         "status": status,
         "descricao": spdata.obs_atendimento or "",
@@ -841,6 +843,13 @@ def agenda_spdata_para_frontend(agenda, spdata_ref, atendimento=None, convenios_
         or getattr(spdata_ref, "procedimento_spdata", None)
     )
     tipo_procedimento, tipo_procedimento_label = tipo_procedimento_frontend(codigo_procedimento)
+    spdata_atendimento_id = normalizar_int(getattr(spdata_ref, "spdata_atendimento_id", None))
+    horario_agendado = hora_hhmm(agenda.hora_agenda)
+    horario_entrada = (
+        hora_hhmm(getattr(spdata_ref, "hora_entrada", None))
+        if spdata_atendimento_id is not None and spdata_atendimento_id > 0
+        else ""
+    )
 
     if id_convenio_spdata is not None and convenios_por_codigo:
         convenio = convenios_por_codigo.get(id_convenio_spdata) or agenda.convenio or ""
@@ -858,7 +867,9 @@ def agenda_spdata_para_frontend(agenda, spdata_ref, atendimento=None, convenios_
         "medicoId": spdata_ref.id_medico_spdata or 0,
         "clinicaId": unidade_id,
         "data": data_iso(agenda.data_agenda),
-        "horario": hora_hhmm(agenda.hora_agenda),
+        "horario": horario_entrada or horario_agendado,
+        "horarioAgendado": horario_agendado,
+        "horarioEntrada": horario_entrada or None,
         "prioridade": "normal",
         "status": status,
         "descricao": agenda.obs or "",
