@@ -14,7 +14,7 @@ import type {
   PadraoReceita
 } from '~/types'
 import { usePdfMake } from '~/utils/pdf'
-import { buildSolicitacaoExames, buildReceita, buildReceitaEspecialDupla, buildAtestadoComparecimento } from '~/utils/pdf-documents'
+import { buildSolicitacaoExames, buildReceita, buildReceitaEspecialDupla } from '~/utils/pdf-documents'
 import { gerarHtmlGuiaTiss, imprimirGuiaTiss } from '~/utils/guia-tiss'
 
 const openNav = inject<() => void>('openNav', () => {})
@@ -535,6 +535,7 @@ function adicionarPadraoExame() {
 }
 
 const showAtestadoModal = ref(false)
+const showComparecimentoModal = ref(false)
 const showEncaminhamentoModal = ref(false)
 const showProcedimentoModal = ref(false)
 const showOpmeModal = ref(false)
@@ -826,23 +827,6 @@ async function gerarSolicitacaoExames() {
         nome: e.nome,
         orientacao: e.orientacao ?? null
       })),
-    medico: auth.user?.nome,
-    crm: auth.user?.crm,
-    especialidade: auth.user?.especialidades?.join(', ')
-  })
-  pdfMake.createPdf(doc).open()
-}
-
-async function gerarComparecimento() {
-  const ag = agendamento.value
-  if (!ag) return
-  const pdfMake = await usePdfMake()
-  const dataFormatada = new Date(ag.data + 'T12:00:00').toLocaleDateString('pt-BR')
-  const doc = await buildAtestadoComparecimento({
-    paciente: ag.paciente.nome,
-    data: dataFormatada,
-    horario: ag.horario.slice(0, 5),
-    cids: cidSelecionadoLista.value.map(cid => cid.cid),
     medico: auth.user?.nome,
     crm: auth.user?.crm,
     especialidade: auth.user?.especialidades?.join(', ')
@@ -1447,7 +1431,7 @@ async function finalizarConsulta() {
                 label="Atestado de Comparecimento"
                 color="primary"
                 class="w-full p-3 text-lg font-bold"
-                @click="void gerarComparecimento()"
+                @click="void (showComparecimentoModal = true)"
               />
               <UButton
                 icon="i-lucide-stamp"
@@ -1532,6 +1516,15 @@ async function finalizarConsulta() {
       :cids="cidSelecionadoLista.map(cid => cid.cid)"
       @saved="atualizarDocumentoMedico"
     />
+
+    <ComparecimentoGerarModal
+      v-model:open="showComparecimentoModal"
+      :agendamento="agendamento"
+      :paciente="agendamento?.paciente"
+      :data-atendimento="agendamento?.data"
+      :cids="cidSelecionadoLista.map(cid => cid.cid)"
+    />
+
     <EncaminhamentoGerarModal
       v-model:open="showEncaminhamentoModal"
       :agendamento="agendamento"
