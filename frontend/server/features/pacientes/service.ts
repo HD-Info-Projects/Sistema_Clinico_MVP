@@ -25,12 +25,19 @@ function campoData(item: Record<string, unknown>, nome: string): string | null {
   return valor === null || valor === undefined || valor === '' ? null : String(valor)
 }
 
+function normalizarSexo(valor: unknown): Paciente['sexo'] {
+  const sexo = String(valor ?? '').trim().toLocaleLowerCase('pt-BR')
+  if (sexo.startsWith('f')) return 'feminino'
+  if (sexo.startsWith('m')) return 'masculino'
+  return null
+}
+
 function normalizarPaciente(item: Record<string, unknown>): Paciente {
   return {
     id: Number(item.ID_PACIENTE) || 0,
     nome: campoTexto(item, 'PACIENTE'),
     encaixado: false,
-    sexo: campoTexto(item, 'SEXO') === 'F' ? 'feminino' : 'masculino',
+    sexo: normalizarSexo(item.SEXO),
     dataNascimento: campoData(item, 'DATA_NASCIMENTO'),
     tipoSanguineo: '',
     alergias: [],
@@ -109,7 +116,7 @@ export async function listarPacientesFila(event: H3Event) {
       paciente: {
         id: Number(item.ID_PACIENTE) || null,
         nome: String(item.PACIENTE || ''),
-        sexo: String(item.SEXO) === 'F' ? 'feminino' : 'masculino',
+        sexo: normalizarSexo(item.SEXO),
         dataNascimento: campoData(item, 'DATA_NASCIMENTO'),
         tipoSanguineo: '',
         alergias: [],

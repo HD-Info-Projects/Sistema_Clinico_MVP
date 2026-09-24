@@ -683,6 +683,12 @@ function idadePaciente(dataNascimento: string | null | undefined) {
   return formatarIdade(dataNascimento, { semDados: true })
 }
 
+function rotuloSexo(sexo: 'masculino' | 'feminino' | null | undefined) {
+  if (sexo === 'masculino') return 'Masculino'
+  if (sexo === 'feminino') return 'Feminino'
+  return 'Não informado'
+}
+
 function voltarDashboard() {
   navigateTo('/dashboard', { replace: true })
 }
@@ -732,11 +738,7 @@ function voltarDashboard() {
           </p>
           <p class="text-sm text-muted wrap-break-word">
             {{ idadePaciente(agendamento.paciente.dataNascimento) }} ·
-            {{
-              agendamento.paciente.sexo === "masculino"
-                ? "Masculino"
-                : "Feminino"
-            }}
+            {{ rotuloSexo(agendamento.paciente.sexo) }}
             · Convênio: {{ agendamento.paciente.convenio }}
           </p>
         </div>

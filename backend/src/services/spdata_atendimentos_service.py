@@ -474,7 +474,14 @@ def sincronizar_atendimentos_spdata(data_ini, data_fim, crm_medico, unidade):
 
 
 def sexo_para_frontend(sexo):
-    return "feminino" if str(sexo or "").upper().startswith("F") else "masculino"
+    sexo = normalizar_texto(sexo)
+    if not sexo:
+        return None
+    if sexo.upper().startswith("F"):
+        return "feminino"
+    if sexo.upper().startswith("M"):
+        return "masculino"
+    return None
 
 
 def data_iso(valor):
@@ -883,7 +890,7 @@ def agenda_spdata_para_frontend(agenda, spdata_ref, atendimento=None, convenios_
             "nome": agenda.paciente,
             "nomeSocial": agenda.paciente_nome_social,
             "encaixado": False,
-            "sexo": "masculino",
+            "sexo": sexo_para_frontend(getattr(spdata_ref, "sexo", None)),
             "dataNascimento": data_nascimento_iso(
                 getattr(spdata_ref, "data_nascimento", None),
                 agenda.data_nascimento,

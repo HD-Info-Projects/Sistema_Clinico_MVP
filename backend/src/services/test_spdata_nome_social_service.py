@@ -1,6 +1,7 @@
 from datetime import date, datetime, time
 from types import SimpleNamespace
 
+import pytest
 from sqlalchemy import column
 
 from src.services.spdata_atendimentos_service import (
@@ -8,6 +9,7 @@ from src.services.spdata_atendimentos_service import (
     agenda_spdata_para_frontend,
     filtrar_agenda_frontend,
     filtro_visivel_medico_spdata,
+    sexo_para_frontend,
     tipo_procedimento_frontend,
 )
 from src.utils.tuss import codigo_tuss_visivel_medico
@@ -73,6 +75,7 @@ def test_agenda_spdata_para_frontend_expoe_nome_social_sem_substituir_nome_civil
         unidade_id=1,
         data_nascimento=date(1975, 2, 9),
         hora_entrada=time(10, 26),
+        sexo="F",
     )
 
     item = agenda_spdata_para_frontend(agenda, spdata_ref)
@@ -80,6 +83,7 @@ def test_agenda_spdata_para_frontend_expoe_nome_social_sem_substituir_nome_civil
     assert item["paciente"]["nome"] == "JOAO NOME CIVIL"
     assert item["paciente"]["nomeSocial"] == "JOAO NOME SOCIAL"
     assert item["paciente"]["dataNascimento"] == "1975-02-09"
+    assert item["paciente"]["sexo"] == "feminino"
     assert item["horario"] == "10:26"
     assert item["horarioAgendado"] == "10:00"
     assert item["horarioEntrada"] == "10:26"
@@ -120,6 +124,23 @@ def test_agenda_spdata_placeholder_mantem_horario_agendado():
     assert item["horario"] == "10:00"
     assert item["horarioAgendado"] == "10:00"
     assert item["horarioEntrada"] is None
+    assert item["paciente"]["sexo"] is None
+
+
+@pytest.mark.parametrize(
+    ("valor", "esperado"),
+    [
+        ("F", "feminino"),
+        ("feminino", "feminino"),
+        ("M", "masculino"),
+        ("masculino", "masculino"),
+        (None, None),
+        ("", None),
+        ("desconhecido", None),
+    ],
+)
+def test_sexo_para_frontend_nao_inventa_valor(valor, esperado):
+    assert sexo_para_frontend(valor) == esperado
 
 
 def test_filtro_consultas_medico_inclui_faixa_consulta_e_codigo_5001():
