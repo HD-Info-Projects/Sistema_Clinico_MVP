@@ -1,3 +1,7 @@
+import type { RoleUsuario } from '~/utils/roles'
+
+export type { RoleUsuario } from '~/utils/roles'
+
 export interface MedicamentoUso {
   nome: string
   dosagem: string
@@ -115,7 +119,7 @@ export interface AuthUser {
   id: number
   nome: string
   email: string
-  role: 'medico' | 'recepcao' | 'admin' | 'dpo' | 'ti'
+  role: RoleUsuario
   especialidades?: string[]
   crm?: string
   clinicaIds: number[]
@@ -405,7 +409,7 @@ export interface Usuario {
   cnpj_cpf: string
   username?: string | null
   email?: string | null
-  role: 'medico' | 'recepcao' | 'admin'
+  role: RoleUsuario
   ativo?: boolean
   bloqueado?: boolean
   bloqueado_em?: string | null
@@ -435,7 +439,7 @@ export interface UsuarioForm {
   username: string
   email?: string
   senha?: string
-  role: 'medico' | 'recepcao' | 'admin'
+  role: RoleUsuario
   ativo?: boolean
   unidade_ids?: number[]
   medico?: {
@@ -448,8 +452,6 @@ export interface UsuarioForm {
     ativo?: boolean
   }
 }
-
-export type RoleUsuario = 'medico' | 'recepcao' | 'admin'
 
 export interface MedicoSpdata {
   spdata_id: number

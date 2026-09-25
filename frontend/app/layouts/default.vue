@@ -25,7 +25,7 @@ function trocarUnidade() {
 }
 
 const navItems = computed(() => [
-  ...(auth.user?.role === 'medico'
+  ...(auth.isMedico
     ? [
         { label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: '/dashboard' },
         { label: 'Agenda', icon: 'i-lucide-calendar', to: '/agenda' },
@@ -34,7 +34,7 @@ const navItems = computed(() => [
         { label: 'Padrões', icon: 'i-lucide-file-text', to: '/padroes-solicitacoes' }
       ]
     : []),
-  ...(['admin', 'dpo', 'ti'].includes(auth.user?.role || '')
+  ...(auth.canAccessLgpd
     ? [{ label: 'Auditoria LGPD', icon: 'i-lucide-shield-check', to: '/lgpd/auditoria' }]
     : [])
 ])

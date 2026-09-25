@@ -13,6 +13,7 @@ from src.integrations.pacs import (
 from src.models.auditoria_model import AcaoAuditoria
 from src.modules.clinico.prontuario import _referencia_autorizada_paciente
 from src.security.decorators import roles_required
+from src.security.roles import MEDICO_ROLES
 from src.security.unidades import unidade_id_request
 from src.services.auditoria_service import registrar_auditoria
 
@@ -73,7 +74,7 @@ def _garantir_acesso_lancamento(usuario_id: int, id_lancamento: int):
 
 @exames_pacs_bp.route("/paciente/<int:paciente_id>", methods=["GET"])
 @jwt_required()
-@roles_required("medico")
+@roles_required(*MEDICO_ROLES)
 def listar_exames_paciente(paciente_id: int):
     usuario_id = None
     try:
@@ -110,7 +111,7 @@ def listar_exames_paciente(paciente_id: int):
 
 @exames_pacs_bp.route("/<int:id>/laudo", methods=["GET"])
 @jwt_required()
-@roles_required("medico")
+@roles_required(*MEDICO_ROLES)
 def busca_laudo_exame_pacs(id: int):
     usuario_id = None
     try:
@@ -151,7 +152,7 @@ def busca_laudo_exame_pacs(id: int):
 
 @exames_pacs_bp.route("/<int:id>", methods=["POST"])
 @jwt_required()
-@roles_required("medico")
+@roles_required(*MEDICO_ROLES)
 def busca_exames_pacs(id: int):
     usuario_id = None
     try:

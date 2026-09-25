@@ -14,6 +14,7 @@ from src.modules.usuarios.models import Medico, Usuario
 from src.models.auditoria_model import AcaoAuditoria
 from src.security.decorators import roles_required
 from src.security.passwords import validate_password_strength
+from src.security.roles import ADMIN_ROLES, ROLES_EXIGEM_UNIDADE, ROLES_USUARIO
 from src.modules.lgpd.service import registrar_auditoria
 from src.services.medicos_spdata_service import (
     buscar_medicos_spdata,
@@ -25,9 +26,6 @@ from src.settings.extensions import db
 
 
 usuarios_bp = Blueprint("usuarios", __name__, url_prefix="/usuarios")
-
-ROLES_VALIDAS = {"medico", "recepcao", "admin"}
-ROLES_EXIGEM_UNIDADE = {"medico", "recepcao"}
 
 
 def _bool_payload(valor):
@@ -109,7 +107,7 @@ def _medico_payload(data):
 
 
 def _validar_role(role):
-    if role not in ROLES_VALIDAS:
+    if role not in ROLES_USUARIO:
         return jsonify({"error": "Perfil de usuário inválido."}), 400
     return None
 
@@ -163,12 +161,37 @@ def _aplicar_campos_medico(medico, payload):
         medico.ativo = _bool_payload(payload["ativo"])
 
 
+def _garantir_vinculo_medico(usuario, payload):
+    spdata_id = normalizar_int(payload.get("spdata_id"))
+
+    if usuario.medico:
+        if spdata_id is not None and spdata_id != usuario.medico.spdata_id:
+            raise ValueError("Não é permitido alterar o vínculo SPDATA do médico.")
+        return usuario.medico
+
+    if spdata_id is None:
+        raise ValueError("Informe o médico do SPDATA.")
+
+    medico_existente = db.session.execute(
+        select(Medico).where(Medico.spdata_id == spdata_id)
+    ).scalars().first()
+
+    if medico_existente and medico_existente.usuario_id != usuario.id:
+        raise ValueError("Médico SPDATA já vinculado a outro usuário.")
+
+    medico = medico_existente or Medico(usuario_id=usuario.id, spdata_id=spdata_id)
+    medico.usuario_id = usuario.id
+    usuario.medico = medico
+    db.session.add(medico)
+    return medico
+
+
 @usuarios_bp.route("", methods=["GET"])
 @jwt_required()
-@roles_required("admin")
+@roles_required(*ADMIN_ROLES)
 def listar_usuarios():
     role = request.args.get("role")
-    if role and role not in ROLES_VALIDAS:
+    if role and role not in ROLES_USUARIO:
         return jsonify({"error": "Perfil de usuário inválido."}), 400
 
     query = (
@@ -184,7 +207,7 @@ def listar_usuarios():
 
 @usuarios_bp.route("/medicos-spdata", methods=["GET"])
 @jwt_required()
-@roles_required("admin")
+@roles_required(*ADMIN_ROLES)
 def buscar_medicos_spdata_admin():
     spdata_id = request.args.get("spdata_id", type=int)
     cpf = normalizar_texto(request.args.get("cpf"), 255)
@@ -200,7 +223,7 @@ def buscar_medicos_spdata_admin():
 
 @usuarios_bp.route("", methods=["POST"])
 @jwt_required()
-@roles_required("admin")
+@roles_required(*ADMIN_ROLES)
 def criar_usuario():
     data = request.get_json(silent=True) or {}
     role = data.get("role") or "medico"
@@ -318,7 +341,7 @@ def _criar_medico_spdata(data, username, email, senha, unidade_ids):
 
 @usuarios_bp.route("/<int:usuario_id>", methods=["PUT"])
 @jwt_required()
-@roles_required("admin")
+@roles_required(*ADMIN_ROLES)
 def atualizar_usuario(usuario_id):
     usuario = _usuario_por_id(usuario_id)
     if not usuario:
@@ -362,15 +385,9 @@ def atualizar_usuario(usuario_id):
 
         if role == "medico":
             payload_medico = _medico_payload(data)
-            if not usuario.medico:
-                return jsonify({"error": "Médico sem vínculo SPDATA. Cadastre novamente pelo SPDATA."}), 400
-
-            spdata_id = normalizar_int(payload_medico.get("spdata_id"))
-            if spdata_id is not None and spdata_id != usuario.medico.spdata_id:
-                return jsonify({"error": "Não é permitido alterar o vínculo SPDATA do médico."}), 400
-
-            _aplicar_campos_medico(usuario.medico, payload_medico)
-            usuario.medico.ativo = usuario.ativo
+            medico = _garantir_vinculo_medico(usuario, payload_medico)
+            _aplicar_campos_medico(medico, payload_medico)
+            medico.ativo = usuario.ativo
         elif usuario.medico:
             usuario.medico.ativo = False
 
@@ -394,7 +411,7 @@ def atualizar_usuario(usuario_id):
 
 @usuarios_bp.route("/<int:usuario_id>/desbloquear", methods=["POST"])
 @jwt_required()
-@roles_required("admin")
+@roles_required(*ADMIN_ROLES)
 def desbloquear_usuario(usuario_id):
     usuario = _usuario_por_id(usuario_id)
     if not usuario:
@@ -417,7 +434,7 @@ def desbloquear_usuario(usuario_id):
 
 @usuarios_bp.route("/<int:usuario_id>", methods=["DELETE"])
 @jwt_required()
-@roles_required("admin")
+@roles_required(*ADMIN_ROLES)
 def inativar_usuario(usuario_id):
     usuario = _usuario_por_id(usuario_id)
     if not usuario:

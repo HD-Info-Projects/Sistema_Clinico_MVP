@@ -11,6 +11,7 @@ from src.modules.documentos.service import (
     excluir_documento_personalizado,
 )
 from src.security.decorators import roles_required
+from src.security.roles import MEDICO_ROLES
 from src.security.unidades import unidade_id_request
 from src.services.auditoria_service import registrar_auditoria
 from src.settings.extensions import db
@@ -31,7 +32,7 @@ def parse_ids(valor):
 
 @documentos_medicos_bp.route("", methods=["GET"])
 @jwt_required()
-@roles_required("medico")
+@roles_required(*MEDICO_ROLES)
 def listar_documentos():
     try:
         usuario_id = int(get_jwt_identity())
@@ -65,7 +66,7 @@ def listar_documentos():
 
 @documentos_medicos_bp.route("/<int:med_spdata_atendimento_id>", methods=["GET"])
 @jwt_required()
-@roles_required("medico")
+@roles_required(*MEDICO_ROLES)
 def listar_documentos_do_atendimento(med_spdata_atendimento_id):
     try:
         usuario_id = int(get_jwt_identity())
@@ -94,7 +95,7 @@ def listar_documentos_do_atendimento(med_spdata_atendimento_id):
 
 @documentos_medicos_bp.route("/<int:med_spdata_atendimento_id>/personalizados", methods=["GET"])
 @jwt_required()
-@roles_required("medico")
+@roles_required(*MEDICO_ROLES)
 def listar_documentos_personalizados(med_spdata_atendimento_id):
     try:
         usuario_id = int(get_jwt_identity())
@@ -115,21 +116,21 @@ def listar_documentos_personalizados(med_spdata_atendimento_id):
 
 @documentos_medicos_bp.route("/<int:med_spdata_atendimento_id>/personalizados", methods=["POST"])
 @jwt_required()
-@roles_required("medico")
+@roles_required(*MEDICO_ROLES)
 def criar_documento_personalizado(med_spdata_atendimento_id):
     return _salvar_documento_personalizado(med_spdata_atendimento_id)
 
 
 @documentos_medicos_bp.route("/<int:med_spdata_atendimento_id>/personalizados/<int:documento_id>", methods=["PUT"])
 @jwt_required()
-@roles_required("medico")
+@roles_required(*MEDICO_ROLES)
 def editar_documento_personalizado(med_spdata_atendimento_id, documento_id):
     return _salvar_documento_personalizado(med_spdata_atendimento_id, documento_id)
 
 
 @documentos_medicos_bp.route("/<int:med_spdata_atendimento_id>/personalizados/<int:documento_id>", methods=["DELETE"])
 @jwt_required()
-@roles_required("medico")
+@roles_required(*MEDICO_ROLES)
 def excluir_documento_personalizado_route(med_spdata_atendimento_id, documento_id):
     try:
         excluir_documento_personalizado(
@@ -186,7 +187,7 @@ def _salvar_documento_personalizado(med_spdata_atendimento_id, documento_id=None
 
 @documentos_medicos_bp.route("/<int:med_spdata_atendimento_id>/<tipo>", methods=["PUT"])
 @jwt_required()
-@roles_required("medico")
+@roles_required(*MEDICO_ROLES)
 def salvar_documento_medico(med_spdata_atendimento_id, tipo):
     try:
         usuario_id = int(get_jwt_identity())

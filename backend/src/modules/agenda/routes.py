@@ -6,6 +6,7 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from src.models.auditoria_model import AcaoAuditoria
 from src.models.model_mydsystem.med_spdata_agenda_model import MedSpdataAgenda
 from src.security.decorators import roles_required
+from src.security.roles import COORD_RECEPCAO_ROLES, MEDICO_ROLES
 from src.security.unidades import unidade_atual_required, unidade_id_request
 from src.services.auditoria_service import registrar_auditoria
 from src.shared.performance_monitoring import iniciar_probe
@@ -50,7 +51,7 @@ def _invalidar_cache_recepcao():
 
 @agenda_medica_bp.route("/", methods=["GET"])
 @jwt_required()
-@roles_required("medico")
+@roles_required(*MEDICO_ROLES)
 def listar_agenda():
     try:
         usuario_id = int(get_jwt_identity())
@@ -140,7 +141,7 @@ def listar_agenda():
 
 @agenda_medica_bp.route("/marcadores", methods=["GET"])
 @jwt_required()
-@roles_required("medico")
+@roles_required(*MEDICO_ROLES)
 def listar_marcadores_agenda():
     try:
         usuario_id = int(get_jwt_identity())
@@ -171,7 +172,7 @@ def listar_marcadores_agenda():
 
 @agenda_medica_bp.route("/<int:med_spdata_atendimento_id>/status", methods=["PATCH"])
 @jwt_required()
-@roles_required("medico")
+@roles_required(*MEDICO_ROLES)
 def atualizar_status(med_spdata_atendimento_id):
     try:
         usuario_id = int(get_jwt_identity())
@@ -236,7 +237,7 @@ def _parse_int_ns(nome, default, minimo=1, maximo=None):
 
 @no_show_bp.route("/", methods=["GET"])
 @jwt_required()
-@roles_required("recepcao", "admin")
+@roles_required(*COORD_RECEPCAO_ROLES)
 def index():
     try:
         hoje = date.today()
@@ -324,7 +325,7 @@ def index():
 
 @no_show_bp.route("/<int:agenda_id>/motivo", methods=["PATCH"])
 @jwt_required()
-@roles_required("recepcao", "admin")
+@roles_required(*COORD_RECEPCAO_ROLES)
 def atualizar_motivo(agenda_id):
     try:
         body = request.get_json() or {}

@@ -2,6 +2,7 @@
 import type { Usuario, UsuarioForm, RoleUsuario, MedicoSpdata } from '~/types'
 import { useUnidadesStore } from '~/features/unidades/stores/unidadesStore'
 import { formatarCpfCnpj } from '~/utils/masks'
+import { ROLE_OPTIONS, roleExigeUnidade, roleLabel } from '~/utils/roles'
 
 const props = defineProps<{
   usuario?: Usuario | null
@@ -40,18 +41,14 @@ const estadosBr = [
 
 const titulo = computed(() => {
   const acao = props.usuario ? 'Editar' : 'Novo'
-  const tipo: Record<RoleUsuario, string> = {
-    medico: 'Medico',
-    recepcao: 'Recepcionista',
-    admin: 'Administrador'
-  }
-  return `${acao} ${tipo[props.role]}`
+  return `${acao} ${roleLabel(roleAtual.value)}`
 })
 
 const roleAtual = computed(() => form.value.role || props.role)
-const exigeUnidade = computed(() => ['medico', 'recepcao'].includes(roleAtual.value))
+const exigeUnidade = computed(() => roleExigeUnidade(roleAtual.value))
 const unidadesAtivas = computed(() => unidadesStore.unidades.filter(unidade => unidade.ativa !== false))
 const unidadesSelecionadas = computed(() => form.value.unidade_ids ?? [])
+const bloqueiaVinculoMedico = computed(() => props.usuario?.role === 'medico')
 
 const podeSalvar = computed(() => {
   const camposBase = Boolean(
@@ -70,7 +67,7 @@ watch(open, (isOpen) => {
   if (isOpen) {
     mostrarSenha.value = false
     usuariosStore.limparMedicosSpdata()
-    if (props.role !== 'admin' && unidadesStore.unidades.length === 0) {
+    if (roleExigeUnidade(props.role) && unidadesStore.unidades.length === 0) {
       void unidadesStore.fetchAll()
     }
     form.value.role = props.role
@@ -111,6 +108,15 @@ watch(open, (isOpen) => {
       }
       spdataBusca.value = ''
     }
+  }
+})
+
+watch(roleAtual, (role) => {
+  if (role === 'medico' && !form.value.medico) {
+    form.value.medico = { ativo: true }
+  }
+  if (roleExigeUnidade(role) && unidadesStore.unidades.length === 0) {
+    void unidadesStore.fetchAll()
   }
 })
 
@@ -158,6 +164,7 @@ async function salvar() {
     dados.cnpj_cpf = dados.cnpj_cpf.replace(/\D/g, '')
     if (!dados.senha?.trim()) delete dados.senha
     if (!exigeUnidade.value) delete dados.unidade_ids
+    if (dados.role !== 'medico') delete dados.medico
 
     if (props.usuario) {
       const res = await usuariosStore.atualizar(props.usuario.id, dados)
@@ -202,7 +209,7 @@ async function salvar() {
 
     <template #body>
       <div class="space-y-4">
-        <template v-if="role === 'medico'">
+        <template v-if="roleAtual === 'medico'">
           <USeparator label="Vínculo SPDATA" />
 
           <div class="space-y-3">
@@ -215,7 +222,7 @@ async function salvar() {
                   v-model="spdataBusca"
                   class="w-full"
                   placeholder="Buscar médico por nome no SPDATA"
-                  :disabled="Boolean(usuario)"
+                  :disabled="bloqueiaVinculoMedico"
                   @keydown.enter.prevent="buscarSpdata"
                 />
               </UFormField>
@@ -223,7 +230,7 @@ async function salvar() {
                 label="Buscar SPDATA"
                 class="w-full justify-center sm:w-auto"
                 :loading="buscandoSpdata"
-                :disabled="Boolean(usuario) || !spdataBusca.trim()"
+                :disabled="bloqueiaVinculoMedico || !spdataBusca.trim()"
                 @click="buscarSpdata"
               />
             </div>
@@ -241,7 +248,7 @@ async function salvar() {
             </div>
 
             <div
-              v-if="!usuario && usuariosStore.medicosSpdata.length"
+              v-if="!bloqueiaVinculoMedico && usuariosStore.medicosSpdata.length"
               class="space-y-2 max-h-56 overflow-auto rounded-md border border-default p-2"
             >
               <button
@@ -266,6 +273,16 @@ async function salvar() {
           <UInput
             v-model="form.nome_completo"
             placeholder="Nome completo"
+            class="w-full"
+          />
+        </UFormField>
+
+        <UFormField label="Perfil de acesso">
+          <USelect
+            v-model="form.role"
+            :items="ROLE_OPTIONS"
+            value-key="value"
+            label-key="label"
             class="w-full"
           />
         </UFormField>
@@ -355,7 +372,7 @@ async function salvar() {
           <UAlert
             v-else-if="unidadesAtivas.length === 0"
             title="Nenhuma unidade ativa cadastrada"
-            description="Cadastre uma unidade ativa antes de criar médicos ou recepcionistas."
+            description="Cadastre uma unidade ativa antes de criar usuários de atendimento."
             color="warning"
             variant="subtle"
             icon="i-lucide-building"
@@ -385,7 +402,7 @@ async function salvar() {
           </p>
         </template>
 
-        <template v-if="role === 'medico'">
+        <template v-if="roleAtual === 'medico'">
           <USeparator label="Dados Médicos" />
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">

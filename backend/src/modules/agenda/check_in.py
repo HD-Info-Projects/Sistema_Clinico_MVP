@@ -11,6 +11,7 @@ from src.models.medico_model import Medico
 from src.models.model_mydsystem.med_atendimentos_model import MedAtendimentos
 from src.models.model_mydsystem.med_spdata_convenios_model import MedSpdataConvenio
 from src.security.decorators import roles_required
+from src.security.roles import RECEPCAO_ROLES
 from src.security.unidades import unidade_atual_required
 from src.services.auditoria_service import registrar_auditoria
 from src.shared.performance_monitoring import iniciar_probe
@@ -750,7 +751,7 @@ def calcular_medicos(rows, especialidades_por_medico):
 
 @check_in_bp.route("/", methods=["GET"])
 @jwt_required()
-@roles_required("recepcao", "admin")
+@roles_required(*RECEPCAO_ROLES)
 def home_check_in():
     probe = None
     try:
@@ -888,7 +889,7 @@ def home_check_in():
 
 @check_in_bp.route("/sincronizar", methods=["POST"])
 @jwt_required()
-@roles_required("recepcao", "admin")
+@roles_required(*RECEPCAO_ROLES)
 def sincronizar_check_in():
     try:
         body = request.get_json(silent=True) or {}

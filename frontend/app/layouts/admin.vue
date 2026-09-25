@@ -21,6 +21,10 @@ const navItems = [
   { label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: '/admin' },
   { label: 'Medicos', icon: 'i-lucide-stethoscope', to: '/admin/medicos' },
   { label: 'Recepcionistas', icon: 'i-lucide-user-plus', to: '/admin/recepcao' },
+  { label: 'Coord. Recepcao', icon: 'i-lucide-clipboard-list', to: '/admin/coord-recepcao' },
+  { label: 'DPO', icon: 'i-lucide-shield-check', to: '/admin/dpo' },
+  { label: 'TI', icon: 'i-lucide-monitor-cog', to: '/admin/ti' },
+  { label: 'Coord. Financeiro', icon: 'i-lucide-wallet-cards', to: '/admin/coord-financeiro' },
   { label: 'Administradores', icon: 'i-lucide-shield', to: '/admin/admins' },
   { label: 'Unidades', icon: 'i-lucide-building', to: '/admin/unidades' }
 ]

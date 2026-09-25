@@ -13,6 +13,7 @@ from src.modules.unidades.service import (
 from src.security.decorators import active_user_required, roles_required
 from src.security.jwt_blocklist import revoke_jti
 from src.security.passwords import validate_password_strength
+from src.security.roles import ADMIN_ROLES
 from src.services.auditoria_service import registrar_auditoria
 from src.services.medicos_spdata_service import (
     buscar_medicos_spdata,
@@ -165,7 +166,7 @@ def logout():
 
 @login_bp.route("/register", methods=["POST"])
 @jwt_required()
-@roles_required("admin")
+@roles_required(*ADMIN_ROLES)
 def register_medic():
     try:
         data = request.get_json(silent=True) or {}
