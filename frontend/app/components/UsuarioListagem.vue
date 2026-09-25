@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Usuario, RoleUsuario } from '~/types'
 import { formatarCpfCnpj } from '~/utils/masks'
+import { roleLabel } from '~/utils/roles'
 
 const props = defineProps<{
   role: RoleUsuario
@@ -16,6 +17,7 @@ const showFormModal = ref(false)
 const editingUsuario = ref<Usuario | null>(null)
 const confirmDeleteId = ref<number | null>(null)
 const confirmUnlockId = ref<number | null>(null)
+const novoUsuarioLabel = computed(() => roleLabel(props.role))
 
 let buscaTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -105,9 +107,9 @@ function onSaved() {
         <div class="flex flex-wrap items-center justify-end gap-2">
           <UButton
             icon="i-lucide-plus"
-            :label="`Novo ${titulo.replace('s', '')}`"
+            :label="`Novo ${novoUsuarioLabel}`"
             :ui="{ label: 'hidden sm:inline' }"
-            :aria-label="`Novo ${titulo.replace('s', '')}`"
+            :aria-label="`Novo ${novoUsuarioLabel}`"
             @click="abrirNovo"
           />
           <UColorModeButton />

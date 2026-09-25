@@ -11,6 +11,7 @@ from src.modules.unidades.service import (
     listar_unidades_usuario_frontend,
 )
 from src.security.decorators import active_user_required, roles_required
+from src.security.roles import ADMIN_ROLES
 
 
 unidades_bp = Blueprint("unidades", __name__, url_prefix="/unidades")
@@ -22,7 +23,7 @@ def _payload_error_response(error):
 
 @unidades_bp.route("", methods=["GET"])
 @jwt_required()
-@roles_required("admin")
+@roles_required(*ADMIN_ROLES)
 def listar_unidades():
     unidades = listar_unidades_admin()
     return jsonify([unidade._to_dict() for unidade in unidades]), 200
@@ -30,7 +31,7 @@ def listar_unidades():
 
 @unidades_bp.route("", methods=["POST"])
 @jwt_required()
-@roles_required("admin")
+@roles_required(*ADMIN_ROLES)
 def criar_unidade():
     data = request.get_json(silent=True) or {}
     try:
@@ -46,7 +47,7 @@ def criar_unidade():
 
 @unidades_bp.route("/<int:unidade_id>", methods=["PUT"])
 @jwt_required()
-@roles_required("admin")
+@roles_required(*ADMIN_ROLES)
 def atualizar_unidade(unidade_id):
     data = request.get_json(silent=True) or {}
     try:
@@ -65,7 +66,7 @@ def atualizar_unidade(unidade_id):
 
 @unidades_bp.route("/<int:unidade_id>", methods=["DELETE"])
 @jwt_required()
-@roles_required("admin")
+@roles_required(*ADMIN_ROLES)
 def inativar_unidade(unidade_id):
     unidade = inativar_unidade_service(unidade_id)
     if not unidade:

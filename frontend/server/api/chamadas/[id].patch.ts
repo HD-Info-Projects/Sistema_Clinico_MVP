@@ -1,12 +1,13 @@
 import { z } from 'zod'
 import { atualizarChamadoStatus } from '../../features/chamadas/service'
+import { SERVER_CHAMADAS_ROLES } from '../../utils/roles'
 
 const atualizarChamadoSchema = z.object({
   status: z.enum(['concluido', 'cancelado'])
 })
 
 export default defineEventHandler(async (event) => {
-  const user = await requireRole(event, ['medico', 'recepcao'])
+  const user = await requireRole(event, SERVER_CHAMADAS_ROLES)
   const clinicaId = requireClinicaUsuario(event, user)
   const id = Number(getRouterParam(event, 'id'))
 

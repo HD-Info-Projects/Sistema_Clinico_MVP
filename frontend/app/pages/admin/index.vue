@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Usuario } from '~/types'
 import { useUnidadesStore } from '~/features/unidades/stores/unidadesStore'
+import { roleColor, roleLabel } from '~/utils/roles'
 
 definePageMeta({ layout: 'admin' })
 
@@ -17,9 +18,11 @@ const userName = computed(() => auth.user?.nome || 'Administrador')
 
 const totalMedicos = computed(() => usuariosStore.porRole('medico').filter(u => u.ativo !== false).length)
 const totalRecepcao = computed(() => usuariosStore.porRole('recepcao').filter(u => u.ativo !== false).length)
+const totalCoordRecepcao = computed(() => usuariosStore.porRole('coord_recepcao').filter(u => u.ativo !== false).length)
+const totalDpo = computed(() => usuariosStore.porRole('dpo').filter(u => u.ativo !== false).length)
+const totalCoordFinanceiro = computed(() => usuariosStore.porRole('coord_financeiro').filter(u => u.ativo !== false).length)
 const totalAdmins = computed(() => usuariosStore.porRole('admin').filter(u => u.ativo !== false).length)
 const totalUnidades = computed(() => unidadesStore.unidades.filter(u => u.ativa).length)
-// const totalUsuarios = computed(() => totalMedicos.value + totalRecepcao.value + totalAdmins.value)
 
 const ultimosUsuarios = computed(() => {
   return [...usuariosStore.usuarios]
@@ -33,21 +36,11 @@ onMounted(() => {
 })
 
 function corRole(role: string) {
-  switch (role) {
-    case 'admin': return 'error'
-    case 'medico': return 'primary'
-    case 'recepcao': return 'success'
-    default: return 'neutral'
-  }
+  return roleColor(role)
 }
 
 function rotuloRole(role: string) {
-  switch (role) {
-    case 'admin': return 'Administrador'
-    case 'medico': return 'Medico'
-    case 'recepcao': return 'Recepcionista'
-    default: return role
-  }
+  return roleLabel(role)
 }
 
 function formatarData(data: string) {
@@ -154,6 +147,54 @@ function onSaved() {
               color="primary"
               class="mt-3"
               to="/admin/recepcao"
+            />
+          </div>
+        </CardInformativo>
+
+        <CardInformativo
+          titulo="Coord. Recepcao"
+          :valor="totalCoordRecepcao"
+          cor="warning"
+          icone="i-lucide-clipboard-list"
+        >
+          <div class="flex justify-end">
+            <UButton
+              label="Gerenciar"
+              color="primary"
+              class="mt-3"
+              to="/admin/coord-recepcao"
+            />
+          </div>
+        </CardInformativo>
+
+        <CardInformativo
+          titulo="DPO"
+          :valor="totalDpo"
+          cor="secondary"
+          icone="i-lucide-shield-check"
+        >
+          <div class="flex justify-end">
+            <UButton
+              label="Gerenciar"
+              color="primary"
+              class="mt-3"
+              to="/admin/dpo"
+            />
+          </div>
+        </CardInformativo>
+
+        <CardInformativo
+          titulo="Coord. Financeiro"
+          :valor="totalCoordFinanceiro"
+          cor="tertiary"
+          icone="i-lucide-wallet-cards"
+        >
+          <div class="flex justify-end">
+            <UButton
+              label="Gerenciar"
+              color="primary"
+              class="mt-3"
+              to="/admin/coord-financeiro"
             />
           </div>
         </CardInformativo>

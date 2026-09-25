@@ -1,6 +1,5 @@
 import { z } from 'zod'
-
-export const ROLES_USUARIO = ['medico', 'recepcao', 'admin'] as const
+import { SERVER_ROLES_USUARIO, SERVER_UNIDADE_REQUIRED_ROLES } from '../../utils/roles'
 
 const emailOpcionalSchema = z.preprocess(
   value => typeof value === 'string' ? value.trim() || undefined : value,
@@ -28,7 +27,7 @@ export const criarUsuarioSchema = z.object({
   username: usernameSchema,
   email: emailOpcionalSchema,
   senha: z.string().min(8).max(256),
-  role: z.enum(ROLES_USUARIO),
+  role: z.enum(SERVER_ROLES_USUARIO),
   ativo: z.boolean().optional(),
   unidade_ids: z.array(z.number().int().positive()).optional(),
   medico: medicoDadosSchema.optional()
@@ -40,7 +39,7 @@ export const criarUsuarioSchema = z.object({
       message: 'Informe o vínculo SPDATA do médico'
     })
   }
-  if (data.role !== 'admin' && (!data.unidade_ids || data.unidade_ids.length === 0)) {
+  if (SERVER_UNIDADE_REQUIRED_ROLES.includes(data.role) && (!data.unidade_ids || data.unidade_ids.length === 0)) {
     ctx.addIssue({
       code: 'custom',
       path: ['unidade_ids'],
@@ -55,7 +54,7 @@ export const atualizarUsuarioSchema = z.object({
   username: usernameSchema.optional(),
   email: emailOpcionalSchema,
   senha: z.string().min(8).max(256).optional(),
-  role: z.enum(ROLES_USUARIO).optional(),
+  role: z.enum(SERVER_ROLES_USUARIO).optional(),
   ativo: z.boolean().optional(),
   unidade_ids: z.array(z.number().int().positive()).optional(),
   medico: medicoDadosSchema.optional()
@@ -67,7 +66,7 @@ export const atualizarUsuarioSchema = z.object({
       message: 'Informe o vínculo SPDATA do médico'
     })
   }
-  if ((data.role === 'medico' || data.role === 'recepcao') && data.unidade_ids && data.unidade_ids.length === 0) {
+  if (data.role && SERVER_UNIDADE_REQUIRED_ROLES.includes(data.role) && data.unidade_ids && data.unidade_ids.length === 0) {
     ctx.addIssue({
       code: 'custom',
       path: ['unidade_ids'],

@@ -5,6 +5,7 @@ import { clearActiveClinicaIdCookie, clinicasFromBackend, resolveActiveClinicaId
 import { fetchErrorStatus } from './proxy-error'
 import { getRequestId, logUpstreamFailure, REQUEST_ID_HEADER } from './request-id'
 import { setPrivateNoStore } from './response'
+import type { ServerRoleUsuario } from './roles'
 
 export const AUTH_COOKIE_NAME = 'auth_token'
 
@@ -13,7 +14,7 @@ type BackendAuthUser = {
   username?: string | null
   email?: string | null
   nome_completo: string
-  role: 'medico' | 'recepcao' | 'admin' | 'dpo' | 'ti'
+  role: ServerRoleUsuario
   crm?: string | null
   especialidade?: string | null
   unidades?: ServerClinica[]
@@ -122,7 +123,7 @@ export async function getAuthenticatedUser(event: H3Event) {
   }
 }
 
-export async function requireRole(event: H3Event, roles: BackendAuthUser['role'][]) {
+export async function requireRole(event: H3Event, roles: readonly BackendAuthUser['role'][]) {
   const user = await getAuthenticatedUser(event)
 
   if (!roles.includes(user.role)) {
