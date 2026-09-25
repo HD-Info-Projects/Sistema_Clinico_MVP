@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { Usuario } from '~/types'
 import { useUnidadesStore } from '~/features/unidades/stores/unidadesStore'
 
 definePageMeta({ layout: 'admin' })
@@ -7,6 +8,10 @@ const auth = useAuthStore()
 const usuariosStore = useUsuariosStore()
 const unidadesStore = useUnidadesStore()
 const openNav = inject<() => void>('openNav', () => {})
+const showFormModal = ref(false)
+const editingUsuario = ref<Usuario | null>(null)
+const confirmDeleteId = ref<number | null>(null)
+const confirmUnlockId = ref<number | null>(null)
 
 const userName = computed(() => auth.user?.nome || 'Administrador')
 
@@ -48,6 +53,37 @@ function rotuloRole(role: string) {
 function formatarData(data: string) {
   return new Date(data).toLocaleDateString('pt-BR')
 }
+
+function editar(usuario: Usuario) {
+  editingUsuario.value = usuario
+  showFormModal.value = true
+}
+
+async function executarExclusao() {
+  if (confirmDeleteId.value === null) return
+
+  const res = await usuariosStore.excluir(confirmDeleteId.value)
+  useToast().add({
+    title: res.message,
+    color: res.success ? 'success' : 'error'
+  })
+  confirmDeleteId.value = null
+}
+
+async function executarDesbloqueio() {
+  if (confirmUnlockId.value === null) return
+
+  const res = await usuariosStore.desbloquear(confirmUnlockId.value)
+  useToast().add({
+    title: res.message,
+    color: res.success ? 'success' : 'error'
+  })
+  confirmUnlockId.value = null
+}
+
+function onSaved() {
+  usuariosStore.fetchAll()
+}
 </script>
 
 <template>
@@ -81,7 +117,7 @@ function formatarData(data: string) {
 
     <div class="min-h-screen space-y-6 bg-muted p-4 sm:p-6">
       <div class="min-w-0">
-        <p class="break-words text-2xl font-semibold sm:text-3xl">
+        <p class="wrap-break-word text-2xl font-semibold sm:text-3xl">
           Bem-vindo, {{ userName }}
         </p>
         <p class="text-base text-muted mt-1">
@@ -203,7 +239,7 @@ function formatarData(data: string) {
             :ui="{ container: 'px-4 sm:p-1 pb-3 sm:px-4' }"
           >
             <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-12 lg:items-center">
-              <div class="lg:col-span-4">
+              <div class="lg:col-span-3">
                 <p class="text-sm font-bold text-muted">
                   Nome
                 </p>
@@ -230,13 +266,33 @@ function formatarData(data: string) {
                 />
               </div>
 
-              <div class="lg:col-span-4">
+              <div class="lg:col-span-2">
                 <p class="text-sm font-bold text-muted">
-                  Email
+                  Usuário
                 </p>
                 <p class="break-all text-sm">
-                  {{ usuario.email }}
+                  {{ usuario.username || "-" }}
                 </p>
+              </div>
+
+              <div class="lg:col-span-1">
+                <p class="text-sm font-bold text-muted">
+                  Status
+                </p>
+                <UBadge
+                  v-if="!usuario.bloqueado"
+                  :label="usuario.ativo ? 'Ativo' : 'Inativo'"
+                  :color="usuario.ativo ? 'success' : 'neutral'"
+                  variant="subtle"
+                  size="sm"
+                />
+                <UBadge
+                  v-else
+                  label="Conta bloqueada"
+                  color="error"
+                  variant="subtle"
+                  size="sm"
+                />
               </div>
 
               <div class="lg:col-span-2">
@@ -247,10 +303,93 @@ function formatarData(data: string) {
                   {{ formatarData(usuario.created_at) }}
                 </span>
               </div>
+
+              <div class="sm:col-span-2 lg:col-span-2">
+                <p class="text-sm font-bold text-muted">
+                  Ações
+                </p>
+                <div class="flex items-end gap-1">
+                  <UButton
+                    v-if="usuario.role === 'medico'"
+                    icon="i-lucide-notebook-pen"
+                    color="neutral"
+                    variant="ghost"
+                    size="sm"
+                    class="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
+                    :aria-label="`Padrões de ${usuario.nome_completo}`"
+                    title="Padrões"
+                    @click="void(navigateTo(`/admin/padroes-medico/${usuario.id}`))"
+                  />
+                  <div
+                    v-else
+                    class="hidden sm:block sm:min-h-8 sm:min-w-8"
+                  />
+                  <UButton
+                    icon="i-lucide-pencil"
+                    color="neutral"
+                    variant="ghost"
+                    size="sm"
+                    class="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
+                    :aria-label="`Editar ${usuario.nome_completo}`"
+                    title="Editar usuário"
+                    @click="editar(usuario)"
+                  />
+                  <UButton
+                    icon="i-lucide-trash-2"
+                    color="error"
+                    variant="ghost"
+                    size="sm"
+                    class="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
+                    :aria-label="`Inativar ${usuario.nome_completo}`"
+                    title="Inativar usuário"
+                    :disabled="usuario.ativo === false"
+                    @click="void (confirmDeleteId = usuario.id)"
+                  />
+                  <UButton
+                    v-if="usuario.bloqueado"
+                    icon="i-lucide-lock-open"
+                    color="success"
+                    variant="ghost"
+                    size="sm"
+                    class="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
+                    :aria-label="`Desbloquear ${usuario.nome_completo}`"
+                    title="Desbloquear conta"
+                    @click="void(confirmUnlockId = usuario.id)"
+                  />
+                </div>
+              </div>
             </div>
           </UPageCard>
         </div>
       </UCard>
     </div>
+
+    <UsuarioFormModal
+      v-if="editingUsuario"
+      v-model:open="showFormModal"
+      :usuario="editingUsuario"
+      :role="editingUsuario.role"
+      @saved="onSaved"
+    />
+
+    <ModalConfirmacao
+      :abrir="confirmDeleteId !== null"
+      titulo="Inativar Usuario?"
+      descricao="Tem certeza que deseja inativar este usuario? Ele nao podera acessar o sistema."
+      texto-confirma="Inativar"
+      @fechar="confirmDeleteId = null"
+      @confirmar="executarExclusao"
+    />
+
+    <ModalConfirmacao
+      :abrir="confirmUnlockId !== null"
+      titulo="Desbloquear conta?"
+      descricao="O usuário poderá tentar fazer login novamente. Esta ação não altera o status ativo ou inativo da conta."
+      texto-confirma="Desbloquear"
+      cor-confirma="success"
+      icone="lucide:lock-open"
+      @fechar="confirmUnlockId = null"
+      @confirmar="executarDesbloqueio"
+    />
   </div>
 </template>
