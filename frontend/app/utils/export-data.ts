@@ -14,6 +14,28 @@ export interface OpcoesPdfExport<T> {
   rows: T[]
   columns: ColunaExport<T>[]
   filename: string
+  /**
+   * Aba aberta com abrirJanelaPdf() no clique do usuário.
+   * undefined: abre nova aba agora; null/fechada: baixa o PDF (pop-up bloqueado).
+   */
+  janela?: Window | null
+}
+
+/**
+ * Deve ser chamada de forma síncrona no clique, antes de qualquer await,
+ * para o navegador não bloquear o pop-up.
+ */
+export function abrirJanelaPdf() {
+  try {
+    const janela = window.open('', '_blank')
+    if (janela) {
+      janela.document.title = 'Gerando PDF...'
+      janela.document.body.innerHTML = '<p style="font-family:sans-serif;padding:16px">Gerando PDF...</p>'
+    }
+    return janela
+  } catch {
+    return null
+  }
 }
 
 function baixarArquivo(blob: Blob, filename: string) {
@@ -117,6 +139,7 @@ export async function exportTableToPDF<T>(opcoes: OpcoesPdfExport<T>) {
   const larguras = largurasColunas(columns, rows)
 
   const doc = {
+    info: { title: filename.endsWith('.pdf') ? filename.slice(0, -4) : filename },
     pageSize: 'A4',
     pageOrientation: 'landscape',
     pageMargins: [20, 20, 20, 40],
@@ -161,5 +184,19 @@ export async function exportTableToPDF<T>(opcoes: OpcoesPdfExport<T>) {
     }
   }
 
-  pdfMake.createPdf(doc as unknown as Record<string, unknown>).download(filename.endsWith('.pdf') ? filename : `${filename}.pdf`)
+  const pdf = pdfMake.createPdf(doc as unknown as Record<string, unknown>)
+  const { janela } = opcoes
+
+  if (janela === undefined) {
+    await pdf.open()
+    return 'aberto' as const
+  }
+
+  if (!janela || janela.closed) {
+    await pdf.download(filename.endsWith('.pdf') ? filename : `${filename}.pdf`)
+    return 'baixado' as const
+  }
+
+  await pdf.open(janela)
+  return 'aberto' as const
 }

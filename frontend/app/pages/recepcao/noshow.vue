@@ -2,7 +2,7 @@
 import type { DropdownMenuItem } from '@nuxt/ui/'
 import { listarNoShow, registrarMotivoNoShow } from '~/features/agenda/services/agendaService'
 import type { MotivoNoShow, NoShowResponse } from '~/features/agenda/types'
-import { exportTableToPDF, exportToCSV, type ColunaExport } from '~/utils/export-data'
+import { abrirJanelaPdf, exportTableToPDF, exportToCSV, type ColunaExport } from '~/utils/export-data'
 
 const openNav = inject<() => void>('openNav', () => {})
 const auth = useAuthStore()
@@ -300,16 +300,16 @@ const pacientesPaginados = computed(() => {
 
 function corStatus(status: string) {
   switch (status) {
-    case 'nao-confirmado': return 'quinary'
-    case 'faltou': return 'error'
+    case 'nao-confirmado': return 'error'
+    case 'faltou': return 'quinary'
     default: return 'neutral'
   }
 }
 
 function rotuloStatus(status: string) {
   switch (status) {
-    case 'nao-confirmado': return 'Desistente'
-    case 'faltou': return 'Faltou'
+    case 'nao-confirmado': return 'Faltou'
+    case 'faltou': return 'Desistente'
     default: return status
   }
 }
@@ -360,8 +360,8 @@ function resumoExportacao() {
   const taxa = dados.length > 0 ? Math.round((recuperados / dados.length) * 100) : 0
   return [
     `Total no-show: ${dados.length}`,
-    `Faltou: ${dados.filter(p => p.status === 'faltou').length}`,
-    `Não confirmado: ${dados.filter(p => p.status === 'nao-confirmado').length}`,
+    `Desistentes: ${dados.filter(p => p.status === 'faltou').length}`,
+    `Faltou: ${dados.filter(p => p.status === 'nao-confirmado').length}`,
     `Recuperados: ${recuperados}`,
     `Taxa de recuperação: ${taxa}%`
   ]
@@ -388,18 +388,21 @@ async function exportarNoShowPDF() {
     toast.add({ title: 'Nenhum dado para exportar', color: 'warning' })
     return
   }
+  const janela = abrirJanelaPdf()
   exportando.value = 'pdf'
   try {
-    await exportTableToPDF({
+    const resultado = await exportTableToPDF({
       title: 'RELATÓRIO DE NO-SHOW',
       subtitle: `Período: ${formatarData(dataInicioAtiva())} a ${formatarData(dataFimAtiva())}`,
       summary: resumoExportacao(),
       rows: dadosFiltrados.value,
       columns: colunasExportacao,
-      filename: `noshow_${periodoExportacao()}`
+      filename: `noshow_${periodoExportacao()}`,
+      janela
     })
-    toast.add({ title: 'PDF exportado com sucesso', color: 'success' })
+    if (resultado === 'baixado') toast.add({ title: 'Pop-up bloqueado: o PDF foi baixado', color: 'info' })
   } catch {
+    janela?.close()
     toast.add({ title: 'Erro ao exportar PDF', color: 'error' })
   } finally {
     exportando.value = null
@@ -656,7 +659,7 @@ watch(() => auth.activeClinicaId, () => {
           class="h-full"
           :loading="loading"
           titulo="Desistentes"
-          :valor="totalNaoConfirmado"
+          :valor="totalFaltou"
           cor="quinary"
           icone="lucide:user-round-x"
         />
@@ -664,7 +667,7 @@ watch(() => auth.activeClinicaId, () => {
           class="h-full"
           :loading="loading"
           titulo="Faltou"
-          :valor="totalFaltou"
+          :valor="totalNaoConfirmado"
           cor="error"
           icone="i-lucide-calendar-x"
         />

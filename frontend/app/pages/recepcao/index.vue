@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import type { TipoProcedimentoTuss } from '~/types'
-import { listarCheckIn, sincronizarCheckIn } from '~/features/agenda/services/agendaService'
+import { listarCheckIn, listarCheckInCompleto, sincronizarCheckIn } from '~/features/agenda/services/agendaService'
 import type { CheckInResponse } from '~/features/agenda/types'
 import { TUSS_PROCEDIMENTO_FILTROS, corTipoProcedimento, rotuloTipoProcedimento } from '~/utils/tuss'
+import { abrirJanelaPdf, exportTableToPDF, exportToCSV, type ColunaExport } from '~/utils/export-data'
 
 const openNav = inject<() => void>('openNav', () => {})
+const toast = useToast()
 
 type AtendimentoStatus = 'agendado' | 'em-espera' | 'em-atendimento' | 'atendido' | 'faltou' | 'desconhecido'
 
@@ -180,6 +182,18 @@ function resetPageAndFetch() {
   }
 }
 
+function filtrosConsulta(unidadeId: number) {
+  const params: Record<string, string> = {
+    data: formatarDataISO(new Date()),
+    unidadeId: String(unidadeId)
+  }
+  if (selectedStatus.value) params.status = selectedStatus.value
+  if (selectedTipo.value) params.tipo = selectedTipo.value
+  if (selectedMedico.value) params.medico = selectedMedico.value
+  if (busca.value.trim()) params.q = busca.value.trim()
+  return params
+}
+
 async function carregarAtendimentos() {
   const currentRequest = ++requestId
   const unidadeId = auth.activeClinicaId
@@ -193,18 +207,12 @@ async function carregarAtendimentos() {
     return
   }
 
-  const params = new URLSearchParams()
-  params.set('page', String(page.value))
-  params.set('pageSize', String(pageSize.value))
-  params.set('data', formatarDataISO(new Date()))
-  params.set('unidadeId', String(unidadeId))
-  if (selectedStatus.value) params.set('status', selectedStatus.value)
-  if (selectedTipo.value) params.set('tipo', selectedTipo.value)
-  if (selectedMedico.value) params.set('medico', selectedMedico.value)
-  if (busca.value.trim()) params.set('q', busca.value.trim())
-
   try {
-    const response = await listarCheckIn(Object.fromEntries(params))
+    const response = await listarCheckIn({
+      ...filtrosConsulta(unidadeId),
+      page: String(page.value),
+      pageSize: String(pageSize.value)
+    })
 
     if (currentRequest === requestId) {
       dados.value = response
@@ -241,6 +249,91 @@ async function sincronizarDadosSpdata() {
     syncError.value = 'Erro ao sincronizar dados do SPDATA'
   } finally {
     sincronizandoSpdata.value = false
+  }
+}
+
+const exportando = ref<'pdf' | 'csv' | null>(null)
+
+const colunasExportacao: ColunaExport<AtendimentoRecepcao>[] = [
+  { key: 'registro', header: 'Registro', value: a => textoInformado(a.registro) },
+  { key: 'horario', header: 'Horário', value: a => a.horario || '-' },
+  { key: 'paciente', header: 'Paciente', value: a => a.paciente || 'Paciente não informado' },
+  { key: 'prontuario', header: 'Prontuário', value: a => textoInformado(a.prontuario) },
+  { key: 'idade', header: 'Idade', value: a => formatarIdade(a.dataNascimento) },
+  { key: 'convenio', header: 'Convênio', value: a => textoInformado(a.convenio) },
+  { key: 'medico', header: 'Médico', value: a => textoInformado(a.medico) },
+  { key: 'especialidade', header: 'Especialidade', value: a => textoInformado(a.especialidade) },
+  { key: 'tipo', header: 'Tipo de Atend.', value: a => rotuloTipo(a) },
+  { key: 'status', header: 'Status', value: a => rotuloStatus(a.status) }
+]
+
+function resumoExportacao() {
+  const r = dados.value.resumo
+  return [
+    `Total do dia: ${resumoTotal.value}`,
+    `Agendados: ${r.agendados}`,
+    `Em espera: ${r.emEspera}`,
+    `Em atendimento: ${r.emAtendimento}`,
+    `Atendidos: ${r.atendidos}`,
+    `Faltas: ${r.faltas}`
+  ]
+}
+
+async function buscarAtendimentosExportacao() {
+  const unidadeId = auth.activeClinicaId
+  if (!unidadeId) {
+    toast.add({ title: 'Selecione uma unidade para exportar', color: 'warning' })
+    return null
+  }
+  const response = await listarCheckInCompleto(filtrosConsulta(unidadeId))
+  const items = response.items as unknown as AtendimentoRecepcao[]
+  if (!items.length) {
+    toast.add({ title: 'Nenhum dado para exportar', color: 'warning' })
+    return null
+  }
+  return { items, data: response.data || formatarDataISO(new Date()) }
+}
+
+async function exportarAtendimentosCSV() {
+  exportando.value = 'csv'
+  try {
+    const resultado = await buscarAtendimentosExportacao()
+    if (!resultado) return
+    exportToCSV(resultado.items, colunasExportacao, `atendimentos_${resultado.data}`)
+    toast.add({ title: 'CSV exportado com sucesso', color: 'success' })
+  } catch {
+    toast.add({ title: 'Erro ao exportar CSV', color: 'error' })
+  } finally {
+    exportando.value = null
+  }
+}
+
+async function exportarAtendimentosPDF() {
+  const janela = abrirJanelaPdf()
+  exportando.value = 'pdf'
+  try {
+    const resultado = await buscarAtendimentosExportacao()
+    if (!resultado) {
+      janela?.close()
+      return
+    }
+    const filtros = tituloTabela.value.split(' - ').slice(1)
+    if (busca.value.trim()) filtros.push('Filtrado por busca')
+    const modo = await exportTableToPDF({
+      title: 'RELATÓRIO DE ATENDIMENTOS DO DIA',
+      subtitle: [`Data: ${formatarData(resultado.data)}`, ...filtros].join('  •  '),
+      summary: resumoExportacao(),
+      rows: resultado.items,
+      columns: colunasExportacao,
+      filename: `atendimentos_${resultado.data}`,
+      janela
+    })
+    if (modo === 'baixado') toast.add({ title: 'Pop-up bloqueado: o PDF foi baixado', color: 'info' })
+  } catch {
+    janela?.close()
+    toast.add({ title: 'Erro ao exportar PDF', color: 'error' })
+  } finally {
+    exportando.value = null
   }
 }
 
@@ -500,6 +593,28 @@ onUnmounted(() => {
                   size="sm"
                   class="w-full sm:w-80"
                 />
+                <div class="grid w-full grid-cols-2 gap-2 sm:w-auto">
+                  <UButton
+                    icon="i-lucide-file-text"
+                    label="Exportar PDF"
+                    color="error"
+                    size="sm"
+                    :loading="exportando === 'pdf'"
+                    :disabled="exportando !== null || loading || !dados.total"
+                    class="justify-center"
+                    @click="exportarAtendimentosPDF"
+                  />
+                  <UButton
+                    icon="i-lucide-file-spreadsheet"
+                    label="Exportar CSV"
+                    color="primary"
+                    size="sm"
+                    :loading="exportando === 'csv'"
+                    :disabled="exportando !== null || loading || !dados.total"
+                    class="justify-center"
+                    @click="exportarAtendimentosCSV"
+                  />
+                </div>
               </div>
             </div>
 

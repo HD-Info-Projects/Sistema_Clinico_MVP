@@ -2,7 +2,7 @@
 import type { DropdownMenuItem } from '@nuxt/ui/'
 import { listarRetencaoExames } from '~/features/lgpd/services/lgpdService'
 import type { ContatoRetencao, ExameRetencao } from '~/features/lgpd/types'
-import { exportTableToPDF, exportToExcel, type ColunaExport } from '~/utils/export-data'
+import { abrirJanelaPdf, exportTableToPDF, exportToExcel, type ColunaExport } from '~/utils/export-data'
 
 const openNav = inject<() => void>('openNav', () => {})
 const auth = useAuthStore()
@@ -258,18 +258,21 @@ async function exportarRetencaoPDF() {
     toast.add({ title: 'Nenhum dado para exportar', color: 'warning' })
     return
   }
+  const janela = abrirJanelaPdf()
   exportando.value = 'pdf'
   try {
-    await exportTableToPDF({
+    const resultado = await exportTableToPDF({
       title: 'RELATÓRIO DE CONVERSÃO DE EXAMES',
       subtitle: `Período: ${formatarData(dataInicioFiltro())} a ${formatarData(dataFimFiltro())}`,
       summary: resumoExportacao(),
       rows: dadosFiltrados.value,
       columns: colunasExportacao,
-      filename: `retencao-exames_${periodoExportacao()}`
+      filename: `retencao-exames_${periodoExportacao()}`,
+      janela
     })
-    toast.add({ title: 'PDF exportado com sucesso', color: 'success' })
+    if (resultado === 'baixado') toast.add({ title: 'Pop-up bloqueado: o PDF foi baixado', color: 'info' })
   } catch {
+    janela?.close()
     toast.add({ title: 'Erro ao exportar PDF', color: 'error' })
   } finally {
     exportando.value = null

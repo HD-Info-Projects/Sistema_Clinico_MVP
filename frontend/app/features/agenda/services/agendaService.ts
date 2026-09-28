@@ -103,6 +103,27 @@ export function listarCheckIn(filtros?: Record<string, unknown>) {
   }))
 }
 
+const CHECK_IN_MAX_PAGE_SIZE = 100
+
+export async function listarCheckInCompleto(filtros?: Record<string, unknown>) {
+  const base = { ...filtros, pageSize: CHECK_IN_MAX_PAGE_SIZE }
+  const primeira = await listarCheckIn({ ...base, page: 1 })
+  const totalPaginas = Math.ceil(primeira.total / CHECK_IN_MAX_PAGE_SIZE)
+
+  if (totalPaginas <= 1) return primeira
+
+  const restantes = await Promise.all(
+    Array.from({ length: totalPaginas - 1 }, (_, index) => listarCheckIn({ ...base, page: index + 2 }))
+  )
+
+  return {
+    ...primeira,
+    page: 1,
+    pageSize: primeira.total,
+    items: [...primeira.items, ...restantes.flatMap(response => response.items)]
+  }
+}
+
 export type SincronizarCheckInResponse = {
   ok: boolean
   data: string
