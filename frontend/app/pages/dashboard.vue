@@ -506,9 +506,17 @@ const tempoMedioEspera = computed(() => {
                     size="sm"
                   />
                   <div class="min-w-0">
-                    <p class="wrap-break-word font-medium">
-                      {{ paciente.paciente.nome }}
-                    </p>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <p class="wrap-break-word font-medium">
+                        {{ paciente.paciente.nome }}
+                      </p>
+                      <UBadge
+                        v-if="paciente.preventivo"
+                        label="+ Preventivo"
+                        color="quaternary"
+                        variant="subtle"
+                      />
+                    </div>
                     <p class="wrap-break-word text-xs text-muted">
                       {{ paciente.paciente.convenio }}
                     </p>
@@ -636,9 +644,17 @@ const tempoMedioEspera = computed(() => {
                     size="sm"
                   />
                   <div class="min-w-0">
-                    <p class="wrap-break-word font-medium">
-                      {{ paciente.paciente.nome }}
-                    </p>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <p class="wrap-break-word font-medium">
+                        {{ paciente.paciente.nome }}
+                      </p>
+                      <UBadge
+                        v-if="paciente.preventivo"
+                        label="+ Preventivo"
+                        color="quaternary"
+                        variant="subtle"
+                      />
+                    </div>
                     <p class="wrap-break-word text-xs text-muted">
                       {{ paciente.paciente.convenio }}
                     </p>

@@ -90,6 +90,7 @@ export interface Agendamento {
   procedimentoSpdata?: string | null
   tipoProcedimento?: TipoProcedimentoTuss
   tipoProcedimentoLabel?: string
+  preventivo?: boolean
 }
 
 export interface AgendamentoComPaciente extends Agendamento {

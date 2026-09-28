@@ -28,6 +28,7 @@ from src.settings.extensions import db
 from src.utils.normalizar import normalizar_cpf
 from src.utils.tuss import (
     CODIGOS_TUSS_CONSULTA_EXATOS,
+    CODIGOS_TUSS_PREVENTIVO,
     CODIGOS_TUSS_VISIVEIS_MEDICO_EXTRAS,
     FAIXAS_TUSS_CONSULTA,
     TIPO_PROCEDIMENTO_CONSULTA,
@@ -293,6 +294,67 @@ def filtro_visivel_medico_spdata(model):
     return or_(
         filtro_consulta_spdata(model),
         campo.in_(CODIGOS_TUSS_VISIVEIS_MEDICO_EXTRAS),
+    )
+
+
+def filtro_preventivo_spdata(model):
+    return model.cod_procedimento_spdata.in_(CODIGOS_TUSS_PREVENTIVO)
+
+
+def chave_preventivo(id_paciente_spdata, data_atendimento, unidade_id):
+    paciente_id = normalizar_int(id_paciente_spdata)
+    unidade_id = normalizar_int(unidade_id)
+    if paciente_id is None or data_atendimento is None or unidade_id is None:
+        return None
+
+    return paciente_id, data_atendimento, unidade_id
+
+
+def buscar_preventivos_spdata(
+    data_ini,
+    data_fim,
+    unidade,
+    id_paciente_spdata=None,
+    excluir_id=None,
+    bloquear=False,
+):
+    filtros = [
+        MedSpdataAtendimento.data_atendimento >= data_ini,
+        MedSpdataAtendimento.data_atendimento <= data_fim,
+        MedSpdataAtendimento.id_paciente_spdata.is_not(None),
+        filtro_spdata_unidade(MedSpdataAtendimento, unidade),
+        filtro_preventivo_spdata(MedSpdataAtendimento),
+    ]
+
+    paciente_id = normalizar_int(id_paciente_spdata)
+    if paciente_id is not None:
+        filtros.append(MedSpdataAtendimento.id_paciente_spdata == paciente_id)
+    if excluir_id is not None:
+        filtros.append(MedSpdataAtendimento.id != excluir_id)
+
+    query = db.session.query(MedSpdataAtendimento).filter(*filtros)
+    if bloquear:
+        query = query.with_for_update()
+    return query.all()
+
+
+def chaves_preventivos_spdata(data_ini, data_fim, unidade):
+    return {
+        chave
+        for preventivo in buscar_preventivos_spdata(data_ini, data_fim, unidade)
+        if (chave := chave_preventivo(
+            preventivo.id_paciente_spdata,
+            preventivo.data_atendimento,
+            unidade.id,
+        )) is not None
+    }
+
+
+def consulta_tem_preventivo(codigo_procedimento, chave, chaves_preventivos):
+    return (
+        chave is not None
+        and tipo_procedimento_codigo(codigo_procedimento) == TIPO_PROCEDIMENTO_CONSULTA
+        and chave in chaves_preventivos
     )
 
 
@@ -784,7 +846,7 @@ def tipo_procedimento_frontend(codigo):
     return tipo, label_tipo_procedimento(tipo)
 
 
-def agenda_para_frontend(spdata, atendimento=None, convenios_por_codigo=None):
+def agenda_para_frontend(spdata, atendimento=None, convenios_por_codigo=None, preventivo=False):
     status = normalizar_status(atendimento.status) if atendimento else "em-espera"
     data_atendimento = data_iso(spdata.data_atendimento)
     horario = hora_hhmm(spdata.hora_entrada)
@@ -814,6 +876,7 @@ def agenda_para_frontend(spdata, atendimento=None, convenios_por_codigo=None):
         "procedimentoSpdata": getattr(spdata, "procedimento_spdata", None),
         "tipoProcedimento": tipo_procedimento,
         "tipoProcedimentoLabel": tipo_procedimento_label,
+        "preventivo": bool(preventivo),
         "paciente": {
             "id": paciente_id,
             "nome": spdata.paciente,
@@ -835,7 +898,13 @@ def agenda_para_frontend(spdata, atendimento=None, convenios_por_codigo=None):
     }
 
 
-def agenda_spdata_para_frontend(agenda, spdata_ref, atendimento=None, convenios_por_codigo=None):
+def agenda_spdata_para_frontend(
+    agenda,
+    spdata_ref,
+    atendimento=None,
+    convenios_por_codigo=None,
+    preventivo=False,
+):
     status = normalizar_status(atendimento.status) if atendimento else status_agenda_spdata(agenda)
     id_convenio_spdata = normalizar_int(agenda.id_convenio_spdata)
     paciente_id = agenda.id_paciente_spdata or agenda.id
@@ -885,6 +954,7 @@ def agenda_spdata_para_frontend(agenda, spdata_ref, atendimento=None, convenios_
         "procedimentoSpdata": procedimento_spdata,
         "tipoProcedimento": tipo_procedimento,
         "tipoProcedimentoLabel": tipo_procedimento_label,
+        "preventivo": bool(preventivo),
         "paciente": {
             "id": paciente_id,
             "nome": agenda.paciente,
@@ -1008,6 +1078,7 @@ def listar_agenda_medica(
 
     sincronizar_agenda_spdata(data_ini, data_fim, unidade=unidade)
     sincronizar_atendimentos_spdata(data_ini, data_fim, crm_medico, unidade)
+    chaves_preventivos = chaves_preventivos_spdata(data_ini, data_fim, unidade)
 
     rows_agenda = (
         db.session.query(MedSpdataAgenda, MedAtendimentos)
@@ -1043,7 +1114,18 @@ def listar_agenda_medica(
     agendas_encontradas = []
     for agenda, atendimento in agendas_por_id.values():
         spdata_ref = buscar_spdata_atendimento_para_agenda(agenda, atendimento, unidade)
-        items.append(agenda_spdata_para_frontend(agenda, spdata_ref, atendimento, convenios_por_codigo))
+        chave = chave_preventivo(agenda.id_paciente_spdata, agenda.data_agenda, unidade.id)
+        items.append(agenda_spdata_para_frontend(
+            agenda,
+            spdata_ref,
+            atendimento,
+            convenios_por_codigo,
+            preventivo=consulta_tem_preventivo(
+                agenda.cod_procedimento_spdata or spdata_ref.cod_procedimento_spdata,
+                chave,
+                chaves_preventivos,
+            ),
+        ))
         agendas_encontradas.append(agenda)
 
     chaves_agenda = {
@@ -1090,7 +1172,17 @@ def listar_agenda_medica(
         if any(atendimento_matches_agenda(spdata, agenda) for agenda in agendas_encontradas):
             continue
 
-        items.append(agenda_para_frontend(spdata, atendimento, convenios_atendimento))
+        chave = chave_preventivo(spdata.id_paciente_spdata, spdata.data_atendimento, unidade.id)
+        items.append(agenda_para_frontend(
+            spdata,
+            atendimento,
+            convenios_atendimento,
+            preventivo=consulta_tem_preventivo(
+                spdata.cod_procedimento_spdata,
+                chave,
+                chaves_preventivos,
+            ),
+        ))
 
     db.session.commit()
 
@@ -1510,6 +1602,67 @@ def salvar_conteudo_clinico(spdata, atendimento_medsystem, usuario_id, consulta,
             )
 
 
+def criar_atendimento_medsystem(spdata, unidade_id):
+    return MedAtendimentos(
+        med_spdata_atendimento_id=spdata.id,
+        spdata_atendimento_id=spdata.spdata_atendimento_id,
+        unidade_id=unidade_id,
+        cod_atendimento=spdata.cod_atendimento,
+        data_agenda=spdata.data_atendimento,
+        hora_agenda=spdata.hora_entrada,
+        id_medico_spdata=spdata.id_medico_spdata,
+        medico=spdata.medico,
+        id_paciente_spdata=spdata.id_paciente_spdata,
+        paciente=spdata.paciente,
+        cpf=spdata.cpf,
+        prontuario=spdata.prontuario,
+    )
+
+
+def marcar_preventivos_atendidos(spdata_consulta, unidade):
+    if (
+        tipo_procedimento_codigo(spdata_consulta.cod_procedimento_spdata) != TIPO_PROCEDIMENTO_CONSULTA
+        or spdata_consulta.id_paciente_spdata is None
+    ):
+        return []
+
+    preventivos = buscar_preventivos_spdata(
+        spdata_consulta.data_atendimento,
+        spdata_consulta.data_atendimento,
+        unidade,
+        id_paciente_spdata=spdata_consulta.id_paciente_spdata,
+        excluir_id=spdata_consulta.id,
+        bloquear=True,
+    )
+    if not preventivos:
+        return []
+
+    atendimentos_existentes = db.session.execute(
+        select(MedAtendimentos).where(
+            MedAtendimentos.med_spdata_atendimento_id.in_(
+                preventivo.id for preventivo in preventivos
+            )
+        )
+    ).scalars().all()
+    atendimentos_por_spdata = {
+        atendimento.med_spdata_atendimento_id: atendimento
+        for atendimento in atendimentos_existentes
+    }
+
+    atualizados = []
+    for preventivo in preventivos:
+        atendimento = atendimentos_por_spdata.get(preventivo.id)
+        if atendimento is None:
+            atendimento = criar_atendimento_medsystem(preventivo, unidade.id)
+            db.session.add(atendimento)
+
+        if normalizar_status(atendimento.status) != "atendido":
+            atendimento.marcar_atendido()
+        atualizados.append(atendimento)
+
+    return atualizados
+
+
 def atualizar_status_agenda(med_spdata_atendimento_id, status, usuario_id=None, consulta=None, unidade_id=None):
     status = normalizar_status(status)
     if status not in STATUS_VALIDOS:
@@ -1542,20 +1695,7 @@ def atualizar_status_agenda(med_spdata_atendimento_id, status, usuario_id=None, 
         raise ValueError("Atendimento existente obrigatório para alterar para este status.")
 
     if atendimento is None:
-        atendimento = MedAtendimentos(
-            med_spdata_atendimento_id=spdata.id,
-            spdata_atendimento_id=spdata.spdata_atendimento_id,
-            unidade_id=unidade.id,
-            cod_atendimento=spdata.cod_atendimento,
-            data_agenda=spdata.data_atendimento,
-            hora_agenda=spdata.hora_entrada,
-            id_medico_spdata=spdata.id_medico_spdata,
-            medico=spdata.medico,
-            id_paciente_spdata=spdata.id_paciente_spdata,
-            paciente=spdata.paciente,
-            cpf=spdata.cpf,
-            prontuario=spdata.prontuario,
-        )
+        atendimento = criar_atendimento_medsystem(spdata, unidade.id)
         db.session.add(atendimento)
     else:
         atendimento.unidade_id = unidade.id
@@ -1565,6 +1705,7 @@ def atualizar_status_agenda(med_spdata_atendimento_id, status, usuario_id=None, 
     elif status == "atendido":
         atendimento.marcar_atendido()
         salvar_conteudo_clinico(spdata, atendimento, usuario_id, consulta, unidade=unidade)
+        marcar_preventivos_atendidos(spdata, unidade)
     elif status == "faltou":
         atendimento.marcar_faltou()
     elif status == "cancelado":
