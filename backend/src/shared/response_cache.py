@@ -27,7 +27,7 @@ def cache_ttl(default=60):
         return default
 
 
-def chave_cache(prefixo, **partes):
+def _digest_partes(partes):
     normalizado = json.dumps(
         partes,
         default=_json_default,
@@ -35,8 +35,24 @@ def chave_cache(prefixo, **partes):
         sort_keys=True,
         separators=(",", ":"),
     )
-    digest = hashlib.sha256(normalizado.encode("utf-8")).hexdigest()
-    return f"perf:{prefixo}:{digest}"
+    return hashlib.sha256(normalizado.encode("utf-8")).hexdigest()
+
+
+def chave_cache(prefixo, **partes):
+    return f"perf:{prefixo}:{_digest_partes(partes)}"
+
+
+def marcar_se_ausente(prefixo, ttl, **partes):
+    """Grava uma marca no Redis apenas se ela ainda não existir (SET NX EX).
+
+    Retorna True quando a marca foi criada agora (primeira ocorrência dentro da
+    janela `ttl`) e False quando já existia. Se o Redis estiver indisponível,
+    retorna True para não suprimir o evento.
+    """
+    chave = f"{prefixo}:{_digest_partes(partes)}"
+    with ConnectionDBRedis() as redis_connection:
+        resultado = redis_connection.set_if_absent(chave, "1", ttl)
+    return True if resultado is None else resultado
 
 
 def obter_cache_json(chave):
@@ -66,19 +82,5 @@ def salvar_cache_json(chave, payload, ttl=None):
 
 
 def apagar_cache_por_padrao(padrao):
-    redis_connection = ConnectionDBRedis()
-    connection = redis_connection.get_connection()
-    if connection is None:
-        return 0
-
-    apagados = 0
-    try:
-        for chave in connection.scan_iter(match=padrao):
-            apagados += connection.delete(chave)
-    except Exception:
-        current_app.logger.exception("Falha ao apagar cache Redis por padrão")
-        return apagados
-    finally:
-        connection.close()
-
-    return apagados
+    with ConnectionDBRedis() as redis_connection:
+        return redis_connection.delete_by_pattern(padrao)
