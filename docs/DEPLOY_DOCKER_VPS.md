@@ -96,6 +96,7 @@ NUXT_ENABLE_MOCK_AUTH=false
 NUXT_AUTH_COOKIE_SECURE=true
 TZ=America/Sao_Paulo
 GUNICORN_WORKERS=3
+GUNICORN_THREADS=4
 GUNICORN_TIMEOUT=120
 LOG_LEVEL=INFO
 LOG_FORMAT=json
@@ -127,7 +128,7 @@ Observacoes:
 - `NUXT_AUTH_COOKIE_SECURE=true` faz o cookie de autenticacao funcionar apenas em HTTPS.
 - `APP_DOMAIN` deve ser somente o dominio/subdominio, sem `http://` ou `https://`.
 - `TZ=America/Sao_Paulo` mantem backend, frontend e MySQL no fuso esperado.
-- `GUNICORN_WORKERS` e `GUNICORN_TIMEOUT` controlam o Gunicorn do backend sem rebuild da imagem.
+- `GUNICORN_WORKERS`, `GUNICORN_THREADS` (worker `gthread`) e `GUNICORN_TIMEOUT` controlam o Gunicorn do backend sem rebuild da imagem.
 - `LOG_FORMAT=json` mantem os logs do backend estruturados para coleta e filtro por `request_id`.
 - `LOG_COLOR=false` evita codigos ANSI nos logs de producao; use cores apenas com `LOG_FORMAT=text` em terminal local.
 - `LOG_HEALTHCHECKS=false` evita ruido do healthcheck `/` nos logs de aplicacao.
