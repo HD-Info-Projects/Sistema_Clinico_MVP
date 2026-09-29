@@ -5,24 +5,16 @@ const openNav = inject<() => void>('openNav', () => {})
 const auth = useAuthStore()
 const agendamentosStore = useAtendimentosStore()
 const chamadosStore = useChamadosStore()
-const toast = useToast()
-const { sala, precisaSelecionar, definirSala } = useSalaAtendimento()
+const { sala, precisaSelecionar } = useSalaAtendimento()
+const {
+  chamar: chamarPaciente,
+  isChamadaBloqueada,
+  rotuloChamada,
+  salaModalAberto: showSalaModal,
+  aoDefinirSala
+} = useChamarPaciente()
 
-const showSalaModal = ref(false)
-const inputSala = ref('')
-const salaValida = computed(() => /^\d+$/.test(inputSala.value) && Number(inputSala.value) > 0)
 const salaFormatada = computed(() => sala.value ? `Consultório ${sala.value}` : '—')
-
-watch(showSalaModal, (val) => {
-  if (val) inputSala.value = sala.value ?? ''
-})
-
-function confirmarSala() {
-  if (salaValida.value) {
-    definirSala(inputSala.value)
-    showSalaModal.value = false
-  }
-}
 
 onMounted(() => {
   const hoje = formatarDataISO(new Date())
@@ -66,99 +58,12 @@ function rotuloStatus(status: string) {
   }
 }
 
-const callingState = ref<{ pacienteId: number, secondsLeft: number } | null>(null)
-const chamadaEmEnvio = ref<number | null>(null)
-let callingInterval: ReturnType<typeof setInterval> | null = null
-
-onUnmounted(() => {
-  if (callingInterval) clearInterval(callingInterval)
-})
-
 function isTerminal(status: AgendamentoStatus) {
   return status === 'atendido' || status === 'faltou' || status === 'cancelado'
 }
 
-function isCalling(pacienteId: number) {
-  return callingState.value?.pacienteId === pacienteId
-}
-
-function isChamadaBloqueada(pacienteId: number) {
-  return chamadaEmEnvio.value === pacienteId || isCalling(pacienteId)
-}
-
-function rotuloChamada(pacienteId: number) {
-  if (chamadaEmEnvio.value === pacienteId) return 'Chamando'
-  if (callingState.value?.pacienteId === pacienteId) return String(callingState.value.secondsLeft)
-  return 'Chamar'
-}
-
-const temPacienteEmAtendimento = computed(() => !!agendamentosStore.emAtendimento)
-
-function nomePacienteChamada(ag: AgendamentoComPaciente) {
-  return ag.paciente.nomeSocial || ag.paciente.nome
-}
-
-function mensagemErroChamada(error: unknown) {
-  const fetchError = error as {
-    data?: { statusMessage?: string, message?: string }
-    statusMessage?: string
-    message?: string
-  }
-
-  return fetchError.data?.statusMessage
-    || fetchError.data?.message
-    || fetchError.statusMessage
-    || fetchError.message
-    || 'Não foi possível chamar o paciente. Verifique a unidade ativa e tente novamente.'
-}
-
-async function chamarPaciente(ag: AgendamentoComPaciente) {
-  if (!sala.value) {
-    showSalaModal.value = true
-    return
-  }
-
-  const clinicaId = ag.clinicaId ?? auth.activeClinicaId
-  if (!clinicaId) {
-    toast.add({
-      title: 'Unidade não selecionada',
-      description: 'Selecione uma unidade antes de chamar o paciente.',
-      color: 'error',
-      icon: 'i-lucide-alert-circle'
-    })
-    return
-  }
-
-  chamadaEmEnvio.value = ag.paciente.id
-
-  try {
-    await chamadosStore.chamarPaciente(ag.paciente.id, nomePacienteChamada(ag), `Consultório ${sala.value}`, auth.user?.nome ?? 'Dr.', clinicaId)
-  } catch (error) {
-    toast.add({
-      title: 'Erro ao chamar paciente',
-      description: mensagemErroChamada(error),
-      color: 'error',
-      icon: 'i-lucide-alert-circle'
-    })
-    return
-  } finally {
-    chamadaEmEnvio.value = null
-  }
-
-  if (callingInterval) clearInterval(callingInterval)
-  callingState.value = { pacienteId: ag.paciente.id, secondsLeft: 5 }
-  callingInterval = setInterval(() => {
-    if (callingState.value && callingState.value.secondsLeft > 1) {
-      callingState.value = { ...callingState.value, secondsLeft: callingState.value.secondsLeft - 1 }
-    } else {
-      callingState.value = null
-      if (callingInterval) {
-        clearInterval(callingInterval)
-        callingInterval = null
-      }
-    }
-  }, 500)
-}
+// Só o atendimento de hoje bloqueia as ações da fila (o store pode conter outro dia).
+const temPacienteEmAtendimento = computed(() => emAtendimentoHoje.value)
 
 async function faltouAgendamento(ag: AgendamentoComPaciente) {
   try {
@@ -774,47 +679,11 @@ const tempoMedioEspera = computed(() => {
         </p>
       </UCard>
     </div>
-    <UModal
+    <ModalSalaAtendimento
       v-model:open="showSalaModal"
-      :close="false"
-    >
-      <template #header>
-        <h2 class="text-lg font-semibold">
-          Sala de Atendimento
-        </h2>
-      </template>
-
-      <template #body>
-        <div class="space-y-4">
-          <p class="text-sm text-muted">
-            Informe o número do consultório:
-          </p>
-          <UForm class="flex flex-col gap-3">
-            <UFormItem
-              label="Número do consultório"
-              :error="!salaValida ? 'Informe um número de consultório válido' : ''"
-            >
-              <UInput
-                v-model="inputSala"
-                min="1"
-                step="1"
-                placeholder="Ex: 1"
-                class="w-full"
-                size="lg"
-              />
-            </UFormItem>
-            <div class="flex justify-end gap-2">
-              <UButton
-                type="submit"
-                label="Salvar"
-                :disabled="!salaValida"
-                @click="confirmarSala"
-              />
-            </div>
-          </UForm>
-        </div>
-      </template>
-    </UModal>
+      :obrigatorio="precisaSelecionar"
+      @salva="aoDefinirSala"
+    />
     <ModalConfirmacao
       :abrir="!!modalConfirma"
       :titulo="modalConfirma?.titulo ?? ''"

@@ -32,6 +32,14 @@ provide('openNav', () => {
 })
 
 const agendamentosStore = useAgendamentosStore()
+const { sala } = useSalaAtendimento()
+const {
+  chamar: chamarPaciente,
+  isChamadaBloqueada,
+  rotuloChamada,
+  salaModalAberto,
+  aoDefinirSala
+} = useChamarPaciente()
 
 const expandedContent = ref<Record<string, boolean>>({})
 
@@ -699,6 +707,10 @@ function voltarDashboard() {
     v-if="agendamento"
     class="flex h-dvh min-h-0 overflow-hidden"
   >
+    <ModalSalaAtendimento
+      v-model:open="salaModalAberto"
+      @salva="aoDefinirSala"
+    />
     <USidebar
       v-model:open="open"
       collapsible="icon"
@@ -742,6 +754,26 @@ function voltarDashboard() {
             · Convênio: {{ agendamento.paciente.convenio }}
           </p>
         </div>
+      </div>
+      <div class="flex flex-col items-center gap-1 px-4 pb-2">
+        <UButton
+          icon="i-lucide-phone"
+          :label="rotuloChamada(agendamento.paciente.id) === 'Chamar' ? 'Chamar paciente' : rotuloChamada(agendamento.paciente.id)"
+          color="primary"
+          block
+          class="max-w-sm justify-center"
+          :loading="isChamadaBloqueada(agendamento.paciente.id)"
+          :disabled="isChamadaBloqueada(agendamento.paciente.id)"
+          @click="void chamarPaciente(agendamento)"
+        />
+        <UButton
+          :label="sala ? `Consultório ${sala}` : 'Definir consultório'"
+          icon="i-lucide-door-open"
+          color="neutral"
+          variant="link"
+          size="xs"
+          @click="salaModalAberto = true"
+        />
       </div>
       <div
         ref="historicoScrollRef"
