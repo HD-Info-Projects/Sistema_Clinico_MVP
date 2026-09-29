@@ -116,7 +116,9 @@ services:
       URL_EXAMES_PACS: ${URL_EXAMES_PACS:?Defina URL_EXAMES_PACS no .env}
       TOKEN_EXAMES_PACS: ${TOKEN_EXAMES_PACS:?Defina TOKEN_EXAMES_PACS no .env}
       PACS_TEM_IMAGEM_CACHE_TTL_SECONDS: ${PACS_TEM_IMAGEM_CACHE_TTL_SECONDS:-21600}
-    depends_on:
+      PERFORMANCE_CACHE_TTL_SECONDS: ${PERFORMANCE_CACHE_TTL_SECONDS:-300} 
+
+  depends_on:
       mysql:
         condition: service_healthy
       redis:
