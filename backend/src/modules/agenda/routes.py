@@ -13,6 +13,7 @@ from src.shared.response_cache import (
     apagar_cache_por_padrao,
     cache_ttl,
     chave_cache,
+    marcar_se_ausente,
     obter_cache_json,
     salvar_cache_json,
 )
@@ -39,13 +40,62 @@ def _bool_param(valor):
     return str(valor or "").strip().lower() in {"1", "true", "sim", "s", "yes", "on"}
 
 
-def _invalidar_cache_recepcao():
+AGENDA_MEDICA_CACHE_PREFIX = "agenda_medica:response:v2"
+AUDITORIA_VISUALIZACAO_AGENDA_JANELA_SEGUNDOS = 15 * 60
+ORIGEM_REQUISICAO_HEADER = "X-Origem-Requisicao"
+ORIGEM_SSE_POLL = "sse-poll"
+
+
+def _prefixo_cache_agenda_medica(usuario_id):
+    # O médico só enxerga a própria agenda; incluir o usuário no prefixo permite
+    # invalidar apenas o cache dele quando ele altera um status.
+    return f"{AGENDA_MEDICA_CACHE_PREFIX}:m{usuario_id}"
+
+
+def _invalidar_cache_recepcao(usuario_id_medico=None):
+    """Invalida caches afetados por mudanças na agenda.
+
+    Com `usuario_id_medico`, apaga só a agenda médica daquele médico (os demais
+    médicos não são afetados e não precisam ressincronizar com o SPDATA). Sem ele,
+    apaga a agenda médica de todos. Os caches da recepção são sempre invalidados.
+    """
+    padrao_agenda = (
+        f"perf:{_prefixo_cache_agenda_medica(usuario_id_medico)}:*"
+        if usuario_id_medico is not None
+        else "perf:agenda_medica:*"
+    )
     return sum((
         apagar_cache_por_padrao("perf:check_in:*"),
-        apagar_cache_por_padrao("perf:agenda_medica:*"),
+        apagar_cache_por_padrao(padrao_agenda),
         apagar_cache_por_padrao("perf:no_show:*"),
         apagar_cache_por_padrao("perf:retencao_exames:*"),
     ))
+
+
+def _requisicao_automatica():
+    # Header enviado apenas pelo servidor Nuxt no polling do SSE (o Flask não é
+    # exposto ao navegador e o Nuxt não repassa headers do cliente).
+    origem = (request.headers.get(ORIGEM_REQUISICAO_HEADER) or "").strip().lower()
+    return origem == ORIGEM_SSE_POLL
+
+
+def _deve_auditar_visualizacao_agenda(usuario_id, unidade_id, data_ini, data_fim, status, search, tipo):
+    """Audita apenas acessos do usuário, e no máximo uma vez por janela para os
+    mesmos parâmetros, evitando registros repetidos a cada atualização da tela."""
+    if _requisicao_automatica():
+        return False
+
+    return marcar_se_ausente(
+        "auditoria:dedup:visualizou_agenda:v1",
+        AUDITORIA_VISUALIZACAO_AGENDA_JANELA_SEGUNDOS,
+        usuario_id=usuario_id,
+        unidade_id=unidade_id,
+        data_ini=data_ini.isoformat() if data_ini else None,
+        data_fim=data_fim.isoformat() if data_fim else None,
+        status=status,
+        search=search,
+        tipo=tipo,
+    )
 
 
 @agenda_medica_bp.route("/", methods=["GET"])
@@ -77,8 +127,11 @@ def listar_agenda():
             data_fim=data_fim.isoformat() if data_fim else None,
             force_refresh=force_refresh,
         )
+        auditar = _deve_auditar_visualizacao_agenda(
+            usuario_id, unidade_id, data_ini, data_fim, status, search, tipo
+        )
         cache_key = chave_cache(
-            "agenda_medica:response:v1",
+            _prefixo_cache_agenda_medica(usuario_id),
             usuario_id=usuario_id,
             unidade_id=unidade_id,
             data_ini=data_ini.isoformat() if data_ini else None,
@@ -91,12 +144,13 @@ def listar_agenda():
             with probe.etapa("cache_response_get"):
                 cached = obter_cache_json(cache_key)
             if cached is not None:
-                registrar_auditoria(
-                    AcaoAuditoria.VISUALIZOU_AGENDA,
-                    entidade="agenda_medica",
-                    usuario_id=usuario_id,
-                    descricao=f"Listagem de agenda médica em cache. data_ini={data_ini} data_fim={data_fim} status={status or ''} visibilidade_medica=true",
-                )
+                if auditar:
+                    registrar_auditoria(
+                        AcaoAuditoria.VISUALIZOU_AGENDA,
+                        entidade="agenda_medica",
+                        usuario_id=usuario_id,
+                        descricao=f"Listagem de agenda médica em cache. data_ini={data_ini} data_fim={data_fim} status={status or ''} visibilidade_medica=true",
+                    )
                 probe.valor("cache_response_hit", True)
                 probe.finalizar(source="response_cache", items_count=len(cached))
                 response = jsonify(cached)
@@ -117,12 +171,13 @@ def listar_agenda():
                 somente_visiveis_medico=True,
             )
         salvar_cache_json(cache_key, resultado, ttl=cache_ttl())
-        registrar_auditoria(
-            AcaoAuditoria.VISUALIZOU_AGENDA,
-            entidade="agenda_medica",
-            usuario_id=usuario_id,
-            descricao=f"Listagem de agenda médica. data_ini={data_ini} data_fim={data_fim} status={status or ''} visibilidade_medica=true",
-        )
+        if auditar:
+            registrar_auditoria(
+                AcaoAuditoria.VISUALIZOU_AGENDA,
+                entidade="agenda_medica",
+                usuario_id=usuario_id,
+                descricao=f"Listagem de agenda médica. data_ini={data_ini} data_fim={data_fim} status={status or ''} visibilidade_medica=true",
+            )
         probe.finalizar(source="service", items_count=len(resultado))
         response = jsonify(resultado)
         response.headers["X-Cache"] = "MISS"
@@ -186,7 +241,7 @@ def atualizar_status(med_spdata_atendimento_id):
             consulta=consulta,
             unidade_id=unidade_id_request(),
         )
-        _invalidar_cache_recepcao()
+        _invalidar_cache_recepcao(usuario_id_medico=usuario_id)
         status_final = resultado.get("status") or status
         acao = AcaoAuditoria.ALTEROU_STATUS_AGENDA
         if status_final == "em-atendimento":

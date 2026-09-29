@@ -54,6 +54,8 @@ export default defineEventHandler(async (event) => {
         headers: {
           'Authorization': `Bearer ${token}`,
           'X-Unidade-Id': String(clinicaId),
+          // Atualização automática: o backend não registra auditoria de visualização.
+          'X-Origem-Requisicao': 'sse-poll',
           [REQUEST_ID_HEADER]: requestId
         }
       })
