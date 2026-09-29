@@ -584,14 +584,13 @@ let draftTimer: ReturnType<typeof setTimeout> | null = null
 let restaurandoDraft = false
 let draftDesativado = false
 
-const DRAFT_TTL_MS = 7 * 24 * 60 * 60 * 1000
-const DRAFT_STORAGE_PREFIX = 'medsystem:atendimento-draft:'
+const DRAFT_TTL_MS = ATENDIMENTO_DRAFT_TTL_MS
 
 const draftKey = computed(() => {
   const ag = agendamento.value
   if (!ag) return null
 
-  return `${DRAFT_STORAGE_PREFIX}${ag.id}:${ag.paciente.id}`
+  return chaveDraftAtendimento(ag.id, ag.paciente.id)
 })
 
 function draftStorage() {

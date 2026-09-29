@@ -49,6 +49,17 @@ export function listarAgendamentos(filtros?: AgendamentoComFiltro) {
   )
 }
 
+// Atendimentos do médico que ficaram "em atendimento" na unidade ativa.
+// Com `anterioresA` (YYYY-MM-DD), só os de datas anteriores.
+export function listarAtendimentosPendentes(filtros?: { anterioresA?: string }) {
+  const params = new URLSearchParams()
+  if (filtros?.anterioresA) params.set('anterioresA', filtros.anterioresA)
+
+  return $fetch<AgendamentoComPaciente[]>(`/api/agendamentos/pendentes${params.toString() ? `?${params.toString()}` : ''}`).then(items =>
+    items.map(item => ({ ...item, horario: normalizarHorario(item.horario) }))
+  )
+}
+
 export function atualizarStatusAgendamento(id: number, status: AgendamentoStatus, consulta?: ConsultaStatusPayload, clinicaId?: number) {
   const params = new URLSearchParams()
   if (clinicaId) params.set('clinicaId', String(clinicaId))

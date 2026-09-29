@@ -27,6 +27,16 @@ export function listarMarcadoresAgenda(event: H3Event, query: Record<string, unk
   return flaskFetch(event, `/agenda-medica/marcadores${params.toString() ? `?${params.toString()}` : ''}`)
 }
 
+export function listarAtendimentosPendentes(event: H3Event, query: Record<string, unknown>) {
+  const anterioresA = query.anterioresA ?? query.anteriores_a
+  const params = new URLSearchParams()
+  if (anterioresA !== undefined && anterioresA !== null && String(anterioresA).trim()) {
+    params.set('anteriores_a', String(anterioresA))
+  }
+
+  return flaskFetch(event, `/agenda-medica/pendentes${params.toString() ? `?${params.toString()}` : ''}`)
+}
+
 export type AtualizarStatusResultado = {
   id?: number
   status?: string

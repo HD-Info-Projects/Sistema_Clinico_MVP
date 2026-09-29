@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { AgendamentoComPaciente, AgendamentoStatus } from '~/features/atendimentos/types'
+import { listarAtendimentosPendentes } from '~/features/agenda/services/agendaService'
 
 const openNav = inject<() => void>('openNav', () => {})
 const auth = useAuthStore()
@@ -16,10 +17,29 @@ const {
 
 const salaFormatada = computed(() => sala.value ? `Consultório ${sala.value}` : '—')
 
+// Atendimentos que ficaram "em atendimento" em dias anteriores nesta unidade.
+// O médico decide o que fazer com cada um (retomar, salvar ou cancelar).
+const atendimentosPendentes = ref<AgendamentoComPaciente[]>([])
+
+async function verificarAtendimentosPendentes(hoje: string) {
+  try {
+    atendimentosPendentes.value = await listarAtendimentosPendentes({ anterioresA: hoje })
+  } catch {
+    console.error('Erro ao verificar atendimentos pendentes')
+  }
+}
+
+async function retomarAtendimentoPendente(ag: AgendamentoComPaciente) {
+  agendamentosStore.focarAtendimento(ag)
+  atendimentosPendentes.value = []
+  await navigateTo('/atendimento-medico')
+}
+
 onMounted(() => {
   const hoje = formatarDataISO(new Date())
   agendamentosStore.init(auth.activeClinicaId ?? undefined, hoje, auth.user?.id)
   chamadosStore.init({ clinicaId: auth.activeClinicaId, data: hoje })
+  void verificarAtendimentosPendentes(hoje)
   if (precisaSelecionar.value) {
     showSalaModal.value = true
   }
@@ -679,6 +699,10 @@ const tempoMedioEspera = computed(() => {
         </p>
       </UCard>
     </div>
+    <ModalAtendimentoPendente
+      v-model:pendentes="atendimentosPendentes"
+      @retomar="retomarAtendimentoPendente"
+    />
     <ModalSalaAtendimento
       v-model:open="showSalaModal"
       :obrigatorio="precisaSelecionar"

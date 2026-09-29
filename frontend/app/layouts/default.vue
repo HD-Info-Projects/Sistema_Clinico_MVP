@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { listarAgendamentos } from '~/features/agenda/services/agendaService'
+import type { AgendamentoComPaciente } from '~/features/agenda/types'
+import { listarAtendimentosPendentes } from '~/features/agenda/services/agendaService'
 
 const auth = useAuthStore()
 
@@ -49,28 +50,18 @@ function trocarAcesso() {
 const agendamentosStore = useAgendamentosStore()
 const verificandoLogout = ref(false)
 const modalLogoutBloqueadoAberto = ref(false)
-const pacienteEmAtendimentoNome = ref<string | null>(null)
+const atendimentoBloqueante = ref<AgendamentoComPaciente | null>(null)
 
-// Verifica se há atendimento em andamento. Usa o store (mantido atualizado pelo SSE)
-// quando ele contém a agenda de hoje; só consulta a API como fallback, sem alterar
-// o store (que pode estar exibindo outra data na tela de agenda).
+// Atendimento em andamento do médico na unidade ativa (qualquer data). Usa o store
+// como atalho e consulta os pendentes no backend (consulta leve, só MySQL).
 async function buscarAtendimentoEmAndamento() {
-  const hoje = formatarDataISO(new Date())
-  const ativoLocal = agendamentosStore.emAtendimento
-  if (ativoLocal) return { nome: ativoLocal.paciente.nome }
-  if (agendamentosStore.dataCarregada === hoje) return null
+  if (agendamentosStore.emAtendimento) return agendamentosStore.emAtendimento
 
   try {
-    const itens = await listarAgendamentos({
-      data: hoje,
-      clinicaId: auth.activeClinicaId ?? undefined,
-      medicoId: auth.user?.id
-    })
-    const ativo = itens.find(item => item.status === 'em-atendimento')
-    if (!ativo) return null
-    return { nome: 'paciente' in ativo ? ativo.paciente.nome : null }
+    const pendentes = await listarAtendimentosPendentes()
+    return pendentes[0] ?? null
   } catch {
-    // Falha na consulta: não bloqueia o logout (o store local não indicava atendimento).
+    // Falha na consulta: não bloqueia o logout.
     return null
   }
 }
@@ -87,7 +78,7 @@ async function tentarSair() {
   try {
     const ativo = await buscarAtendimentoEmAndamento()
     if (ativo) {
-      pacienteEmAtendimentoNome.value = ativo.nome
+      atendimentoBloqueante.value = ativo
       modalLogoutBloqueadoAberto.value = true
       return
     }
@@ -100,12 +91,9 @@ async function tentarSair() {
 
 async function irParaAtendimento() {
   modalLogoutBloqueadoAberto.value = false
-  if (!agendamentosStore.emAtendimento) {
-    await agendamentosStore.fetchAgendamentos(
-      auth.activeClinicaId ?? undefined,
-      formatarDataISO(new Date()),
-      auth.user?.id
-    )
+  const ativo = atendimentoBloqueante.value
+  if (ativo && agendamentosStore.emAtendimento?.id !== ativo.id) {
+    agendamentosStore.focarAtendimento(ativo)
   }
   await navigateTo('/atendimento-medico')
 }
@@ -201,9 +189,9 @@ async function irParaAtendimento() {
             </h3>
           </div>
           <p class="break-words text-neutral-500 dark:text-neutral-400">
-            <template v-if="pacienteEmAtendimentoNome">
+            <template v-if="atendimentoBloqueante">
               Você possui um atendimento em andamento com
-              <span class="font-semibold text-highlighted">{{ pacienteEmAtendimentoNome }}</span>.
+              <span class="font-semibold text-highlighted">{{ atendimentoBloqueante.paciente.nome }}</span>.
             </template>
             <template v-else>
               Você possui um atendimento em andamento.

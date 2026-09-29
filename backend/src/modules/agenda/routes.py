@@ -18,6 +18,7 @@ from src.shared.response_cache import (
     salvar_cache_json,
 )
 from src.services.no_show_service import listar_no_show, registrar_motivo_no_show
+from src.modules.atendimentos.pendentes import listar_atendimentos_pendentes
 from src.services.spdata_atendimentos_service import (
     atualizar_status_agenda,
     listar_agenda_medica,
@@ -191,6 +192,34 @@ def listar_agenda():
         db.session.rollback()
         current_app.logger.exception("Erro ao listar agenda médica")
         return jsonify({"error": "Erro interno ao listar agenda médica"}), 500
+
+
+@agenda_medica_bp.route("/pendentes", methods=["GET"])
+@jwt_required()
+@roles_required("medico")
+def listar_pendentes():
+    """Atendimentos do médico que ficaram "em atendimento" na unidade ativa.
+
+    `anteriores_a=YYYY-MM-DD` restringe a datas anteriores (usado ao entrar na
+    unidade para perguntar sobre atendimentos esquecidos de outros dias).
+    """
+    try:
+        anteriores_a = request.args.get("anteriores_a")
+        resultado = listar_atendimentos_pendentes(
+            int(get_jwt_identity()),
+            unidade_id=unidade_id_request(),
+            anteriores_a=_parse_data(anteriores_a) if anteriores_a else None,
+        )
+        return jsonify(resultado), 200
+
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except PermissionError as e:
+        return jsonify({"error": str(e)}), 403
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("Erro ao listar atendimentos pendentes")
+        return jsonify({"error": "Erro interno ao listar atendimentos pendentes"}), 500
 
 
 @agenda_medica_bp.route("/marcadores", methods=["GET"])

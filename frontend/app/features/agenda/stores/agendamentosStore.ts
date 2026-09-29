@@ -122,6 +122,9 @@ export const useAgendamentosStore = defineStore('agendamentos', () => {
 
     try {
       const raw = await listarAgendamentos({ clinicaId, data, medicoId })
+      // Os filtros mudaram durante a requisição (ex.: retomada de um atendimento
+      // pendente de outro dia); descarta a resposta para não sobrescrever o store.
+      if (filtrosAtuais.data !== data) return
 
       if (raw.every(a => 'paciente' in a)) {
         agendamentos.value = (raw as AgendamentoComPaciente[]).map(item => ({ ...item, horario: normalizarHorario(item.horario) }))
@@ -154,6 +157,17 @@ export const useAgendamentosStore = defineStore('agendamentos', () => {
     await fetchAgendamentos(clinicaId, data, medicoId)
   }
 
+  // Coloca no store apenas um atendimento pendente (possivelmente de outro dia) para
+  // retomá-lo na tela de atendimento. Ajusta os filtros para a data dele, assim os
+  // snapshots do SSE da agenda de hoje não o removem enquanto o médico o conclui.
+  function focarAtendimento(ag: AgendamentoComPaciente) {
+    const data = ag.data?.slice(0, 10)
+    filtrosAtuais = { ...filtrosAtuais, clinicaId: ag.clinicaId ?? filtrosAtuais.clinicaId, data }
+    agendamentos.value = [{ ...ag, horario: normalizarHorario(ag.horario) }]
+    dataCarregada.value = data ?? null
+    loading.value = false
+  }
+
   async function atualizarStatus(id: number, status: AgendamentoStatus, consulta?: ConsultaStatusPayload, clinicaId?: number) {
     try {
       const clinicaIdEfetiva = clinicaId
@@ -182,6 +196,7 @@ export const useAgendamentosStore = defineStore('agendamentos', () => {
     totalFaltas,
     init,
     fetchAgendamentos,
+    focarAtendimento,
     atualizarStatus
   }
 })
