@@ -51,12 +51,18 @@ const verificandoLogout = ref(false)
 const modalLogoutBloqueadoAberto = ref(false)
 const pacienteEmAtendimentoNome = ref<string | null>(null)
 
-// Busca a agenda do dia direto no serviço (sem alterar o store, que pode estar
-// exibindo outra data na tela de agenda) para saber se há atendimento em andamento.
+// Verifica se há atendimento em andamento. Usa o store (mantido atualizado pelo SSE)
+// quando ele contém a agenda de hoje; só consulta a API como fallback, sem alterar
+// o store (que pode estar exibindo outra data na tela de agenda).
 async function buscarAtendimentoEmAndamento() {
+  const hoje = formatarDataISO(new Date())
+  const ativoLocal = agendamentosStore.emAtendimento
+  if (ativoLocal) return { nome: ativoLocal.paciente.nome }
+  if (agendamentosStore.dataCarregada === hoje) return null
+
   try {
     const itens = await listarAgendamentos({
-      data: formatarDataISO(new Date()),
+      data: hoje,
       clinicaId: auth.activeClinicaId ?? undefined,
       medicoId: auth.user?.id
     })
@@ -64,8 +70,8 @@ async function buscarAtendimentoEmAndamento() {
     if (!ativo) return null
     return { nome: 'paciente' in ativo ? ativo.paciente.nome : null }
   } catch {
-    const ativo = agendamentosStore.emAtendimento
-    return ativo ? { nome: ativo.paciente.nome } : null
+    // Falha na consulta: não bloqueia o logout (o store local não indicava atendimento).
+    return null
   }
 }
 

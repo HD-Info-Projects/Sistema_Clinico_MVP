@@ -73,18 +73,20 @@ export async function logoutAuth(event: H3Event) {
   const token = getCookie(event, AUTH_COOKIE_NAME)
   if (token) {
     const config = useRuntimeConfig()
-    try {
-      await $fetch(`${config.flaskBaseUrl}/login/logout`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          [REQUEST_ID_HEADER]: requestId
-        }
-      })
-    } catch (error) {
+    // Revogação do token e auditoria no Flask rodam em segundo plano: a sessão local
+    // é encerrada imediatamente, sem o usuário esperar a resposta do backend.
+    const revogacao = $fetch(`${config.flaskBaseUrl}/login/logout`, {
+      method: 'POST',
+      timeout: 15000,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        [REQUEST_ID_HEADER]: requestId
+      }
+    }).catch((error) => {
       logUpstreamFailure(event, error, 'flask', 'registrar logout')
       // A sessão local deve ser encerrada mesmo se a auditoria do logout falhar.
-    }
+    })
+    event.waitUntil(revogacao)
   }
 
   clearAuthTokenCookie(event)
