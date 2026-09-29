@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { listarAgendamentos } from '~/features/agenda/services/agendaService'
+
 const auth = useAuthStore()
 
 const open = ref(true)
@@ -42,6 +44,64 @@ const navItems = computed(() => [
 function trocarAcesso() {
   auth.limparAccessMode()
   navigateTo('/selecionar-acesso')
+}
+
+const agendamentosStore = useAgendamentosStore()
+const verificandoLogout = ref(false)
+const modalLogoutBloqueadoAberto = ref(false)
+const pacienteEmAtendimentoNome = ref<string | null>(null)
+
+// Busca a agenda do dia direto no serviço (sem alterar o store, que pode estar
+// exibindo outra data na tela de agenda) para saber se há atendimento em andamento.
+async function buscarAtendimentoEmAndamento() {
+  try {
+    const itens = await listarAgendamentos({
+      data: formatarDataISO(new Date()),
+      clinicaId: auth.activeClinicaId ?? undefined,
+      medicoId: auth.user?.id
+    })
+    const ativo = itens.find(item => item.status === 'em-atendimento')
+    if (!ativo) return null
+    return { nome: 'paciente' in ativo ? ativo.paciente.nome : null }
+  } catch {
+    const ativo = agendamentosStore.emAtendimento
+    return ativo ? { nome: ativo.paciente.nome } : null
+  }
+}
+
+async function tentarSair() {
+  if (verificandoLogout.value) return
+
+  if (auth.user?.role !== 'medico') {
+    await auth.logout()
+    return
+  }
+
+  verificandoLogout.value = true
+  try {
+    const ativo = await buscarAtendimentoEmAndamento()
+    if (ativo) {
+      pacienteEmAtendimentoNome.value = ativo.nome
+      modalLogoutBloqueadoAberto.value = true
+      return
+    }
+  } finally {
+    verificandoLogout.value = false
+  }
+
+  await auth.logout()
+}
+
+async function irParaAtendimento() {
+  modalLogoutBloqueadoAberto.value = false
+  if (!agendamentosStore.emAtendimento) {
+    await agendamentosStore.fetchAgendamentos(
+      auth.activeClinicaId ?? undefined,
+      formatarDataISO(new Date()),
+      auth.user?.id
+    )
+  }
+  await navigateTo('/atendimento-medico')
 }
 </script>
 
@@ -102,7 +162,8 @@ function trocarAcesso() {
             color="neutral"
             variant="ghost"
             class="w-full justify-start"
-            @click="auth.logout()"
+            :loading="verificandoLogout"
+            @click="void tentarSair()"
           />
         </div>
       </template>
@@ -117,5 +178,55 @@ function trocarAcesso() {
         <slot />
       </UMain>
     </div>
+
+    <UModal
+      v-model:open="modalLogoutBloqueadoAberto"
+      :ui="{ content: 'max-h-[calc(100dvh-2rem)] overflow-y-auto' }"
+    >
+      <template #content>
+        <div class="space-y-4 p-4 sm:p-6">
+          <div class="flex min-w-0 items-start gap-2">
+            <UIcon
+              name="i-lucide-alert-triangle"
+              class="mt-1 shrink-0 text-warning"
+            />
+            <h3 class="min-w-0 break-words text-xl font-black">
+              Atendimento em andamento
+            </h3>
+          </div>
+          <p class="break-words text-neutral-500 dark:text-neutral-400">
+            <template v-if="pacienteEmAtendimentoNome">
+              Você possui um atendimento em andamento com
+              <span class="font-semibold text-highlighted">{{ pacienteEmAtendimentoNome }}</span>.
+            </template>
+            <template v-else>
+              Você possui um atendimento em andamento.
+            </template>
+            Finalize ou cancele o atendimento antes de sair do sistema.
+          </p>
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <UButton
+              label="Fechar"
+              color="neutral"
+              variant="ghost"
+              block
+              size="lg"
+              class="font-bold rounded-xl"
+              @click="modalLogoutBloqueadoAberto = false"
+            />
+            <UButton
+              label="Ir para o atendimento"
+              icon="i-lucide-stethoscope"
+              color="primary"
+              variant="solid"
+              block
+              size="lg"
+              class="font-bold rounded-xl"
+              @click="void irParaAtendimento()"
+            />
+          </div>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>

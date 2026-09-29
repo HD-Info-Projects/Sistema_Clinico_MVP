@@ -267,6 +267,29 @@ function atendimentoDisabled(status: AgendamentoStatus) {
   return status !== 'em-espera'
 }
 
+// Bloqueia ações de outros pacientes enquanto há um atendimento em andamento,
+// mas mantém liberadas as ações do próprio paciente em atendimento.
+function bloqueadoPorOutroAtendimento(status: AgendamentoStatus) {
+  return temPacienteEmAtendimento.value && status !== 'em-atendimento'
+}
+
+function botaoAtendimentoDisabled(status: AgendamentoStatus, pacienteId: number) {
+  if (status === 'em-atendimento') return false
+  return temPacienteEmAtendimento.value || atendimentoDisabled(status) || isChamadaBloqueada(pacienteId)
+}
+
+async function retomarAtendimento() {
+  await navigateTo('/atendimento-medico')
+}
+
+function acaoBotaoAtendimento(ag: AgendamentoComPaciente) {
+  if (ag.status === 'em-atendimento') {
+    void retomarAtendimento()
+    return
+  }
+  void atenderAgendamento(ag)
+}
+
 const tempoMedioEspera = computed(() => {
   const lista = agendamentosStore.fila
   const tempos = lista.map(a => calcularMinutosDesde(a.horario, agora.value))
@@ -568,7 +591,7 @@ const tempoMedioEspera = computed(() => {
                     :color="isTerminal(paciente.status) ? 'neutral' : 'primary'"
                     :variant="isTerminal(paciente.status) ? 'soft' : 'solid'"
                     :loading="isChamadaBloqueada(paciente.paciente.id)"
-                    :disabled="temPacienteEmAtendimento || isTerminal(paciente.status) || isChamadaBloqueada(paciente.paciente.id)"
+                    :disabled="bloqueadoPorOutroAtendimento(paciente.status) || isTerminal(paciente.status) || isChamadaBloqueada(paciente.paciente.id)"
                     @click="chamarPaciente(paciente as AgendamentoComPaciente)"
                   />
 
@@ -579,8 +602,8 @@ const tempoMedioEspera = computed(() => {
                     class="min-w-25 justify-center"
                     :color="statusColor(paciente.status)"
                     :variant="atendimentoVariant(paciente.status)"
-                    :disabled="temPacienteEmAtendimento || atendimentoDisabled(paciente.status) || isChamadaBloqueada(paciente.paciente.id)"
-                    @click="atenderAgendamento(paciente as AgendamentoComPaciente)"
+                    :disabled="botaoAtendimentoDisabled(paciente.status, paciente.paciente.id)"
+                    @click="acaoBotaoAtendimento(paciente as AgendamentoComPaciente)"
                   />
                   <UButton
                     icon="i-lucide-user-x"
