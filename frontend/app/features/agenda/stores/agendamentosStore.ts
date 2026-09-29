@@ -23,6 +23,8 @@ type AgendamentoStatusEvent = {
 export const useAgendamentosStore = defineStore('agendamentos', () => {
   const agendamentos = ref<AgendamentoComPaciente[]>([])
   const loading = ref(true)
+  // Data (YYYY-MM-DD) cuja agenda está efetivamente carregada no store.
+  const dataCarregada = ref<string | null>(null)
   let sse: ReturnType<typeof useSse> | null = null
   let sseHandlersRegistrados = false
   let filtrosAtuais: {
@@ -100,6 +102,7 @@ export const useAgendamentosStore = defineStore('agendamentos', () => {
       if (!Array.isArray(payload.items)) return
 
       agendamentos.value = payload.items.map(item => ({ ...item, horario: normalizarHorario(item.horario) }))
+      dataCarregada.value = payload.data ?? filtrosAtuais.data ?? null
       loading.value = false
     })
 
@@ -122,6 +125,7 @@ export const useAgendamentosStore = defineStore('agendamentos', () => {
 
       if (raw.every(a => 'paciente' in a)) {
         agendamentos.value = (raw as AgendamentoComPaciente[]).map(item => ({ ...item, horario: normalizarHorario(item.horario) }))
+        dataCarregada.value = data ?? null
         return
       }
 
@@ -135,6 +139,7 @@ export const useAgendamentosStore = defineStore('agendamentos', () => {
           horario: normalizarHorario(a.horario),
           paciente: pacienteMap.get(a.pacienteId)!
         }))
+      dataCarregada.value = data ?? null
     } catch {
       console.error('Erro ao carregar agendamentos')
     } finally {
@@ -168,6 +173,7 @@ export const useAgendamentosStore = defineStore('agendamentos', () => {
   return {
     agendamentos,
     loading,
+    dataCarregada,
     emAtendimento,
     fila,
     ordenados,
