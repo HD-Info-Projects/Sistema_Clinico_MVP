@@ -273,6 +273,17 @@ AGE_IDENTITY_FILE=/secure/keys/medsystem-backup.agekey \
 
 O restore exige digitar `RESTAURAR:NOME_DO_BANCO` conforme o destino exibido. Backup e restore compartilham um lock para impedir execucao concorrente no mesmo projeto. Teste a restauracao trimestralmente em ambiente isolado. Nunca mantenha `AGE_IDENTITY_FILE` ou a chave privada na VPS de producao.
 
+## Atendimentos nao finalizados
+
+Quando o medico entra em uma unidade, o dashboard pergunta o que fazer com atendimentos dele que ficaram "em atendimento" em dias anteriores naquela unidade (retomar, salvar ou cancelar). Nao ha encerramento automatico nem cron, para nao interromper um atendimento em andamento (por exemplo, que atravesse a meia-noite).
+
+Para limpar manualmente atendimentos antigos (ex.: antes da primeira implantacao deste fluxo), use o comando abaixo, que nunca toca atendimentos de hoje:
+
+```bash
+docker compose exec -T backend flask encerrar-atendimentos-pendentes --dry-run
+docker compose exec -T backend flask encerrar-atendimentos-pendentes
+```
+
 ## Retencao e descarte LGPD
 
 Antes de ativar os prazos, obtenha aprovacao do Controlador, DPO, juridico/regulatorio e responsavel assistencial. Simule primeiro:

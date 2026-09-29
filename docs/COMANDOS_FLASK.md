@@ -75,6 +75,7 @@ python -m flask --env-file .env --app run.py db current
 | `importar-exames-spdata` | Importa exames da `SITABPRO`. | Firebird e MySQL |
 | `importar-procedimentos-spdata` | Importa procedimentos da tabela 98. | Firebird e MySQL |
 | `exportar-logos-tiss` | Exporta imagens de `TBTISS.LOGOTIPO`. | Firebird e arquivos locais |
+| `encerrar-atendimentos-pendentes` | Limpeza manual de atendimentos de dias anteriores que ficaram "em atendimento". | MySQL |
 
 ## 4. Usuarios
 
@@ -335,6 +336,29 @@ Por padrao, os arquivos sao gravados em `frontend/public/img/convenios`. Para es
 python -m flask --app run.py exportar-logos-tiss \
   --output-dir ../frontend/public/img/convenios
 ```
+
+### 6.7. Encerrar atendimentos pendentes
+
+Ferramenta manual de limpeza. Marca como atendidos os atendimentos de **dias
+anteriores** que ficaram "em atendimento" porque o medico nao finalizou a
+consulta. Nunca altera atendimentos de hoje. Nao grava conteudo clinico (o
+rascunho fica apenas no navegador do medico) e registra a auditoria
+`ENCERROU_ATENDIMENTO_AUTOMATICAMENTE`. Pacientes "em espera" nao sao alterados.
+
+```bash
+# Simula (nada e alterado)
+python -m flask --app run.py encerrar-atendimentos-pendentes --dry-run
+
+# Encerra os de dias anteriores
+python -m flask --app run.py encerrar-atendimentos-pendentes
+
+# Restringe a uma unidade
+python -m flask --app run.py encerrar-atendimentos-pendentes --unidade-id 1
+```
+
+No uso normal nao e necessario: ao entrar em uma unidade, o dashboard pergunta
+ao medico o que fazer com os atendimentos pendentes dele naquela unidade
+(retomar, salvar ou cancelar). Nao agende este comando em cron.
 
 ## 7. Migrations
 
