@@ -385,14 +385,13 @@ export async function gerarHtmlGuiaInternacao(params: {
   indicacaoClinica?: string
   atendimentoRN?: boolean
   cids?: { cid: string, nome: string }[]
-  procedimentos?: { nome: string, codigo_procedimento?: string | number | null, codigo_tuss?: string | number | null }[]
+  procedimentos?: { nome: string, codigo_procedimento?: string | number | null }[]
 }): Promise<string> {
   const template = await $fetch<string>('/guia_internacao.html', { responseType: 'text' })
 
   const procedimentosRows = (params.procedimentos || [])
     .map((p) => {
-      const codigoExibicao = p.codigo_tuss ?? p.codigo_procedimento
-      const codigo = codigoExibicao ? String(codigoExibicao) : ''
+      const codigo = p.codigo_procedimento ? String(p.codigo_procedimento) : ''
       return `                    <tr>
                         <td><input type="text" value="0"></td>
                         <td><input type="text" value="${escapeHtml(codigo)}"></td>
