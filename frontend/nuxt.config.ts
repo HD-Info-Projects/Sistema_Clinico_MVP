@@ -28,6 +28,7 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     flaskBaseUrl: process.env.NUXT_FLASK_BASE_URL || 'http://localhost:5000',
+    internalRequestSecret: process.env.NUXT_INTERNAL_REQUEST_SECRET || process.env.INTERNAL_REQUEST_SECRET || '',
     pacsViewerAllowedHosts: process.env.NUXT_PACS_VIEWER_ALLOWED_HOSTS || process.env.PACS_VIEWER_ALLOWED_HOSTS || 'natuslumine.am2saude.com,192.168.5.21',
     enableTts: process.env.NUXT_ENABLE_TTS === 'true',
     public: {

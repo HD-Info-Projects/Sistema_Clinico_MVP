@@ -141,7 +141,6 @@ export interface ProcedimentoCatalogo {
   id: number
   nome: string
   codigo_procedimento: number | null
-  codigo_tuss?: number | null
   tipo_ato_codigo: number | null
   tipo_ato_nome: string | null
   apelido_procedimento?: string | null
@@ -153,7 +152,6 @@ export interface ProcedimentoSelecionado {
   procedimento_id: number | null
   nome: string
   codigo_procedimento?: number | null
-  codigo_tuss?: number | null
   tipo_ato_codigo?: number | null
   tipo_ato_nome?: string | null
   exige_autorizacao?: number | null

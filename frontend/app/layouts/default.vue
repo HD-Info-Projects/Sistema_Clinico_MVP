@@ -1,7 +1,4 @@
 <script setup lang="ts">
-import type { AgendamentoComPaciente } from '~/features/agenda/types'
-import { listarAtendimentosPendentes } from '~/features/agenda/services/agendaService'
-
 const auth = useAuthStore()
 
 const open = ref(true)
@@ -50,24 +47,17 @@ function trocarAcesso() {
 const agendamentosStore = useAgendamentosStore()
 const verificandoLogout = ref(false)
 const modalLogoutBloqueadoAberto = ref(false)
-const atendimentoBloqueante = ref<AgendamentoComPaciente | null>(null)
-
-// Atendimento em andamento do médico na unidade ativa (qualquer data). Usa o store
-// como atalho e consulta os pendentes no backend (consulta leve, só MySQL).
-async function buscarAtendimentoEmAndamento() {
-  if (agendamentosStore.emAtendimento) return agendamentosStore.emAtendimento
-
-  try {
-    const pendentes = await listarAtendimentosPendentes()
-    return pendentes[0] ?? null
-  } catch {
-    // Falha na consulta: não bloqueia o logout.
-    return null
-  }
-}
+const pacienteEmAtendimentoNome = ref<string | null>(null)
+const dataAtendimentoEmAndamento = ref<string | null>(null)
+const erroVerificacaoLogout = ref(false)
+const logoutRequestId = ref<string | null>(null)
 
 async function tentarSair() {
   if (verificandoLogout.value) return
+  erroVerificacaoLogout.value = false
+  logoutRequestId.value = null
+  pacienteEmAtendimentoNome.value = null
+  dataAtendimentoEmAndamento.value = null
 
   if (auth.user?.role !== 'medico') {
     await auth.logout()
@@ -76,26 +66,43 @@ async function tentarSair() {
 
   verificandoLogout.value = true
   try {
-    const ativo = await buscarAtendimentoEmAndamento()
-    if (ativo) {
-      atendimentoBloqueante.value = ativo
+    const resultado = await auth.logout()
+    if (!resultado.success && resultado.reason === 'atendimento') {
+      pacienteEmAtendimentoNome.value = resultado.pacienteNome
+      dataAtendimentoEmAndamento.value = resultado.data
+      modalLogoutBloqueadoAberto.value = true
+      return
+    }
+
+    if (!resultado.success && resultado.reason === 'verificacao') {
+      erroVerificacaoLogout.value = true
+      logoutRequestId.value = resultado.requestId
       modalLogoutBloqueadoAberto.value = true
       return
     }
   } finally {
     verificandoLogout.value = false
   }
-
-  await auth.logout()
 }
 
 async function irParaAtendimento() {
   modalLogoutBloqueadoAberto.value = false
-  const ativo = atendimentoBloqueante.value
-  if (ativo && agendamentosStore.emAtendimento?.id !== ativo.id) {
-    agendamentosStore.focarAtendimento(ativo)
+  const dataAtendimento = dataAtendimentoEmAndamento.value || formatarDataISO(new Date())
+  if (!agendamentosStore.emAtendimento) {
+    await agendamentosStore.fetchAgendamentos(
+      auth.activeClinicaId ?? undefined,
+      dataAtendimento,
+      auth.user?.id
+    )
   }
   await navigateTo('/atendimento-medico')
+}
+
+function fecharModalLogout() {
+  modalLogoutBloqueadoAberto.value = false
+  dataAtendimentoEmAndamento.value = null
+  erroVerificacaoLogout.value = false
+  logoutRequestId.value = null
 }
 </script>
 
@@ -182,16 +189,30 @@ async function irParaAtendimento() {
           <div class="flex min-w-0 items-start gap-2">
             <UIcon
               name="i-lucide-alert-triangle"
-              class="mt-1 shrink-0 text-warning"
+              class="mt-1 shrink-0"
+              :class="erroVerificacaoLogout ? 'text-error' : 'text-warning'"
             />
             <h3 class="min-w-0 break-words text-xl font-black">
-              Atendimento em andamento
+              {{ erroVerificacaoLogout ? 'Verificação indisponível' : 'Atendimento em andamento' }}
             </h3>
           </div>
-          <p class="break-words text-neutral-500 dark:text-neutral-400">
-            <template v-if="atendimentoBloqueante">
+          <p
+            v-if="erroVerificacaoLogout"
+            class="break-words text-neutral-500 dark:text-neutral-400"
+          >
+            Não foi possível verificar se há atendimento em andamento. Tente novamente antes de sair.
+            <span v-if="logoutRequestId">
+              Código de referência:
+              <span class="font-mono font-semibold text-highlighted">{{ logoutRequestId }}</span>.
+            </span>
+          </p>
+          <p
+            v-else
+            class="break-words text-neutral-500 dark:text-neutral-400"
+          >
+            <template v-if="pacienteEmAtendimentoNome">
               Você possui um atendimento em andamento com
-              <span class="font-semibold text-highlighted">{{ atendimentoBloqueante.paciente.nome }}</span>.
+              <span class="font-semibold text-highlighted">{{ pacienteEmAtendimentoNome }}</span>.
             </template>
             <template v-else>
               Você possui um atendimento em andamento.
@@ -206,9 +227,21 @@ async function irParaAtendimento() {
               block
               size="lg"
               class="font-bold rounded-xl"
-              @click="modalLogoutBloqueadoAberto = false"
+              @click="fecharModalLogout"
             />
             <UButton
+              v-if="erroVerificacaoLogout"
+              label="Tentar novamente"
+              icon="i-lucide-refresh-cw"
+              color="primary"
+              variant="solid"
+              block
+              size="lg"
+              class="font-bold rounded-xl"
+              @click="void tentarSair()"
+            />
+            <UButton
+              v-else
               label="Ir para o atendimento"
               icon="i-lucide-stethoscope"
               color="primary"

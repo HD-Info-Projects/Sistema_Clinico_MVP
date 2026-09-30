@@ -14,6 +14,16 @@ export function listarAgenda(event: H3Event, query: Record<string, unknown>) {
   return flaskFetch(event, `/agenda-medica/${params.toString() ? `?${params.toString()}` : ''}`)
 }
 
+export function verificarAtendimentoEmAndamento(event: H3Event, query: Record<string, unknown>) {
+  const params = new URLSearchParams()
+  const data = query.data
+  if (data !== undefined && data !== null && String(data).trim()) {
+    params.set('data', String(data))
+  }
+
+  return flaskFetch(event, `/agenda-medica/em-atendimento${params.toString() ? `?${params.toString()}` : ''}`)
+}
+
 export function listarMarcadoresAgenda(event: H3Event, query: Record<string, unknown>) {
   const params = new URLSearchParams()
 

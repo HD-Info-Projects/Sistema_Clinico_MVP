@@ -9,7 +9,6 @@ def procedimento_para_dict(procedimento):
         "id": procedimento.id,
         "nome": procedimento.nome,
         "codigo_procedimento": procedimento.codigo_procedimento,
-        "codigo_tuss": procedimento.proc_ref_tuss,
         "tipo_ato_codigo": procedimento.tipo_ato_codigo,
         "tipo_ato_nome": procedimento.tipo_ato_nome,
         "apelido_procedimento": procedimento.apelido_procedimento,
@@ -25,7 +24,6 @@ def filtro_busca_procedimentos(q):
         Procedimento.apelido_procedimento.ilike(like),
         Procedimento.tipo_ato_nome.ilike(like),
         cast(Procedimento.codigo_procedimento, String).ilike(like),
-        cast(Procedimento.proc_ref_tuss, String).ilike(like),
     )
 
 
