@@ -6,6 +6,7 @@ from src.services.spdata_atendimentos_service import (
     get_crm_medico_usuario,
     listar_agenda_medica,
     marcar_preventivos_atendidos,
+    valores_status_medsystem,
 )
 
 __all__ = [
@@ -16,4 +17,5 @@ __all__ = [
     "get_crm_medico_usuario",
     "listar_agenda_medica",
     "marcar_preventivos_atendidos",
+    "valores_status_medsystem",
 ]

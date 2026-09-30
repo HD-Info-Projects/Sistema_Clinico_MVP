@@ -43,12 +43,18 @@ def app(monkeypatch):
 _seq = iter(range(1, 10_000))
 
 
-def _atendimento(data_agenda, status=StatusAtendimentoMedSystem.EM_ATENDIMENTO, crm="123", unidade_id=1):
+def _atendimento(
+    data_agenda,
+    status=StatusAtendimentoMedSystem.EM_ATENDIMENTO,
+    crm="123",
+    unidade_id=1,
+    hora_agenda=time(8, 0),
+):
     n = next(_seq)
     spdata = MedSpdataAtendimento(
         spdata_atendimento_id=n,
         unidade_id=unidade_id,
-        data_hora_entrada=datetime.combine(data_agenda, time(8, 0)),
+        data_hora_entrada=datetime.combine(data_agenda, hora_agenda),
         data_atendimento=data_agenda,
         paciente=f"Paciente {n}",
         crm_medico=crm,
@@ -60,8 +66,9 @@ def _atendimento(data_agenda, status=StatusAtendimentoMedSystem.EM_ATENDIMENTO, 
         spdata_atendimento_id=n,
         unidade_id=unidade_id,
         data_agenda=data_agenda,
+        hora_agenda=hora_agenda,
         paciente=spdata.paciente,
-        status=status.value,
+        status=status.value if hasattr(status, "value") else status,
     ))
     db.session.commit()
     return spdata
@@ -76,7 +83,7 @@ def test_lista_em_atendimento_do_medico_na_unidade(app):
 
     itens = pendentes.listar_atendimentos_pendentes(1)
 
-    assert [item["id"] for item in itens] == [ontem.id, hoje.id]
+    assert [item["id"] for item in itens] == [hoje.id, ontem.id]
 
 
 def test_anteriores_a_exclui_atendimentos_do_dia(app):
@@ -86,3 +93,13 @@ def test_anteriores_a_exclui_atendimentos_do_dia(app):
     itens = pendentes.listar_atendimentos_pendentes(1, anteriores_a=HOJE)
 
     assert [item["id"] for item in itens] == [ontem.id]
+
+
+def test_lista_status_normalizado_e_mais_recente_primeiro(app):
+    anteontem = _atendimento(HOJE - timedelta(days=2), status="em-atendimento")
+    ontem_cedo = _atendimento(ONTEM, hora_agenda=time(8, 0))
+    ontem_tarde = _atendimento(ONTEM, hora_agenda=time(16, 0))
+
+    itens = pendentes.listar_atendimentos_pendentes(1, anteriores_a=HOJE)
+
+    assert [item["id"] for item in itens] == [ontem_tarde.id, ontem_cedo.id, anteontem.id]

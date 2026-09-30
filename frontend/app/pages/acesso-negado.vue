@@ -15,9 +15,7 @@ async function sair() {
   const resultado = await auth.logout()
   if (resultado.success) return
 
-  erroLogout.value = resultado.reason === 'atendimento'
-    ? 'Finalize ou cancele o atendimento em andamento antes de sair.'
-    : 'Não foi possível verificar atendimento em andamento. Tente novamente antes de sair.'
+  erroLogout.value = 'Finalize ou cancele o atendimento em andamento antes de sair.'
 }
 </script>
 

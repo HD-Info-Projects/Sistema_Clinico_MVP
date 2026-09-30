@@ -51,7 +51,7 @@ def _atendimento(data_agenda, status=StatusAtendimentoMedSystem.EM_ATENDIMENTO, 
         spdata_atendimento_id=n,
         data_agenda=data_agenda,
         paciente=spdata.paciente,
-        status=status.value,
+        status=status.value if hasattr(status, "value") else status,
     )
     db.session.add(atendimento)
     db.session.commit()
@@ -103,3 +103,32 @@ def test_filtra_por_crm_do_medico(app):
 
     assert _status(do_medico) == StatusAtendimentoMedSystem.ATENDIDO.value
     assert _status(de_outro) == StatusAtendimentoMedSystem.EM_ATENDIMENTO.value
+
+
+def test_encerra_status_normalizado(app):
+    antigo = _atendimento(ONTEM, status="em-atendimento")
+
+    resultado = servico.encerrar_atendimentos_pendentes(hoje=HOJE)
+
+    assert [item["id"] for item in resultado["encerrados"]] == [antigo.id]
+    assert _status(antigo) == StatusAtendimentoMedSystem.ATENDIDO.value
+
+
+def test_revalida_status_antes_de_encerrar(app, monkeypatch):
+    antigo = _atendimento(ONTEM)
+    buscar_original = servico.buscar_atendimentos_pendentes
+
+    def buscar_e_finalizar_em_paralelo(**kwargs):
+        encontrados = buscar_original(**kwargs)
+        antigo.marcar_atendido()
+        db.session.commit()
+        return encontrados
+
+    monkeypatch.setattr(servico, "buscar_atendimentos_pendentes", buscar_e_finalizar_em_paralelo)
+
+    resultado = servico.encerrar_atendimentos_pendentes(hoje=HOJE)
+
+    assert resultado["encontrados"] == 1
+    assert resultado["encerrados"] == []
+    assert resultado["falhas"] == []
+    assert Auditoria.query.count() == 0

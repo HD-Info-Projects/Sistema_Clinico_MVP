@@ -16,13 +16,13 @@ from flask import current_app
 from sqlalchemy import select
 
 from src.models.auditoria_model import AcaoAuditoria
-from src.models.model_mydsystem.med_atendimentos_model import (
-    MedAtendimentos,
-    StatusAtendimentoMedSystem,
-)
+from src.models.model_mydsystem.med_atendimentos_model import MedAtendimentos
 from src.models.model_mydsystem.med_spdata_atendimentos_model import MedSpdataAtendimento
 from src.models.unidade_model import Unidade
-from src.modules.atendimentos.service import marcar_preventivos_atendidos
+from src.modules.atendimentos.service import (
+    marcar_preventivos_atendidos,
+    valores_status_medsystem,
+)
 from src.modules.lgpd.service import registrar_auditoria
 from src.settings.extensions import db
 from src.shared.response_cache import apagar_cache_por_padrao
@@ -32,7 +32,7 @@ def buscar_atendimentos_pendentes(hoje=None, unidade_id=None, crm_medico=None):
     # Só dias anteriores: um atendimento de hoje pode estar em andamento.
     hoje = hoje or date.today()
     query = select(MedAtendimentos).where(
-        MedAtendimentos.status == StatusAtendimentoMedSystem.EM_ATENDIMENTO.value,
+        MedAtendimentos.status.in_(valores_status_medsystem("em-atendimento")),
         MedAtendimentos.data_agenda < hoje,
     )
     if unidade_id is not None:
@@ -79,6 +79,7 @@ def encerrar_atendimentos_pendentes(
     Cada atendimento é processado e commitado individualmente: uma falha em um
     registro não impede o encerramento dos demais.
     """
+    hoje = hoje or date.today()
     pendentes = buscar_atendimentos_pendentes(
         hoje=hoje,
         unidade_id=unidade_id,
@@ -94,9 +95,30 @@ def encerrar_atendimentos_pendentes(
         resultado["encerrados"] = [_resumo(a) for a in pendentes] if dry_run else []
         return resultado
 
-    for atendimento in pendentes:
-        resumo = _resumo(atendimento)
+    for candidato in pendentes:
+        resumo = _resumo(candidato)
         try:
+            query = select(MedAtendimentos).where(
+                MedAtendimentos.id == candidato.id,
+                MedAtendimentos.status.in_(valores_status_medsystem("em-atendimento")),
+                MedAtendimentos.data_agenda < hoje,
+            )
+            if unidade_id is not None:
+                query = query.where(MedAtendimentos.unidade_id == unidade_id)
+            if crm_medico:
+                query = query.join(
+                    MedSpdataAtendimento,
+                    MedSpdataAtendimento.id == MedAtendimentos.med_spdata_atendimento_id,
+                ).where(MedSpdataAtendimento.crm_medico == crm_medico)
+
+            atendimento = db.session.execute(
+                query.with_for_update().execution_options(populate_existing=True)
+            ).scalar_one_or_none()
+            if atendimento is None:
+                db.session.rollback()
+                continue
+
+            resumo = _resumo(atendimento)
             atendimento.marcar_atendido()
             _marcar_preventivos(atendimento)
             registrar_auditoria(

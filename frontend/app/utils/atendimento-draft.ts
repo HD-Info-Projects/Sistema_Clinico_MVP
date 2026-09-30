@@ -14,6 +14,7 @@ type DraftClinico = {
   savedAt?: string
   anamneseTexto?: string
   cidSelecionadoLista?: { cid: string, nome?: string }[]
+  cidPrincipalIndex?: number
   receitaTexto?: string
   examesSelecionados?: {
     nome: string
@@ -36,12 +37,18 @@ export function lerConsultaDoDraft(agendamentoId: number, pacienteId: number | n
     const savedAt = draft.savedAt ? new Date(draft.savedAt).getTime() : 0
     if (!savedAt || Date.now() - savedAt > ATENDIMENTO_DRAFT_TTL_MS) return null
 
+    const diagnosticos = draft.cidSelecionadoLista ?? []
+    const indicePrincipal = Number.isInteger(draft.cidPrincipalIndex)
+      && draft.cidPrincipalIndex! >= 0
+      && draft.cidPrincipalIndex! < diagnosticos.length
+      ? draft.cidPrincipalIndex!
+      : 0
     const consulta: ConsultaStatusPayload = {
       anamnese: draft.anamneseTexto || '',
-      diagnosticos: (draft.cidSelecionadoLista ?? []).map((cid, i) => ({
+      diagnosticos: diagnosticos.map((cid, i) => ({
         cid: cid.cid,
         descricao: cid.nome,
-        principal: i === 0
+        principal: i === indicePrincipal
       })),
       medicamentos: draft.receitaTexto || '',
       exames: (draft.examesSelecionados ?? []).map(e => ({

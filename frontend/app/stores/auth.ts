@@ -7,8 +7,13 @@ export type AccessMode = 'recepcionista' | 'administrador' | 'logs'
 
 export type LogoutResult
   = | { success: true }
-    | { success: false, reason: 'atendimento', pacienteNome: string | null, data: string | null }
-    | { success: false, reason: 'verificacao', requestId: string | null }
+    | {
+      success: false
+      reason: 'atendimento'
+      atendimentoId: number | null
+      pacienteNome: string | null
+      data: string | null
+    }
 
 const MODOS_ACESSO: AccessMode[] = ['recepcionista', 'administrador', 'logs']
 
@@ -109,53 +114,24 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  function requestIdErro(error: unknown) {
-    const fetchError = error as {
-      response?: { headers?: Headers }
-      data?: { requestId?: string }
-    }
-
-    return fetchError.response?.headers?.get?.('x-request-id')
-      || fetchError.data?.requestId
-      || null
-  }
-
-  function statusErro(error: unknown) {
-    const fetchError = error as {
-      status?: number
-      statusCode?: number
-      response?: { status?: number }
-    }
-
-    return fetchError.response?.status || fetchError.statusCode || fetchError.status || null
-  }
-
   async function verificarBloqueioLogout(): Promise<Exclude<LogoutResult, { success: true }> | null> {
     if (user.value?.role !== 'medico') return null
 
     try {
-      const resultado = await verificarAtendimentoEmAndamento(
-        formatarDataISO(new Date())
-      )
+      const resultado = await verificarAtendimentoEmAndamento()
       if (!resultado.emAtendimento) return null
 
       return {
         success: false,
         reason: 'atendimento',
+        atendimentoId: resultado.id ?? null,
         pacienteNome: resultado.paciente?.nomeSocial || resultado.paciente?.nome || null,
         data: resultado.data ?? null
       }
     } catch (error) {
-      // Sessão inválida (401/422), sem permissão (403) ou erro de configuração (400,
-      // ex.: médico sem CRM) não são falhas transitórias: o backend já registra o
-      // motivo no log e bloquear aqui impediria o logout indefinidamente.
-      if ([400, 401, 403, 422].includes(statusErro(error) ?? 0)) return null
-
-      return {
-        success: false,
-        reason: 'verificacao',
-        requestId: requestIdErro(error)
-      }
+      // Falhas de verificação não podem impedir o médico de sair do sistema.
+      console.error('Erro ao verificar atendimento em andamento antes do logout', error)
+      return null
     }
   }
 

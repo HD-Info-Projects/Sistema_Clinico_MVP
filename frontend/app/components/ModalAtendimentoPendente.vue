@@ -100,7 +100,7 @@ async function cancelarDefinitivamente() {
     :open="modalEscolhaAberto"
     :close="false"
     :dismissible="false"
-    :ui="{ content: 'max-h-[calc(100dvh-2rem)] overflow-y-auto' }"
+    :ui="{ content: 'max-h-[calc(100dvh-2rem)] overflow-y-auto min-w-2xl' }"
   >
     <template #content>
       <div
@@ -112,12 +112,12 @@ async function cancelarDefinitivamente() {
             name="i-lucide-alert-triangle"
             class="mt-1 shrink-0 text-warning"
           />
-          <h3 class="min-w-0 break-words text-xl font-black">
-            Atendimento não finalizado
+          <h3 class="min-w-0 wrap-break-word text-xl font-black">
+            Atendimento não finalizado anteriormente.
           </h3>
         </div>
 
-        <p class="break-words text-neutral-500 dark:text-neutral-400">
+        <p class="wrap-break-word text-neutral-500 dark:text-neutral-400">
           O atendimento de
           <span class="font-semibold text-highlighted">{{ atual.paciente.nome }}</span>,
           de {{ formatarData(atual.data) }}{{ atual.horario ? ` às ${atual.horario}` : '' }},
@@ -156,7 +156,7 @@ async function cancelarDefinitivamente() {
             size="lg"
             class="font-bold rounded-xl"
             :disabled="!!processando"
-            @click="etapa = 'confirmar-cancelamento'"
+            @click="void(etapa = 'confirmar-cancelamento')"
           />
           <UButton
             label="Salvar"
@@ -199,11 +199,11 @@ async function cancelarDefinitivamente() {
             name="i-lucide-trash-2"
             class="mt-1 shrink-0 text-error"
           />
-          <h3 class="min-w-0 break-words text-xl font-black">
+          <h3 class="min-w-0 wrap-break-word text-xl font-black">
             Cancelar atendimento?
           </h3>
         </div>
-        <p class="break-words text-neutral-500 dark:text-neutral-400">
+        <p class="wrap-break-word text-neutral-500 dark:text-neutral-400">
           Todas as alterações feitas neste atendimento serão descartadas e
           <span class="font-semibold text-error">não há como desfazer</span>.
           O paciente voltará para a fila.
@@ -217,7 +217,7 @@ async function cancelarDefinitivamente() {
             size="lg"
             class="font-bold rounded-xl"
             :disabled="!!processando"
-            @click="etapa = 'escolha'"
+            @click="void(etapa = 'escolha')"
           />
           <UButton
             label="Cancelar definitivamente"
