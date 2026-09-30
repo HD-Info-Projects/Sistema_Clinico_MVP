@@ -134,7 +134,9 @@ export const useAuthStore = defineStore('auth', () => {
     if (user.value?.role !== 'medico') return null
 
     try {
-      const resultado = await verificarAtendimentoEmAndamento()
+      const resultado = await verificarAtendimentoEmAndamento(
+        formatarDataISO(new Date())
+      )
       if (!resultado.emAtendimento) return null
 
       return {
