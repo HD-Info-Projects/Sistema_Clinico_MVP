@@ -3,8 +3,7 @@ import type { DropdownMenuItem } from '@nuxt/ui/'
 import { listarRetencaoExames } from '~/features/lgpd/services/lgpdService'
 import type { ContatoRetencao, ExameRetencao } from '~/features/lgpd/types'
 import { abrirJanelaPdf, exportTableToPDF, exportToExcel, type ColunaExport } from '~/utils/export-data'
-import type { TipoProcedimentoTuss } from '~/types'
-import { TUSS_PROCEDIMENTO_TIPOS, corTipoProcedimento, rotuloTipoProcedimento, tipoProcedimentoPorCodigoTuss } from '~/utils/tuss'
+import { corTipoProcedimento, rotuloTipoProcedimento } from '~/utils/tuss'
 
 const openNav = inject<() => void>('openNav', () => {})
 const auth = useAuthStore()
@@ -32,7 +31,7 @@ const filtroMedico = ref('Todos')
 const filtroEspecialidade = ref('Todos')
 const filtroConvenio = ref('Todos')
 const filtroStatus = ref('Todos')
-const filtroTipoExame = ref<TipoProcedimentoTuss | ''>('')
+const filtroTipoExame = ref('')
 const filtroExame = ref('')
 const filtroPaciente = ref('')
 
@@ -43,7 +42,7 @@ const filtroMedicoActive = ref('Todos')
 const filtroEspecialidadeActive = ref('Todos')
 const filtroConvenioActive = ref('Todos')
 const filtroStatusActive = ref('Todos')
-const filtroTipoExameActive = ref<TipoProcedimentoTuss | ''>('')
+const filtroTipoExameActive = ref('')
 
 const filtroPeriodoInicioActive = computed(() => `${filtroAnoActive.value}-${MES_PARA_NUMERO[filtroMesInicioActive.value]}`)
 const filtroPeriodoFimActive = computed(() => `${filtroAnoActive.value}-${MES_PARA_NUMERO[filtroMesFimActive.value]}`)
@@ -125,11 +124,17 @@ const conveniosDisponiveis = computed(() => {
 })
 
 const tiposExameDisponiveis = computed(() => {
-  const tiposEncontrados = new Set(examesRetencao.value.map(e => tipoExame(e)))
-  return [
-    { label: 'Todos', value: '' },
-    ...TUSS_PROCEDIMENTO_TIPOS.filter(tipo => tiposEncontrados.has(tipo.value))
-  ]
+  const tipos = new Map<string, string>()
+  for (const exame of examesRetencao.value) {
+    const valor = opcaoFiltro(exame.tipoExame)
+    if (!valor) continue
+
+    tipos.set(valor, opcaoFiltro(exame.tipoExameLabel) || rotuloTipoProcedimento(valor))
+  }
+
+  const itens = Array.from(tipos, ([value, label]) => ({ value, label }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'))
+  return [{ label: 'Todos', value: '' }, ...itens]
 })
 
 const STATUS_VALUE_MAP: Record<string, string> = {
@@ -209,15 +214,22 @@ function rotuloStatus(status: string) {
 }
 
 function tipoExame(item: ExameRetencao) {
-  return tipoProcedimentoPorCodigoTuss(item.codigoTuss)
+  return opcaoFiltro(item.tipoExame) || 'nao-informado'
 }
 
 function rotuloTipoExame(item: ExameRetencao) {
-  return rotuloTipoProcedimento(tipoExame(item))
+  return opcaoFiltro(item.tipoExameLabel) || rotuloTipoProcedimento(tipoExame(item))
 }
 
 function corTipoExame(item: ExameRetencao) {
   return corTipoProcedimento(tipoExame(item))
+}
+
+function selecionarTipoExame(tipo: string | null) {
+  const valor = tipo ?? ''
+  filtroTipoExame.value = valor
+  filtroTipoExameActive.value = valor
+  page.value = 1
 }
 
 function formatarData(iso: string | null | undefined) {
@@ -637,6 +649,7 @@ watch(() => auth.activeClinicaId, () => {
                 clear
                 size="sm"
                 class="w-full"
+                @update:model-value="selecionarTipoExame"
               />
             </UFormField>
             <UButton

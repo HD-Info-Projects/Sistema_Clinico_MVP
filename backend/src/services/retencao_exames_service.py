@@ -1,11 +1,13 @@
 from collections import defaultdict
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
+import unicodedata
 
 from sqlalchemy import or_, select
 
 from src.models.atendimentos_model import Atendimento
 from src.models.db.handler_fb_db import ConnectionDBFireBird
+from src.models.medico_model import Medico
 from src.models.model_mydsystem.med_exames_model import Exame
 from src.models.model_mydsystem.med_spdata_atendimentos_model import MedSpdataAtendimento
 from src.models.model_mydsystem.med_spdata_convenios_model import MedSpdataConvenio
@@ -15,6 +17,57 @@ from src.utils.normalizar import normalizar_cpf
 
 
 PRAZO_NAO_CONVERTIDO = timedelta(days=90)
+
+TIPOS_EXAME_RETENCAO = {
+    "anatomia-patologica": ("8", "8 - Anatomia Patológica"),
+    "alergologia": ("9", "9 - Alergologia"),
+    "eletroencefalografia": ("10", "10 - Eletroencefalografia"),
+    "fisioterapia": ("11", "11 - Fisioterapia"),
+    "hemoterapia": ("12", "12 - Hemoterapia"),
+    "endoscopia-peroral": ("13", "13 - Endoscopia Peroral"),
+    "medicina-nuclear": ("14", "14 - Medicina Nuclear"),
+    "patologia-clinica": ("15", "15 - Patologia Clínica"),
+    "radiodiagnostico": ("16", "16 - Radiodiagnóstico"),
+    "radioterapia": ("17", "17 - Radioterapia"),
+    "cardiologia": ("18", "18 - Cardiologia"),
+    "genetica": ("20", "20 - Genética"),
+    "endoscopia-digestiva": ("21", "21 - Endoscopia Digestiva"),
+    "tisiopneumologia": ("22", "22 - Tisiopneumologia"),
+    "quimioterapia-cancer": ("23", "23 - Quimioterapia do Câncer"),
+    "ultrassonografia": ("24", "24 - Ultrassonografia"),
+    "tomografia-computadorizada": ("25", "25 - Tomografia Computadorizada"),
+    "ressonancia-magnetica": ("26", "26 - Ressonância Magnética"),
+    "ecocardiograma-doppler": ("27", "27 - Ecocardiograma com Doppler"),
+    "fonoaudiologia": ("28", "28 - Fonoaudiologia"),
+    "exames-especificos": ("40", "40 - Exames Específicos"),
+    "testes-diagnostico": ("41", "41 - Testes para Diagnóstico"),
+    "outros": ("", "Outros"),
+    "nao-informado": ("", "Não informado"),
+}
+
+ATO_TIPO_EXAME = {
+    "8": "anatomia-patologica",
+    "9": "alergologia",
+    "10": "eletroencefalografia",
+    "11": "fisioterapia",
+    "12": "hemoterapia",
+    "13": "endoscopia-peroral",
+    "15": "patologia-clinica",
+    "16": "radiodiagnostico",
+    "17": "radioterapia",
+    "18": "cardiologia",
+    "20": "genetica",
+    "21": "endoscopia-digestiva",
+    "22": "tisiopneumologia",
+    "23": "quimioterapia-cancer",
+    "24": "ultrassonografia",
+    "25": "tomografia-computadorizada",
+    "26": "ressonancia-magnetica",
+    "27": "ecocardiograma-doppler",
+    "28": "fonoaudiologia",
+    "40": "exames-especificos",
+    "41": "testes-diagnostico",
+}
 
 
 def normalizar_valor(valor):
@@ -40,6 +93,70 @@ def texto(valor):
     if valor is None:
         return ""
     return str(valor).strip()
+
+
+def texto_busca(valor):
+    normalizado = unicodedata.normalize("NFD", texto(valor).upper())
+    return "".join(char for char in normalizado if unicodedata.category(char) != "Mn")
+
+
+def tipo_exame_por_nome(nome):
+    nome_norm = texto_busca(nome)
+    if not nome_norm:
+        return ""
+
+    if any(token in nome_norm for token in ("ECOCARDIO", "ECODOPPLER")):
+        return "ecocardiograma-doppler"
+    if any(token in nome_norm for token in ("RESSON", "ANGIORESSON", "ANGIORRESSON")) or nome_norm.startswith("RM ") or " RM " in nome_norm:
+        return "ressonancia-magnetica"
+    if any(token in nome_norm for token in ("TOMOGRAF", "ANGIOTOMO")) or nome_norm.startswith("TC ") or " TC " in nome_norm:
+        return "tomografia-computadorizada"
+    if any(token in nome_norm for token in ("ULTRASSON", "ULTRASSOM", " USG ")) or nome_norm.startswith("USG") or nome_norm.startswith("U.S."):
+        return "ultrassonografia"
+    if any(token in nome_norm for token in ("RADIOGRAF", "RAIO X", "RAIOS X")) or nome_norm.startswith("RX ") or nome_norm.startswith("RX"):
+        return "radiodiagnostico"
+    if any(token in nome_norm for token in ("ELETROCARDIO", "CATETERISMO CARDIACO", "CINEANGIO", "CARDIOTOCO", "HOLTER", "MAPA")) or nome_norm == "ECG":
+        return "cardiologia"
+    if any(token in nome_norm for token in ("ELETROENCEF", "ELETRONEUROMIO", "POLISSONOGRAF")) or nome_norm == "EEG":
+        return "eletroencefalografia"
+    if any(token in nome_norm for token in ("AUDIOMET", "IMPEDANCIOMET", "IMITANCIOMET", "ORELHINHA", "FONOAUDIO")):
+        return "fonoaudiologia"
+    if "FISIOTERAP" in nome_norm:
+        return "fisioterapia"
+    if any(token in nome_norm for token in ("LARINGOSC", "BRONCOSC", "NASOFIBRO", "FIBRONASO", "FARINGO", "VIDEODEGLUT")):
+        return "endoscopia-peroral"
+    if any(token in nome_norm for token in ("ENDOSCOPIA DIGESTIVA", "COLONOSCOP", "RETOSSIGMOID", "ECOENDOSCOP", "GASTROSTOMIA ENDOSCOP", "PAPILOTOMIA", "LIGADURA ELASTICA", "COLANGIOPANCREAT")):
+        return "endoscopia-digestiva"
+    if any(token in nome_norm for token in ("ESPIROMET", "FUNCAO PULMONAR", "PROVA DE FUNCAO")):
+        return "tisiopneumologia"
+    if "QUIMIOTERAP" in nome_norm:
+        return "quimioterapia-cancer"
+    if any(token in nome_norm for token in ("CINTILO", "MEDICINA NUCLEAR")):
+        return "medicina-nuclear"
+    if any(token in nome_norm for token in ("CARIOTIPO", "GENETIC", "GENOM", "CITOGENET")):
+        return "genetica"
+    if any(token in nome_norm for token in ("ANATOMO", "CITOPATO", "IMUNOHISTOQUIM")):
+        return "anatomia-patologica"
+    if any(token in nome_norm for token in ("ALERGEN", "ALERG", "IGE")):
+        return "alergologia"
+    if any(token in nome_norm for token in ("SANGRIA", "CRIOPRECIPITADO", "CONCENTRADO DE PLAQUETAS", "PLASMA FRESCO", "HEMOCOMPONENT")):
+        return "hemoterapia"
+    if any(token in nome_norm for token in ("RADIOTERAP", "BRAQUITERAP")):
+        return "radioterapia"
+    if any(token in nome_norm for token in ("ACUIDADE VISUAL", "FUNDO DE OLHO", "TESTE DO OLHINHO", "AVALIACAO OFTALMOLOG")):
+        return "exames-especificos"
+
+    return ""
+
+
+def tipo_exame_por_ato(valor):
+    return ATO_TIPO_EXAME.get(texto(valor)) or ""
+
+
+def dados_tipo_exame(slug):
+    tipo = slug if slug in TIPOS_EXAME_RETENCAO else "outros"
+    codigo, label = TIPOS_EXAME_RETENCAO[tipo]
+    return tipo, codigo, label
 
 
 def numero(valor):
@@ -148,6 +265,7 @@ def buscar_solicitacoes_locais(data_ini, data_fim, unidade=None):
             Exame,
             MedSpdataAtendimento,
             MedSpdataConvenio,
+            Medico,
         )
         .join(Atendimento, SolicitacaoExame.atendimento_id == Atendimento.id)
         .outerjoin(Exame, SolicitacaoExame.exame_id == Exame.id)
@@ -159,6 +277,7 @@ def buscar_solicitacoes_locais(data_ini, data_fim, unidade=None):
             MedSpdataConvenio,
             MedSpdataAtendimento.id_convenio_spdata == MedSpdataConvenio.codigo_spdata,
         )
+        .outerjoin(Medico, Atendimento.spdata_medico_id == Medico.spdata_id)
         .where(*filtros)
         .order_by(SolicitacaoExame.created_at.desc(), SolicitacaoExame.id.desc())
     )
@@ -169,18 +288,18 @@ def buscar_solicitacoes_locais(data_ini, data_fim, unidade=None):
 def parametros_busca_spdata(registros_locais):
     codigos = sorted({
         codigo_exame(exame)
-        for _, _, exame, _, _ in registros_locais
+        for _, _, exame, _, _, _ in registros_locais
         if codigo_exame(exame)
     })
     nomes_sem_codigo = sorted({
         normalizar_nome_exame(nome_exame_solicitacao(solicitacao, exame))
-        for solicitacao, _, exame, _, _ in registros_locais
+        for solicitacao, _, exame, _, _, _ in registros_locais
         if not codigo_exame(exame)
         and normalizar_nome_exame(nome_exame_solicitacao(solicitacao, exame))
     })
     ids_pacientes = sorted({
         paciente_id
-        for _, atendimento, _, spdata, _ in registros_locais
+        for _, atendimento, _, spdata, _, _ in registros_locais
         for paciente_id in (
             normalizar_int(atendimento.spdata_paciente_id),
             normalizar_int(getattr(spdata, "id_paciente_spdata", None)),
@@ -189,7 +308,7 @@ def parametros_busca_spdata(registros_locais):
     })
     cpfs = sorted({
         cpf
-        for _, atendimento, _, spdata, _ in registros_locais
+        for _, atendimento, _, spdata, _, _ in registros_locais
         for cpf in (
             cpf_normalizado(atendimento.paciente_cpf),
             cpf_normalizado(getattr(spdata, "cpf", None)),
@@ -198,7 +317,7 @@ def parametros_busca_spdata(registros_locais):
     })
     prontuarios = sorted({
         prontuario
-        for _, _, _, spdata, _ in registros_locais
+        for _, _, _, spdata, _, _ in registros_locais
         if (prontuario := texto(getattr(spdata, "prontuario", None)))
     })
 
@@ -416,7 +535,7 @@ def status_solicitacao(solicitacao, realizacao, hoje=None):
     return "pendente"
 
 
-def solicitacao_para_item(solicitacao, atendimento, exame, spdata, convenio, realizacao, hoje=None):
+def solicitacao_para_item(solicitacao, atendimento, exame, spdata, convenio, medico, realizacao, hoje=None):
     hoje = hoje or date.today()
     data_solicitacao = solicitacao.created_at.date() if solicitacao.created_at else None
     status = status_solicitacao(solicitacao, realizacao, hoje)
@@ -424,6 +543,15 @@ def solicitacao_para_item(solicitacao, atendimento, exame, spdata, convenio, rea
     codigo_tuss = ""
     codigo_exame_local = codigo_exame(exame)
     codigo_exame_spdata = texto(realizacao.get("EXAME")) if realizacao else ""
+    nome_exame = texto(getattr(exame, "nome", None)) or texto(solicitacao.tipo_exame)
+    tipo_exame = (
+        tipo_exame_por_nome(texto(realizacao.get("EXAME_NOME")) if realizacao else "")
+        or tipo_exame_por_nome(nome_exame)
+        or tipo_exame_por_ato(texto(realizacao.get("ATO")) if realizacao else "")
+        or tipo_exame_por_ato(ato_exame(exame))
+        or "outros"
+    )
+    tipo_exame, tipo_exame_codigo, tipo_exame_label = dados_tipo_exame(tipo_exame)
 
     if realizacao:
         codigo_tuss = texto(realizacao.get("CODAMB_CONVENIO")) or texto(realizacao.get("CODAMB_PROCEDIMENTO"))
@@ -447,8 +575,11 @@ def solicitacao_para_item(solicitacao, atendimento, exame, spdata, convenio, rea
         "convenio": texto(getattr(convenio, "nome", None)) or texto(getattr(spdata, "id_convenio_spdata", None)),
         "medico": texto(getattr(spdata, "medico", None)) or "Médico não informado",
         "crm": texto(getattr(spdata, "crm_medico", None)),
-        "especialidade": "Especialidade não informada",
-        "exame": texto(getattr(exame, "nome", None)) or texto(solicitacao.tipo_exame),
+        "especialidade": texto(getattr(medico, "especialidade", None)) or "Especialidade não informada",
+        "exame": nome_exame,
+        "tipoExame": tipo_exame,
+        "tipoExameCodigo": tipo_exame_codigo,
+        "tipoExameLabel": tipo_exame_label,
         "codigoTuss": codigo_tuss or codigo_exame_local or codigo_exame_spdata,
         "codigoExame": codigo_exame_local or codigo_exame_spdata,
         "dataSolicitacao": data_iso(data_solicitacao),
@@ -482,10 +613,11 @@ def listar_retencao_exames(data_ini, data_fim, unidade=None):
             exame,
             spdata,
             convenio,
+            medico,
             encontrar_realizacao(solicitacao, atendimento, exame, spdata, indice),
             hoje,
         )
-        for solicitacao, atendimento, exame, spdata, convenio in registros_locais
+        for solicitacao, atendimento, exame, spdata, convenio, medico in registros_locais
     ]
 
     return {

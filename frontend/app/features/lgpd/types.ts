@@ -49,6 +49,9 @@ export type ExameRetencao = {
   crm: string
   especialidade: string
   exame: string
+  tipoExame?: string
+  tipoExameCodigo?: string
+  tipoExameLabel?: string
   codigoTuss: string
   dataSolicitacao: string
   diasEmAberto: number

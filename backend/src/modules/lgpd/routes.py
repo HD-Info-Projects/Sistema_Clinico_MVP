@@ -48,7 +48,7 @@ def listar_retencao():
             force_refresh=force_refresh,
         )
         cache_key = chave_cache(
-            "retencao_exames:response:v1",
+            "retencao_exames:response:v2",
             unidade_id=unidade.id,
             data_ini=data_ini.isoformat(),
             data_fim=data_fim.isoformat(),
