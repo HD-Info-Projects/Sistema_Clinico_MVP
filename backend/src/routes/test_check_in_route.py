@@ -36,21 +36,33 @@ def test_classifica_tipo_procedimento_por_codigo_tuss():
         ("10101012", "consulta"),
         ("20000000", "procedimento-ambulatorial"),
         ("30000000", "cirurgia"),
-        ("40100000", "metodos-eletrofisiologicos"),
-        ("40200000", "endoscopia"),
-        ("40300000", "medicina-laboratorial"),
-        ("40400000", "medicina-transfusional"),
+        ("40101010", "cardiologia"),
+        ("40101061", "tisiopneumologia"),
+        ("40102017", "endoscopia-digestiva"),
+        ("40103170", "eletroencefalografia"),
+        ("40103048", "fonoaudiologia"),
+        ("40103021", "exames-especificos"),
+        ("40103307", "eletroencefalografia"),
+        ("40104000", "fisioterapia"),
+        ("40201031", "endoscopia-peroral"),
+        ("40201082", "endoscopia-digestiva"),
+        ("40300000", "patologia-clinica"),
+        ("40307263", "alergologia"),
+        ("40400000", "hemoterapia"),
         ("40500000", "genetica"),
-        ("40600000", "anatomia-patologica-citopatologia"),
+        ("40600000", "anatomia-patologica"),
         ("40700000", "medicina-nuclear"),
-        ("40800000", "radiologia-rx"),
-        ("40901300", "ultrassonografia-us"),
+        ("40800000", "radiodiagnostico"),
+        ("40810000", "cardiologia"),
+        ("40813908", "quimioterapia-cancer"),
+        ("40901050", "ecocardiograma-doppler"),
+        ("40901300", "ultrassonografia"),
         ("41000000", "tomografia-computadorizada"),
         ("41100000", "ressonancia-magnetica"),
         ("41200000", "radioterapia"),
-        ("41300000", "exames-procedimentos-especificos"),
-        ("41301307", "exames-procedimentos-especificos"),
-        ("41301471", "exames-procedimentos-especificos"),
+        ("41300000", "exames-especificos"),
+        ("41301307", "exames-especificos"),
+        ("41301471", "exames-especificos"),
         ("41400000", "testes-diagnostico"),
         ("41500000", "outros-diagnosticos-terapeuticos"),
         ("41600000", "outros"),
@@ -73,7 +85,7 @@ def test_filtra_rows_por_tipo_procedimento():
     ]
 
     assert filtrar_rows_por_tipo(rows, "consulta") == [rows[0], rows[1]]
-    assert filtrar_rows_por_tipo(rows, "ultrassonografia-us") == [rows[2]]
+    assert filtrar_rows_por_tipo(rows, "ultrassonografia") == [rows[2]]
     assert filtrar_rows_por_tipo(rows, "nao-informado") == [rows[3]]
     assert filtrar_rows_por_tipo(rows, "outros") == [rows[4]]
 
@@ -88,8 +100,8 @@ def test_item_check_in_expoe_tipo_procedimento():
     )
 
     assert item["codigoProcedimentoSpdata"] == "40901300"
-    assert item["tipoProcedimento"] == "ultrassonografia-us"
-    assert item["tipoProcedimentoLabel"] == "Ultrassonografia (US)"
+    assert item["tipoProcedimento"] == "ultrassonografia"
+    assert item["tipoProcedimentoLabel"] == "24 - Ultrassonografia"
 
 
 def test_calcular_idade_ignora_data_sentinela_spdata():

@@ -1,19 +1,27 @@
 TIPO_PROCEDIMENTO_CONSULTA = "consulta"
 TIPO_PROCEDIMENTO_AMBULATORIAL = "procedimento-ambulatorial"
 TIPO_PROCEDIMENTO_CIRURGIA = "cirurgia"
-TIPO_PROCEDIMENTO_METODOS_ELETROFISIOLOGICOS = "metodos-eletrofisiologicos"
-TIPO_PROCEDIMENTO_ENDOSCOPIA = "endoscopia"
-TIPO_PROCEDIMENTO_MEDICINA_LABORATORIAL = "medicina-laboratorial"
-TIPO_PROCEDIMENTO_MEDICINA_TRANSFUSIONAL = "medicina-transfusional"
-TIPO_PROCEDIMENTO_GENETICA = "genetica"
-TIPO_PROCEDIMENTO_ANATOMIA_PATOLOGICA = "anatomia-patologica-citopatologia"
+TIPO_PROCEDIMENTO_ANATOMIA_PATOLOGICA = "anatomia-patologica"
+TIPO_PROCEDIMENTO_ALERGOLOGIA = "alergologia"
+TIPO_PROCEDIMENTO_ELETROENCEFALOGRAFIA = "eletroencefalografia"
+TIPO_PROCEDIMENTO_FISIOTERAPIA = "fisioterapia"
+TIPO_PROCEDIMENTO_HEMOTERAPIA = "hemoterapia"
+TIPO_PROCEDIMENTO_ENDOSCOPIA_PERORAL = "endoscopia-peroral"
 TIPO_PROCEDIMENTO_MEDICINA_NUCLEAR = "medicina-nuclear"
-TIPO_PROCEDIMENTO_RADIOLOGIA_RX = "radiologia-rx"
-TIPO_PROCEDIMENTO_ULTRASSONOGRAFIA_US = "ultrassonografia-us"
+TIPO_PROCEDIMENTO_PATOLOGIA_CLINICA = "patologia-clinica"
+TIPO_PROCEDIMENTO_RADIODIAGNOSTICO = "radiodiagnostico"
+TIPO_PROCEDIMENTO_RADIOTERAPIA = "radioterapia"
+TIPO_PROCEDIMENTO_CARDIOLOGIA = "cardiologia"
+TIPO_PROCEDIMENTO_GENETICA = "genetica"
+TIPO_PROCEDIMENTO_ENDOSCOPIA_DIGESTIVA = "endoscopia-digestiva"
+TIPO_PROCEDIMENTO_TISIOPNEUMOLOGIA = "tisiopneumologia"
+TIPO_PROCEDIMENTO_QUIMIOTERAPIA_CANCER = "quimioterapia-cancer"
+TIPO_PROCEDIMENTO_ULTRASSONOGRAFIA = "ultrassonografia"
 TIPO_PROCEDIMENTO_TOMOGRAFIA_COMPUTADORIZADA = "tomografia-computadorizada"
 TIPO_PROCEDIMENTO_RESSONANCIA_MAGNETICA = "ressonancia-magnetica"
-TIPO_PROCEDIMENTO_RADIOTERAPIA = "radioterapia"
-TIPO_PROCEDIMENTO_EXAMES_ESPECIFICOS = "exames-procedimentos-especificos"
+TIPO_PROCEDIMENTO_ECOCARDIOGRAMA_DOPPLER = "ecocardiograma-doppler"
+TIPO_PROCEDIMENTO_FONOAUDIOLOGIA = "fonoaudiologia"
+TIPO_PROCEDIMENTO_EXAMES_ESPECIFICOS = "exames-especificos"
 TIPO_PROCEDIMENTO_TESTES_DIAGNOSTICO = "testes-diagnostico"
 TIPO_PROCEDIMENTO_OUTROS_DIAGNOSTICOS_TERAPEUTICOS = "outros-diagnosticos-terapeuticos"
 TIPO_PROCEDIMENTO_OUTROS = "outros"
@@ -28,20 +36,28 @@ TIPO_PROCEDIMENTO_LABELS = {
     TIPO_PROCEDIMENTO_CONSULTA: "Consultas",
     TIPO_PROCEDIMENTO_AMBULATORIAL: "Procedimentos ambulatoriais",
     TIPO_PROCEDIMENTO_CIRURGIA: "Cirurgias",
-    TIPO_PROCEDIMENTO_METODOS_ELETROFISIOLOGICOS: "Métodos Eletrofisiológicos/Mecânicos e Funcionais",
-    TIPO_PROCEDIMENTO_ENDOSCOPIA: "Endoscopia",
-    TIPO_PROCEDIMENTO_MEDICINA_LABORATORIAL: "Medicina Laboratorial",
-    TIPO_PROCEDIMENTO_MEDICINA_TRANSFUSIONAL: "Medicina Transfusional",
-    TIPO_PROCEDIMENTO_GENETICA: "Genética",
-    TIPO_PROCEDIMENTO_ANATOMIA_PATOLOGICA: "Anatomia Patológica e Citopatologia",
-    TIPO_PROCEDIMENTO_MEDICINA_NUCLEAR: "Medicina Nuclear",
-    TIPO_PROCEDIMENTO_RADIOLOGIA_RX: "Radiologia / RX",
-    TIPO_PROCEDIMENTO_ULTRASSONOGRAFIA_US: "Ultrassonografia (US)",
-    TIPO_PROCEDIMENTO_TOMOGRAFIA_COMPUTADORIZADA: "Tomografia Computadorizada (TC)",
-    TIPO_PROCEDIMENTO_RESSONANCIA_MAGNETICA: "Ressonância Magnética (RM)",
-    TIPO_PROCEDIMENTO_RADIOTERAPIA: "Radioterapia",
-    TIPO_PROCEDIMENTO_EXAMES_ESPECIFICOS: "Exames/Procedimentos Específicos",
-    TIPO_PROCEDIMENTO_TESTES_DIAGNOSTICO: "Testes para Diagnóstico",
+    TIPO_PROCEDIMENTO_ANATOMIA_PATOLOGICA: "8 - Anatomia Patológica",
+    TIPO_PROCEDIMENTO_ALERGOLOGIA: "9 - Alergologia",
+    TIPO_PROCEDIMENTO_ELETROENCEFALOGRAFIA: "10 - Eletroencefalografia",
+    TIPO_PROCEDIMENTO_FISIOTERAPIA: "11 - Fisioterapia",
+    TIPO_PROCEDIMENTO_HEMOTERAPIA: "12 - Hemoterapia",
+    TIPO_PROCEDIMENTO_ENDOSCOPIA_PERORAL: "13 - Endoscopia Peroral",
+    TIPO_PROCEDIMENTO_MEDICINA_NUCLEAR: "14 - Medicina Nuclear",
+    TIPO_PROCEDIMENTO_PATOLOGIA_CLINICA: "15 - Patologia Clínica",
+    TIPO_PROCEDIMENTO_RADIODIAGNOSTICO: "16 - Radiodiagnóstico",
+    TIPO_PROCEDIMENTO_RADIOTERAPIA: "17 - Radioterapia",
+    TIPO_PROCEDIMENTO_CARDIOLOGIA: "18 - Cardiologia",
+    TIPO_PROCEDIMENTO_GENETICA: "20 - Genética",
+    TIPO_PROCEDIMENTO_ENDOSCOPIA_DIGESTIVA: "21 - Endoscopia Digestiva",
+    TIPO_PROCEDIMENTO_TISIOPNEUMOLOGIA: "22 - Tisiopneumologia",
+    TIPO_PROCEDIMENTO_QUIMIOTERAPIA_CANCER: "23 - Quimioterapia do Câncer",
+    TIPO_PROCEDIMENTO_ULTRASSONOGRAFIA: "24 - Ultrassonografia",
+    TIPO_PROCEDIMENTO_TOMOGRAFIA_COMPUTADORIZADA: "25 - Tomografia Computadorizada",
+    TIPO_PROCEDIMENTO_RESSONANCIA_MAGNETICA: "26 - Ressonância Magnética",
+    TIPO_PROCEDIMENTO_ECOCARDIOGRAMA_DOPPLER: "27 - Ecocardiograma com Doppler",
+    TIPO_PROCEDIMENTO_FONOAUDIOLOGIA: "28 - Fonoaudiologia",
+    TIPO_PROCEDIMENTO_EXAMES_ESPECIFICOS: "40 - Exames Específicos",
+    TIPO_PROCEDIMENTO_TESTES_DIAGNOSTICO: "41 - Testes para Diagnóstico",
     TIPO_PROCEDIMENTO_OUTROS_DIAGNOSTICOS_TERAPEUTICOS: "Outros Procedimentos Diagnósticos/Terapêuticos",
     TIPO_PROCEDIMENTO_OUTROS: "Outros",
     TIPO_PROCEDIMENTO_NAO_INFORMADO: "Não informado",
@@ -49,19 +65,141 @@ TIPO_PROCEDIMENTO_LABELS = {
 
 TIPOS_PROCEDIMENTO_VALIDOS = set(TIPO_PROCEDIMENTO_LABELS.keys())
 
+CODIGOS_TUSS_ALERGOLOGIA_EXATOS = {
+    "40307255",  # IgE, grupo específico
+    "40307263",  # IgE, por alérgeno
+    "40307905",  # Alérgenos - perfil antigênico
+}
+
+CODIGOS_TUSS_TISIOPNEUMOLOGIA_EXATOS = {
+    "40101061",  # Ergoespirometria/teste cardiopulmonar de exercício completo
+}
+
+CODIGOS_TUSS_ENDOSCOPIA_PERORAL_EXATOS = {
+    "40201031",  # Broncoscopia com biópsia transbrônquica
+    "40201058",  # Broncoscopia com ou sem aspirado/lavado brônquico
+    "40201198",  # Videoendoscopia do esfíncter velo-palatino flexível
+    "40201201",  # Videoendoscopia do esfíncter velo-palatino rígida
+    "40201210",  # Videoendoscopia naso-sinusal flexível
+    "40201228",  # Videoendoscopia naso-sinusal rígida
+    "40201236",  # Video-laringo-estroboscopia flexível
+    "40201244",  # Video-laringo-estroboscopia rígida
+    "40201252",  # Video-faringo-laringoscopia flexível
+    "40201260",  # Video-faringo-laringoscopia rígida
+    "40201309",  # Avaliação endoscópica da deglutição (FEES)
+    "40201325",  # Videoquimografia laríngea
+    "40202011",  # Aritenoidectomia microcirúrgica endoscópica
+    "40202054",  # Broncoscopia com biópsia transbrônquica com RX
+    "40202100",  # Cateter para braquiterapia endobrônquica
+    "40202127",  # Prótese traqueal ou brônquica
+    "40202151",  # Desobstrução brônquica com laser/eletrocautério
+    "40202160",  # Desobstrução brônquica por broncoaspiração
+    "40202178",  # Dilatação laringo-traqueo-brônquica
+    "40202364",  # Laringoscopia com microscopia
+    "40202372",  # Laringoscopia com retirada de corpo estranho
+    "40202399",  # Laringoscopia/traqueoscopia com exérese
+    "40202429",  # Laringoscopia/traqueoscopia diagnóstica
+    "40202437",  # Laringoscopia/traqueoscopia diagnóstica com aparelho flexível
+    "40202445",  # Laringoscopia/traqueoscopia para intubação
+    "40202488",  # Nasofibrolaringoscopia diagnóstica
+    "40202585",  # Retirada de corpo estranho no brônquio
+    "40202593",  # Retirada de tumor/papiloma por broncoscopia
+    "40202623",  # Traqueostomia por punção percutânea
+    "40202631",  # Tratamento endoscópico de hemoptise
+    "40202763",  # Laringoscopia/traqueoscopia com laser
+}
+
+CODIGOS_TUSS_QUIMIOTERAPIA_CANCER_EXATOS = {
+    "40813908",  # Quimioterapia por cateter de tumor de cabeça e pescoço
+    "40813924",  # Quimioterapia por cateter intra-arterial
+}
+
+CODIGOS_TUSS_ECOCARDIOGRAMA_DOPPLER_EXATOS = {
+    "40901050",
+    "40901068",
+    "40901076",
+    "40901084",
+    "40901092",
+    "40901106",
+    "40902072",
+    "40902080",
+}
+
+CODIGOS_TUSS_FONOAUDIOLOGIA_EXATOS = {
+    "40103013",
+    "40103048",
+    "40103064",
+    "40103072",
+    "40103080",
+    "40103099",
+    "40103102",
+    "40103110",
+    "40103153",
+    "40103161",
+    "40103269",
+    "40103285",
+    "40103404",
+    "40103412",
+    "40103420",
+    "40103439",
+    "40103455",
+    "40103463",
+    "40103480",
+    "40103498",
+    "40103501",
+    "40103552",
+    "40103579",
+    "40103641",
+    "40103650",
+    "40103668",
+    "40103676",
+    "40103722",
+    "40103749",
+    "40103765",
+}
+
+CODIGOS_TUSS_EXAMES_ESPECIFICOS_EXATOS = {
+    "40103021",
+    "40103030",
+    "40103137",
+    "40103242",
+    "40103250",
+    "40103447",
+    "40103633",
+}
+
+CODIGOS_TUSS_TIPOS_EXATOS = {
+    **{codigo: TIPO_PROCEDIMENTO_ALERGOLOGIA for codigo in CODIGOS_TUSS_ALERGOLOGIA_EXATOS},
+    **{codigo: TIPO_PROCEDIMENTO_TISIOPNEUMOLOGIA for codigo in CODIGOS_TUSS_TISIOPNEUMOLOGIA_EXATOS},
+    **{codigo: TIPO_PROCEDIMENTO_ENDOSCOPIA_PERORAL for codigo in CODIGOS_TUSS_ENDOSCOPIA_PERORAL_EXATOS},
+    **{codigo: TIPO_PROCEDIMENTO_QUIMIOTERAPIA_CANCER for codigo in CODIGOS_TUSS_QUIMIOTERAPIA_CANCER_EXATOS},
+    **{codigo: TIPO_PROCEDIMENTO_ECOCARDIOGRAMA_DOPPLER for codigo in CODIGOS_TUSS_ECOCARDIOGRAMA_DOPPLER_EXATOS},
+    **{codigo: TIPO_PROCEDIMENTO_FONOAUDIOLOGIA for codigo in CODIGOS_TUSS_FONOAUDIOLOGIA_EXATOS},
+    **{codigo: TIPO_PROCEDIMENTO_EXAMES_ESPECIFICOS for codigo in CODIGOS_TUSS_EXAMES_ESPECIFICOS_EXATOS},
+}
+
+FAIXAS_TUSS_ESPECIFICAS = (
+    (40101000, 40101999, TIPO_PROCEDIMENTO_CARDIOLOGIA),
+    (40102000, 40102999, TIPO_PROCEDIMENTO_ENDOSCOPIA_DIGESTIVA),
+    (40103000, 40103999, TIPO_PROCEDIMENTO_ELETROENCEFALOGRAFIA),
+    (40104000, 40104999, TIPO_PROCEDIMENTO_FISIOTERAPIA),
+    (40105000, 40105999, TIPO_PROCEDIMENTO_TISIOPNEUMOLOGIA),
+    (40810000, 40810999, TIPO_PROCEDIMENTO_CARDIOLOGIA),
+)
+
 FAIXAS_TUSS = (
     (*FAIXAS_TUSS_CONSULTA[0], TIPO_PROCEDIMENTO_CONSULTA),
     (20000000, 29999999, TIPO_PROCEDIMENTO_AMBULATORIAL),
     (30000000, 39999999, TIPO_PROCEDIMENTO_CIRURGIA),
-    (40100000, 40199999, TIPO_PROCEDIMENTO_METODOS_ELETROFISIOLOGICOS),
-    (40200000, 40299999, TIPO_PROCEDIMENTO_ENDOSCOPIA),
-    (40300000, 40399999, TIPO_PROCEDIMENTO_MEDICINA_LABORATORIAL),
-    (40400000, 40499999, TIPO_PROCEDIMENTO_MEDICINA_TRANSFUSIONAL),
+    (40100000, 40199999, TIPO_PROCEDIMENTO_ELETROENCEFALOGRAFIA),
+    (40200000, 40299999, TIPO_PROCEDIMENTO_ENDOSCOPIA_DIGESTIVA),
+    (40300000, 40399999, TIPO_PROCEDIMENTO_PATOLOGIA_CLINICA),
+    (40400000, 40499999, TIPO_PROCEDIMENTO_HEMOTERAPIA),
     (40500000, 40599999, TIPO_PROCEDIMENTO_GENETICA),
     (40600000, 40699999, TIPO_PROCEDIMENTO_ANATOMIA_PATOLOGICA),
     (40700000, 40799999, TIPO_PROCEDIMENTO_MEDICINA_NUCLEAR),
-    (40800000, 40899999, TIPO_PROCEDIMENTO_RADIOLOGIA_RX),
-    (40900000, 40999999, TIPO_PROCEDIMENTO_ULTRASSONOGRAFIA_US),
+    (40800000, 40899999, TIPO_PROCEDIMENTO_RADIODIAGNOSTICO),
+    (40900000, 40999999, TIPO_PROCEDIMENTO_ULTRASSONOGRAFIA),
     (41000000, 41099999, TIPO_PROCEDIMENTO_TOMOGRAFIA_COMPUTADORIZADA),
     (41100000, 41199999, TIPO_PROCEDIMENTO_RESSONANCIA_MAGNETICA),
     (41200000, 41299999, TIPO_PROCEDIMENTO_RADIOTERAPIA),
@@ -101,6 +239,14 @@ def tipo_procedimento_codigo(codigo):
     codigo_int = int(codigo_texto)
     if codigo_texto in CODIGOS_TUSS_CONSULTA_EXATOS:
         return TIPO_PROCEDIMENTO_CONSULTA
+
+    tipo_exato = CODIGOS_TUSS_TIPOS_EXATOS.get(codigo_texto)
+    if tipo_exato:
+        return tipo_exato
+
+    for inicio, fim, tipo in FAIXAS_TUSS_ESPECIFICAS:
+        if inicio <= codigo_int <= fim:
+            return tipo
 
     for inicio, fim, tipo in FAIXAS_TUSS:
         if inicio <= codigo_int <= fim:
