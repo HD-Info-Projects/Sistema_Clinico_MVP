@@ -91,6 +91,7 @@ export interface Agendamento {
   tipoProcedimento?: TipoProcedimentoTuss
   tipoProcedimentoLabel?: string
   preventivo?: boolean
+  retorno?: boolean
 }
 
 export interface AgendamentoComPaciente extends Agendamento {

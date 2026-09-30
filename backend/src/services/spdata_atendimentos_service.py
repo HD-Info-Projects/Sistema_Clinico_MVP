@@ -419,6 +419,7 @@ def buscar_atendimentos_spdata(data_ini, data_fim, crm_medico, unidade):
             a.ID_RICADPAC AS ID_PACIENTE_SPDATA,
             a.DATA_HORA_ENTRADA,
             a.DATA_HORA_ALTA_MEDICA,
+            a.ATENDIMENTO_RETORNO,
             a.OBS_ATENDIMENTO,
             a.ID_TBCONVEN AS ID_CONVENIO_SPDATA,
             convenio.NOME AS CONVENIO_NOME,
@@ -894,6 +895,18 @@ def spdata_agenda_id_do_atendimento(spdata):
     )
 
 
+def atendimento_retorno(spdata):
+    dados_spdata = getattr(spdata, "dados_spdata", None)
+    if not isinstance(dados_spdata, dict):
+        return False
+
+    valor = normalizar_texto(
+        dados_spdata.get("ATENDIMENTO_RETORNO")
+        or dados_spdata.get("atendimento_retorno")
+    )
+    return bool(valor and valor.upper() in {"S", "T"})
+
+
 def tipo_procedimento_frontend(codigo):
     tipo = tipo_procedimento_codigo(codigo)
     return tipo, label_tipo_procedimento(tipo)
@@ -930,6 +943,7 @@ def agenda_para_frontend(spdata, atendimento=None, convenios_por_codigo=None, pr
         "tipoProcedimento": tipo_procedimento,
         "tipoProcedimentoLabel": tipo_procedimento_label,
         "preventivo": bool(preventivo),
+        "retorno": atendimento_retorno(spdata),
         "paciente": {
             "id": paciente_id,
             "nome": spdata.paciente,
@@ -1008,6 +1022,7 @@ def agenda_spdata_para_frontend(
         "tipoProcedimento": tipo_procedimento,
         "tipoProcedimentoLabel": tipo_procedimento_label,
         "preventivo": bool(preventivo),
+        "retorno": atendimento_retorno(spdata_ref),
         "paciente": {
             "id": paciente_id,
             "nome": agenda.paciente,

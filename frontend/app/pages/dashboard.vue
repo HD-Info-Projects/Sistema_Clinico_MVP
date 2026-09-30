@@ -561,6 +561,12 @@ const tempoMedioEspera = computed(() => {
                         color="quaternary"
                         variant="subtle"
                       />
+                      <UBadge
+                        v-if="paciente.retorno"
+                        label="Retorno"
+                        color="secondary"
+                        variant="subtle"
+                      />
                     </div>
                     <p class="wrap-break-word text-xs text-muted">
                       {{ paciente.paciente.convenio }}
@@ -696,6 +702,12 @@ const tempoMedioEspera = computed(() => {
                       <UBadge
                         v-if="paciente.preventivo"
                         label="+ Preventivo"
+                        color="quaternary"
+                        variant="subtle"
+                      />
+                      <UBadge
+                        v-if="paciente.retorno"
+                        label="Retorno"
                         color="quaternary"
                         variant="subtle"
                       />

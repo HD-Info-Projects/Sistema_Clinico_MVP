@@ -298,12 +298,14 @@ def test_criar_atendimento_firebird_usa_externo_e_cod_numerico(monkeypatch):
             "DATA_HORA_ULTIMA_ATUALIZACAO",
             "ATIVO",
             "CARATER_ATEND",
+            "ATENDIMENTO_RETORNO",
         },
         {
             "registro": "222",
             "numeroConvenio": "10",
             "tipoAtendimento": "x",
             "caraterAtendimento": "1",
+            "ehRetorno": True,
         },
         SimpleNamespace(codigo_spdata_centro_custo="340"),
         paciente_id=123,
@@ -324,6 +326,7 @@ def test_criar_atendimento_firebird_usa_externo_e_cod_numerico(monkeypatch):
     assert valores["ID_TBCONVEN"] == 10
     assert valores["ID_TBCENCUS"] == 340
     assert valores["CARATER_ATEND"] == 1
+    assert valores["ATENDIMENTO_RETORNO"] == "S"
 
 
 def test_salvar_atendimento_nao_insere_quando_ja_existe(monkeypatch):

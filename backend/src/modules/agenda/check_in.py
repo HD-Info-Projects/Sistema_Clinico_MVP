@@ -43,8 +43,8 @@ STATUS_VALIDOS = {
     "faltou",
 }
 
-CACHE_PREFIX_CHECK_IN_BASE = "check_in:base:v1"
-CACHE_PREFIX_CHECK_IN_RESPONSE = "check_in:response:v1"
+CACHE_PREFIX_CHECK_IN_BASE = "check_in:base:v2"
+CACHE_PREFIX_CHECK_IN_RESPONSE = "check_in:response:v2"
 
 STATUS_LOCAL_ALIASES = {
     "EM_ATENDIMENTO": "em-atendimento",
@@ -386,6 +386,7 @@ def buscar_atendimentos_firebird(data_ref, unidade):
             a.DATA_HORA_ENTRADA AS DATA_HORA_ENTRADA,
             a.DATA_HORA_ENTRADA AS DATA_HORA_AGENDAMENTO,
             a.DATA_HORA_ALTA_MEDICA AS DATA_HORA_ALTA_MEDICA,
+            a.ATENDIMENTO_RETORNO AS ATENDIMENTO_RETORNO,
             a.OBS_ATENDIMENTO AS OBS,
             a.ID_TBCONVEN AS ID_CONVENIO_SPDATA,
             COALESCE(convenio.NOME, CAST(a.ID_TBCONVEN AS VARCHAR(50))) AS CONVENIO,
@@ -642,6 +643,15 @@ def especialidade_para_frontend(row, especialidades_por_medico):
     return normalizar_especialidade(row.get("ESPECIALIDADE"))
 
 
+def atendimento_retorno_para_frontend(row):
+    valor = (
+        row.get("ATENDIMENTO_RETORNO")
+        if row.get("ID_ATENDIMENTO") is not None
+        else row.get("RETORNO")
+    )
+    return normalizar_texto(valor).upper() in {"S", "T"}
+
+
 def item_para_frontend(row, status_local, convenios_por_codigo, especialidades_por_medico, unidade):
     registro = normalizar_texto(row.get("REGISTRO"))
     id_convenio_spdata = normalizar_int(row.get("ID_CONVENIO_SPDATA") or row.get("CONVENIO"))
@@ -692,7 +702,7 @@ def item_para_frontend(row, status_local, convenios_por_codigo, especialidades_p
         "medicoKey": crm_atendimento_key or crm_key or normalizar_texto(row.get("MEDICO")),
         "especialidade": especialidade_para_frontend(row, especialidades_por_medico),
         "unidade": normalizar_texto(row.get("UNIDADE")),
-        "retorno": normalizar_texto(row.get("RETORNO")),
+        "retorno": atendimento_retorno_para_frontend(row),
         "tipoAgenda": normalizar_texto(row.get("TIPO_AGENDA")),
         "codigoProcedimentoSpdata": codigo_procedimento,
         "tipoProcedimento": tipo_procedimento,

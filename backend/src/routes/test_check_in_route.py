@@ -92,6 +92,44 @@ def test_item_check_in_expoe_tipo_procedimento():
     assert item["tipoProcedimentoLabel"] == "Ultrassonografia (US)"
 
 
+@pytest.mark.parametrize(
+    ("valor", "esperado"),
+    [
+        ("S", True),
+        ("T", True),
+        ("N", False),
+        (None, False),
+    ],
+)
+def test_item_check_in_expoe_retorno_do_atendimento(valor, esperado):
+    item = item_para_frontend(
+        {
+            "ID_ATENDIMENTO": 20,
+            "REGISTRO": "123",
+            "ATENDIMENTO_RETORNO": valor,
+            "RETORNO": "S",
+        },
+        {},
+        {},
+        {},
+        SimpleNamespace(id=1),
+    )
+
+    assert item["retorno"] is esperado
+
+
+def test_item_check_in_usa_retorno_da_agenda_antes_do_atendimento():
+    item = item_para_frontend(
+        {"ID_AGENDAMENTO": 10, "REGISTRO": "123", "RETORNO": "S"},
+        {},
+        {},
+        {},
+        SimpleNamespace(id=1),
+    )
+
+    assert item["retorno"] is True
+
+
 def test_calcular_idade_ignora_data_sentinela_spdata():
     assert calcular_idade(date(1899, 12, 30)) is None
 

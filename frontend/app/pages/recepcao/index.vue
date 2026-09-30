@@ -29,6 +29,7 @@ interface AtendimentoRecepcao {
   dataNascimento: string | null
   idade: number | null
   status: AtendimentoStatus
+  retorno: boolean
 }
 
 const auth = useAuthStore()
@@ -708,9 +709,17 @@ onUnmounted(() => {
                     size="sm"
                   />
                   <div class="min-w-0">
-                    <p class="wrap-break-word font-medium">
-                      {{ item.paciente || 'Paciente não informado' }}
-                    </p>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <p class="wrap-break-word font-medium">
+                        {{ item.paciente || 'Paciente não informado' }}
+                      </p>
+                      <UBadge
+                        v-if="item.retorno"
+                        label="Retorno"
+                        color="secondary"
+                        variant="subtle"
+                      />
+                    </div>
                     <p class="text-xs text-muted">
                       {{ idadePaciente(item.dataNascimento) }}
                     </p>

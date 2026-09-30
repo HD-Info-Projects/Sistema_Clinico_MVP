@@ -27,6 +27,7 @@ export interface AtendimentoRecepcao {
   horarioEntrada?: string | null
   idade: number | null
   status: AtendimentoStatusRecepcao
+  retorno: boolean
 }
 
 export interface MedicoDia {
