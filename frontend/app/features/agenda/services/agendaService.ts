@@ -33,6 +33,19 @@ export type ConsultaStatusPayload = {
 
 export type AtualizarStatusAgendamentoResponse = AgendamentoComPaciente | Agendamento
 
+export type AtendimentoEmAndamentoResponse = {
+  emAtendimento: boolean
+  data?: string
+  unidadeId?: number
+  id?: number
+  medsystemAtendimentoId?: number
+  paciente?: {
+    id?: number
+    nome?: string | null
+    nomeSocial?: string | null
+  }
+}
+
 export function listarAgendamentos(filtros?: AgendamentoComFiltro) {
   const params = new URLSearchParams()
   if (filtros?.data) params.set('data', filtros.data)
@@ -47,6 +60,13 @@ export function listarAgendamentos(filtros?: AgendamentoComFiltro) {
   return $fetch<(Agendamento | AgendamentoComPaciente)[]>(`/api/agendamentos${params.toString() ? `?${params.toString()}` : ''}`).then(items =>
     items.map(item => ({ ...item, horario: normalizarHorario(item.horario) }))
   )
+}
+
+export function verificarAtendimentoEmAndamento(data?: string) {
+  const params = new URLSearchParams()
+  if (data) params.set('data', data)
+
+  return $fetch<AtendimentoEmAndamentoResponse>(`/api/agendamentos/em-atendimento${params.toString() ? `?${params.toString()}` : ''}`)
 }
 
 export function atualizarStatusAgendamento(id: number, status: AgendamentoStatus, consulta?: ConsultaStatusPayload, clinicaId?: number) {

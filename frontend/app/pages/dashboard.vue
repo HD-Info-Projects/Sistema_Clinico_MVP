@@ -157,7 +157,7 @@ async function chamarPaciente(ag: AgendamentoComPaciente) {
         callingInterval = null
       }
     }
-  }, 500)
+  }, 1000)
 }
 
 async function faltouAgendamento(ag: AgendamentoComPaciente) {
@@ -253,7 +253,9 @@ const totalPacientesDashboard = computed(() =>
 // Skeleton só enquanto carrega e ainda não há nada de hoje para mostrar. Com dados
 // (ex.: voltando do atendimento), exibe o que já tem e atualiza em segundo plano.
 const temDadosDeHoje = computed(() =>
-  agendamentosStore.dataCarregada === hojeISO || agendamentosDeHoje.value.length > 0
+  agendamentosStore.dataCarregada === hojeISO
+  && agendamentosStore.clinicaCarregada === (auth.activeClinicaId ?? null)
+  && agendamentosStore.medicoCarregado === (auth.user?.id ?? null)
 )
 const carregandoInicial = computed(() => agendamentosStore.loading && !temDadosDeHoje.value)
 

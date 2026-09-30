@@ -55,6 +55,12 @@ def marcar_se_ausente(prefixo, ttl, **partes):
     return True if resultado is None else resultado
 
 
+def apagar_marca(prefixo, **partes):
+    chave = f"{prefixo}:{_digest_partes(partes)}"
+    with ConnectionDBRedis() as redis_connection:
+        return redis_connection.delete_cache(chave)
+
+
 def obter_cache_json(chave):
     valor = ConnectionDBRedis().get_cache(chave)
     if valor is None:

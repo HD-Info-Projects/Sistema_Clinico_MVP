@@ -1,3 +1,4 @@
+import hmac
 from datetime import date, datetime
 
 from flask import Blueprint, current_app, jsonify, request
@@ -10,6 +11,7 @@ from src.security.unidades import unidade_atual_required, unidade_id_request
 from src.services.auditoria_service import registrar_auditoria
 from src.shared.performance_monitoring import iniciar_probe
 from src.shared.response_cache import (
+    apagar_marca,
     apagar_cache_por_padrao,
     cache_ttl,
     chave_cache,
@@ -20,6 +22,7 @@ from src.shared.response_cache import (
 from src.services.no_show_service import listar_no_show, registrar_motivo_no_show
 from src.services.spdata_atendimentos_service import (
     atualizar_status_agenda,
+    buscar_atendimento_em_andamento_local,
     listar_agenda_medica,
     listar_marcadores_agenda_medica,
 )
@@ -42,8 +45,10 @@ def _bool_param(valor):
 
 AGENDA_MEDICA_CACHE_PREFIX = "agenda_medica:response:v2"
 AUDITORIA_VISUALIZACAO_AGENDA_JANELA_SEGUNDOS = 15 * 60
+AUDITORIA_VISUALIZACAO_AGENDA_DEDUP_PREFIX = "auditoria:dedup:visualizou_agenda:v1"
 ORIGEM_REQUISICAO_HEADER = "X-Origem-Requisicao"
 ORIGEM_SSE_POLL = "sse-poll"
+INTERNAL_SECRET_HEADER = "X-Internal-Secret"
 
 
 def _prefixo_cache_agenda_medica(usuario_id):
@@ -73,10 +78,47 @@ def _invalidar_cache_recepcao(usuario_id_medico=None):
 
 
 def _requisicao_automatica():
-    # Header enviado apenas pelo servidor Nuxt no polling do SSE (o Flask não é
-    # exposto ao navegador e o Nuxt não repassa headers do cliente).
     origem = (request.headers.get(ORIGEM_REQUISICAO_HEADER) or "").strip().lower()
-    return origem == ORIGEM_SSE_POLL
+    if origem != ORIGEM_SSE_POLL:
+        return False
+
+    secret_configurado = str(current_app.config.get("INTERNAL_REQUEST_SECRET") or "")
+    secret_recebido = request.headers.get(INTERNAL_SECRET_HEADER) or ""
+    if not secret_configurado:
+        current_app.logger.warning(
+            "Header de requisição automática ignorado: INTERNAL_REQUEST_SECRET não configurado."
+        )
+        return False
+
+    if not hmac.compare_digest(secret_recebido, secret_configurado):
+        current_app.logger.warning("Header de requisição automática ignorado: segredo interno inválido.")
+        return False
+
+    return True
+
+
+def _validar_periodo_agenda(data_ini, data_fim):
+    if data_ini is None or data_fim is None:
+        return
+    if data_fim < data_ini:
+        raise ValueError("dataFim não pode ser menor que dataIni.")
+
+    maximo_dias = int(current_app.config.get("AGENDA_MAX_DIAS_PERIODO", 31))
+    dias = (data_fim - data_ini).days + 1
+    if maximo_dias > 0 and dias > maximo_dias:
+        raise ValueError(f"Período máximo permitido para a agenda é de {maximo_dias} dias.")
+
+
+def _partes_auditoria_visualizacao_agenda(usuario_id, unidade_id, data_ini, data_fim, status, search, tipo):
+    return dict(
+        usuario_id=usuario_id,
+        unidade_id=unidade_id,
+        data_ini=data_ini.isoformat() if data_ini else None,
+        data_fim=data_fim.isoformat() if data_fim else None,
+        status=status,
+        search=search,
+        tipo=tipo,
+    )
 
 
 def _deve_auditar_visualizacao_agenda(usuario_id, unidade_id, data_ini, data_fim, status, search, tipo):
@@ -86,16 +128,49 @@ def _deve_auditar_visualizacao_agenda(usuario_id, unidade_id, data_ini, data_fim
         return False
 
     return marcar_se_ausente(
-        "auditoria:dedup:visualizou_agenda:v1",
+        AUDITORIA_VISUALIZACAO_AGENDA_DEDUP_PREFIX,
         AUDITORIA_VISUALIZACAO_AGENDA_JANELA_SEGUNDOS,
-        usuario_id=usuario_id,
-        unidade_id=unidade_id,
-        data_ini=data_ini.isoformat() if data_ini else None,
-        data_fim=data_fim.isoformat() if data_fim else None,
-        status=status,
-        search=search,
-        tipo=tipo,
+        **_partes_auditoria_visualizacao_agenda(
+            usuario_id, unidade_id, data_ini, data_fim, status, search, tipo
+        ),
     )
+
+
+def _registrar_auditoria_visualizacao_agenda(
+    usuario_id,
+    unidade_id,
+    data_ini,
+    data_fim,
+    status,
+    search,
+    tipo,
+    descricao,
+):
+    if not _deve_auditar_visualizacao_agenda(usuario_id, unidade_id, data_ini, data_fim, status, search, tipo):
+        return
+
+    try:
+        evento = registrar_auditoria(
+            AcaoAuditoria.VISUALIZOU_AGENDA,
+            entidade="agenda_medica",
+            usuario_id=usuario_id,
+            descricao=descricao,
+        )
+        if evento is None:
+            apagar_marca(
+                AUDITORIA_VISUALIZACAO_AGENDA_DEDUP_PREFIX,
+                **_partes_auditoria_visualizacao_agenda(
+                    usuario_id, unidade_id, data_ini, data_fim, status, search, tipo
+                ),
+            )
+    except Exception:
+        apagar_marca(
+            AUDITORIA_VISUALIZACAO_AGENDA_DEDUP_PREFIX,
+            **_partes_auditoria_visualizacao_agenda(
+                usuario_id, unidade_id, data_ini, data_fim, status, search, tipo
+            ),
+        )
+        raise
 
 
 @agenda_medica_bp.route("/", methods=["GET"])
@@ -118,6 +193,7 @@ def listar_agenda():
         else:
             data_ini = _parse_data(request.args.get("dataIni") or data)
             data_fim = _parse_data(request.args.get("dataFim") or data, data_ini)
+        _validar_periodo_agenda(data_ini, data_fim)
 
         probe = iniciar_probe(
             "agenda_medica",
@@ -126,9 +202,6 @@ def listar_agenda():
             data_ini=data_ini.isoformat() if data_ini else None,
             data_fim=data_fim.isoformat() if data_fim else None,
             force_refresh=force_refresh,
-        )
-        auditar = _deve_auditar_visualizacao_agenda(
-            usuario_id, unidade_id, data_ini, data_fim, status, search, tipo
         )
         cache_key = chave_cache(
             _prefixo_cache_agenda_medica(usuario_id),
@@ -144,13 +217,16 @@ def listar_agenda():
             with probe.etapa("cache_response_get"):
                 cached = obter_cache_json(cache_key)
             if cached is not None:
-                if auditar:
-                    registrar_auditoria(
-                        AcaoAuditoria.VISUALIZOU_AGENDA,
-                        entidade="agenda_medica",
-                        usuario_id=usuario_id,
-                        descricao=f"Listagem de agenda médica em cache. data_ini={data_ini} data_fim={data_fim} status={status or ''} visibilidade_medica=true",
-                    )
+                _registrar_auditoria_visualizacao_agenda(
+                    usuario_id,
+                    unidade_id,
+                    data_ini,
+                    data_fim,
+                    status,
+                    search,
+                    tipo,
+                    f"Listagem de agenda médica em cache. data_ini={data_ini} data_fim={data_fim} status={status or ''} visibilidade_medica=true",
+                )
                 probe.valor("cache_response_hit", True)
                 probe.finalizar(source="response_cache", items_count=len(cached))
                 response = jsonify(cached)
@@ -171,13 +247,16 @@ def listar_agenda():
                 somente_visiveis_medico=True,
             )
         salvar_cache_json(cache_key, resultado, ttl=cache_ttl())
-        if auditar:
-            registrar_auditoria(
-                AcaoAuditoria.VISUALIZOU_AGENDA,
-                entidade="agenda_medica",
-                usuario_id=usuario_id,
-                descricao=f"Listagem de agenda médica. data_ini={data_ini} data_fim={data_fim} status={status or ''} visibilidade_medica=true",
-            )
+        _registrar_auditoria_visualizacao_agenda(
+            usuario_id,
+            unidade_id,
+            data_ini,
+            data_fim,
+            status,
+            search,
+            tipo,
+            f"Listagem de agenda médica. data_ini={data_ini} data_fim={data_fim} status={status or ''} visibilidade_medica=true",
+        )
         probe.finalizar(source="service", items_count=len(resultado))
         response = jsonify(resultado)
         response.headers["X-Cache"] = "MISS"
@@ -202,6 +281,7 @@ def listar_marcadores_agenda():
         data = request.args.get("data")
         data_ini = _parse_data(request.args.get("dataIni") or data)
         data_fim = _parse_data(request.args.get("dataFim") or data, data_ini)
+        _validar_periodo_agenda(data_ini, data_fim)
         sincronizar = str(request.args.get("sincronizar") or "").lower() in {"1", "true", "sim", "s"}
 
         resultado = listar_marcadores_agenda_medica(
@@ -222,6 +302,49 @@ def listar_marcadores_agenda():
         db.session.rollback()
         current_app.logger.exception("Erro ao listar marcadores da agenda médica")
         return jsonify({"error": "Erro interno ao listar marcadores da agenda médica"}), 500
+
+
+@agenda_medica_bp.route("/em-atendimento", methods=["GET"])
+@jwt_required()
+@roles_required("medico")
+def atendimento_em_andamento():
+    usuario_id = None
+    unidade_id = None
+    try:
+        usuario_id = int(get_jwt_identity())
+        unidade_id = unidade_id_request()
+        data_ref = _parse_data(request.args.get("data")) if request.args.get("data") else None
+        resultado = buscar_atendimento_em_andamento_local(
+            usuario_id,
+            unidade_id=unidade_id,
+            data_ref=data_ref,
+        )
+        return jsonify(resultado), 200
+
+    except PermissionError as e:
+        current_app.logger.warning(
+            "Falha ao verificar atendimento em andamento: usuario_id=%s unidade_id=%s erro=%s",
+            usuario_id,
+            unidade_id,
+            str(e),
+        )
+        return jsonify({"error": str(e)}), 403
+    except ValueError as e:
+        current_app.logger.warning(
+            "Falha ao verificar atendimento em andamento: usuario_id=%s unidade_id=%s erro=%s",
+            usuario_id,
+            unidade_id,
+            str(e),
+        )
+        return jsonify({"error": str(e)}), 400
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception(
+            "Falha ao verificar atendimento em andamento: usuario_id=%s unidade_id=%s",
+            usuario_id,
+            unidade_id,
+        )
+        return jsonify({"error": "Erro interno ao verificar atendimento em andamento"}), 500
 
 
 @agenda_medica_bp.route("/<int:med_spdata_atendimento_id>/status", methods=["PATCH"])

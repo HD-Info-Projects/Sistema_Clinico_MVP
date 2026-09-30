@@ -50,14 +50,19 @@ export default defineEventHandler(async (event) => {
     loadingAgenda = true
 
     try {
+      const headers: Record<string, string> = {
+        'Authorization': `Bearer ${token}`,
+        'X-Unidade-Id': String(clinicaId),
+        [REQUEST_ID_HEADER]: requestId
+      }
+
+      if (config.internalRequestSecret) {
+        headers['X-Origem-Requisicao'] = 'sse-poll'
+        headers['X-Internal-Secret'] = config.internalRequestSecret
+      }
+
       const items = await $fetch<unknown[]>(`${config.flaskBaseUrl}/agenda-medica/?data=${encodeURIComponent(data)}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'X-Unidade-Id': String(clinicaId),
-          // Atualização automática: o backend não registra auditoria de visualização.
-          'X-Origem-Requisicao': 'sse-poll',
-          [REQUEST_ID_HEADER]: requestId
-        }
+        headers
       })
 
       const hash = JSON.stringify(items)
@@ -76,7 +81,6 @@ export default defineEventHandler(async (event) => {
 
   let poll: ReturnType<typeof setInterval> | null = null
   if (pollAgenda) {
-    void carregarAgenda()
     poll = setInterval(() => {
       void carregarAgenda()
     }, POLL_INTERVAL_MS)

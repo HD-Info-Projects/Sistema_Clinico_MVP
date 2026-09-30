@@ -55,6 +55,17 @@ services:
       timeout: 5s
       retries: 10
 
+  redis-cache:
+    image: redis:7-alpine
+    restart: unless-stopped
+    logging: *default-logging
+    command: redis-server --save "" --appendonly no --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   backend:
     build:
       context: ./backend
@@ -74,16 +85,18 @@ services:
       LOG_HEALTHCHECKS: ${LOG_HEALTHCHECKS:-false}
       SECRET_KEY: ${SECRET_KEY:?Defina SECRET_KEY no .env}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Defina JWT_SECRET_KEY no .env}
+      INTERNAL_REQUEST_SECRET: ${INTERNAL_REQUEST_SECRET:?Defina INTERNAL_REQUEST_SECRET no .env}
       JWT_ACCESS_TOKEN_EXPIRES_SECONDS: ${JWT_ACCESS_TOKEN_EXPIRES_SECONDS:-43200}
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
       MYSQL_DATABASE: ${MYSQL_DATABASE:?Defina MYSQL_DATABASE no .env}
       MYSQL_USER: ${MYSQL_USER:?Defina MYSQL_USER no .env}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Defina MYSQL_PASSWORD no .env}
-      REDIS_HOST: redis
+      REDIS_HOST: redis-cache
       REDIS_PORT: 6379
       REDIS_DB: 0
       RATELIMIT_STORAGE_URI: ${RATELIMIT_STORAGE_URI:-redis://redis:6379/1}
+      JWT_BLOCKLIST_STORAGE_URI: ${JWT_BLOCKLIST_STORAGE_URI:-redis://redis:6379/1}
       LOGIN_RATE_LIMIT_IP: "${LOGIN_RATE_LIMIT_IP:-10 per minute}"
       LOGIN_RATE_LIMIT_EMAIL: "${LOGIN_RATE_LIMIT_EMAIL:-5 per minute}"
       LOGIN_MAX_FAILED_ATTEMPTS: ${LOGIN_MAX_FAILED_ATTEMPTS:-5}
@@ -94,6 +107,7 @@ services:
       SECURITY_HSTS_MAX_AGE: ${SECURITY_HSTS_MAX_AGE:-31536000}
       ENABLE_TTS: ${ENABLE_TTS:-false}
       TTS_RATE_LIMIT: "${TTS_RATE_LIMIT:-30 per minute}"
+      AGENDA_MAX_DIAS_PERIODO: ${AGENDA_MAX_DIAS_PERIODO:-31}
       LGPD_RETENTION_LOGS_INTEGRACAO_DAYS: ${LGPD_RETENTION_LOGS_INTEGRACAO_DAYS:-180}
       LGPD_RETENTION_FILA_SINCRONIZACAO_DAYS: ${LGPD_RETENTION_FILA_SINCRONIZACAO_DAYS:-90}
       LGPD_RETENTION_AUDITORIA_DAYS: ${LGPD_RETENTION_AUDITORIA_DAYS:-1825}
@@ -122,6 +136,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      redis-cache:
+        condition: service_healthy
     expose:
       - "5000"
     healthcheck:
@@ -144,6 +160,7 @@ services:
       NITRO_HOST: 0.0.0.0
       NITRO_PORT: 3000
       NUXT_FLASK_BASE_URL: http://backend:5000
+      NUXT_INTERNAL_REQUEST_SECRET: ${INTERNAL_REQUEST_SECRET:?Defina INTERNAL_REQUEST_SECRET no .env}
       NUXT_ENABLE_TTS: ${ENABLE_TTS:-false}
       NUXT_AUTH_COOKIE_SECURE: ${NUXT_AUTH_COOKIE_SECURE:-true}
       NUXT_PUBLIC_AUTH_COOKIE_MAX_AGE_SECONDS: ${NUXT_PUBLIC_AUTH_COOKIE_MAX_AGE_SECONDS:-43200}

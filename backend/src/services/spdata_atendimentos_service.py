@@ -240,6 +240,59 @@ def get_crm_medico_usuario(usuario_id):
     return crm_atendimento or crm
 
 
+def buscar_atendimento_em_andamento_local(usuario_id, unidade_id=None, data_ref=None):
+    """Consulta somente o MySQL para checar atendimento em andamento.
+
+    Usado no bloqueio de logout: não deve sincronizar com SPDATA/Firebird para
+    evitar que uma falha externa impeça uma verificação simples de estado local.
+    """
+    crm_medico = get_crm_medico_usuario(usuario_id)
+    unidade = resolver_unidade_usuario(usuario_id, unidade_id)
+    data_ref = normalizar_data(data_ref) if data_ref else None
+
+    filtros = [
+        MedSpdataAtendimento.crm_medico == crm_medico,
+        filtro_spdata_unidade(MedSpdataAtendimento, unidade),
+        MedAtendimentos.status.in_(valores_status_medsystem("em-atendimento")),
+    ]
+    if data_ref:
+        filtros.append(MedAtendimentos.data_agenda == data_ref)
+
+    row = (
+        db.session.query(MedAtendimentos, MedSpdataAtendimento)
+        .join(
+            MedSpdataAtendimento,
+            MedAtendimentos.med_spdata_atendimento_id == MedSpdataAtendimento.id,
+        )
+        .filter(*filtros)
+        .order_by(MedAtendimentos.started_at.desc(), MedAtendimentos.id.desc())
+        .first()
+    )
+
+    payload_base = {
+        "emAtendimento": False,
+        "data": data_ref.isoformat() if data_ref else None,
+        "unidadeId": unidade.id,
+    }
+
+    if not row:
+        return payload_base
+
+    atendimento, spdata = row
+    return {
+        **payload_base,
+        "emAtendimento": True,
+        "data": atendimento.data_agenda.isoformat() if atendimento.data_agenda else payload_base["data"],
+        "id": spdata.id,
+        "medsystemAtendimentoId": atendimento.id,
+        "paciente": {
+            "id": spdata.id_paciente_spdata or spdata.id,
+            "nome": spdata.paciente,
+            "nomeSocial": spdata.paciente_nome_social,
+        },
+    }
+
+
 def codigo_centro_custo_unidade(unidade):
     codigo = normalizar_int(getattr(unidade, "codigo_spdata_centro_custo", None))
     return codigo if codigo is not None else UNIDADE_PADRAO_SPDATA

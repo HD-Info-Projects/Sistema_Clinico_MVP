@@ -111,6 +111,7 @@ MYSQL_ROOT_PASSWORD=senha_forte_do_root_mysql
 
 SECRET_KEY=senha_forte_para_flask
 JWT_SECRET_KEY=senha_forte_para_jwt
+INTERNAL_REQUEST_SECRET=senha_forte_compartilhada_entre_frontend_e_backend
 
 FIREBIRD_HOST=ip_ou_host_do_firebird
 FIREBIRD_PORT=3050
@@ -118,6 +119,7 @@ FIREBIRD_DATABASE=/caminho/para/o/banco.fdb
 FIREBIRD_USER=usuario_firebird
 FIREBIRD_PASSWORD=senha_firebird
 FIREBIRD_CHARSET=WIN1252
+AGENDA_MAX_DIAS_PERIODO=31
 ```
 
 Observacoes:
@@ -129,6 +131,9 @@ Observacoes:
 - `APP_DOMAIN` deve ser somente o dominio/subdominio, sem `http://` ou `https://`.
 - `TZ=America/Sao_Paulo` mantem backend, frontend e MySQL no fuso esperado.
 - `GUNICORN_WORKERS`, `GUNICORN_THREADS` (worker `gthread`) e `GUNICORN_TIMEOUT` controlam o Gunicorn do backend sem rebuild da imagem.
+- `INTERNAL_REQUEST_SECRET` protege chamadas internas do Nuxt para o Flask, como o polling SSE que nao deve gerar auditoria de visualizacao.
+- `AGENDA_MAX_DIAS_PERIODO` limita consultas/sincronizacoes amplas da agenda. O padrao de 31 dias cobre a tela mensal.
+- O servico `redis-cache` e volatil e guarda apenas caches/reducao de auditoria; o servico `redis` persistente fica para rate limit e blocklist de JWT.
 - `LOG_FORMAT=json` mantem os logs do backend estruturados para coleta e filtro por `request_id`.
 - `LOG_COLOR=false` evita codigos ANSI nos logs de producao; use cores apenas com `LOG_FORMAT=text` em terminal local.
 - `LOG_HEALTHCHECKS=false` evita ruido do healthcheck `/` nos logs de aplicacao.
@@ -206,6 +211,12 @@ docker image prune -f
 ```
 
 As migrations tambem sao executadas automaticamente nesse fluxo, porque o container `backend` roda `flask db upgrade` a cada start.
+
+Se voce estiver atualizando de uma versao em que o cache usava o Redis persistente, limpe o banco 0 antigo uma vez apos o deploy para remover payloads clinicos cacheados:
+
+```bash
+docker compose exec redis redis-cli -n 0 FLUSHDB
+```
 
 ## Parar e reiniciar
 
