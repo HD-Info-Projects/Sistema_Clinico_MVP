@@ -35,7 +35,8 @@ class Medico(db.Model):
 
     usuario = db.relationship(
         "Usuario",
-        back_populates="medico"
+        back_populates="medico",
+        foreign_keys=[usuario_id]
     )
     
     def __init__(self, usuario_id, spdata_id, crm=None, crm_atendimento_spdata=None, crm_uf=None, rqe=None, especialidade=None, ativo=True):

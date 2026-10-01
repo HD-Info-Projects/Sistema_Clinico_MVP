@@ -1,5 +1,6 @@
 export const ROLES_USUARIO = [
   'medico',
+  'assistente',
   'recepcao',
   'coord_recepcao',
   'dpo',
@@ -13,11 +14,13 @@ export const RECEPCAO_ROLES: RoleUsuario[] = ['recepcao', 'coord_recepcao', 'adm
 export const COORD_RECEPCAO_ROLES: RoleUsuario[] = ['coord_recepcao', 'admin']
 export const LGPD_ROLES: RoleUsuario[] = ['dpo', 'admin']
 export const MEDICO_ROLES: RoleUsuario[] = ['medico']
+export const ASSISTENTE_ROLES: RoleUsuario[] = ['assistente', 'admin']
 export const FINANCEIRO_ROLES: RoleUsuario[] = ['coord_financeiro', 'admin']
-export const UNIDADE_REQUIRED_ROLES: RoleUsuario[] = ['medico', 'recepcao', 'coord_recepcao']
+export const UNIDADE_REQUIRED_ROLES: RoleUsuario[] = ['medico', 'assistente', 'recepcao', 'coord_recepcao']
 
 export const ROLE_OPTIONS: { label: string, value: RoleUsuario }[] = [
   { label: 'Medico', value: 'medico' },
+  { label: 'Assistente', value: 'assistente' },
   { label: 'Recepcao', value: 'recepcao' },
   { label: 'Coord. Recepcao', value: 'coord_recepcao' },
   { label: 'DPO', value: 'dpo' },
@@ -41,6 +44,7 @@ export function roleColor(role: string | null | undefined) {
   switch (role) {
     case 'admin': return 'error'
     case 'medico': return 'primary'
+    case 'assistente': return 'info'
     case 'recepcao': return 'success'
     case 'coord_recepcao': return 'warning'
     case 'dpo': return 'secondary'

@@ -17,6 +17,7 @@ const confirmUnlockId = ref<number | null>(null)
 const userName = computed(() => auth.user?.nome || 'Administrador')
 
 const totalMedicos = computed(() => usuariosStore.porRole('medico').filter(u => u.ativo !== false).length)
+const totalAssistentes = computed(() => usuariosStore.porRole('assistente').filter(u => u.ativo !== false).length)
 const totalRecepcao = computed(() => usuariosStore.porRole('recepcao').filter(u => u.ativo !== false).length)
 const totalCoordRecepcao = computed(() => usuariosStore.porRole('coord_recepcao').filter(u => u.ativo !== false).length)
 const totalDpo = computed(() => usuariosStore.porRole('dpo').filter(u => u.ativo !== false).length)
@@ -131,6 +132,22 @@ function onSaved() {
               color="primary"
               class="mt-3"
               to="/admin/medicos"
+            />
+          </div>
+        </CardInformativo>
+
+        <CardInformativo
+          titulo="Assistentes"
+          :valor="totalAssistentes"
+          cor="info"
+          icone="i-lucide-user-round-check"
+        >
+          <div class="flex justify-end">
+            <UButton
+              label="Gerenciar"
+              color="primary"
+              class="mt-3"
+              to="/admin/assistentes"
             />
           </div>
         </CardInformativo>

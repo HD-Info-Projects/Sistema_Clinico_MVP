@@ -15,6 +15,17 @@ class Usuario(db.Model):
     email = Column(String(255), nullable=True)
     senha = Column(String(255), nullable=False)
     role = Column(String(50), nullable=False, default="medico")
+    medico_assistente_id = db.Column(
+        Integer,
+        db.ForeignKey(
+            "medicos.id",
+            ondelete="SET NULL",
+            use_alter=True,
+            name="fk_usuarios_medico_assistente_id_medicos",
+        ),
+        nullable=True,
+        index=True,
+    )
     ativo = Column(Boolean, nullable=False, default=True)
     bloqueado_em = Column(DateTime, nullable=True)
     bloqueio_motivo = Column(String(255), nullable=True)
@@ -63,7 +74,13 @@ class Usuario(db.Model):
         "Medico",
         back_populates="usuario",
         uselist=False,
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
+        foreign_keys="Medico.usuario_id",
+    )
+
+    medico_assistente = db.relationship(
+        "Medico",
+        foreign_keys=[medico_assistente_id],
     )
 
     unidades = db.relationship(
@@ -127,6 +144,7 @@ class Usuario(db.Model):
             "username": self.username,
             "email": self.email,
             "role": self.role,
+            "medico_assistente_id": self.medico_assistente_id,
             "ativo": self.ativo,
             "bloqueado": self.bloqueado_em is not None,
             "bloqueado_em": self.bloqueado_em.isoformat() if self.bloqueado_em else None,

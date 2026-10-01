@@ -20,6 +20,7 @@ from src.commands.medicos_commands import registrar_medico_spdata_command
 from src.commands.usuarios_commands import (
     desbloquear_usuario_command,
     registrar_admin_command,
+    registrar_assistente_command,
     registrar_dpo_command,
     registrar_recepcao_command,
     resetar_senha_usuario_command,
@@ -145,6 +146,7 @@ def create_app():
     app.cli.add_command(importar_cids_spdata_command)
     app.cli.add_command(registrar_medico_spdata_command)
     app.cli.add_command(registrar_admin_command)
+    app.cli.add_command(registrar_assistente_command)
     app.cli.add_command(registrar_dpo_command)
     app.cli.add_command(registrar_recepcao_command)
     app.cli.add_command(usuarios_senhas_legadas_command)

@@ -6,7 +6,7 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from src.models.auditoria_model import AcaoAuditoria
 from src.models.model_mydsystem.med_spdata_agenda_model import MedSpdataAgenda
 from src.security.decorators import roles_required
-from src.security.roles import COORD_RECEPCAO_ROLES, MEDICO_ROLES
+from src.security.roles import ASSISTENTE_ROLES, COORD_RECEPCAO_ROLES, MEDICO_ROLES
 from src.security.unidades import unidade_atual_required, unidade_id_request
 from src.services.auditoria_service import registrar_auditoria
 from src.shared.performance_monitoring import iniciar_probe
@@ -19,7 +19,9 @@ from src.shared.response_cache import (
 )
 from src.services.no_show_service import listar_no_show, registrar_motivo_no_show
 from src.services.spdata_atendimentos_service import (
+    atualizar_status_exame,
     atualizar_status_agenda,
+    listar_agenda_exames,
     listar_agenda_medica,
     listar_marcadores_agenda_medica,
 )
@@ -139,6 +141,53 @@ def listar_agenda():
         return jsonify({"error": "Erro interno ao listar agenda médica"}), 500
 
 
+@agenda_medica_bp.route("/exames", methods=["GET"])
+@jwt_required()
+@roles_required(*ASSISTENTE_ROLES)
+def listar_agenda_exames_assistente():
+    try:
+        usuario_id = int(get_jwt_identity())
+        data = request.args.get("data")
+        search = (request.args.get("search") or request.args.get("q") or "").strip() or None
+        status = request.args.get("status")
+        tipo = request.args.get("tipo")
+        unidade_id = unidade_id_request()
+        tem_filtro_data = any(request.args.get(nome) for nome in ("data", "dataIni", "dataFim"))
+
+        if search and not tem_filtro_data:
+            data_ini = None
+            data_fim = None
+        else:
+            data_ini = _parse_data(request.args.get("dataIni") or data)
+            data_fim = _parse_data(request.args.get("dataFim") or data, data_ini)
+
+        resultado = listar_agenda_exames(
+            usuario_id,
+            data_ini,
+            data_fim,
+            status=status,
+            search=search,
+            tipo=tipo,
+            unidade_id=unidade_id,
+        )
+        registrar_auditoria(
+            AcaoAuditoria.VISUALIZOU_AGENDA,
+            entidade="agenda_exames_assistente",
+            usuario_id=usuario_id,
+            descricao=f"Listagem de exames do assistente. data_ini={data_ini} data_fim={data_fim} status={status or ''}",
+        )
+        return jsonify(resultado), 200
+
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except PermissionError as e:
+        return jsonify({"error": str(e)}), 403
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("Erro ao listar exames do assistente")
+        return jsonify({"error": "Erro interno ao listar exames do assistente"}), 500
+
+
 @agenda_medica_bp.route("/marcadores", methods=["GET"])
 @jwt_required()
 @roles_required(*MEDICO_ROLES)
@@ -216,6 +265,50 @@ def atualizar_status(med_spdata_atendimento_id):
         db.session.rollback()
         current_app.logger.exception("Erro ao atualizar status da agenda médica")
         return jsonify({"error": "Erro interno ao atualizar agenda médica"}), 500
+
+
+@agenda_medica_bp.route("/exames/<int:agenda_id>/status", methods=["PATCH"])
+@jwt_required()
+@roles_required(*ASSISTENTE_ROLES)
+def atualizar_status_exame_assistente(agenda_id):
+    try:
+        usuario_id = int(get_jwt_identity())
+        body = request.get_json() or {}
+        status = body.get("status")
+
+        resultado = atualizar_status_exame(
+            agenda_id,
+            status,
+            usuario_id=usuario_id,
+            unidade_id=unidade_id_request(),
+        )
+        _invalidar_cache_recepcao()
+        status_final = resultado.get("status") or status
+        acao = AcaoAuditoria.ALTEROU_STATUS_AGENDA
+        if status_final == "atendido":
+            acao = AcaoAuditoria.FINALIZOU_ATENDIMENTO
+
+        registrar_auditoria(
+            acao,
+            entidade="agenda_exames_assistente",
+            entidade_id=agenda_id,
+            usuario_id=usuario_id,
+            descricao=f"Status de exame atualizado pelo assistente. status={status_final}",
+        )
+
+        return jsonify(resultado), 200
+
+    except LookupError as e:
+        return jsonify({"error": str(e)}), 404
+    except PermissionError as e:
+        return jsonify({"error": str(e)}), 403
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("Erro ao atualizar status do exame pelo assistente")
+        return jsonify({"error": "Erro interno ao atualizar exame"}), 500
 
 
 no_show_bp = Blueprint("no_show", __name__, url_prefix="/no_show")

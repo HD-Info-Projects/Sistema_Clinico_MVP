@@ -33,6 +33,9 @@ const listaFiltrada = computed(() => {
     || (termoDigitos.length > 0 && u.cnpj_cpf.includes(termoDigitos))
     || (u.medico?.crm?.toLowerCase().includes(termo))
     || (u.medico?.especialidade?.toLowerCase().includes(termo))
+    || (u.medico_assistente?.nome?.toLowerCase().includes(termo))
+    || (u.medico_assistente?.crm?.toLowerCase().includes(termo))
+    || (u.medico_assistente?.crm_atendimento_spdata?.toLowerCase().includes(termo))
   )
 })
 
@@ -187,7 +190,7 @@ function onSaved() {
               class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2"
               :class="role === 'medico' ? 'lg:grid-cols-[max-content_4fr_1fr_1fr_2fr_1fr_1fr_1fr_2fr]' : 'md:grid-cols-12'"
             >
-              <div :class="role === 'medico' ? 'lg:col-span-2' : 'lg:col-span-4'">
+              <div :class="role === 'medico' ? 'lg:col-span-2' : role === 'assistente' ? 'lg:col-span-3' : 'lg:col-span-4'">
                 <p class="text-sm font-bold text-muted">
                   Nome
                 </p>
@@ -240,7 +243,24 @@ function onSaved() {
                 >-</span>
               </div>
 
-              <div :class="role === 'medico' ? 'lg:col-span-2' : 'lg:col-span-4'">
+              <div
+                v-if="role === 'assistente'"
+                class="lg:col-span-3"
+              >
+                <p class="text-sm font-bold text-muted">
+                  Médico vinculado
+                </p>
+                <div class="min-w-0">
+                  <p class="wrap-break-word text-sm font-medium">
+                    {{ usuario.medico_assistente?.nome || '-' }}
+                  </p>
+                  <p class="break-words text-xs text-muted">
+                    CRM {{ usuario.medico_assistente?.crm || usuario.medico_assistente?.crm_atendimento_spdata || '-' }}
+                  </p>
+                </div>
+              </div>
+
+              <div :class="role === 'medico' ? 'lg:col-span-2' : role === 'assistente' ? 'lg:col-span-3' : 'lg:col-span-4'">
                 <p class="text-sm font-bold text-muted">
                   Usuário
                 </p>
@@ -270,7 +290,7 @@ function onSaved() {
                 />
               </div>
 
-              <div :class="role === 'medico' ? '' : 'sm:col-span-2 lg:col-span-2'">
+              <div :class="role === 'medico' ? '' : role === 'assistente' ? 'sm:col-span-2 lg:col-span-1' : 'sm:col-span-2 lg:col-span-2'">
                 <p class="text-sm font-bold text-muted">
                   Ações
                 </p>

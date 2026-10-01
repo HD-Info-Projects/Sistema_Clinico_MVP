@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { buscarSessaoAuth, loginAuth, logoutAuth } from '~/features/auth/services/authService'
 import type { AuthSessionResponse, AuthUser, Clinica } from '~/features/auth/types'
-import { LGPD_ROLES, MEDICO_ROLES, RECEPCAO_ROLES, roleIn } from '~/utils/roles'
+import { ASSISTENTE_ROLES, LGPD_ROLES, MEDICO_ROLES, RECEPCAO_ROLES, roleIn } from '~/utils/roles'
 
 export type AccessMode = 'recepcionista' | 'administrador' | 'logs'
 
@@ -89,6 +89,7 @@ export const useAuthStore = defineStore('auth', () => {
   })
 
   const isMedico = computed(() => roleIn(user.value?.role, MEDICO_ROLES))
+  const isAssistente = computed(() => roleIn(user.value?.role, ASSISTENTE_ROLES))
   const isRecepcao = computed(() => roleIn(user.value?.role, RECEPCAO_ROLES))
   const isAdmin = computed(() => user.value?.role === 'admin')
   const canAccessLgpd = computed(() => roleIn(user.value?.role, LGPD_ROLES))
@@ -115,8 +116,10 @@ export const useAuthStore = defineStore('auth', () => {
         navigateTo('/selecionar-acesso')
       } else if (roleIn(response.user.role, LGPD_ROLES)) {
         navigateTo('/lgpd/auditoria')
-      } else if ((roleIn(response.user.role, RECEPCAO_ROLES) || roleIn(response.user.role, MEDICO_ROLES)) && response.clinicas.length > 1 && !activeClinicaId.value) {
+      } else if ((roleIn(response.user.role, RECEPCAO_ROLES) || roleIn(response.user.role, MEDICO_ROLES) || roleIn(response.user.role, ASSISTENTE_ROLES)) && response.clinicas.length > 1 && !activeClinicaId.value) {
         navigateTo('/selecionar-clinica')
+      } else if (roleIn(response.user.role, ASSISTENTE_ROLES)) {
+        navigateTo('/dashboard')
       } else if (roleIn(response.user.role, RECEPCAO_ROLES)) {
         navigateTo('/recepcao')
       } else if (roleIn(response.user.role, MEDICO_ROLES)) {
@@ -196,6 +199,7 @@ export const useAuthStore = defineStore('auth', () => {
     activeClinica,
     isLoggedIn,
     isMedico,
+    isAssistente,
     isRecepcao,
     isAdmin,
     canAccessLgpd,

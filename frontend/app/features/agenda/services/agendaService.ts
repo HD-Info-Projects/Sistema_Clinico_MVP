@@ -49,6 +49,21 @@ export function listarAgendamentos(filtros?: AgendamentoComFiltro) {
   )
 }
 
+export function listarAgendamentosExames(filtros?: AgendamentoComFiltro) {
+  const params = new URLSearchParams()
+  if (filtros?.data) params.set('data', filtros.data)
+  if (filtros?.dataIni) params.set('dataIni', filtros.dataIni)
+  if (filtros?.dataFim) params.set('dataFim', filtros.dataFim)
+  if (filtros?.search) params.set('search', filtros.search)
+  if (filtros?.status) params.set('status', filtros.status)
+  if (filtros?.tipo) params.set('tipo', filtros.tipo)
+  if (filtros?.clinicaId) params.set('clinicaId', String(filtros.clinicaId))
+
+  return $fetch<AgendamentoComPaciente[]>(`/api/agenda-exames${params.toString() ? `?${params.toString()}` : ''}`).then(items =>
+    items.map(item => ({ ...item, horario: normalizarHorario(item.horario) }))
+  )
+}
+
 export function atualizarStatusAgendamento(id: number, status: AgendamentoStatus, consulta?: ConsultaStatusPayload, clinicaId?: number) {
   const params = new URLSearchParams()
   if (clinicaId) params.set('clinicaId', String(clinicaId))
@@ -57,6 +72,17 @@ export function atualizarStatusAgendamento(id: number, status: AgendamentoStatus
   return $fetch<AgendamentoComPaciente>(`/api/agendamentos/${id}${qs ? `?${qs}` : ''}`, {
     method: 'PATCH',
     body: { status, consulta }
+  })
+}
+
+export function atualizarStatusExameAgendamento(id: number, status: Extract<AgendamentoStatus, 'atendido' | 'faltou'>, clinicaId?: number) {
+  const params = new URLSearchParams()
+  if (clinicaId) params.set('clinicaId', String(clinicaId))
+  const qs = params.toString()
+
+  return $fetch<AgendamentoComPaciente>(`/api/agenda-exames/${id}/status${qs ? `?${qs}` : ''}`, {
+    method: 'PATCH',
+    body: { status }
   })
 }
 

@@ -14,6 +14,19 @@ export function listarAgenda(event: H3Event, query: Record<string, unknown>) {
   return flaskFetch(event, `/agenda-medica/${params.toString() ? `?${params.toString()}` : ''}`)
 }
 
+export function listarAgendaExames(event: H3Event, query: Record<string, unknown>) {
+  const params = new URLSearchParams()
+
+  for (const key of ['data', 'dataIni', 'dataFim', 'search', 'status', 'tipo']) {
+    const value = query[key]
+    if (value !== undefined && value !== null && String(value).trim()) {
+      params.set(key, String(value))
+    }
+  }
+
+  return flaskFetch(event, `/agenda-medica/exames${params.toString() ? `?${params.toString()}` : ''}`)
+}
+
 export function listarMarcadoresAgenda(event: H3Event, query: Record<string, unknown>) {
   const params = new URLSearchParams()
 
@@ -35,6 +48,13 @@ export type AtualizarStatusResultado = {
 
 export function atualizarStatusAgenda(event: H3Event, id: number, body: unknown) {
   return flaskFetch<AtualizarStatusResultado>(event, `/agenda-medica/${id}/status`, {
+    method: 'PATCH',
+    body
+  })
+}
+
+export function atualizarStatusExame(event: H3Event, id: number, body: unknown) {
+  return flaskFetch<AtualizarStatusResultado>(event, `/agenda-medica/exames/${id}/status`, {
     method: 'PATCH',
     body
   })

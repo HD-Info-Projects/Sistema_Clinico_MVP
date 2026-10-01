@@ -1,5 +1,5 @@
 import { useAuthStore, paginaInicialPorModo } from '~/stores/auth'
-import { COORD_RECEPCAO_ROLES, LGPD_ROLES, MEDICO_ROLES, RECEPCAO_ROLES, roleIn } from '~/utils/roles'
+import { ASSISTENTE_ROLES, COORD_RECEPCAO_ROLES, LGPD_ROLES, MEDICO_ROLES, RECEPCAO_ROLES, roleIn } from '~/utils/roles'
 
 export default defineNuxtRouteMiddleware(async (to) => {
   const auth = useAuthStore()
@@ -8,6 +8,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
     const role = auth.user?.role
     if (auth.isAdmin) return paginaInicialPorModo(auth.accessMode)
     if (roleIn(role, LGPD_ROLES)) return '/lgpd/auditoria'
+    if (roleIn(role, ASSISTENTE_ROLES)) return '/dashboard'
     if (roleIn(role, RECEPCAO_ROLES)) return '/recepcao'
     if (roleIn(role, MEDICO_ROLES)) return '/dashboard'
     return '/acesso-negado'
@@ -48,7 +49,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   // Seleção de unidade — admins podem acessar sempre; médico/recepção apenas com múltiplas clínicas
   if (to.path === '/selecionar-clinica') {
     if (auth.isAdmin) return
-    if (auth.clinicas.length > 1 && (auth.isMedico || auth.isRecepcao)) return
+    if (auth.clinicas.length > 1 && (auth.isMedico || auth.isAssistente || auth.isRecepcao)) return
     return navigateTo(destinoPrincipal())
   }
 
@@ -59,7 +60,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   // Se tem múltiplas clínicas mas nenhuma selecionada, forçar seleção
   if (auth.clinicas.length > 1 && !auth.activeClinicaId) {
-    if ((auth.isMedico || auth.isRecepcao) && (!auth.isAdmin || auth.accessMode === 'recepcionista')) {
+    if ((auth.isMedico || auth.isAssistente || auth.isRecepcao) && (!auth.isAdmin || auth.accessMode === 'recepcionista')) {
       return navigateTo('/selecionar-clinica')
     }
   }
@@ -78,11 +79,14 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const canAccessRecepcao = roleIn(auth.user?.role, RECEPCAO_ROLES)
   const canAccessCoordRecepcao = roleIn(auth.user?.role, COORD_RECEPCAO_ROLES)
   const isDashboardRoute = to.path.startsWith('/dashboard')
+  const isAssistenteRoute = to.path.startsWith('/dashboard')
+  const isMedicoRoute = isDashboardRoute
     || to.path.startsWith('/agenda')
     || to.path.startsWith('/atendimento')
     || to.path.startsWith('/pacientes')
     || to.path.startsWith('/padroes')
   const canAccessMedico = roleIn(auth.user?.role, MEDICO_ROLES)
+  const canAccessAssistente = roleIn(auth.user?.role, ASSISTENTE_ROLES)
 
   // Guardas por modo de acesso do admin
   if (auth.isAdmin) {
@@ -122,16 +126,21 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return navigateTo('/recepcao')
   }
 
-  if (isDashboardRoute && !canAccessMedico) {
+  if (isMedicoRoute && !canAccessMedico && !(isAssistenteRoute && canAccessAssistente)) {
     return navigateTo(destinoPrincipal())
   }
 
-  // Médico só pode acessar rotas médicas (dashboard, agenda, etc)
-  if (canAccessMedico && !isDashboardRoute && !isAdminRoute && !isRecepcaoRoute) {
+  // Assistente médico só pode acessar o dashboard operacional.
+  if (canAccessAssistente && !isAssistenteRoute && !isAdminRoute) {
     return navigateTo('/dashboard')
   }
 
-  if (!canAccessLgpd && !canAccessRecepcao && !canAccessMedico) {
+  // Médico só pode acessar rotas médicas (dashboard, agenda, etc)
+  if (canAccessMedico && !isMedicoRoute && !isAdminRoute && !isRecepcaoRoute) {
+    return navigateTo('/dashboard')
+  }
+
+  if (!canAccessLgpd && !canAccessRecepcao && !canAccessMedico && !canAccessAssistente) {
     return navigateTo('/acesso-negado')
   }
 })

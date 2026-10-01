@@ -7,6 +7,7 @@ const agendamentosStore = useAtendimentosStore()
 const chamadosStore = useChamadosStore()
 const toast = useToast()
 const { sala, precisaSelecionar, definirSala } = useSalaAtendimento()
+const isAssistenteDashboard = computed(() => auth.user?.role === 'assistente')
 
 const showSalaModal = ref(false)
 const inputSala = ref('')
@@ -26,7 +27,11 @@ function confirmarSala() {
 
 onMounted(() => {
   const hoje = formatarDataISO(new Date())
-  agendamentosStore.init(auth.activeClinicaId ?? undefined, hoje, auth.user?.id)
+  if (isAssistenteDashboard.value) {
+    agendamentosStore.initExames(auth.activeClinicaId ?? undefined, hoje)
+  } else {
+    agendamentosStore.init(auth.activeClinicaId ?? undefined, hoje, auth.user?.id)
+  }
   chamadosStore.init({ clinicaId: auth.activeClinicaId, data: hoje })
   if (precisaSelecionar.value) {
     showSalaModal.value = true
@@ -34,6 +39,7 @@ onMounted(() => {
 })
 
 const userName = computed(() => auth.user?.nome || 'Usuário')
+const saudacaoUsuario = computed(() => isAssistenteDashboard.value ? userName.value : `Dr. ${userName.value}`)
 
 const { agora, dataFormatada } = useRelogio(60000)
 
@@ -92,7 +98,7 @@ function rotuloChamada(pacienteId: number) {
   return 'Chamar'
 }
 
-const temPacienteEmAtendimento = computed(() => !!agendamentosStore.emAtendimento)
+const temPacienteEmAtendimento = computed(() => !isAssistenteDashboard.value && !!agendamentosStore.emAtendimento)
 
 function nomePacienteChamada(ag: AgendamentoComPaciente) {
   return ag.paciente.nomeSocial || ag.paciente.nome
@@ -162,7 +168,11 @@ async function chamarPaciente(ag: AgendamentoComPaciente) {
 
 async function faltouAgendamento(ag: AgendamentoComPaciente) {
   try {
-    await agendamentosStore.atualizarStatus(ag.id, 'faltou', undefined, ag.clinicaId)
+    if (isAssistenteDashboard.value) {
+      await agendamentosStore.atualizarStatusExame(ag.id, 'faltou', ag.clinicaId)
+    } else {
+      await agendamentosStore.atualizarStatus(ag.id, 'faltou', undefined, ag.clinicaId)
+    }
   } catch {
     console.error('Erro ao marcar falta')
   }
@@ -170,8 +180,12 @@ async function faltouAgendamento(ag: AgendamentoComPaciente) {
 
 async function atenderAgendamento(ag: AgendamentoComPaciente) {
   try {
-    await agendamentosStore.atualizarStatus(ag.id, 'em-atendimento', undefined, ag.clinicaId)
-    await navigateTo('/atendimento-medico')
+    if (isAssistenteDashboard.value) {
+      await agendamentosStore.atualizarStatusExame(ag.id, 'atendido', ag.clinicaId)
+    } else {
+      await agendamentosStore.atualizarStatus(ag.id, 'em-atendimento', undefined, ag.clinicaId)
+      await navigateTo('/atendimento-medico')
+    }
   } catch {
     console.error('Erro ao iniciar atendimento')
   }
@@ -221,11 +235,15 @@ function abrirModalDesfazerFalta(ag: AgendamentoComPaciente) {
   }
 }
 
-const pacientesNaFila = computed(() =>
-  agendamentosStore.ordenados.filter(
+const pacientesNaFila = computed(() => {
+  if (isAssistenteDashboard.value) {
+    return agendamentosStore.ordenados.filter(a => !isTerminal(a.status))
+  }
+
+  return agendamentosStore.ordenados.filter(
     a => a.status === 'em-espera' || a.status === 'em-atendimento'
   )
-)
+})
 
 const pacientesFinalizados = computed(() =>
   agendamentosStore.ordenados.filter(
@@ -242,7 +260,7 @@ const temPacientesDashboard = computed(() => totalPacientesDashboard.value > 0)
 function statusLabel(status: AgendamentoStatus) {
   switch (status) {
     case 'em-atendimento': return 'Em Atend.'
-    case 'atendido': return 'Finalizado'
+    case 'atendido': return isAssistenteDashboard.value ? 'Atendido' : 'Finalizado'
     default: return 'Atender'
   }
 }
@@ -264,11 +282,12 @@ function atendimentoVariant(status: AgendamentoStatus) {
 }
 
 function atendimentoDisabled(status: AgendamentoStatus) {
+  if (isAssistenteDashboard.value) return isTerminal(status)
   return status !== 'em-espera'
 }
 
 const tempoMedioEspera = computed(() => {
-  const lista = agendamentosStore.fila
+  const lista = pacientesNaFila.value
   const tempos = lista.map(a => calcularMinutosDesde(a.horario, agora.value))
   return tempos.length ? Math.round(tempos.reduce((a, b) => a + b, 0) / tempos.length) : 0
 })
@@ -337,7 +356,7 @@ const tempoMedioEspera = computed(() => {
     <div class="min-h-screen min-w-0 space-y-6 bg-muted p-3 sm:space-y-8 sm:p-6">
       <div class="min-w-0">
         <p class="wrap-break-word text-2xl font-semibold text-foreground sm:text-3xl">
-          {{ getSaudacao(agora) }}, Dr. {{ userName }}
+          {{ getSaudacao(agora) }}, {{ saudacaoUsuario }}
         </p>
         <p class="text-base text-muted mt-1">
           {{ dataFormatada }}. Veja o resumo do dia.
@@ -351,8 +370,8 @@ const tempoMedioEspera = computed(() => {
           class="h-full"
           :loading="agendamentosStore.loading"
           :total="totalPacientesDashboard"
-          :fila="agendamentosStore.fila.length"
-          :em-atendimento="agendamentosStore.emAtendimento ? 1 : 0"
+          :fila="pacientesNaFila.length"
+          :em-atendimento="isAssistenteDashboard ? 0 : (agendamentosStore.emAtendimento ? 1 : 0)"
           :atendidos="agendamentosStore.totalAtendidos"
           :faltas="agendamentosStore.totalFaltas"
         />
@@ -375,11 +394,11 @@ const tempoMedioEspera = computed(() => {
               <div class="flex items-center gap-2">
                 <div class="size-3 bg-azu-500 rounded-full" />
                 <p class="text-center text-lg font-medium sm:text-xl">
-                  Em espera:
+                  {{ isAssistenteDashboard ? 'Pendentes:' : 'Em espera:' }}
                 </p>
               </div>
               <p class="text-3xl font-bold ">
-                {{ agendamentosStore.fila.length }} Pessoa<span v-if="agendamentosStore.fila.length !== 1">s</span>
+                {{ pacientesNaFila.length }} Pessoa<span v-if="pacientesNaFila.length !== 1">s</span>
               </p>
             </div>
           </UPageCard>
@@ -677,13 +696,16 @@ const tempoMedioEspera = computed(() => {
                 />
               </div>
 
-              <div class="text-left col-span-3 sm:col-span-2 md:col-span-1">
+              <div
+                v-if="!isAssistenteDashboard"
+                class="text-left col-span-3 sm:col-span-2 md:col-span-1"
+              >
                 <p class="text-sm text-muted font-bold">
                   Ações
                 </p>
                 <div class="grid grid-cols-1 gap-2 sm:flex sm:gap-1">
                   <UButton
-                    v-if="paciente.status === 'atendido'"
+                    v-if="!isAssistenteDashboard && paciente.status === 'atendido'"
                     icon="i-lucide-pencil"
                     label="Editar atendimento"
                     class="min-w-20 justify-center"
@@ -693,7 +715,7 @@ const tempoMedioEspera = computed(() => {
                     @click="editarAtendimento(paciente as AgendamentoComPaciente)"
                   />
                   <UButton
-                    v-else-if="paciente.status === 'faltou'"
+                    v-else-if="!isAssistenteDashboard && paciente.status === 'faltou'"
                     icon="i-lucide-undo-2"
                     label="Desfazer falta"
                     class="min-w-20 justify-center"

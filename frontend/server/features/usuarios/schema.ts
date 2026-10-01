@@ -30,6 +30,7 @@ export const criarUsuarioSchema = z.object({
   role: z.enum(SERVER_ROLES_USUARIO),
   ativo: z.boolean().optional(),
   unidade_ids: z.array(z.number().int().positive()).optional(),
+  medico_assistente_id: z.number().int().positive().optional(),
   medico: medicoDadosSchema.optional()
 }).superRefine((data, ctx) => {
   if (data.role === 'medico' && (!data.medico || !data.medico.spdata_id)) {
@@ -46,6 +47,13 @@ export const criarUsuarioSchema = z.object({
       message: 'Selecione ao menos uma unidade'
     })
   }
+  if (data.role === 'assistente' && !data.medico_assistente_id) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['medico_assistente_id'],
+      message: 'Informe o médico que o assistente vai auxiliar'
+    })
+  }
 })
 
 export const atualizarUsuarioSchema = z.object({
@@ -57,6 +65,7 @@ export const atualizarUsuarioSchema = z.object({
   role: z.enum(SERVER_ROLES_USUARIO).optional(),
   ativo: z.boolean().optional(),
   unidade_ids: z.array(z.number().int().positive()).optional(),
+  medico_assistente_id: z.number().int().positive().optional(),
   medico: medicoDadosSchema.optional()
 }).superRefine((data, ctx) => {
   if (data.role === 'medico' && (!data.medico || !data.medico.spdata_id)) {
@@ -71,6 +80,13 @@ export const atualizarUsuarioSchema = z.object({
       code: 'custom',
       path: ['unidade_ids'],
       message: 'Selecione ao menos uma unidade'
+    })
+  }
+  if (data.role === 'assistente' && !data.medico_assistente_id) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['medico_assistente_id'],
+      message: 'Informe o médico que o assistente vai auxiliar'
     })
   }
 })

@@ -1,7 +1,9 @@
 import { defineStore } from 'pinia'
 import type { Paciente } from '~/types'
 import {
+  atualizarStatusExameAgendamento,
   atualizarStatusAgendamento,
+  listarAgendamentosExames,
   listarAgendamentos,
   type ConsultaStatusPayload,
   type AtualizarStatusAgendamentoResponse
@@ -142,11 +144,32 @@ export const useAgendamentosStore = defineStore('agendamentos', () => {
     }
   }
 
+  async function fetchAgendamentosExames(clinicaId?: number, data?: string) {
+    atualizarFiltros(clinicaId, data)
+    loading.value = true
+
+    try {
+      const raw = await listarAgendamentosExames({ clinicaId, data })
+      agendamentos.value = raw.map(item => ({ ...item, horario: normalizarHorario(item.horario) }))
+    } catch {
+      console.error('Erro ao carregar agenda de exames')
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function init(clinicaId?: number, data?: string, medicoId?: number) {
     atualizarFiltros(clinicaId, data, medicoId)
     registrarSseHandlers()
     sse?.connect({ data, clinicaId })
     await fetchAgendamentos(clinicaId, data, medicoId)
+  }
+
+  async function initExames(clinicaId?: number, data?: string) {
+    atualizarFiltros(clinicaId, data)
+    registrarSseHandlers()
+    sse?.connect({ data, clinicaId })
+    await fetchAgendamentosExames(clinicaId, data)
   }
 
   async function atualizarStatus(id: number, status: AgendamentoStatus, consulta?: ConsultaStatusPayload, clinicaId?: number) {
@@ -165,6 +188,21 @@ export const useAgendamentosStore = defineStore('agendamentos', () => {
     }
   }
 
+  async function atualizarStatusExame(id: number, status: Extract<AgendamentoStatus, 'atendido' | 'faltou'>, clinicaId?: number) {
+    try {
+      const clinicaIdEfetiva = clinicaId
+        ?? agendamentos.value.find(a => a.id === id)?.clinicaId
+        ?? filtrosAtuais.clinicaId
+
+      const atualizado = await atualizarStatusExameAgendamento(id, status, clinicaIdEfetiva)
+      aplicarStatusAgendamento(atualizado)
+      return atualizado
+    } catch (error) {
+      console.error('Erro ao atualizar status do exame')
+      throw error
+    }
+  }
+
   return {
     agendamentos,
     loading,
@@ -175,7 +213,10 @@ export const useAgendamentosStore = defineStore('agendamentos', () => {
     totalAtendidos,
     totalFaltas,
     init,
+    initExames,
     fetchAgendamentos,
+    fetchAgendamentosExames,
+    atualizarStatusExame,
     atualizarStatus
   }
 })

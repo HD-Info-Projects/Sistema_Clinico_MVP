@@ -417,6 +417,8 @@ export interface Usuario {
   created_at: string
   updated_at: string
   medico?: Medico
+  medico_assistente_id?: number | null
+  medico_assistente?: MedicoAssistente | null
   unidades?: Clinica[]
   unidade_ids?: number[]
 }
@@ -433,6 +435,10 @@ export interface Medico {
   ativo: boolean
 }
 
+export interface MedicoAssistente extends Medico {
+  nome?: string | null
+}
+
 export interface UsuarioForm {
   nome_completo: string
   cnpj_cpf: string
@@ -442,6 +448,7 @@ export interface UsuarioForm {
   role: RoleUsuario
   ativo?: boolean
   unidade_ids?: number[]
+  medico_assistente_id?: number
   medico?: {
     spdata_id?: number | null
     crm?: string

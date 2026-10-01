@@ -24,6 +24,25 @@ python -m flask --app run.py db current
 
 Nao execute `flask db init`: o repositorio ja possui o diretorio `migrations/` versionado.
 
+## Comandos de usuarios
+
+Os comandos abaixo devem ser executados no diretorio `backend`, com o ambiente virtual ativo.
+
+### Criar assistente medico local
+
+Cria um usuario com role `assistente`, vinculado a um medico local ja cadastrado. O valor de `--medico-id` e o `id` da tabela local `medicos`, nao o `usuario_id`.
+
+```bash
+python -m flask --app run.py registrar-assistente \
+  --nome-completo "Assistente Exemplo" \
+  --documento "00011122233" \
+  --email "assistente.exemplo@gmail.com" \
+  --medico-id 4 \
+  --unidade-id 1
+```
+
+O comando solicita a senha com confirmacao no terminal. Para ambientes locais de teste, tambem e possivel passar `--senha` diretamente.
+
 5. Inicie a API:
 
 ```bash
