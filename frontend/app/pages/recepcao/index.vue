@@ -1,36 +1,12 @@
 <script setup lang="ts">
 import type { TipoProcedimentoTuss } from '~/types'
-import { listarCheckIn, listarCheckInCompleto, sincronizarCheckIn } from '~/features/agenda/services/agendaService'
-import type { CheckInResponse } from '~/features/agenda/types'
+import { atualizarPrioridadeCheckIn, listarCheckIn, listarCheckInCompleto, sincronizarCheckIn } from '~/features/agenda/services/agendaService'
+import type { AtendimentoRecepcao, AtendimentoStatusRecepcao, CheckInResponse } from '~/features/agenda/types'
 import { TUSS_PROCEDIMENTO_FILTROS, corTipoProcedimento, rotuloTipoProcedimento } from '~/utils/tuss'
 import { abrirJanelaPdf, exportTableToPDF, exportToCSV, type ColunaExport } from '~/utils/export-data'
 
 const openNav = inject<() => void>('openNav', () => {})
 const toast = useToast()
-
-type AtendimentoStatus = 'agendado' | 'em-espera' | 'em-atendimento' | 'atendido' | 'faltou' | 'desconhecido'
-
-interface AtendimentoRecepcao {
-  id: number | string
-  registro: string
-  horario: string
-  paciente: string
-  cpf: string
-  prontuario: string
-  convenio: string
-  telefone: string
-  celular: string
-  email: string
-  medico: string
-  especialidade: string
-  codigoProcedimentoSpdata: string | null
-  tipoProcedimento: TipoProcedimentoTuss
-  tipoProcedimentoLabel: string
-  dataNascimento: string | null
-  idade: number | null
-  status: AtendimentoStatus
-  retorno: boolean
-}
 
 const auth = useAuthStore()
 
@@ -42,13 +18,14 @@ const pageSize = ref(20)
 const loading = ref(true)
 const errorMsg = ref('')
 const busca = ref('')
-const selectedStatus = ref<AtendimentoStatus | ''>('')
+const selectedStatus = ref<AtendimentoStatusRecepcao | ''>('')
 const selectedTipo = ref<TipoProcedimentoTuss | ''>('')
 const selectedMedico = ref<string | null>(null)
 const selectedEspecialidade = ref<string | undefined>('Todas as especialidades')
 const sincronizandoSpdata = ref(false)
 const syncMsg = ref('')
 const syncError = ref('')
+const prioridadesEmAtualizacao = ref(new Set<string>())
 
 let buscaTimer: ReturnType<typeof setTimeout> | null = null
 let requestId = 0
@@ -74,7 +51,7 @@ function respostaVazia(): CheckInResponse {
 
 const dados = ref<CheckInResponse>(respostaVazia())
 
-const filtrosStatus: { label: string, value: AtendimentoStatus | '' }[] = [
+const filtrosStatus: { label: string, value: AtendimentoStatusRecepcao | '' }[] = [
   { label: 'Todos', value: '' },
   { label: 'Agendados', value: 'agendado' },
   { label: 'Em espera', value: 'em-espera' },
@@ -253,6 +230,41 @@ async function sincronizarDadosSpdata() {
   }
 }
 
+function chavePrioridade(item: AtendimentoRecepcao) {
+  return `${item.prioridadeOrigem}:${item.prioridadeSpdataId}`
+}
+
+function prioridadeEmAtualizacao(item: AtendimentoRecepcao) {
+  return prioridadesEmAtualizacao.value.has(chavePrioridade(item))
+}
+
+async function alterarPrioridade(item: AtendimentoRecepcao, prioridade: boolean) {
+  const chave = chavePrioridade(item)
+  const prioridadeAnterior = item.prioridade === true
+
+  item.prioridade = prioridade
+  prioridadesEmAtualizacao.value = new Set(prioridadesEmAtualizacao.value).add(chave)
+
+  try {
+    await atualizarPrioridadeCheckIn({
+      prioridadeOrigem: item.prioridadeOrigem,
+      prioridadeSpdataId: item.prioridadeSpdataId,
+      prioridade
+    })
+  } catch {
+    item.prioridade = prioridadeAnterior
+    toast.add({
+      title: 'Erro ao atualizar prioridade',
+      description: 'A alteração foi desfeita. Tente novamente.',
+      color: 'error'
+    })
+  } finally {
+    const emAtualizacao = new Set(prioridadesEmAtualizacao.value)
+    emAtualizacao.delete(chave)
+    prioridadesEmAtualizacao.value = emAtualizacao
+  }
+}
+
 const exportando = ref<'pdf' | 'csv' | null>(null)
 
 const colunasExportacao: ColunaExport<AtendimentoRecepcao>[] = [
@@ -348,7 +360,7 @@ function limparMedico() {
   resetPageAndFetch()
 }
 
-function selecionarStatus(status: AtendimentoStatus | '') {
+function selecionarStatus(status: AtendimentoStatusRecepcao | '') {
   selectedStatus.value = status
   resetPageAndFetch()
 }
@@ -692,7 +704,7 @@ onUnmounted(() => {
             class="border-b border-muted rounded-none"
             :ui="{ container: 'px-4 sm:p-1 pb-3 sm:px-4' }"
           >
-            <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-[max-content_2fr_1fr_1.5fr_2fr_1.5fr_1fr] ">
+            <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-[max-content_2fr_1fr_1.5fr_2fr_1.5fr_0.8fr_0.8fr] ">
               <div class="md:col-span-1 w-min hidden md:block pr-3">
                 <p class="text-sm text-muted font-bold">
                   Horário
@@ -793,6 +805,21 @@ onUnmounted(() => {
                   :label="rotuloStatus(item.status)"
                   :color="corStatus(item.status)"
                   variant="subtle"
+                />
+              </div>
+
+              <div class="md:col-span-1">
+                <p class="text-sm text-muted font-bold">
+                  Prioridade
+                </p>
+                <USwitch
+                  :model-value="item.prioridade === true"
+                  :label="item.prioridade === true ? 'Prioridade' : 'Normal'"
+                  color="error"
+                  size="sm"
+                  :loading="prioridadeEmAtualizacao(item)"
+                  :disabled="prioridadeEmAtualizacao(item)"
+                  @update:model-value="alterarPrioridade(item, $event)"
                 />
               </div>
             </div>

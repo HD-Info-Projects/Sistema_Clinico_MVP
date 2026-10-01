@@ -28,6 +28,15 @@ export interface AtendimentoRecepcao {
   idade: number | null
   status: AtendimentoStatusRecepcao
   retorno: boolean
+  prioridade: boolean
+  prioridadeOrigem: 'agenda' | 'atendimento'
+  prioridadeSpdataId: number
+}
+
+export interface AtualizarPrioridadeCheckInPayload {
+  prioridadeOrigem: AtendimentoRecepcao['prioridadeOrigem']
+  prioridadeSpdataId: number
+  prioridade: boolean
 }
 
 export interface MedicoDia {

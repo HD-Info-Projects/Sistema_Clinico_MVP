@@ -2,6 +2,7 @@ import type {
   Agendamento,
   AgendamentoComPaciente,
   AgendamentoStatus,
+  AtualizarPrioridadeCheckInPayload,
   CheckInResponse,
   ExameConsultaPayload,
   MotivoNoShow,
@@ -121,6 +122,13 @@ export function listarCheckIn(filtros?: Record<string, unknown>) {
     ...response,
     items: response.items.map(item => ({ ...item, horario: normalizarHorario(item.horario) }))
   }))
+}
+
+export function atualizarPrioridadeCheckIn(payload: AtualizarPrioridadeCheckInPayload) {
+  return $fetch<AtualizarPrioridadeCheckInPayload>('/api/check-in/prioridade', {
+    method: 'PATCH',
+    body: payload
+  })
 }
 
 const CHECK_IN_MAX_PAGE_SIZE = 100

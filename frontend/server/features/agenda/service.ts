@@ -1,6 +1,12 @@
 import type { H3Event } from 'h3'
 import { flaskFetch } from '../../utils/flask'
 
+export type AtualizarPrioridadeCheckInPayload = {
+  prioridadeOrigem: 'agenda' | 'atendimento'
+  prioridadeSpdataId: number
+  prioridade: boolean
+}
+
 export function listarAgenda(event: H3Event, query: Record<string, unknown>) {
   const params = new URLSearchParams()
 
@@ -62,6 +68,13 @@ export function listarCheckIn(event: H3Event, query: Record<string, unknown>) {
 
   const qs = params.toString()
   return flaskFetch(event, `/check_in/${qs ? `?${qs}` : ''}`)
+}
+
+export function atualizarPrioridadeCheckIn(event: H3Event, body: AtualizarPrioridadeCheckInPayload) {
+  return flaskFetch(event, '/check_in/prioridade', {
+    method: 'PATCH',
+    body
+  })
 }
 
 export function sincronizarCheckIn(event: H3Event, body: unknown) {

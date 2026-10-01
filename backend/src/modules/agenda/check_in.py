@@ -13,6 +13,11 @@ from src.models.model_mydsystem.med_spdata_convenios_model import MedSpdataConve
 from src.security.decorators import roles_required
 from src.security.unidades import unidade_atual_required
 from src.services.auditoria_service import registrar_auditoria
+from src.modules.agenda.prioridade_service import (
+    buscar_prioridades_locais,
+    definir_prioridade_local,
+    referencia_prioridade,
+)
 from src.shared.performance_monitoring import iniciar_probe
 from src.shared.response_cache import (
     apagar_cache_por_padrao,
@@ -44,7 +49,7 @@ STATUS_VALIDOS = {
 }
 
 CACHE_PREFIX_CHECK_IN_BASE = "check_in:base:v2"
-CACHE_PREFIX_CHECK_IN_RESPONSE = "check_in:response:v2"
+CACHE_PREFIX_CHECK_IN_RESPONSE = "check_in:response:v3"
 
 STATUS_LOCAL_ALIASES = {
     "EM_ATENDIMENTO": "em-atendimento",
@@ -652,7 +657,14 @@ def atendimento_retorno_para_frontend(row):
     return normalizar_texto(valor).upper() in {"S", "T"}
 
 
-def item_para_frontend(row, status_local, convenios_por_codigo, especialidades_por_medico, unidade):
+def item_para_frontend(
+    row,
+    status_local,
+    convenios_por_codigo,
+    especialidades_por_medico,
+    unidade,
+    prioridade=False,
+):
     registro = normalizar_texto(row.get("REGISTRO"))
     id_convenio_spdata = normalizar_int(row.get("ID_CONVENIO_SPDATA") or row.get("CONVENIO"))
     codigo_procedimento = codigo_procedimento_row(row) or None
@@ -675,6 +687,10 @@ def item_para_frontend(row, status_local, convenios_por_codigo, especialidades_p
     )
     horario_entrada = horario_para_frontend(row.get("HORA_ENTRADA"))
     horario = horario_entrada or horario_agendado
+    prioridade_origem, prioridade_spdata_id = referencia_prioridade(
+        row.get("ID_AGENDAMENTO"),
+        row.get("ID_ATENDIMENTO"),
+    )
 
     return {
         "id": row.get("ID_AGENDAMENTO") or registro,
@@ -716,6 +732,9 @@ def item_para_frontend(row, status_local, convenios_por_codigo, especialidades_p
         "atendidoSpdata": normalizar_texto(row.get("ATENDIDO")),
         "status": status,
         "statusOrigem": "medsystem" if local else "spdata",
+        "prioridade": bool(prioridade),
+        "prioridadeOrigem": prioridade_origem,
+        "prioridadeSpdataId": prioridade_spdata_id,
     }
 
 
@@ -836,9 +855,24 @@ def home_check_in():
             )
         with probe.etapa("mysql_especialidades"):
             especialidades_por_medico = buscar_especialidades_medicos_locais(rows_dia)
+        with probe.etapa("mysql_prioridades"):
+            referencias_prioridade = [
+                referencia_prioridade(row.get("ID_AGENDAMENTO"), row.get("ID_ATENDIMENTO"))
+                for row in rows_filtradas
+            ]
+            prioridades = buscar_prioridades_locais(unidade.id, referencias_prioridade)
         with probe.etapa("serialize_items"):
             items_com_status = [
-                item_para_frontend(row, status_local, convenios_por_codigo, especialidades_por_medico, unidade)
+                item_para_frontend(
+                    row,
+                    status_local,
+                    convenios_por_codigo,
+                    especialidades_por_medico,
+                    unidade,
+                    prioridades.get(referencia_prioridade(
+                        row.get("ID_AGENDAMENTO"), row.get("ID_ATENDIMENTO")
+                    ), False),
+                )
                 for row in rows_filtradas
             ]
 
@@ -894,6 +928,58 @@ def home_check_in():
         db.session.rollback()
         current_app.logger.exception("Erro ao listar check-in")
         return jsonify({"error": "Erro interno ao listar check-in"}), 500
+
+
+@check_in_bp.route("/prioridade", methods=["PATCH"])
+@jwt_required()
+@roles_required("recepcao", "admin")
+def atualizar_prioridade_check_in():
+    try:
+        body = request.get_json(silent=True)
+        if not isinstance(body, dict):
+            raise ValueError("Body JSON inválido")
+
+        prioridade = body.get("prioridade")
+        if not isinstance(prioridade, bool):
+            raise ValueError("prioridade deve ser boolean")
+
+        unidade = unidade_atual_required()
+        origem = body.get("prioridadeOrigem")
+        spdata_id = body.get("prioridadeSpdataId")
+        registro = definir_prioridade_local(
+            unidade.id,
+            origem,
+            spdata_id,
+            prioridade,
+        )
+        caches_apagados = invalidar_cache_check_in()
+        registrar_auditoria(
+            AcaoAuditoria.ALTEROU_PRIORIDADE_ATENDIMENTO,
+            entidade="atendimento_prioridade",
+            entidade_id=registro.id,
+            usuario_id=int(get_jwt_identity()),
+            descricao=(
+                "Prioridade de atendimento atualizada. "
+                f"unidade_id={unidade.id} origem={origem} spdata_id={spdata_id} "
+                f"prioridade={prioridade} caches_apagados={caches_apagados}"
+            ),
+        )
+        return jsonify({
+            "prioridade": bool(registro.prioridade),
+            "prioridadeOrigem": registro.origem,
+            "prioridadeSpdataId": registro.spdata_id,
+        }), 200
+
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400
+    except PermissionError as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 403
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("Erro ao atualizar prioridade do check-in")
+        return jsonify({"error": "Erro interno ao atualizar prioridade do check-in"}), 500
 
 
 @check_in_bp.route("/sincronizar", methods=["POST"])

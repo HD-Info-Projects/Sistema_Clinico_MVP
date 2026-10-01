@@ -39,7 +39,7 @@ const { agora, dataFormatada } = useRelogio(60000)
 
 function corPrioridade(prioridade: string) {
   switch (prioridade) {
-    case 'preferencial': return 'warning'
+    case 'prioridade': return 'error'
     default: return 'neutral'
   }
 }
@@ -811,7 +811,7 @@ const tempoMedioEspera = computed(() => {
             Informe o número do consultório:
           </p>
           <UForm class="flex flex-col gap-3">
-            <UFormItem
+            <UFormField
               label="Número do consultório"
               :error="!salaValida ? 'Informe um número de consultório válido' : ''"
             >
@@ -823,7 +823,7 @@ const tempoMedioEspera = computed(() => {
                 class="w-full"
                 size="lg"
               />
-            </UFormItem>
+            </UFormField>
             <div class="flex justify-end gap-2">
               <UButton
                 type="submit"

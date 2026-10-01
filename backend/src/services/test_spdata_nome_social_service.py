@@ -51,6 +51,35 @@ def test_agenda_para_frontend_expoe_nome_social_sem_substituir_nome_civil():
     assert item["paciente"]["dataNascimento"] is None
     assert item["preventivo"] is False
     assert item["retorno"] is False
+    assert item["prioridade"] == "normal"
+
+
+def test_serializadores_agenda_expoem_prioridade_textual():
+    spdata = SimpleNamespace(
+        id=10,
+        spdata_atendimento_id=1001,
+        cod_atendimento="A1001",
+        id_paciente_spdata=55,
+        id_medico_spdata=7,
+        unidade_id=1,
+        id_convenio_spdata=None,
+        data_atendimento=date(2026, 8, 5),
+        hora_entrada=time(9, 30),
+        data_hora_entrada=datetime(2026, 8, 5, 9, 30),
+        obs_atendimento=None,
+        paciente="PACIENTE",
+        paciente_nome_social=None,
+        sexo=None,
+        data_nascimento=None,
+        celular=None,
+        email=None,
+        cpf=None,
+        endereco=None,
+        dados_spdata={},
+    )
+
+    assert agenda_para_frontend(spdata, prioridade=True)["prioridade"] == "prioridade"
+    assert agenda_para_frontend(spdata, prioridade=False)["prioridade"] == "normal"
 
 
 def test_agenda_spdata_para_frontend_expoe_nome_social_sem_substituir_nome_civil():
@@ -93,6 +122,12 @@ def test_agenda_spdata_para_frontend_expoe_nome_social_sem_substituir_nome_civil
     assert item["horario"] == "10:26"
     assert item["horarioAgendado"] == "10:00"
     assert item["horarioEntrada"] == "10:26"
+    assert item["prioridade"] == "normal"
+    assert agenda_spdata_para_frontend(
+        agenda,
+        spdata_ref,
+        prioridade=True,
+    )["prioridade"] == "prioridade"
 
 
 def test_agenda_spdata_placeholder_mantem_horario_agendado():

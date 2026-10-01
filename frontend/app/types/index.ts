@@ -81,7 +81,7 @@ export interface Agendamento {
   horario: string
   horarioAgendado?: string | null
   horarioEntrada?: string | null
-  prioridade: 'normal' | 'preferencial'
+  prioridade: 'normal' | 'prioridade'
   status: AgendamentoStatus
   descricao: string
   criadoEm: string

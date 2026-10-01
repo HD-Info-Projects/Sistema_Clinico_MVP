@@ -43,7 +43,7 @@ def _bool_param(valor):
     return str(valor or "").strip().lower() in {"1", "true", "sim", "s", "yes", "on"}
 
 
-AGENDA_MEDICA_CACHE_PREFIX = "agenda_medica:response:v2"
+AGENDA_MEDICA_CACHE_PREFIX = "agenda_medica:response:v3"
 AUDITORIA_VISUALIZACAO_AGENDA_JANELA_SEGUNDOS = 15 * 60
 AUDITORIA_VISUALIZACAO_AGENDA_DEDUP_PREFIX = "auditoria:dedup:visualizou_agenda:v1"
 ORIGEM_REQUISICAO_HEADER = "X-Origem-Requisicao"

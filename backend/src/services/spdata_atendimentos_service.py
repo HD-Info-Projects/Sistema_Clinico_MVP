@@ -23,6 +23,11 @@ from src.models.prescricao_model import Prescricao
 from src.models.solicitacao_exame_model import SolicitacaoExame
 from src.models.db.handler_fb_db import ConnectionDBFireBird
 from src.services.spdata_agenda_service import sincronizar_agenda_spdata
+from src.modules.agenda.prioridade_service import (
+    ORIGEM_AGENDA,
+    ORIGEM_ATENDIMENTO,
+    buscar_prioridades_locais,
+)
 from src.modules.unidades.service import resolver_unidade_usuario
 from src.settings.extensions import db
 from src.utils.normalizar import normalizar_cpf
@@ -912,7 +917,13 @@ def tipo_procedimento_frontend(codigo):
     return tipo, label_tipo_procedimento(tipo)
 
 
-def agenda_para_frontend(spdata, atendimento=None, convenios_por_codigo=None, preventivo=False):
+def agenda_para_frontend(
+    spdata,
+    atendimento=None,
+    convenios_por_codigo=None,
+    preventivo=False,
+    prioridade=False,
+):
     status = normalizar_status(atendimento.status) if atendimento else "em-espera"
     data_atendimento = data_iso(spdata.data_atendimento)
     horario = hora_hhmm(spdata.hora_entrada)
@@ -934,7 +945,7 @@ def agenda_para_frontend(spdata, atendimento=None, convenios_por_codigo=None, pr
         "horario": horario,
         "horarioAgendado": None,
         "horarioEntrada": horario or None,
-        "prioridade": "normal",
+        "prioridade": "prioridade" if prioridade else "normal",
         "status": status,
         "descricao": spdata.obs_atendimento or "",
         "criadoEm": spdata.data_hora_entrada.isoformat() if spdata.data_hora_entrada else None,
@@ -971,6 +982,7 @@ def agenda_spdata_para_frontend(
     atendimento=None,
     convenios_por_codigo=None,
     preventivo=False,
+    prioridade=False,
 ):
     status = normalizar_status(atendimento.status) if atendimento else status_agenda_spdata(agenda)
     id_convenio_spdata = normalizar_int(agenda.id_convenio_spdata)
@@ -1013,7 +1025,7 @@ def agenda_spdata_para_frontend(
         "horario": horario_entrada or horario_agendado,
         "horarioAgendado": horario_agendado,
         "horarioEntrada": horario_entrada or None,
-        "prioridade": "normal",
+        "prioridade": "prioridade" if prioridade else "normal",
         "status": status,
         "descricao": agenda.obs or "",
         "criadoEm": data_hora_agenda(agenda).isoformat(),
@@ -1097,10 +1109,23 @@ def listar_atendimentos_medsystem_para_frontend(
     convenios_por_codigo = buscar_convenios_locais(
         spdata.id_convenio_spdata for spdata, _ in registros
     )
+    referencias_prioridade = []
+    for spdata, _ in registros:
+        spdata_agenda_id = spdata_agenda_id_do_atendimento(spdata)
+        referencias_prioridade.append((
+            ORIGEM_AGENDA if spdata_agenda_id is not None else ORIGEM_ATENDIMENTO,
+            spdata_agenda_id or spdata.spdata_atendimento_id,
+        ))
+    prioridades = buscar_prioridades_locais(unidade.id, referencias_prioridade)
 
     items = [
-        agenda_para_frontend(spdata, atendimento, convenios_por_codigo)
-        for spdata, atendimento in registros
+        agenda_para_frontend(
+            spdata,
+            atendimento,
+            convenios_por_codigo,
+            prioridade=prioridades.get(referencia, False),
+        )
+        for (spdata, atendimento), referencia in zip(registros, referencias_prioridade)
     ]
 
     tipo_filtro = TIPO_PROCEDIMENTO_CONSULTA if somente_consultas else tipo
@@ -1177,6 +1202,13 @@ def listar_agenda_medica(
         agenda.id_convenio_spdata
         for agenda, _ in agendas_por_id.values()
     )
+    prioridades_agenda = buscar_prioridades_locais(
+        unidade.id,
+        [
+            (ORIGEM_AGENDA, agenda.spdata_agenda_id)
+            for agenda, _ in agendas_por_id.values()
+        ],
+    )
 
     items = []
     agendas_encontradas = []
@@ -1192,6 +1224,10 @@ def listar_agenda_medica(
                 agenda.cod_procedimento_spdata or spdata_ref.cod_procedimento_spdata,
                 chave,
                 chaves_preventivos,
+            ),
+            prioridade=prioridades_agenda.get(
+                (ORIGEM_AGENDA, agenda.spdata_agenda_id),
+                False,
             ),
         ))
         agendas_encontradas.append(agenda)
@@ -1224,6 +1260,13 @@ def listar_agenda_medica(
     convenios_atendimento = buscar_convenios_locais(
         spdata.id_convenio_spdata for spdata, _ in registros
     )
+    prioridades_atendimento = buscar_prioridades_locais(
+        unidade.id,
+        [
+            (ORIGEM_ATENDIMENTO, spdata.spdata_atendimento_id)
+            for spdata, _ in registros
+        ],
+    )
 
     for spdata, atendimento in registros:
         registro = normalizar_texto(spdata.cod_atendimento, 50)
@@ -1249,6 +1292,10 @@ def listar_agenda_medica(
                 spdata.cod_procedimento_spdata,
                 chave,
                 chaves_preventivos,
+            ),
+            prioridade=prioridades_atendimento.get(
+                (ORIGEM_ATENDIMENTO, spdata.spdata_atendimento_id),
+                False,
             ),
         ))
 
@@ -1802,6 +1849,21 @@ def atualizar_status_agenda(med_spdata_atendimento_id, status, usuario_id=None, 
             )
         ).scalars().first()
         if agenda:
-            return agenda_spdata_para_frontend(agenda, spdata, atendimento, convenios_por_codigo)
+            referencia_prioridade = (ORIGEM_AGENDA, spdata_agenda_id)
+            prioridades = buscar_prioridades_locais(unidade.id, [referencia_prioridade])
+            return agenda_spdata_para_frontend(
+                agenda,
+                spdata,
+                atendimento,
+                convenios_por_codigo,
+                prioridade=prioridades.get(referencia_prioridade, False),
+            )
 
-    return agenda_para_frontend(spdata, atendimento, convenios_por_codigo)
+    referencia_prioridade = (ORIGEM_ATENDIMENTO, spdata.spdata_atendimento_id)
+    prioridades = buscar_prioridades_locais(unidade.id, [referencia_prioridade])
+    return agenda_para_frontend(
+        spdata,
+        atendimento,
+        convenios_por_codigo,
+        prioridade=prioridades.get(referencia_prioridade, False),
+    )
