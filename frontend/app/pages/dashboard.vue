@@ -66,6 +66,10 @@ function rotuloStatus(status: string) {
   }
 }
 
+function idadePaciente(dataNascimento: string | null | undefined) {
+  return formatarIdade(dataNascimento, { semDados: true })
+}
+
 const callingState = ref<{ pacienteId: number, secondsLeft: number } | null>(null)
 const chamadaEmEnvio = ref<number | null>(null)
 let callingInterval: ReturnType<typeof setInterval> | null = null
@@ -570,6 +574,9 @@ const tempoMedioEspera = computed(() => {
                     </div>
                     <p class="wrap-break-word text-xs text-muted">
                       {{ paciente.paciente.convenio }}
+                    </p>
+                    <p class="wrap-break-word text-xs text-muted">
+                      {{ idadePaciente(paciente.paciente.dataNascimento) }}
                     </p>
                   </div>
                 </div>
