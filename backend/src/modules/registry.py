@@ -26,6 +26,7 @@ def register_modules(app):
     from src.modules.chamadas import tts_bp
     from src.modules.unidades.routes import unidades_bp
     from src.modules.usuarios.routes import usuarios_bp
+    from src.modules.spdata_sync.routes import spdata_sync_bp
 
     blueprints = (
         login_bp,
@@ -49,6 +50,7 @@ def register_modules(app):
         unidades_bp,
         exames_pacs_bp,
         recepcao_bp,
+        spdata_sync_bp,
     )
 
     for blueprint in blueprints:

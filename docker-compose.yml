@@ -98,6 +98,13 @@ services:
       REDIS_DB: 0
       RATELIMIT_STORAGE_URI: ${RATELIMIT_STORAGE_URI:-redis://redis:6379/1}
       JWT_BLOCKLIST_STORAGE_URI: ${JWT_BLOCKLIST_STORAGE_URI:-redis://redis:6379/1}
+      RQ_REDIS_URL: ${RQ_REDIS_URL:-redis://redis:6379/2}
+      SPDATA_QUEUE_NAME: ${SPDATA_QUEUE_NAME:-spdata}
+      SPDATA_JOB_TIMEOUT_SECONDS: ${SPDATA_JOB_TIMEOUT_SECONDS:-1800}
+      SPDATA_JOB_RESULT_TTL_SECONDS: ${SPDATA_JOB_RESULT_TTL_SECONDS:-86400}
+      SPDATA_JOB_FAILURE_TTL_SECONDS: ${SPDATA_JOB_FAILURE_TTL_SECONDS:-604800}
+      SPDATA_IMPORT_BATCH_SIZE: ${SPDATA_IMPORT_BATCH_SIZE:-200}
+      SPDATA_IMPORT_RATE_LIMIT: "${SPDATA_IMPORT_RATE_LIMIT:-3 per hour}"
       LOGIN_RATE_LIMIT_IP: "${LOGIN_RATE_LIMIT_IP:-10 per minute}"
       LOGIN_RATE_LIMIT_EMAIL: "${LOGIN_RATE_LIMIT_EMAIL:-5 per minute}"
       LOGIN_MAX_FAILED_ATTEMPTS: ${LOGIN_MAX_FAILED_ATTEMPTS:-5}
@@ -147,6 +154,45 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
+
+  spdata-worker:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    logging: *default-logging
+    command: ["sh", "-c", "rq worker --with-scheduler --url \"$${RQ_REDIS_URL}\" \"$${SPDATA_QUEUE_NAME}\""]
+    stop_grace_period: 35m
+    environment:
+      TZ: ${TZ:-America/Sao_Paulo}
+      APP_ENV: ${APP_ENV:-production}
+      FLASK_APP: run.py
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+      LOG_COLOR: ${LOG_COLOR:-false}
+      SECRET_KEY: ${SECRET_KEY:?Defina SECRET_KEY no .env}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Defina JWT_SECRET_KEY no .env}
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?Defina MYSQL_DATABASE no .env}
+      MYSQL_USER: ${MYSQL_USER:?Defina MYSQL_USER no .env}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Defina MYSQL_PASSWORD no .env}
+      RQ_REDIS_URL: ${RQ_REDIS_URL:-redis://redis:6379/2}
+      SPDATA_QUEUE_NAME: ${SPDATA_QUEUE_NAME:-spdata}
+      SPDATA_JOB_TIMEOUT_SECONDS: ${SPDATA_JOB_TIMEOUT_SECONDS:-1800}
+      SPDATA_JOB_RESULT_TTL_SECONDS: ${SPDATA_JOB_RESULT_TTL_SECONDS:-86400}
+      SPDATA_JOB_FAILURE_TTL_SECONDS: ${SPDATA_JOB_FAILURE_TTL_SECONDS:-604800}
+      SPDATA_IMPORT_BATCH_SIZE: ${SPDATA_IMPORT_BATCH_SIZE:-200}
+      FIREBIRD_HOST: ${FIREBIRD_HOST}
+      FIREBIRD_PORT: ${FIREBIRD_PORT:-3050}
+      FIREBIRD_DATABASE: ${FIREBIRD_DATABASE}
+      FIREBIRD_USER: ${FIREBIRD_USER}
+      FIREBIRD_PASSWORD: ${FIREBIRD_PASSWORD}
+      FIREBIRD_CHARSET: ${FIREBIRD_CHARSET:-WIN1252}
+    depends_on:
+      backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   frontend:
     build:

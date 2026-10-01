@@ -136,7 +136,7 @@ def row_para_dict(row, nomes_colunas):
     }
 
 
-def importar_exames_spdata(batch_size=200):
+def importar_exames_spdata(batch_size=200, on_progress=None):
     total_lidos = 0
     total_criados = 0
     total_atualizados = 0
@@ -369,6 +369,14 @@ def importar_exames_spdata(batch_size=200):
 
                 try:
                     db.session.commit()
+
+                    if on_progress:
+                        on_progress({
+                            "lidos": total_lidos,
+                            "criados": total_criados,
+                            "atualizados": total_atualizados,
+                            "erros": total_erros,
+                        })
 
                     logger.info(
                         "Lote concluído. Total processado: %s",

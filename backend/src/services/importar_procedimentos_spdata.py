@@ -90,7 +90,7 @@ def procedimento_ativo(dados):
     return situacao == "A" and centro_situacao == "A" and bloqueio not in {"T", "S", "1"}
 
 
-def importar_procedimentos_spdata(batch_size=200):
+def importar_procedimentos_spdata(batch_size=200, on_progress=None):
     total_lidos = 0
     total_criados = 0
     total_atualizados = 0
@@ -249,6 +249,13 @@ def importar_procedimentos_spdata(batch_size=200):
 
                 try:
                     db.session.commit()
+                    if on_progress:
+                        on_progress({
+                            "lidos": total_lidos,
+                            "criados": total_criados,
+                            "atualizados": total_atualizados,
+                            "erros": total_erros,
+                        })
                     logger.info(
                         "Lote de procedimentos concluído. Total processado: %s",
                         total_lidos,

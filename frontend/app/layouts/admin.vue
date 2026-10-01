@@ -22,7 +22,8 @@ const navItems = [
   { label: 'Medicos', icon: 'i-lucide-stethoscope', to: '/admin/medicos' },
   { label: 'Recepcionistas', icon: 'i-lucide-user-plus', to: '/admin/recepcao' },
   { label: 'Administradores', icon: 'i-lucide-shield', to: '/admin/admins' },
-  { label: 'Unidades', icon: 'i-lucide-building', to: '/admin/unidades' }
+  { label: 'Unidades', icon: 'i-lucide-building', to: '/admin/unidades' },
+  { label: 'Sincronização SPDATA', icon: 'i-lucide-refresh-cw', to: '/admin/sincronizacao-spdata' }
 ]
 
 function trocarAcesso() {

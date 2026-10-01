@@ -14,13 +14,23 @@ from flask.cli import with_appcontext
 def importar_procedimentos_spdata_command(batch_size):
     """Importa os procedimentos da tabela 98 do SPDATA para o banco local."""
 
-    from src.services.importar_procedimentos_spdata import importar_procedimentos_spdata
+    from src.integrations.spdata.catalog_sync import (
+        ActiveJobError,
+        criar_job_cli,
+        executar_job,
+    )
 
     click.echo("Iniciando importação dos procedimentos do SPDATA...")
 
-    resultado = importar_procedimentos_spdata(
-        batch_size=batch_size,
-    )
+    try:
+        job = criar_job_cli("PROCEDIMENTOS", batch_size)
+        executar_job(job.id)
+    except ActiveJobError as error:
+        raise click.ClickException(
+            f"Já existe uma sincronização em andamento (job {error.job.id})."
+        ) from None
+
+    resultado = job.result["procedimentos"]
 
     click.secho(
         (
