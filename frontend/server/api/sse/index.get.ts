@@ -16,6 +16,8 @@ export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
   const requestId = getRequestId(event)
   const dataParam = Array.isArray(query.data) ? query.data[0] : query.data
+  const contextoParam = Array.isArray(query.contexto) ? query.contexto[0] : query.contexto
+  const contexto = contextoParam === 'dashboard' ? 'dashboard' : ''
   const pollAgenda = Boolean(dataParam) && authUser.role === 'medico'
   const data = String(dataParam || hojeISO())
 
@@ -61,14 +63,16 @@ export default defineEventHandler(async (event) => {
         headers['X-Internal-Secret'] = config.internalRequestSecret
       }
 
-      const items = await $fetch<unknown[]>(`${config.flaskBaseUrl}/agenda-medica/?data=${encodeURIComponent(data)}`, {
+      const params = new URLSearchParams({ data })
+      if (contexto) params.set('contexto', contexto)
+      const items = await $fetch<unknown[]>(`${config.flaskBaseUrl}/agenda-medica/?${params.toString()}`, {
         headers
       })
 
       const hash = JSON.stringify(items)
       if (hash !== lastHash) {
         lastHash = hash
-        send('agenda:snapshot', { data, items })
+        send('agenda:snapshot', { data, contexto: contexto || undefined, items })
       }
     } catch {
       send('agenda:error', { message: 'Falha ao atualizar agenda médica' })

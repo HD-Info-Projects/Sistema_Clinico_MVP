@@ -26,7 +26,7 @@ function confirmarSala() {
 
 onMounted(() => {
   const hoje = formatarDataISO(new Date())
-  agendamentosStore.init(auth.activeClinicaId ?? undefined, hoje, auth.user?.id)
+  agendamentosStore.init(auth.activeClinicaId ?? undefined, hoje, auth.user?.id, 'dashboard')
   chamadosStore.init({ clinicaId: auth.activeClinicaId, data: hoje })
   if (precisaSelecionar.value) {
     showSalaModal.value = true

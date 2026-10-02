@@ -22,6 +22,7 @@ export type AgendamentoComFiltro = {
   tipo?: TipoProcedimentoTuss
   clinicaId?: number
   medicoId?: number
+  contexto?: 'dashboard'
 }
 
 export type ConsultaStatusPayload = {
@@ -57,6 +58,7 @@ export function listarAgendamentos(filtros?: AgendamentoComFiltro) {
   if (filtros?.tipo) params.set('tipo', filtros.tipo)
   if (filtros?.clinicaId) params.set('clinicaId', String(filtros.clinicaId))
   if (filtros?.medicoId) params.set('medicoId', String(filtros.medicoId))
+  if (filtros?.contexto) params.set('contexto', filtros.contexto)
 
   return $fetch<(Agendamento | AgendamentoComPaciente)[]>(`/api/agendamentos${params.toString() ? `?${params.toString()}` : ''}`).then(items =>
     items.map(item => ({ ...item, horario: normalizarHorario(item.horario) }))

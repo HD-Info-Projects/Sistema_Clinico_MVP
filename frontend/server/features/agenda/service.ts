@@ -10,7 +10,7 @@ export type AtualizarPrioridadeCheckInPayload = {
 export function listarAgenda(event: H3Event, query: Record<string, unknown>) {
   const params = new URLSearchParams()
 
-  for (const key of ['data', 'dataIni', 'dataFim', 'search', 'status', 'tipo']) {
+  for (const key of ['data', 'dataIni', 'dataFim', 'search', 'status', 'tipo', 'contexto']) {
     const value = query[key]
     if (value !== undefined && value !== null && String(value).trim()) {
       params.set(key, String(value))

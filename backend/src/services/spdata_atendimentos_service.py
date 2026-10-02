@@ -51,6 +51,7 @@ UNIDADE_PADRAO_SPDATA = 340
 DATA_NASCIMENTO_SENTINELA = date(1899, 12, 30)
 
 STATUS_VALIDOS = {
+    "agendado",
     "em-espera",
     "em-atendimento",
     "atendido",

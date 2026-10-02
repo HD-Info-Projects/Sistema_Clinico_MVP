@@ -183,6 +183,12 @@ def listar_agenda():
         search = (request.args.get("search") or request.args.get("q") or "").strip() or None
         status = request.args.get("status")
         tipo = request.args.get("tipo")
+        contexto = (
+            "dashboard"
+            if (request.args.get("contexto") or "").strip().lower() == "dashboard"
+            else "agenda"
+        )
+        somente_visiveis_medico = contexto == "dashboard"
         unidade_id = unidade_id_request()
         force_refresh = _bool_param(request.args.get("refresh") or request.args.get("sincronizar"))
         tem_filtro_data = any(request.args.get(nome) for nome in ("data", "dataIni", "dataFim"))
@@ -212,6 +218,7 @@ def listar_agenda():
             status=status,
             search=search,
             tipo=tipo,
+            contexto=contexto,
         )
         if not force_refresh:
             with probe.etapa("cache_response_get"):
@@ -225,7 +232,7 @@ def listar_agenda():
                     status,
                     search,
                     tipo,
-                    f"Listagem de agenda médica em cache. data_ini={data_ini} data_fim={data_fim} status={status or ''} visibilidade_medica=true",
+                    f"Listagem de agenda médica em cache. data_ini={data_ini} data_fim={data_fim} status={status or ''} contexto={contexto}",
                 )
                 probe.valor("cache_response_hit", True)
                 probe.finalizar(source="response_cache", items_count=len(cached))
@@ -244,7 +251,7 @@ def listar_agenda():
                 search=search,
                 tipo=tipo,
                 unidade_id=unidade_id,
-                somente_visiveis_medico=True,
+                somente_visiveis_medico=somente_visiveis_medico,
             )
         salvar_cache_json(cache_key, resultado, ttl=cache_ttl())
         _registrar_auditoria_visualizacao_agenda(
@@ -255,7 +262,7 @@ def listar_agenda():
             status,
             search,
             tipo,
-            f"Listagem de agenda médica. data_ini={data_ini} data_fim={data_fim} status={status or ''} visibilidade_medica=true",
+            f"Listagem de agenda médica. data_ini={data_ini} data_fim={data_fim} status={status or ''} contexto={contexto}",
         )
         probe.finalizar(source="service", items_count=len(resultado))
         response = jsonify(resultado)
@@ -290,7 +297,6 @@ def listar_marcadores_agenda():
             data_fim,
             unidade_id=unidade_id_request(),
             sincronizar=sincronizar,
-            somente_visiveis_medico=True,
         )
         return jsonify(resultado), 200
 
