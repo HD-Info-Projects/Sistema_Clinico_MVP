@@ -8,6 +8,6 @@ export default defineEventHandler(async (event) => {
   try {
     return await listarAgendaExames(event, query)
   } catch (error) {
-    throwProxyError(error, 'Falha ao carregar agenda de exames no backend Flask')
+    throwProxyError(error, 'Falha ao carregar agenda do assistente no backend Flask')
   }
 })

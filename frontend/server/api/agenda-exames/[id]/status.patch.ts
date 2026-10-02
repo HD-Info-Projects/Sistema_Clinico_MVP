@@ -29,6 +29,6 @@ export default defineEventHandler(async (event) => {
 
     return result
   } catch (error) {
-    throwProxyError(error, 'Falha ao atualizar exame no backend Flask')
+    throwProxyError(error, 'Falha ao atualizar agenda do assistente no backend Flask')
   }
 })

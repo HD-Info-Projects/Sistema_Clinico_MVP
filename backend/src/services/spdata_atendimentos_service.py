@@ -33,13 +33,13 @@ from src.utils.tuss import (
     FAIXAS_TUSS,
     FAIXAS_TUSS_CONSULTA,
     TIPO_PROCEDIMENTO_CONSULTA,
+    TIPO_PROCEDIMENTO_NAO_INFORMADO,
     TIPOS_PROCEDIMENTO_EXAME,
     TIPOS_PROCEDIMENTO_VALIDOS,
-    e_procedimento_exame,
-    e_tipo_procedimento_exame,
     label_tipo_procedimento,
     normalizar_codigo_tuss,
     tipo_procedimento_codigo,
+    tipo_procedimento_tipo_atendimento,
 )
 
 
@@ -831,8 +831,10 @@ def spdata_agenda_id_do_atendimento(spdata):
     )
 
 
-def tipo_procedimento_frontend(codigo):
+def tipo_procedimento_frontend(codigo, tipo_atendimento=None):
     tipo = tipo_procedimento_codigo(codigo)
+    if tipo == TIPO_PROCEDIMENTO_NAO_INFORMADO and tipo_atendimento:
+        tipo = tipo_procedimento_tipo_atendimento(tipo_atendimento)
     return tipo, label_tipo_procedimento(tipo)
 
 
@@ -897,11 +899,20 @@ def agenda_spdata_para_frontend(agenda, spdata_ref, atendimento=None, convenios_
         getattr(agenda, "cod_procedimento_spdata", None)
         or getattr(spdata_ref, "cod_procedimento_spdata", None)
     )
+    if not codigo_procedimento:
+        codigo_procedimento = normalizar_texto(
+            getattr(agenda, "cod_procedimento_spdata", None)
+            or getattr(spdata_ref, "cod_procedimento_spdata", None),
+            20,
+        )
     procedimento_spdata = (
         getattr(agenda, "procedimento_spdata", None)
         or getattr(spdata_ref, "procedimento_spdata", None)
     )
-    tipo_procedimento, tipo_procedimento_label = tipo_procedimento_frontend(codigo_procedimento)
+    tipo_procedimento, tipo_procedimento_label = tipo_procedimento_frontend(
+        codigo_procedimento,
+        getattr(agenda, "tipo_atendimento_spdata", None),
+    )
     spdata_atendimento_id = normalizar_int(getattr(spdata_ref, "spdata_atendimento_id", None))
     horario_agendado = hora_hhmm(agenda.hora_agenda)
     horario_entrada = (
@@ -1169,8 +1180,6 @@ def listar_agenda_exames(
     tipo = normalizar_texto(tipo, 80)
     if tipo and tipo not in TIPOS_PROCEDIMENTO_VALIDOS:
         raise ValueError("Tipo inválido")
-    if tipo and not e_tipo_procedimento_exame(tipo):
-        return []
 
     search = normalizar_texto(search, 255)
 
@@ -1194,7 +1203,6 @@ def listar_agenda_exames(
                 MedSpdataAgenda.crm_atend == crm_medico,
                 MedSpdataAgenda.crm == crm_medico,
             ),
-            filtro_exame_agenda(),
         )
         .order_by(MedSpdataAgenda.data_agenda, MedSpdataAgenda.hora_agenda, MedSpdataAgenda.paciente)
         .all()
@@ -1221,6 +1229,79 @@ def listar_agenda_exames(
     items = filtrar_agenda_frontend(items, status=status, search=search, tipo=tipo)
 
     return sorted(items, key=lambda item: (item.get("data") or "", item.get("horario") or "", item["paciente"]["nome"] or ""))
+
+
+def listar_agenda_consultas(
+    usuario_id,
+    data_ini,
+    data_fim,
+    status=None,
+    search=None,
+    tipo=None,
+    unidade_id=None,
+):
+    crm_medico = get_crm_medico_assistente_usuario(usuario_id)
+    unidade = resolver_unidade_usuario(usuario_id, unidade_id)
+    status = normalizar_status(status)
+    if status and status not in STATUS_VALIDOS:
+        raise ValueError("Status inválido")
+
+    tipo = normalizar_texto(tipo, 80)
+    if tipo and tipo not in TIPOS_PROCEDIMENTO_VALIDOS:
+        raise ValueError("Tipo inválido")
+    if tipo and tipo != TIPO_PROCEDIMENTO_CONSULTA:
+        return []
+
+    search = normalizar_texto(search, 255)
+
+    if data_ini is None:
+        data_ini = date.today()
+    if data_fim is None:
+        data_fim = data_ini
+    if data_fim < data_ini:
+        raise ValueError("dataFim não pode ser menor que dataIni.")
+
+    sincronizar_agenda_spdata(data_ini, data_fim, unidade=unidade)
+
+    rows_agenda = (
+        db.session.query(MedSpdataAgenda, MedAtendimentos)
+        .outerjoin(MedAtendimentos, atendimento_join_agenda_cond())
+        .filter(
+            MedSpdataAgenda.data_agenda >= data_ini,
+            MedSpdataAgenda.data_agenda <= data_fim,
+            filtro_agenda_unidade(unidade),
+            or_(
+                MedSpdataAgenda.crm_atend == crm_medico,
+                MedSpdataAgenda.crm == crm_medico,
+            ),
+            filtro_consulta_agenda(),
+        )
+        .order_by(MedSpdataAgenda.data_agenda, MedSpdataAgenda.hora_agenda, MedSpdataAgenda.paciente)
+        .all()
+    )
+
+    agendas_por_id = {}
+    for agenda, atendimento in rows_agenda:
+        atual = agendas_por_id.get(agenda.id)
+        if atual is None or atendimento_prioridade(atendimento) > atendimento_prioridade(atual[1]):
+            agendas_por_id[agenda.id] = (agenda, atendimento)
+
+    convenios_por_codigo = buscar_convenios_locais(
+        agenda.id_convenio_spdata
+        for agenda, _ in agendas_por_id.values()
+    )
+
+    items = []
+    for agenda, atendimento in agendas_por_id.values():
+        spdata_ref = buscar_spdata_atendimento_para_agenda(agenda, atendimento, unidade)
+        items.append(agenda_spdata_para_frontend(agenda, spdata_ref, atendimento, convenios_por_codigo))
+
+    db.session.commit()
+
+    items = filtrar_agenda_frontend(items, status=status, search=search, tipo=tipo)
+
+    return sorted(items, key=lambda item: (item.get("data") or "", item.get("horario") or "", item["paciente"]["nome"] or ""))
+
 
 
 def listar_marcadores_agenda_medica(
@@ -1739,7 +1820,7 @@ def atualizar_status_exame(agenda_id, status, usuario_id=None, unidade_id=None):
 
     agenda = db.session.get(MedSpdataAgenda, agenda_id)
     if not agenda:
-        raise LookupError("Agenda de exame não encontrada")
+        raise LookupError("Agenda não encontrada")
 
     codigo_agenda = normalizar_texto(getattr(unidade, "codigo_spdata_agenda", None), 50)
     agenda_unidade_ok = agenda.unidade_id == unidade.id or (
@@ -1747,9 +1828,6 @@ def atualizar_status_exame(agenda_id, status, usuario_id=None, unidade_id=None):
     )
     if not agenda_unidade_ok:
         raise PermissionError("Agenda não pertence à unidade selecionada")
-
-    if not e_procedimento_exame(agenda.cod_procedimento_spdata):
-        raise PermissionError("Assistente só pode atualizar exames")
 
     if not agenda_pertence_crm(agenda, crm_medico):
         raise PermissionError("Agenda não pertence ao médico vinculado ao assistente")

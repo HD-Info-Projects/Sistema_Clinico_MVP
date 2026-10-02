@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { AgendamentoComPaciente, AgendamentoStatus } from '~/features/atendimentos/types'
+import { corTipoProcedimento, rotuloTipoProcedimento } from '~/utils/tuss'
 
 const openNav = inject<() => void>('openNav', () => {})
 const auth = useAuthStore()
@@ -70,6 +71,19 @@ function rotuloStatus(status: string) {
     case 'faltou': return 'Faltou'
     default: return status
   }
+}
+
+function corTipo(tipo: string | null | undefined) {
+  return corTipoProcedimento(tipo)
+}
+
+function rotuloTipo(ag: AgendamentoComPaciente) {
+  return rotuloTipoProcedimento(ag.tipoProcedimento, ag.tipoProcedimentoLabel)
+}
+
+function rotuloCodigoProcedimento(codigo: string | null | undefined) {
+  if (!codigo) return ''
+  return /^\d+$/.test(codigo) ? `TUSS ${codigo}` : `Cód. SPDATA ${codigo}`
 }
 
 const callingState = ref<{ pacienteId: number, secondsLeft: number } | null>(null)
@@ -169,7 +183,7 @@ async function chamarPaciente(ag: AgendamentoComPaciente) {
 async function faltouAgendamento(ag: AgendamentoComPaciente) {
   try {
     if (isAssistenteDashboard.value) {
-      await agendamentosStore.atualizarStatusExame(ag.id, 'faltou', ag.clinicaId)
+      await agendamentosStore.atualizarStatusExame(ag.agendaId ?? ag.id, 'faltou', ag.clinicaId)
     } else {
       await agendamentosStore.atualizarStatus(ag.id, 'faltou', undefined, ag.clinicaId)
     }
@@ -181,7 +195,7 @@ async function faltouAgendamento(ag: AgendamentoComPaciente) {
 async function atenderAgendamento(ag: AgendamentoComPaciente) {
   try {
     if (isAssistenteDashboard.value) {
-      await agendamentosStore.atualizarStatusExame(ag.id, 'atendido', ag.clinicaId)
+      await agendamentosStore.atualizarStatusExame(ag.agendaId ?? ag.id, 'atendido', ag.clinicaId)
     } else {
       await agendamentosStore.atualizarStatus(ag.id, 'em-atendimento', undefined, ag.clinicaId)
       await navigateTo('/atendimento-medico')
@@ -504,7 +518,7 @@ const tempoMedioEspera = computed(() => {
             class="border-b border-muted rounded-none"
             :ui="{ container: 'px-4 sm:p-1 pb-3 sm:px-4' }"
           >
-            <div class="grid min-w-0 grid-cols-3 gap-x-4 gap-y-3 md:grid-cols-[max-content_1fr_2fr_1fr_1fr_1fr_2fr]">
+            <div class="grid min-w-0 grid-cols-3 gap-x-4 gap-y-3 md:grid-cols-[max-content_1fr_2fr_1fr_1fr_1.5fr_1fr_2fr]">
               <div class="hidden w-min pr-3 md:block">
                 <p class="text-sm text-muted font-bold">
                   Horário
@@ -564,6 +578,32 @@ const tempoMedioEspera = computed(() => {
                   :color="corStatus(paciente.status)"
                   variant="subtle"
                 />
+              </div>
+
+              <div class="text-left col-span-3 md:col-span-1">
+                <p class="text-sm text-muted font-bold">
+                  Tipo / TUSS
+                </p>
+                <UTooltip :text="rotuloTipo(paciente as AgendamentoComPaciente)">
+                  <UBadge
+                    :label="rotuloTipo(paciente as AgendamentoComPaciente)"
+                    :color="corTipo(paciente.tipoProcedimento)"
+                    variant="subtle"
+                    class="max-w-40 break-all cursor-default"
+                  />
+                </UTooltip>
+                <p
+                  v-if="paciente.codigoProcedimentoSpdata"
+                  class="mt-1 text-xs text-muted"
+                >
+                  {{ rotuloCodigoProcedimento(paciente.codigoProcedimentoSpdata) }}
+                </p>
+                <p
+                  v-if="paciente.procedimentoSpdata"
+                  class="mt-1 line-clamp-2 text-xs text-muted"
+                >
+                  {{ paciente.procedimentoSpdata }}
+                </p>
               </div>
 
               <div class="text-left col-span-3 md:col-span-1">
@@ -634,7 +674,7 @@ const tempoMedioEspera = computed(() => {
             class="border-b border-muted rounded-none"
             :ui="{ container: 'px-4 sm:p-1 pb-3 sm:px-4' }"
           >
-            <div class="grid min-w-0 grid-cols-3 gap-x-4 gap-y-3 md:grid-cols-[max-content_1fr_2fr_1fr_1fr_2fr]">
+            <div class="grid min-w-0 grid-cols-3 gap-x-4 gap-y-3 md:grid-cols-[max-content_1fr_2fr_1fr_1fr_1.5fr_2fr]">
               <div class="hidden w-min pr-3 md:block">
                 <p class="text-sm text-muted font-bold">
                   Horário
@@ -694,6 +734,32 @@ const tempoMedioEspera = computed(() => {
                   :color="corStatus(paciente.status)"
                   variant="subtle"
                 />
+              </div>
+
+              <div class="text-left col-span-3 md:col-span-1">
+                <p class="text-sm text-muted font-bold">
+                  Tipo / TUSS
+                </p>
+                <UTooltip :text="rotuloTipo(paciente as AgendamentoComPaciente)">
+                  <UBadge
+                    :label="rotuloTipo(paciente as AgendamentoComPaciente)"
+                    :color="corTipo(paciente.tipoProcedimento)"
+                    variant="subtle"
+                    class="max-w-40 break-all cursor-default"
+                  />
+                </UTooltip>
+                <p
+                  v-if="paciente.codigoProcedimentoSpdata"
+                  class="mt-1 text-xs text-muted"
+                >
+                  {{ rotuloCodigoProcedimento(paciente.codigoProcedimentoSpdata) }}
+                </p>
+                <p
+                  v-if="paciente.procedimentoSpdata"
+                  class="mt-1 line-clamp-2 text-xs text-muted"
+                >
+                  {{ paciente.procedimentoSpdata }}
+                </p>
               </div>
 
               <div

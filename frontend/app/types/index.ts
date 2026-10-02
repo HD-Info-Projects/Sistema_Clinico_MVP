@@ -74,6 +74,7 @@ export type TipoProcedimentoTuss
 
 export interface Agendamento {
   id: number
+  agendaId?: number | null
   spdataAtendimentoId?: number | null
   spdataAgendaId?: number | null
   medsystemAtendimentoId?: number | null

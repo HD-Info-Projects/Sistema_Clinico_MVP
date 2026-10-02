@@ -143,3 +143,34 @@ def codigo_tuss_visivel_medico(codigo):
 
 def label_tipo_procedimento(tipo):
     return TIPO_PROCEDIMENTO_LABELS.get(tipo, TIPO_PROCEDIMENTO_LABELS[TIPO_PROCEDIMENTO_NAO_INFORMADO])
+
+
+TIPO_ATENDIMENTO_SPDATA_TIPOS = {
+    "Anatomia Patologica": TIPO_PROCEDIMENTO_ANATOMIA_PATOLOGICA,
+    "Cardiologia": TIPO_PROCEDIMENTO_OUTROS_DIAGNOSTICOS_TERAPEUTICOS,
+    "Endoscopia Digestiva": TIPO_PROCEDIMENTO_ENDOSCOPIA,
+    "Exames Especificos": TIPO_PROCEDIMENTO_EXAMES_ESPECIFICOS,
+    "Medicina Nuclear": TIPO_PROCEDIMENTO_MEDICINA_NUCLEAR,
+    "Patologia Clinica": TIPO_PROCEDIMENTO_MEDICINA_LABORATORIAL,
+    "Radiodiagnostico": TIPO_PROCEDIMENTO_RADIOLOGIA_RX,
+    "Ressonancia Magnetica": TIPO_PROCEDIMENTO_RESSONANCIA_MAGNETICA,
+    "Testes para diagnosticos": TIPO_PROCEDIMENTO_TESTES_DIAGNOSTICO,
+    "Tomografia Computadorizada": TIPO_PROCEDIMENTO_TOMOGRAFIA_COMPUTADORIZADA,
+    "Ultrassonografia": TIPO_PROCEDIMENTO_ULTRASSONOGRAFIA_US,
+}
+
+
+def tipo_procedimento_tipo_atendimento(nome_tipo_atendimento):
+    """
+    Agenda de imagem usa codigos internos alfanumericos do SPDATA (USO1, USP1)
+    que nao sao TUSS. nesses casos a modalidade vem de TBTABATO.
+    """
+    if not nome_tipo_atendimento:
+        return TIPO_PROCEDIMENTO_NAO_INFORMADO
+
+    nome = str(nome_tipo_atendimento).strip().casefold()
+    for chave, tipo in TIPO_ATENDIMENTO_SPDATA_TIPOS.items():
+        if chave.casefold() == nome:
+            return tipo
+
+    return TIPO_PROCEDIMENTO_NAO_INFORMADO

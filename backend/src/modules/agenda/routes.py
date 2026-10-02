@@ -172,9 +172,9 @@ def listar_agenda_exames_assistente():
         )
         registrar_auditoria(
             AcaoAuditoria.VISUALIZOU_AGENDA,
-            entidade="agenda_exames_assistente",
+            entidade="agenda_assistente",
             usuario_id=usuario_id,
-            descricao=f"Listagem de exames do assistente. data_ini={data_ini} data_fim={data_fim} status={status or ''}",
+            descricao=f"Listagem da agenda do assistente. data_ini={data_ini} data_fim={data_fim} status={status or ''}",
         )
         return jsonify(resultado), 200
 
@@ -184,8 +184,8 @@ def listar_agenda_exames_assistente():
         return jsonify({"error": str(e)}), 403
     except Exception:
         db.session.rollback()
-        current_app.logger.exception("Erro ao listar exames do assistente")
-        return jsonify({"error": "Erro interno ao listar exames do assistente"}), 500
+        current_app.logger.exception("Erro ao listar agenda do assistente")
+        return jsonify({"error": "Erro interno ao listar agenda do assistente"}), 500
 
 
 @agenda_medica_bp.route("/marcadores", methods=["GET"])
@@ -290,10 +290,10 @@ def atualizar_status_exame_assistente(agenda_id):
 
         registrar_auditoria(
             acao,
-            entidade="agenda_exames_assistente",
+            entidade="agenda_assistente",
             entidade_id=agenda_id,
             usuario_id=usuario_id,
-            descricao=f"Status de exame atualizado pelo assistente. status={status_final}",
+            descricao=f"Status de agenda atualizado pelo assistente. status={status_final}",
         )
 
         return jsonify(resultado), 200
@@ -307,8 +307,8 @@ def atualizar_status_exame_assistente(agenda_id):
         return jsonify({"error": str(e)}), 400
     except Exception:
         db.session.rollback()
-        current_app.logger.exception("Erro ao atualizar status do exame pelo assistente")
-        return jsonify({"error": "Erro interno ao atualizar exame"}), 500
+        current_app.logger.exception("Erro ao atualizar status da agenda pelo assistente")
+        return jsonify({"error": "Erro interno ao atualizar agenda"}), 500
 
 
 no_show_bp = Blueprint("no_show", __name__, url_prefix="/no_show")
