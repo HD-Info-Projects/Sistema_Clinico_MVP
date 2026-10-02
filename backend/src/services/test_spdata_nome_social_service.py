@@ -80,6 +80,12 @@ def test_serializadores_agenda_expoem_prioridade_textual():
 
     assert agenda_para_frontend(spdata, prioridade=True)["prioridade"] == "prioridade"
     assert agenda_para_frontend(spdata, prioridade=False)["prioridade"] == "normal"
+    assert agenda_para_frontend(spdata)["prioridadeOrigem"] == "atendimento"
+    assert agenda_para_frontend(spdata)["prioridadeSpdataId"] == 1001
+
+    spdata.dados_spdata = {"spdata_agenda_id": 2002}
+    assert agenda_para_frontend(spdata)["prioridadeOrigem"] == "agenda"
+    assert agenda_para_frontend(spdata)["prioridadeSpdataId"] == 2002
 
 
 def test_agenda_spdata_para_frontend_expoe_nome_social_sem_substituir_nome_civil():
@@ -123,6 +129,8 @@ def test_agenda_spdata_para_frontend_expoe_nome_social_sem_substituir_nome_civil
     assert item["horarioAgendado"] == "10:00"
     assert item["horarioEntrada"] == "10:26"
     assert item["prioridade"] == "normal"
+    assert item["prioridadeOrigem"] == "agenda"
+    assert item["prioridadeSpdataId"] == 2002
     assert agenda_spdata_para_frontend(
         agenda,
         spdata_ref,

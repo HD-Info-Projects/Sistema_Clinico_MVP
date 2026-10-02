@@ -82,6 +82,8 @@ export interface Agendamento {
   horarioAgendado?: string | null
   horarioEntrada?: string | null
   prioridade: 'normal' | 'prioridade'
+  prioridadeOrigem: 'agenda' | 'atendimento'
+  prioridadeSpdataId: number
   status: AgendamentoStatus
   descricao: string
   criadoEm: string

@@ -9,6 +9,7 @@ const openNav = inject<() => void>('openNav', () => {})
 const toast = useToast()
 
 const auth = useAuthStore()
+const sse = useSse()
 
 const { agora, dataFormatada } = useRelogio(60000)
 const userName = computed(() => auth.user?.nome || 'Usuário')
@@ -265,6 +266,25 @@ async function alterarPrioridade(item: AtendimentoRecepcao, prioridade: boolean)
   }
 }
 
+function aplicarPrioridadeRemota(data: unknown) {
+  const evento = data as Partial<Pick<AtendimentoRecepcao, 'prioridadeOrigem' | 'prioridadeSpdataId' | 'prioridade'>>
+  if ((evento.prioridadeOrigem !== 'agenda' && evento.prioridadeOrigem !== 'atendimento')
+    || !Number.isInteger(evento.prioridadeSpdataId)
+    || typeof evento.prioridade !== 'boolean') return
+
+  dados.value = {
+    ...dados.value,
+    items: dados.value.items.map(item => chavePrioridade(item) === `${evento.prioridadeOrigem}:${evento.prioridadeSpdataId}`
+      ? { ...item, prioridade: evento.prioridade! }
+      : item)
+  }
+}
+
+function aoConectarSse(data: unknown) {
+  if (!(data as { reconnected?: boolean })?.reconnected) return
+  void carregarAtendimentos()
+}
+
 const exportando = ref<'pdf' | 'csv' | null>(null)
 
 const colunasExportacao: ColunaExport<AtendimentoRecepcao>[] = [
@@ -379,6 +399,7 @@ watch(() => auth.activeClinicaId, () => {
   selectedEspecialidade.value = 'Todas as especialidades'
   selectedTipo.value = ''
   resetPageAndFetch()
+  sse.connect({ clinicaId: auth.activeClinicaId })
 })
 
 watch(busca, () => {
@@ -389,11 +410,16 @@ watch(busca, () => {
 })
 
 onMounted(() => {
+  sse.on('connected', aoConectarSse)
+  sse.on('atendimento:prioridade', aplicarPrioridadeRemota)
+  sse.connect({ clinicaId: auth.activeClinicaId })
   carregarAtendimentos()
 })
 
 onUnmounted(() => {
   if (buscaTimer) clearTimeout(buscaTimer)
+  sse.off('connected', aoConectarSse)
+  sse.off('atendimento:prioridade', aplicarPrioridadeRemota)
 })
 </script>
 

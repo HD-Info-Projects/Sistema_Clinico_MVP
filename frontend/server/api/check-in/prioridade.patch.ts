@@ -11,7 +11,15 @@ export default defineEventHandler(async (event) => {
   const body = await readBodyWithSchema(event, atualizarPrioridadeSchema, 'Prioridade inválida')
 
   try {
-    return await atualizarPrioridadeCheckIn(event, body)
+    const clinicaId = getActiveClinicaId(event)
+    const result = await atualizarPrioridadeCheckIn(event, body)
+
+    broadcastSse({
+      type: 'atendimento:prioridade',
+      data: result
+    }, clinicaId)
+
+    return result
   } catch (error) {
     throwProxyError(error, 'Falha ao atualizar prioridade no backend Flask')
   }

@@ -20,6 +20,12 @@ type AgendamentoStatusEvent = {
   pacienteId?: number
 }
 
+type AtendimentoPrioridadeEvent = {
+  prioridadeOrigem: Agendamento['prioridadeOrigem']
+  prioridadeSpdataId: number
+  prioridade: boolean
+}
+
 export const useAgendamentosStore = defineStore('agendamentos', () => {
   const agendamentos = ref<AgendamentoComPaciente[]>([])
   const loading = ref(true)
@@ -116,6 +122,11 @@ export const useAgendamentosStore = defineStore('agendamentos', () => {
 
     sse = useSse()
 
+    sse.on('connected', (data: unknown) => {
+      if (!(data as { reconnected?: boolean })?.reconnected) return
+      void fetchAgendamentos(filtrosAtuais.clinicaId, filtrosAtuais.data, filtrosAtuais.medicoId)
+    })
+
     sse.on('agenda:snapshot', (data: unknown) => {
       const payload = data as AgendaSnapshotEvent
 
@@ -132,6 +143,20 @@ export const useAgendamentosStore = defineStore('agendamentos', () => {
       if (!evento?.id || !evento.status) return
 
       aplicarStatusAgendamento(evento)
+    })
+
+    sse.on('atendimento:prioridade', (data: unknown) => {
+      const evento = data as AtendimentoPrioridadeEvent
+      if ((evento?.prioridadeOrigem !== 'agenda' && evento?.prioridadeOrigem !== 'atendimento')
+        || !Number.isInteger(evento.prioridadeSpdataId)
+        || typeof evento.prioridade !== 'boolean') return
+
+      agendamentos.value = agendamentos.value.map(agendamento => (
+        agendamento.prioridadeOrigem === evento.prioridadeOrigem
+        && agendamento.prioridadeSpdataId === evento.prioridadeSpdataId
+          ? { ...agendamento, prioridade: evento.prioridade ? 'prioridade' : 'normal' }
+          : agendamento
+      ))
     })
 
     sseHandlersRegistrados = true

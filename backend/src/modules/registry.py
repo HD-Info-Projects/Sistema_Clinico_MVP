@@ -6,7 +6,8 @@ transition. Each blueprint still points to its current legacy route module.
 
 
 def register_modules(app):
-    from src.modules.agenda import agenda_medica_bp, check_in_bp, no_show_bp
+    from src.modules.agenda.check_in import check_in_bp
+    from src.modules.agenda.routes import agenda_medica_bp, no_show_bp
     from src.modules.atendimentos import dashboard_bp
     from src.modules.documentos.routes import documentos_medicos_bp
     from src.modules.exames.routes import exames_bp

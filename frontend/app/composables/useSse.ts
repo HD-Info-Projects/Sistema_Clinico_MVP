@@ -15,6 +15,7 @@ const SSE_EVENTS = [
   'agenda:snapshot',
   'agenda:error',
   'agendamento:status',
+  'atendimento:prioridade',
   'paciente:status',
   'chamado:novo',
   'chamado:concluido'
@@ -37,9 +38,12 @@ function clearReconnectTimer() {
   }
 }
 
-function handleEvent(eventType: string, raw: string) {
+function handleEvent(eventType: string, raw: string, reconnected = false) {
   try {
-    const data = JSON.parse(raw)
+    const parsed = JSON.parse(raw)
+    const data = eventType === 'connected' && parsed && typeof parsed === 'object'
+      ? { ...parsed, reconnected }
+      : parsed
     handlers.get(eventType)?.forEach(h => h(data))
   } catch { /* ignore malformed */ }
 }
@@ -47,7 +51,7 @@ function handleEvent(eventType: string, raw: string) {
 let reconnectAttempts = 0
 const MAX_RECONNECT_DELAY_MS = 60000
 
-function openConnection(url: string) {
+function openConnection(url: string, reconnected = false) {
   clearReconnectTimer()
 
   eventSource = new EventSource(url)
@@ -60,7 +64,7 @@ function openConnection(url: string) {
     const exponent = Math.min(reconnectAttempts - 1, 5)
     const delay = Math.min(3000 * Math.pow(2, exponent), MAX_RECONNECT_DELAY_MS)
     reconnectTimer = setTimeout(() => {
-      if (currentUrl === url) openConnection(url)
+      if (currentUrl === url) openConnection(url, true)
     }, delay)
   }
 
@@ -70,7 +74,7 @@ function openConnection(url: string) {
 
   for (const eventName of SSE_EVENTS) {
     eventSource.addEventListener(eventName, (event) => {
-      handleEvent(eventName, event.data)
+      handleEvent(eventName, event.data, reconnected)
     })
   }
 }
@@ -87,14 +91,15 @@ function disconnectShared() {
 }
 
 function connectShared(options?: SseConnectOptions) {
-  if (!import.meta.client) return
+  if (!import.meta.client) return false
 
   const nextUrl = options ? buildUrl(options) : currentUrl || buildUrl()
-  if (eventSource && eventSource.readyState !== EventSource.CLOSED && currentUrl === nextUrl) return
+  if (eventSource && eventSource.readyState !== EventSource.CLOSED && currentUrl === nextUrl) return false
 
   disconnectShared()
   currentUrl = nextUrl
   openConnection(nextUrl)
+  return true
 }
 
 export function useSse() {
@@ -110,7 +115,7 @@ export function useSse() {
   }
 
   function connect(options?: SseConnectOptions) {
-    connectShared(options)
+    return connectShared(options)
   }
 
   function disconnect() {
