@@ -13,6 +13,7 @@ import { minutosDoHorario, normalizarHorario } from '~/utils/time'
 
 type AgendaSnapshotEvent = {
   data?: string
+  contexto?: AgendaContexto
   items: AgendamentoComPaciente[]
 }
 
@@ -22,15 +23,30 @@ type AgendamentoStatusEvent = {
   pacienteId?: number
 }
 
+type AtendimentoPrioridadeEvent = {
+  prioridadeOrigem: Agendamento['prioridadeOrigem']
+  prioridadeSpdataId: number
+  prioridade: boolean
+}
+
+type AgendaContexto = 'dashboard'
+
 export const useAgendamentosStore = defineStore('agendamentos', () => {
   const agendamentos = ref<AgendamentoComPaciente[]>([])
   const loading = ref(true)
+  // Data (YYYY-MM-DD) cuja agenda está efetivamente carregada no store.
+  const dataCarregada = ref<string | null>(null)
+  const clinicaCarregada = ref<number | null>(null)
+  const medicoCarregado = ref<number | null>(null)
+  const contextoCarregado = ref<AgendaContexto | null>(null)
   let sse: ReturnType<typeof useSse> | null = null
   let sseHandlersRegistrados = false
+  let fetchRequestId = 0
   let filtrosAtuais: {
     clinicaId?: number
     data?: string
     medicoId?: number
+    contexto?: AgendaContexto
   } = {}
 
   const emAtendimento = computed(() =>
@@ -65,8 +81,29 @@ export const useAgendamentosStore = defineStore('agendamentos', () => {
     return Boolean(value && typeof value === 'object' && 'paciente' in value)
   }
 
-  function atualizarFiltros(clinicaId?: number, data?: string, medicoId?: number) {
-    filtrosAtuais = { clinicaId, data, medicoId }
+  function atualizarFiltros(clinicaId?: number, data?: string, medicoId?: number, contexto?: AgendaContexto) {
+    filtrosAtuais = { clinicaId, data, medicoId, contexto }
+  }
+
+  function marcarContextoCarregado(clinicaId?: number, data?: string, medicoId?: number, contexto?: AgendaContexto) {
+    dataCarregada.value = data ?? null
+    clinicaCarregada.value = clinicaId ?? null
+    medicoCarregado.value = medicoId ?? null
+    contextoCarregado.value = contexto ?? null
+  }
+
+  function limparContextoCarregado() {
+    dataCarregada.value = null
+    clinicaCarregada.value = null
+    medicoCarregado.value = null
+    contextoCarregado.value = null
+  }
+
+  function contextoAtualEh(clinicaId?: number, data?: string, medicoId?: number, contexto?: AgendaContexto) {
+    return dataCarregada.value === (data ?? null)
+      && clinicaCarregada.value === (clinicaId ?? null)
+      && medicoCarregado.value === (medicoId ?? null)
+      && contextoCarregado.value === (contexto ?? null)
   }
 
   function aplicarStatusAgendamento(evento: AgendamentoStatusEvent | AgendamentoComPaciente) {
@@ -95,13 +132,20 @@ export const useAgendamentosStore = defineStore('agendamentos', () => {
 
     sse = useSse()
 
+    sse.on('connected', (data: unknown) => {
+      if (!(data as { reconnected?: boolean })?.reconnected) return
+      void fetchAgendamentos(filtrosAtuais.clinicaId, filtrosAtuais.data, filtrosAtuais.medicoId, filtrosAtuais.contexto)
+    })
+
     sse.on('agenda:snapshot', (data: unknown) => {
       const payload = data as AgendaSnapshotEvent
 
       if (payload.data && filtrosAtuais.data && payload.data !== filtrosAtuais.data) return
+      if (payload.contexto !== filtrosAtuais.contexto) return
       if (!Array.isArray(payload.items)) return
 
       agendamentos.value = payload.items.map(item => ({ ...item, horario: normalizarHorario(item.horario) }))
+      marcarContextoCarregado(filtrosAtuais.clinicaId, payload.data ?? filtrosAtuais.data, filtrosAtuais.medicoId, filtrosAtuais.contexto)
       loading.value = false
     })
 
@@ -112,22 +156,45 @@ export const useAgendamentosStore = defineStore('agendamentos', () => {
       aplicarStatusAgendamento(evento)
     })
 
+    sse.on('atendimento:prioridade', (data: unknown) => {
+      const evento = data as AtendimentoPrioridadeEvent
+      if ((evento?.prioridadeOrigem !== 'agenda' && evento?.prioridadeOrigem !== 'atendimento')
+        || !Number.isInteger(evento.prioridadeSpdataId)
+        || typeof evento.prioridade !== 'boolean') return
+
+      agendamentos.value = agendamentos.value.map(agendamento => (
+        agendamento.prioridadeOrigem === evento.prioridadeOrigem
+        && agendamento.prioridadeSpdataId === evento.prioridadeSpdataId
+          ? { ...agendamento, prioridade: evento.prioridade ? 'prioridade' : 'normal' }
+          : agendamento
+      ))
+    })
+
     sseHandlersRegistrados = true
   }
 
-  async function fetchAgendamentos(clinicaId?: number, data?: string, medicoId?: number) {
-    atualizarFiltros(clinicaId, data, medicoId)
+  async function fetchAgendamentos(clinicaId?: number, data?: string, medicoId?: number, contexto?: AgendaContexto) {
+    const requestId = ++fetchRequestId
+    if (!contextoAtualEh(clinicaId, data, medicoId, contexto)) {
+      agendamentos.value = []
+      limparContextoCarregado()
+    }
+
+    atualizarFiltros(clinicaId, data, medicoId, contexto)
     loading.value = true
 
     try {
-      const raw = await listarAgendamentos({ clinicaId, data, medicoId })
+      const raw = await listarAgendamentos({ clinicaId, data, medicoId, contexto })
+      if (requestId !== fetchRequestId) return
 
       if (raw.every(a => 'paciente' in a)) {
         agendamentos.value = (raw as AgendamentoComPaciente[]).map(item => ({ ...item, horario: normalizarHorario(item.horario) }))
+        marcarContextoCarregado(clinicaId, data, medicoId, contexto)
         return
       }
 
       const allPacientes = await $fetch<Paciente[]>('/api/pacientes')
+      if (requestId !== fetchRequestId) return
       const pacienteMap = new Map(allPacientes.map(p => [p.id, p]))
 
       agendamentos.value = (raw as Agendamento[])
@@ -137,10 +204,15 @@ export const useAgendamentosStore = defineStore('agendamentos', () => {
           horario: normalizarHorario(a.horario),
           paciente: pacienteMap.get(a.pacienteId)!
         }))
+      marcarContextoCarregado(clinicaId, data, medicoId, contexto)
     } catch {
+      if (requestId === fetchRequestId) {
+        agendamentos.value = []
+        limparContextoCarregado()
+      }
       console.error('Erro ao carregar agendamentos')
     } finally {
-      loading.value = false
+      if (requestId === fetchRequestId) loading.value = false
     }
   }
 
@@ -158,11 +230,11 @@ export const useAgendamentosStore = defineStore('agendamentos', () => {
     }
   }
 
-  async function init(clinicaId?: number, data?: string, medicoId?: number) {
-    atualizarFiltros(clinicaId, data, medicoId)
+  async function init(clinicaId?: number, data?: string, medicoId?: number, contexto?: AgendaContexto) {
+    atualizarFiltros(clinicaId, data, medicoId, contexto)
     registrarSseHandlers()
-    sse?.connect({ data, clinicaId })
-    await fetchAgendamentos(clinicaId, data, medicoId)
+    sse?.connect({ data, clinicaId, contexto })
+    await fetchAgendamentos(clinicaId, data, medicoId, contexto)
   }
 
   async function initExames(clinicaId?: number, data?: string) {
@@ -206,6 +278,9 @@ export const useAgendamentosStore = defineStore('agendamentos', () => {
   return {
     agendamentos,
     loading,
+    dataCarregada,
+    clinicaCarregada,
+    medicoCarregado,
     emAtendimento,
     fila,
     ordenados,

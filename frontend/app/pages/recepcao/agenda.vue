@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import type { TipoProcedimentoTuss } from '~/types'
 import { CalendarDate } from '@internationalized/date'
-import { listarCheckIn } from '~/features/agenda/services/agendaService'
+import { listarCheckInCompleto } from '~/features/agenda/services/agendaService'
 import { TUSS_PROCEDIMENTO_FILTROS, corTipoProcedimento, rotuloTipoProcedimento } from '~/utils/tuss'
+import { abrirJanelaPdf, exportTableToPDF, exportToCSV, type ColunaExport } from '~/utils/export-data'
 
 const openNav = inject<() => void>('openNav', () => {})
+const toast = useToast()
 
 interface ItemRecepcao {
   id: number | string
@@ -94,12 +96,11 @@ async function loadAgendamentos() {
 
   const params = new URLSearchParams()
   params.set('data', dataStr)
-  params.set('pageSize', '100')
   params.set('unidadeId', String(unidadeId))
   if (selectedTipo.value) params.set('tipo', selectedTipo.value)
 
   try {
-    const response = await listarCheckIn(Object.fromEntries(params))
+    const response = await listarCheckInCompleto(Object.fromEntries(params))
     if (currentRequest === requestId) {
       const items = (response.items ?? []) as unknown as ItemRecepcao[]
       agendamentos.value = items
@@ -233,6 +234,90 @@ function rotuloTipo(item: ItemRecepcao) {
 function selecionarTipo(tipo: TipoProcedimentoTuss | '' | null | undefined) {
   selectedTipo.value = tipo ?? ''
   loadAgendamentos()
+}
+
+const exportando = ref<'pdf' | 'csv' | null>(null)
+
+const colunasExportacao: ColunaExport<ItemRecepcao>[] = [
+  { key: 'horario', header: 'Horário', value: a => a.horario || '-' },
+  { key: 'paciente', header: 'Paciente', value: a => a.paciente || 'Paciente não informado' },
+  { key: 'idade', header: 'Idade', value: a => textoInformado(idadePaciente(a.dataNascimento)) },
+  { key: 'convenio', header: 'Convênio', value: a => textoInformado(a.convenio) },
+  { key: 'medico', header: 'Médico', value: a => textoInformado(a.medico) },
+  { key: 'crm', header: 'CRM', value: a => crmExibicao(a) },
+  { key: 'especialidade', header: 'Especialidade', value: a => textoInformado(a.especialidade) },
+  { key: 'tipo', header: 'Tipo de Atend.', value: a => rotuloTipo(a) },
+  { key: 'tuss', header: 'TUSS', value: a => textoInformado(a.codigoProcedimentoSpdata) },
+  { key: 'status', header: 'Status', value: a => rotuloStatus(a.status) }
+]
+
+function filtrosAtivosExportacao() {
+  const partes: string[] = []
+  if (selectedMedico.value !== 'Todos') partes.push(`Médico: ${selectedMedico.value}`)
+  if (selectedEspecialidade.value !== 'Todos') partes.push(`Especialidade: ${selectedEspecialidade.value}`)
+  const status = filtrosStatus.find(s => s.value === selectedStatus.value)
+  if (status?.value) partes.push(`Status: ${status.label}`)
+  const tipo = filtrosTipo.find(t => t.value === selectedTipo.value)
+  if (tipo) partes.push(`Tipo: ${tipo.label}`)
+  return partes
+}
+
+function resumoExportacao() {
+  const r = resumo.value
+  return [
+    `Total: ${atendimentosFiltrados.value.length}`,
+    `Agendados: ${r.agendados}`,
+    `Em espera: ${r.emEspera}`,
+    `Em atendimento: ${r.emAtendimento}`,
+    `Atendidos: ${r.atendidos}`,
+    `Faltas: ${r.faltas}`
+  ]
+}
+
+function nomeArquivoExportacao() {
+  return `agenda_${formatarDataISO(selectedDate.value)}`
+}
+
+function exportarAgendaCSV() {
+  if (!atendimentosOrdenados.value.length) {
+    toast.add({ title: 'Nenhum dado para exportar', color: 'warning' })
+    return
+  }
+  exportando.value = 'csv'
+  try {
+    exportToCSV(atendimentosOrdenados.value, colunasExportacao, nomeArquivoExportacao())
+    toast.add({ title: 'CSV exportado com sucesso', color: 'success' })
+  } catch {
+    toast.add({ title: 'Erro ao exportar CSV', color: 'error' })
+  } finally {
+    exportando.value = null
+  }
+}
+
+async function exportarAgendaPDF() {
+  if (!atendimentosOrdenados.value.length) {
+    toast.add({ title: 'Nenhum dado para exportar', color: 'warning' })
+    return
+  }
+  const janela = abrirJanelaPdf()
+  exportando.value = 'pdf'
+  try {
+    const resultado = await exportTableToPDF({
+      title: 'AGENDA DO DIA',
+      subtitle: [`Data: ${formattedDate.value}`, ...filtrosAtivosExportacao()].join('  •  '),
+      summary: resumoExportacao(),
+      rows: atendimentosOrdenados.value,
+      columns: colunasExportacao,
+      filename: nomeArquivoExportacao(),
+      janela
+    })
+    if (resultado === 'baixado') toast.add({ title: 'Pop-up bloqueado: o PDF foi baixado', color: 'info' })
+  } catch {
+    janela?.close()
+    toast.add({ title: 'Erro ao exportar PDF', color: 'error' })
+  } finally {
+    exportando.value = null
+  }
 }
 
 const statuses: { id: string, name: string, color: string }[] = [
@@ -410,13 +495,37 @@ const statuses: { id: string, name: string, color: string }[] = [
 
       <UCard>
         <template #title>
-          <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-            <p class="text-lg font-medium">
-              Pacientes do Dia
-            </p>
-            <p class="text-sm text-muted">
-              {{ atendimentosFiltrados.length }} registro{{ atendimentosFiltrados.length !== 1 ? 's' : '' }}
-            </p>
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div class="min-w-0">
+              <p class="text-lg font-medium">
+                Pacientes do Dia
+              </p>
+              <p class="text-sm text-muted">
+                {{ atendimentosFiltrados.length }} registro{{ atendimentosFiltrados.length !== 1 ? 's' : '' }}
+              </p>
+            </div>
+            <div class="grid w-full grid-cols-2 gap-2 sm:w-auto">
+              <UButton
+                icon="i-lucide-file-text"
+                label="Exportar PDF"
+                color="error"
+                size="sm"
+                :loading="exportando === 'pdf'"
+                :disabled="exportando !== null || loading"
+                class="min-h-10 justify-center"
+                @click="exportarAgendaPDF"
+              />
+              <UButton
+                icon="i-lucide-file-spreadsheet"
+                label="Exportar CSV"
+                color="primary"
+                size="sm"
+                :loading="exportando === 'csv'"
+                :disabled="exportando !== null || loading"
+                class="min-h-10 justify-center"
+                @click="exportarAgendaCSV"
+              />
+            </div>
           </div>
         </template>
 

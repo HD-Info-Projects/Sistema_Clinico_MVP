@@ -179,6 +179,7 @@ def create_app():
     from src.models.model_mydsystem.med_spdata_agenda_model import MedSpdataAgenda
     from src.models.model_mydsystem.med_spdata_atendimentos_model import MedSpdataAtendimento
     from src.models.model_mydsystem.med_atendimentos_model import MedAtendimentos
+    from src.models.model_mydsystem.med_atendimento_prioridade_model import MedAtendimentoPrioridade
     from src.models.model_mydsystem.med_spdata_convenios_model import MedSpdataConvenio
     from src.models.model_mydsystem.med_spdata_especialidades_model import MedSpdataEspecialidade
     from src.models.model_mydsystem.med_spdata_cids_model import MedSpdataCid

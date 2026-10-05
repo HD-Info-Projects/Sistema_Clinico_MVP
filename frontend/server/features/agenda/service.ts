@@ -1,10 +1,16 @@
 import type { H3Event } from 'h3'
 import { flaskFetch } from '../../utils/flask'
 
+export type AtualizarPrioridadeCheckInPayload = {
+  prioridadeOrigem: 'agenda' | 'atendimento'
+  prioridadeSpdataId: number
+  prioridade: boolean
+}
+
 export function listarAgenda(event: H3Event, query: Record<string, unknown>) {
   const params = new URLSearchParams()
 
-  for (const key of ['data', 'dataIni', 'dataFim', 'search', 'status', 'tipo']) {
+  for (const key of ['data', 'dataIni', 'dataFim', 'search', 'status', 'tipo', 'contexto']) {
     const value = query[key]
     if (value !== undefined && value !== null && String(value).trim()) {
       params.set(key, String(value))
@@ -25,6 +31,16 @@ export function listarAgendaExames(event: H3Event, query: Record<string, unknown
   }
 
   return flaskFetch(event, `/agenda-medica/exames${params.toString() ? `?${params.toString()}` : ''}`)
+}
+
+export function verificarAtendimentoEmAndamento(event: H3Event, query: Record<string, unknown>) {
+  const params = new URLSearchParams()
+  const data = query.data
+  if (data !== undefined && data !== null && String(data).trim()) {
+    params.set('data', String(data))
+  }
+
+  return flaskFetch(event, `/agenda-medica/em-atendimento${params.toString() ? `?${params.toString()}` : ''}`)
 }
 
 export function listarMarcadoresAgenda(event: H3Event, query: Record<string, unknown>) {
@@ -72,6 +88,13 @@ export function listarCheckIn(event: H3Event, query: Record<string, unknown>) {
 
   const qs = params.toString()
   return flaskFetch(event, `/check_in/${qs ? `?${qs}` : ''}`)
+}
+
+export function atualizarPrioridadeCheckIn(event: H3Event, body: AtualizarPrioridadeCheckInPayload) {
+  return flaskFetch(event, '/check_in/prioridade', {
+    method: 'PATCH',
+    body
+  })
 }
 
 export function sincronizarCheckIn(event: H3Event, body: unknown) {

@@ -1,35 +1,15 @@
 <script setup lang="ts">
 import type { TipoProcedimentoTuss } from '~/types'
-import { listarCheckIn, sincronizarCheckIn } from '~/features/agenda/services/agendaService'
-import type { CheckInResponse } from '~/features/agenda/types'
+import { atualizarPrioridadeCheckIn, listarCheckIn, listarCheckInCompleto, sincronizarCheckIn } from '~/features/agenda/services/agendaService'
+import type { AtendimentoRecepcao, AtendimentoStatusRecepcao, CheckInResponse } from '~/features/agenda/types'
 import { TUSS_PROCEDIMENTO_FILTROS, corTipoProcedimento, rotuloTipoProcedimento } from '~/utils/tuss'
+import { abrirJanelaPdf, exportTableToPDF, exportToCSV, type ColunaExport } from '~/utils/export-data'
 
 const openNav = inject<() => void>('openNav', () => {})
-
-type AtendimentoStatus = 'agendado' | 'em-espera' | 'em-atendimento' | 'atendido' | 'faltou' | 'desconhecido'
-
-interface AtendimentoRecepcao {
-  id: number | string
-  registro: string
-  horario: string
-  paciente: string
-  cpf: string
-  prontuario: string
-  convenio: string
-  telefone: string
-  celular: string
-  email: string
-  medico: string
-  especialidade: string
-  codigoProcedimentoSpdata: string | null
-  tipoProcedimento: TipoProcedimentoTuss
-  tipoProcedimentoLabel: string
-  dataNascimento: string | null
-  idade: number | null
-  status: AtendimentoStatus
-}
+const toast = useToast()
 
 const auth = useAuthStore()
+const sse = useSse()
 
 const { agora, dataFormatada } = useRelogio(60000)
 const userName = computed(() => auth.user?.nome || 'Usuário')
@@ -39,13 +19,14 @@ const pageSize = ref(20)
 const loading = ref(true)
 const errorMsg = ref('')
 const busca = ref('')
-const selectedStatus = ref<AtendimentoStatus | ''>('')
+const selectedStatus = ref<AtendimentoStatusRecepcao | ''>('')
 const selectedTipo = ref<TipoProcedimentoTuss | ''>('')
 const selectedMedico = ref<string | null>(null)
 const selectedEspecialidade = ref<string | undefined>('Todas as especialidades')
 const sincronizandoSpdata = ref(false)
 const syncMsg = ref('')
 const syncError = ref('')
+const prioridadesEmAtualizacao = ref(new Set<string>())
 
 let buscaTimer: ReturnType<typeof setTimeout> | null = null
 let requestId = 0
@@ -71,7 +52,7 @@ function respostaVazia(): CheckInResponse {
 
 const dados = ref<CheckInResponse>(respostaVazia())
 
-const filtrosStatus: { label: string, value: AtendimentoStatus | '' }[] = [
+const filtrosStatus: { label: string, value: AtendimentoStatusRecepcao | '' }[] = [
   { label: 'Todos', value: '' },
   { label: 'Agendados', value: 'agendado' },
   { label: 'Em espera', value: 'em-espera' },
@@ -180,6 +161,18 @@ function resetPageAndFetch() {
   }
 }
 
+function filtrosConsulta(unidadeId: number) {
+  const params: Record<string, string> = {
+    data: formatarDataISO(new Date()),
+    unidadeId: String(unidadeId)
+  }
+  if (selectedStatus.value) params.status = selectedStatus.value
+  if (selectedTipo.value) params.tipo = selectedTipo.value
+  if (selectedMedico.value) params.medico = selectedMedico.value
+  if (busca.value.trim()) params.q = busca.value.trim()
+  return params
+}
+
 async function carregarAtendimentos() {
   const currentRequest = ++requestId
   const unidadeId = auth.activeClinicaId
@@ -193,18 +186,12 @@ async function carregarAtendimentos() {
     return
   }
 
-  const params = new URLSearchParams()
-  params.set('page', String(page.value))
-  params.set('pageSize', String(pageSize.value))
-  params.set('data', formatarDataISO(new Date()))
-  params.set('unidadeId', String(unidadeId))
-  if (selectedStatus.value) params.set('status', selectedStatus.value)
-  if (selectedTipo.value) params.set('tipo', selectedTipo.value)
-  if (selectedMedico.value) params.set('medico', selectedMedico.value)
-  if (busca.value.trim()) params.set('q', busca.value.trim())
-
   try {
-    const response = await listarCheckIn(Object.fromEntries(params))
+    const response = await listarCheckIn({
+      ...filtrosConsulta(unidadeId),
+      page: String(page.value),
+      pageSize: String(pageSize.value)
+    })
 
     if (currentRequest === requestId) {
       dados.value = response
@@ -244,6 +231,145 @@ async function sincronizarDadosSpdata() {
   }
 }
 
+function chavePrioridade(item: AtendimentoRecepcao) {
+  return `${item.prioridadeOrigem}:${item.prioridadeSpdataId}`
+}
+
+function prioridadeEmAtualizacao(item: AtendimentoRecepcao) {
+  return prioridadesEmAtualizacao.value.has(chavePrioridade(item))
+}
+
+async function alterarPrioridade(item: AtendimentoRecepcao, prioridade: boolean) {
+  const chave = chavePrioridade(item)
+  const prioridadeAnterior = item.prioridade === true
+
+  item.prioridade = prioridade
+  prioridadesEmAtualizacao.value = new Set(prioridadesEmAtualizacao.value).add(chave)
+
+  try {
+    await atualizarPrioridadeCheckIn({
+      prioridadeOrigem: item.prioridadeOrigem,
+      prioridadeSpdataId: item.prioridadeSpdataId,
+      prioridade
+    })
+  } catch {
+    item.prioridade = prioridadeAnterior
+    toast.add({
+      title: 'Erro ao atualizar prioridade',
+      description: 'A alteração foi desfeita. Tente novamente.',
+      color: 'error'
+    })
+  } finally {
+    const emAtualizacao = new Set(prioridadesEmAtualizacao.value)
+    emAtualizacao.delete(chave)
+    prioridadesEmAtualizacao.value = emAtualizacao
+  }
+}
+
+function aplicarPrioridadeRemota(data: unknown) {
+  const evento = data as Partial<Pick<AtendimentoRecepcao, 'prioridadeOrigem' | 'prioridadeSpdataId' | 'prioridade'>>
+  if ((evento.prioridadeOrigem !== 'agenda' && evento.prioridadeOrigem !== 'atendimento')
+    || !Number.isInteger(evento.prioridadeSpdataId)
+    || typeof evento.prioridade !== 'boolean') return
+
+  dados.value = {
+    ...dados.value,
+    items: dados.value.items.map(item => chavePrioridade(item) === `${evento.prioridadeOrigem}:${evento.prioridadeSpdataId}`
+      ? { ...item, prioridade: evento.prioridade! }
+      : item)
+  }
+}
+
+function aoConectarSse(data: unknown) {
+  if (!(data as { reconnected?: boolean })?.reconnected) return
+  void carregarAtendimentos()
+}
+
+const exportando = ref<'pdf' | 'csv' | null>(null)
+
+const colunasExportacao: ColunaExport<AtendimentoRecepcao>[] = [
+  { key: 'registro', header: 'Registro', value: a => textoInformado(a.registro) },
+  { key: 'horario', header: 'Horário', value: a => a.horario || '-' },
+  { key: 'paciente', header: 'Paciente', value: a => a.paciente || 'Paciente não informado' },
+  { key: 'prontuario', header: 'Prontuário', value: a => textoInformado(a.prontuario) },
+  { key: 'idade', header: 'Idade', value: a => formatarIdade(a.dataNascimento) },
+  { key: 'convenio', header: 'Convênio', value: a => textoInformado(a.convenio) },
+  { key: 'medico', header: 'Médico', value: a => textoInformado(a.medico) },
+  { key: 'especialidade', header: 'Especialidade', value: a => textoInformado(a.especialidade) },
+  { key: 'tipo', header: 'Tipo de Atend.', value: a => rotuloTipo(a) },
+  { key: 'status', header: 'Status', value: a => rotuloStatus(a.status) }
+]
+
+function resumoExportacao() {
+  const r = dados.value.resumo
+  return [
+    `Total do dia: ${resumoTotal.value}`,
+    `Agendados: ${r.agendados}`,
+    `Em espera: ${r.emEspera}`,
+    `Em atendimento: ${r.emAtendimento}`,
+    `Atendidos: ${r.atendidos}`,
+    `Faltas: ${r.faltas}`
+  ]
+}
+
+async function buscarAtendimentosExportacao() {
+  const unidadeId = auth.activeClinicaId
+  if (!unidadeId) {
+    toast.add({ title: 'Selecione uma unidade para exportar', color: 'warning' })
+    return null
+  }
+  const response = await listarCheckInCompleto(filtrosConsulta(unidadeId))
+  const items = response.items as unknown as AtendimentoRecepcao[]
+  if (!items.length) {
+    toast.add({ title: 'Nenhum dado para exportar', color: 'warning' })
+    return null
+  }
+  return { items, data: response.data || formatarDataISO(new Date()) }
+}
+
+async function exportarAtendimentosCSV() {
+  exportando.value = 'csv'
+  try {
+    const resultado = await buscarAtendimentosExportacao()
+    if (!resultado) return
+    exportToCSV(resultado.items, colunasExportacao, `atendimentos_${resultado.data}`)
+    toast.add({ title: 'CSV exportado com sucesso', color: 'success' })
+  } catch {
+    toast.add({ title: 'Erro ao exportar CSV', color: 'error' })
+  } finally {
+    exportando.value = null
+  }
+}
+
+async function exportarAtendimentosPDF() {
+  const janela = abrirJanelaPdf()
+  exportando.value = 'pdf'
+  try {
+    const resultado = await buscarAtendimentosExportacao()
+    if (!resultado) {
+      janela?.close()
+      return
+    }
+    const filtros = tituloTabela.value.split(' - ').slice(1)
+    if (busca.value.trim()) filtros.push('Filtrado por busca')
+    const modo = await exportTableToPDF({
+      title: 'RELATÓRIO DE ATENDIMENTOS DO DIA',
+      subtitle: [`Data: ${formatarData(resultado.data)}`, ...filtros].join('  •  '),
+      summary: resumoExportacao(),
+      rows: resultado.items,
+      columns: colunasExportacao,
+      filename: `atendimentos_${resultado.data}`,
+      janela
+    })
+    if (modo === 'baixado') toast.add({ title: 'Pop-up bloqueado: o PDF foi baixado', color: 'info' })
+  } catch {
+    janela?.close()
+    toast.add({ title: 'Erro ao exportar PDF', color: 'error' })
+  } finally {
+    exportando.value = null
+  }
+}
+
 function selecionarMedico(id: string) {
   selectedMedico.value = selectedMedico.value === id ? null : id
   resetPageAndFetch()
@@ -254,7 +380,7 @@ function limparMedico() {
   resetPageAndFetch()
 }
 
-function selecionarStatus(status: AtendimentoStatus | '') {
+function selecionarStatus(status: AtendimentoStatusRecepcao | '') {
   selectedStatus.value = status
   resetPageAndFetch()
 }
@@ -273,6 +399,7 @@ watch(() => auth.activeClinicaId, () => {
   selectedEspecialidade.value = 'Todas as especialidades'
   selectedTipo.value = ''
   resetPageAndFetch()
+  sse.connect({ clinicaId: auth.activeClinicaId })
 })
 
 watch(busca, () => {
@@ -283,11 +410,16 @@ watch(busca, () => {
 })
 
 onMounted(() => {
+  sse.on('connected', aoConectarSse)
+  sse.on('atendimento:prioridade', aplicarPrioridadeRemota)
+  sse.connect({ clinicaId: auth.activeClinicaId })
   carregarAtendimentos()
 })
 
 onUnmounted(() => {
   if (buscaTimer) clearTimeout(buscaTimer)
+  sse.off('connected', aoConectarSse)
+  sse.off('atendimento:prioridade', aplicarPrioridadeRemota)
 })
 </script>
 
@@ -500,6 +632,28 @@ onUnmounted(() => {
                   size="sm"
                   class="w-full sm:w-80"
                 />
+                <div class="grid w-full grid-cols-2 gap-2 sm:w-auto">
+                  <UButton
+                    icon="i-lucide-file-text"
+                    label="Exportar PDF"
+                    color="error"
+                    size="sm"
+                    :loading="exportando === 'pdf'"
+                    :disabled="exportando !== null || loading || !dados.total"
+                    class="justify-center"
+                    @click="exportarAtendimentosPDF"
+                  />
+                  <UButton
+                    icon="i-lucide-file-spreadsheet"
+                    label="Exportar CSV"
+                    color="primary"
+                    size="sm"
+                    :loading="exportando === 'csv'"
+                    :disabled="exportando !== null || loading || !dados.total"
+                    class="justify-center"
+                    @click="exportarAtendimentosCSV"
+                  />
+                </div>
               </div>
             </div>
 
@@ -576,7 +730,7 @@ onUnmounted(() => {
             class="border-b border-muted rounded-none"
             :ui="{ container: 'px-4 sm:p-1 pb-3 sm:px-4' }"
           >
-            <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-[max-content_2fr_1fr_1.5fr_2fr_1.5fr_1fr] ">
+            <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 md:grid-cols-[max-content_2fr_1fr_1.5fr_2fr_1.5fr_0.8fr_0.8fr] ">
               <div class="md:col-span-1 w-min hidden md:block pr-3">
                 <p class="text-sm text-muted font-bold">
                   Horário
@@ -593,9 +747,17 @@ onUnmounted(() => {
                     size="sm"
                   />
                   <div class="min-w-0">
-                    <p class="wrap-break-word font-medium">
-                      {{ item.paciente || 'Paciente não informado' }}
-                    </p>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <p class="wrap-break-word font-medium">
+                        {{ item.paciente || 'Paciente não informado' }}
+                      </p>
+                      <UBadge
+                        v-if="item.retorno"
+                        label="Retorno"
+                        color="secondary"
+                        variant="subtle"
+                      />
+                    </div>
                     <p class="text-xs text-muted">
                       {{ idadePaciente(item.dataNascimento) }}
                     </p>
@@ -669,6 +831,21 @@ onUnmounted(() => {
                   :label="rotuloStatus(item.status)"
                   :color="corStatus(item.status)"
                   variant="subtle"
+                />
+              </div>
+
+              <div class="md:col-span-1">
+                <p class="text-sm text-muted font-bold">
+                  Prioridade
+                </p>
+                <USwitch
+                  :model-value="item.prioridade === true"
+                  :label="item.prioridade === true ? 'Prioridade' : 'Normal'"
+                  color="error"
+                  size="sm"
+                  :loading="prioridadeEmAtualizacao(item)"
+                  :disabled="prioridadeEmAtualizacao(item)"
+                  @update:model-value="alterarPrioridade(item, $event)"
                 />
               </div>
             </div>

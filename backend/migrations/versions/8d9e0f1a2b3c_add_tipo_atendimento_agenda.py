@@ -1,7 +1,7 @@
 """Add tipo atendimento spdata to agenda mirror.
 
 Revision ID: 8d9e0f1a2b3c
-Revises: 7c8d9e0f1a2b
+Revises: 7d9e0f1a2b3d
 Create Date: 2026-10-01 00:00:00.000000
 """
 
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 revision = "8d9e0f1a2b3c"
-down_revision = "7c8d9e0f1a2b"
+down_revision = "7d9e0f1a2b3d"
 branch_labels = None
 depends_on = None
 

@@ -2,6 +2,7 @@
 definePageMeta({ layout: false })
 
 const auth = useAuthStore()
+const erroLogout = ref<string | null>(null)
 
 const destinoPrincipal = computed(() => {
   if (auth.isAdmin) return '/selecionar-acesso'
@@ -10,6 +11,16 @@ const destinoPrincipal = computed(() => {
   if (auth.isMedico) return '/dashboard'
   return '/login'
 })
+
+async function sair() {
+  erroLogout.value = null
+  const resultado = await auth.logout()
+  if (resultado.success) return
+
+  erroLogout.value = resultado.reason === 'atendimento'
+    ? 'Finalize ou cancele o atendimento em andamento antes de sair.'
+    : 'Não foi possível verificar atendimento em andamento. Tente novamente antes de sair.'
+}
 </script>
 
 <template>
@@ -48,9 +59,15 @@ const destinoPrincipal = computed(() => {
             icon="i-lucide-log-out"
             color="neutral"
             variant="soft"
-            @click="auth.logout()"
+            @click="void sair()"
           />
         </div>
+        <p
+          v-if="erroLogout"
+          class="text-sm text-red-600"
+        >
+          {{ erroLogout }}
+        </p>
       </div>
     </UCard>
   </main>

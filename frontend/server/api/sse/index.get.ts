@@ -16,6 +16,8 @@ export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
   const requestId = getRequestId(event)
   const dataParam = Array.isArray(query.data) ? query.data[0] : query.data
+  const contextoParam = Array.isArray(query.contexto) ? query.contexto[0] : query.contexto
+  const contexto = contextoParam === 'dashboard' ? 'dashboard' : ''
   const pollAgenda = Boolean(dataParam) && authUser.role === 'medico'
   const data = String(dataParam || hojeISO())
 
@@ -50,18 +52,27 @@ export default defineEventHandler(async (event) => {
     loadingAgenda = true
 
     try {
-      const items = await $fetch<unknown[]>(`${config.flaskBaseUrl}/agenda-medica/?data=${encodeURIComponent(data)}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'X-Unidade-Id': String(clinicaId),
-          [REQUEST_ID_HEADER]: requestId
-        }
+      const headers: Record<string, string> = {
+        'Authorization': `Bearer ${token}`,
+        'X-Unidade-Id': String(clinicaId),
+        [REQUEST_ID_HEADER]: requestId
+      }
+
+      if (config.internalRequestSecret) {
+        headers['X-Origem-Requisicao'] = 'sse-poll'
+        headers['X-Internal-Secret'] = config.internalRequestSecret
+      }
+
+      const params = new URLSearchParams({ data })
+      if (contexto) params.set('contexto', contexto)
+      const items = await $fetch<unknown[]>(`${config.flaskBaseUrl}/agenda-medica/?${params.toString()}`, {
+        headers
       })
 
       const hash = JSON.stringify(items)
       if (hash !== lastHash) {
         lastHash = hash
-        send('agenda:snapshot', { data, items })
+        send('agenda:snapshot', { data, contexto: contexto || undefined, items })
       }
     } catch {
       send('agenda:error', { message: 'Falha ao atualizar agenda médica' })
@@ -74,7 +85,6 @@ export default defineEventHandler(async (event) => {
 
   let poll: ReturnType<typeof setInterval> | null = null
   if (pollAgenda) {
-    void carregarAgenda()
     poll = setInterval(() => {
       void carregarAgenda()
     }, POLL_INTERVAL_MS)

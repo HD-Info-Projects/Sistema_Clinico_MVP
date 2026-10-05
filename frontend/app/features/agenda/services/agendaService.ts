@@ -2,6 +2,7 @@ import type {
   Agendamento,
   AgendamentoComPaciente,
   AgendamentoStatus,
+  AtualizarPrioridadeCheckInPayload,
   CheckInResponse,
   ExameConsultaPayload,
   MotivoNoShow,
@@ -21,6 +22,7 @@ export type AgendamentoComFiltro = {
   tipo?: TipoProcedimentoTuss
   clinicaId?: number
   medicoId?: number
+  contexto?: 'dashboard'
 }
 
 export type ConsultaStatusPayload = {
@@ -33,6 +35,19 @@ export type ConsultaStatusPayload = {
 
 export type AtualizarStatusAgendamentoResponse = AgendamentoComPaciente | Agendamento
 
+export type AtendimentoEmAndamentoResponse = {
+  emAtendimento: boolean
+  data?: string
+  unidadeId?: number
+  id?: number
+  medsystemAtendimentoId?: number
+  paciente?: {
+    id?: number
+    nome?: string | null
+    nomeSocial?: string | null
+  }
+}
+
 export function listarAgendamentos(filtros?: AgendamentoComFiltro) {
   const params = new URLSearchParams()
   if (filtros?.data) params.set('data', filtros.data)
@@ -43,6 +58,7 @@ export function listarAgendamentos(filtros?: AgendamentoComFiltro) {
   if (filtros?.tipo) params.set('tipo', filtros.tipo)
   if (filtros?.clinicaId) params.set('clinicaId', String(filtros.clinicaId))
   if (filtros?.medicoId) params.set('medicoId', String(filtros.medicoId))
+  if (filtros?.contexto) params.set('contexto', filtros.contexto)
 
   return $fetch<(Agendamento | AgendamentoComPaciente)[]>(`/api/agendamentos${params.toString() ? `?${params.toString()}` : ''}`).then(items =>
     items.map(item => ({ ...item, horario: normalizarHorario(item.horario) }))
@@ -62,6 +78,13 @@ export function listarAgendamentosExames(filtros?: AgendamentoComFiltro) {
   return $fetch<AgendamentoComPaciente[]>(`/api/agenda-exames${params.toString() ? `?${params.toString()}` : ''}`).then(items =>
     items.map(item => ({ ...item, horario: normalizarHorario(item.horario) }))
   )
+}
+
+export function verificarAtendimentoEmAndamento(data?: string) {
+  const params = new URLSearchParams()
+  if (data) params.set('data', data)
+
+  return $fetch<AtendimentoEmAndamentoResponse>(`/api/agendamentos/em-atendimento${params.toString() ? `?${params.toString()}` : ''}`)
 }
 
 export function atualizarStatusAgendamento(id: number, status: AgendamentoStatus, consulta?: ConsultaStatusPayload, clinicaId?: number) {
@@ -127,6 +150,34 @@ export function listarCheckIn(filtros?: Record<string, unknown>) {
     ...response,
     items: response.items.map(item => ({ ...item, horario: normalizarHorario(item.horario) }))
   }))
+}
+
+export function atualizarPrioridadeCheckIn(payload: AtualizarPrioridadeCheckInPayload) {
+  return $fetch<AtualizarPrioridadeCheckInPayload>('/api/check-in/prioridade', {
+    method: 'PATCH',
+    body: payload
+  })
+}
+
+const CHECK_IN_MAX_PAGE_SIZE = 100
+
+export async function listarCheckInCompleto(filtros?: Record<string, unknown>) {
+  const base = { ...filtros, pageSize: CHECK_IN_MAX_PAGE_SIZE }
+  const primeira = await listarCheckIn({ ...base, page: 1 })
+  const totalPaginas = Math.ceil(primeira.total / CHECK_IN_MAX_PAGE_SIZE)
+
+  if (totalPaginas <= 1) return primeira
+
+  const restantes = await Promise.all(
+    Array.from({ length: totalPaginas - 1 }, (_, index) => listarCheckIn({ ...base, page: index + 2 }))
+  )
+
+  return {
+    ...primeira,
+    page: 1,
+    pageSize: primeira.total,
+    items: [...primeira.items, ...restantes.flatMap(response => response.items)]
+  }
 }
 
 export type SincronizarCheckInResponse = {

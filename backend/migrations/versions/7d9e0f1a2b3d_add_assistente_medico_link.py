@@ -1,6 +1,6 @@
 """Add assistente medico link.
 
-Revision ID: 7c8d9e0f1a2b
+Revision ID: 7d9e0f1a2b3d
 Revises: 7b8c9d0e1f2a
 Create Date: 2026-09-30 00:00:00.000000
 """
@@ -9,7 +9,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision = "7c8d9e0f1a2b"
+revision = "7d9e0f1a2b3d"
 down_revision = "7b8c9d0e1f2a"
 branch_labels = None
 depends_on = None

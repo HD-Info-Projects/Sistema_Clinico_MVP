@@ -31,7 +31,7 @@ onMounted(() => {
   if (isAssistenteDashboard.value) {
     agendamentosStore.initExames(auth.activeClinicaId ?? undefined, hoje)
   } else {
-    agendamentosStore.init(auth.activeClinicaId ?? undefined, hoje, auth.user?.id)
+    agendamentosStore.init(auth.activeClinicaId ?? undefined, hoje, auth.user?.id, 'dashboard')
   }
   chamadosStore.init({ clinicaId: auth.activeClinicaId, data: hoje })
   if (precisaSelecionar.value) {
@@ -46,7 +46,7 @@ const { agora, dataFormatada } = useRelogio(60000)
 
 function corPrioridade(prioridade: string) {
   switch (prioridade) {
-    case 'preferencial': return 'warning'
+    case 'prioridade': return 'error'
     default: return 'neutral'
   }
 }
@@ -84,6 +84,10 @@ function rotuloTipo(ag: AgendamentoComPaciente) {
 function rotuloCodigoProcedimento(codigo: string | null | undefined) {
   if (!codigo) return ''
   return /^\d+$/.test(codigo) ? `TUSS ${codigo}` : `Cód. SPDATA ${codigo}`
+}
+
+function idadePaciente(dataNascimento: string | null | undefined) {
+  return formatarIdade(dataNascimento, { semDados: true })
 }
 
 const callingState = ref<{ pacienteId: number, secondsLeft: number } | null>(null)
@@ -177,7 +181,7 @@ async function chamarPaciente(ag: AgendamentoComPaciente) {
         callingInterval = null
       }
     }
-  }, 500)
+  }, 1000)
 }
 
 async function faltouAgendamento(ag: AgendamentoComPaciente) {
@@ -249,25 +253,47 @@ function abrirModalDesfazerFalta(ag: AgendamentoComPaciente) {
   }
 }
 
+const hojeISO = formatarDataISO(new Date())
+
+// Considera só os agendamentos de hoje (o store é compartilhado com a tela de Agenda,
+// que pode ter carregado outro dia). Lista, cards e gráfico usam a mesma base.
+const agendamentosDeHoje = computed(() =>
+  agendamentosStore.ordenados.filter(a => !a.data || a.data.slice(0, 10) === hojeISO)
+)
+
 const pacientesNaFila = computed(() => {
   if (isAssistenteDashboard.value) {
-    return agendamentosStore.ordenados.filter(a => !isTerminal(a.status))
+    return agendamentosDeHoje.value.filter(a => !isTerminal(a.status))
   }
 
-  return agendamentosStore.ordenados.filter(
+  return agendamentosDeHoje.value.filter(
     a => a.status === 'em-espera' || a.status === 'em-atendimento'
   )
 })
 
 const pacientesFinalizados = computed(() =>
-  agendamentosStore.ordenados.filter(
+  agendamentosDeHoje.value.filter(
     a => a.status === 'atendido' || a.status === 'faltou'
   )
 )
 
+const filaHoje = computed(() => agendamentosDeHoje.value.filter(a => a.status === 'em-espera'))
+const emAtendimentoHoje = computed(() => agendamentosDeHoje.value.some(a => a.status === 'em-atendimento'))
+const totalAtendidosHoje = computed(() => agendamentosDeHoje.value.filter(a => a.status === 'atendido').length)
+const totalFaltasHoje = computed(() => agendamentosDeHoje.value.filter(a => a.status === 'faltou').length)
+
 const totalPacientesDashboard = computed(() =>
   pacientesNaFila.value.length + pacientesFinalizados.value.length
 )
+
+// Skeleton só enquanto carrega e ainda não há nada de hoje para mostrar. Com dados
+// (ex.: voltando do atendimento), exibe o que já tem e atualiza em segundo plano.
+const temDadosDeHoje = computed(() =>
+  agendamentosStore.dataCarregada === hojeISO
+  && agendamentosStore.clinicaCarregada === (auth.activeClinicaId ?? null)
+  && agendamentosStore.medicoCarregado === (auth.user?.id ?? null)
+)
+const carregandoInicial = computed(() => agendamentosStore.loading && !temDadosDeHoje.value)
 
 const temPacientesDashboard = computed(() => totalPacientesDashboard.value > 0)
 
@@ -300,11 +326,38 @@ function atendimentoDisabled(status: AgendamentoStatus) {
   return status !== 'em-espera'
 }
 
+// Bloqueia ações de outros pacientes enquanto há um atendimento em andamento,
+// mas mantém liberadas as ações do próprio paciente em atendimento.
+function bloqueadoPorOutroAtendimento(status: AgendamentoStatus) {
+  return temPacienteEmAtendimento.value && status !== 'em-atendimento'
+}
+
+function botaoAtendimentoDisabled(status: AgendamentoStatus, pacienteId: number) {
+  if (status === 'em-atendimento') return false
+  return temPacienteEmAtendimento.value || atendimentoDisabled(status) || isChamadaBloqueada(pacienteId)
+}
+
+async function retomarAtendimento() {
+  await navigateTo('/atendimento-medico')
+}
+
+function acaoBotaoAtendimento(ag: AgendamentoComPaciente) {
+  if (ag.status === 'em-atendimento') {
+    void retomarAtendimento()
+    return
+  }
+  void atenderAgendamento(ag)
+}
+
 const tempoMedioEspera = computed(() => {
-  const lista = pacientesNaFila.value
+  const lista = isAssistenteDashboard.value ? pacientesNaFila.value : filaHoje.value
   const tempos = lista.map(a => calcularMinutosDesde(a.horario, agora.value))
   return tempos.length ? Math.round(tempos.reduce((a, b) => a + b, 0) / tempos.length) : 0
 })
+
+const totalPendentesCard = computed(() =>
+  isAssistenteDashboard.value ? pacientesNaFila.value.length : filaHoje.value.length
+)
 </script>
 
 <template>
@@ -377,17 +430,17 @@ const tempoMedioEspera = computed(() => {
         </p>
       </div>
       <div
-        v-if="!agendamentosStore.loading && temPacientesDashboard"
+        v-if="!carregandoInicial && temPacientesDashboard"
         class="grid grid-cols-1 items-stretch gap-6 md:grid-cols-2"
       >
         <ChartResumo
           class="h-full"
-          :loading="agendamentosStore.loading"
+          :loading="carregandoInicial"
           :total="totalPacientesDashboard"
-          :fila="pacientesNaFila.length"
-          :em-atendimento="isAssistenteDashboard ? 0 : (agendamentosStore.emAtendimento ? 1 : 0)"
-          :atendidos="agendamentosStore.totalAtendidos"
-          :faltas="agendamentosStore.totalFaltas"
+          :fila="isAssistenteDashboard ? pacientesNaFila.length : filaHoje.length"
+          :em-atendimento="isAssistenteDashboard ? 0 : (emAtendimentoHoje ? 1 : 0)"
+          :atendidos="totalAtendidosHoje"
+          :faltas="totalFaltasHoje"
         />
         <div class="grid grid-cols-1 items-stretch gap-2 sm:grid-cols-2">
           <UPageCard class="h-full">
@@ -412,7 +465,7 @@ const tempoMedioEspera = computed(() => {
                 </p>
               </div>
               <p class="text-3xl font-bold ">
-                {{ pacientesNaFila.length }} Pessoa<span v-if="pacientesNaFila.length !== 1">s</span>
+                {{ totalPendentesCard }} Pessoa<span v-if="totalPendentesCard !== 1">s</span>
               </p>
             </div>
           </UPageCard>
@@ -425,7 +478,7 @@ const tempoMedioEspera = computed(() => {
                 </p>
               </div>
               <p class="text-3xl font-bold ">
-                {{ agendamentosStore.totalAtendidos }} Pessoa<span v-if="agendamentosStore.totalAtendidos !== 1">s</span>
+                {{ totalAtendidosHoje }} Pessoa<span v-if="totalAtendidosHoje !== 1">s</span>
               </p>
             </div>
           </UPageCard>
@@ -438,14 +491,14 @@ const tempoMedioEspera = computed(() => {
                 </p>
               </div>
               <p class="text-3xl font-bold ">
-                {{ agendamentosStore.totalFaltas }} Pessoa<span v-if="agendamentosStore.totalFaltas !== 1">s</span>
+                {{ totalFaltasHoje }} Pessoa<span v-if="totalFaltasHoje !== 1">s</span>
               </p>
             </div>
           </UPageCard>
         </div>
       </div>
       <div
-        v-else-if="agendamentosStore.loading"
+        v-else-if="carregandoInicial"
         class="grid grid-cols-1 items-stretch gap-6 md:grid-cols-2"
       >
         <ChartResumo
@@ -539,11 +592,28 @@ const tempoMedioEspera = computed(() => {
                     size="sm"
                   />
                   <div class="min-w-0">
-                    <p class="wrap-break-word font-medium">
-                      {{ paciente.paciente.nome }}
-                    </p>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <p class="wrap-break-word font-medium">
+                        {{ paciente.paciente.nome }}
+                      </p>
+                      <UBadge
+                        v-if="paciente.preventivo"
+                        label="+ Preventivo"
+                        color="quaternary"
+                        variant="subtle"
+                      />
+                      <UBadge
+                        v-if="paciente.retorno"
+                        label="Retorno"
+                        color="secondary"
+                        variant="subtle"
+                      />
+                    </div>
                     <p class="wrap-break-word text-xs text-muted">
                       {{ paciente.paciente.convenio }}
+                    </p>
+                    <p class="wrap-break-word text-xs text-muted">
+                      {{ idadePaciente(paciente.paciente.dataNascimento) }}
                     </p>
                   </div>
                 </div>
@@ -619,7 +689,7 @@ const tempoMedioEspera = computed(() => {
                     :color="isTerminal(paciente.status) ? 'neutral' : 'primary'"
                     :variant="isTerminal(paciente.status) ? 'soft' : 'solid'"
                     :loading="isChamadaBloqueada(paciente.paciente.id)"
-                    :disabled="temPacienteEmAtendimento || isTerminal(paciente.status) || isChamadaBloqueada(paciente.paciente.id)"
+                    :disabled="bloqueadoPorOutroAtendimento(paciente.status) || isTerminal(paciente.status) || isChamadaBloqueada(paciente.paciente.id)"
                     @click="chamarPaciente(paciente as AgendamentoComPaciente)"
                   />
 
@@ -630,8 +700,8 @@ const tempoMedioEspera = computed(() => {
                     class="min-w-25 justify-center"
                     :color="statusColor(paciente.status)"
                     :variant="atendimentoVariant(paciente.status)"
-                    :disabled="temPacienteEmAtendimento || atendimentoDisabled(paciente.status) || isChamadaBloqueada(paciente.paciente.id)"
-                    @click="atenderAgendamento(paciente as AgendamentoComPaciente)"
+                    :disabled="botaoAtendimentoDisabled(paciente.status, paciente.paciente.id)"
+                    @click="acaoBotaoAtendimento(paciente as AgendamentoComPaciente)"
                   />
                   <UButton
                     icon="i-lucide-user-x"
@@ -695,9 +765,23 @@ const tempoMedioEspera = computed(() => {
                     size="sm"
                   />
                   <div class="min-w-0">
-                    <p class="wrap-break-word font-medium">
-                      {{ paciente.paciente.nome }}
-                    </p>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <p class="wrap-break-word font-medium">
+                        {{ paciente.paciente.nome }}
+                      </p>
+                      <UBadge
+                        v-if="paciente.preventivo"
+                        label="+ Preventivo"
+                        color="quaternary"
+                        variant="subtle"
+                      />
+                      <UBadge
+                        v-if="paciente.retorno"
+                        label="Retorno"
+                        color="quaternary"
+                        variant="subtle"
+                      />
+                    </div>
                     <p class="wrap-break-word text-xs text-muted">
                       {{ paciente.paciente.convenio }}
                     </p>
@@ -819,7 +903,7 @@ const tempoMedioEspera = computed(() => {
             Informe o número do consultório:
           </p>
           <UForm class="flex flex-col gap-3">
-            <UFormItem
+            <UFormField
               label="Número do consultório"
               :error="!salaValida ? 'Informe um número de consultório válido' : ''"
             >
@@ -831,7 +915,7 @@ const tempoMedioEspera = computed(() => {
                 class="w-full"
                 size="lg"
               />
-            </UFormItem>
+            </UFormField>
             <div class="flex justify-end gap-2">
               <UButton
                 type="submit"

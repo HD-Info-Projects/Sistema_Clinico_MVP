@@ -1,9 +1,15 @@
 import { defineStore } from 'pinia'
+import { verificarAtendimentoEmAndamento } from '~/features/agenda/services/agendaService'
 import { buscarSessaoAuth, loginAuth, logoutAuth } from '~/features/auth/services/authService'
 import type { AuthSessionResponse, AuthUser, Clinica } from '~/features/auth/types'
 import { ASSISTENTE_ROLES, LGPD_ROLES, MEDICO_ROLES, RECEPCAO_ROLES, roleIn } from '~/utils/roles'
 
 export type AccessMode = 'recepcionista' | 'administrador' | 'logs'
+
+export type LogoutResult
+  = | { success: true }
+    | { success: false, reason: 'atendimento', pacienteNome: string | null, data: string | null }
+    | { success: false, reason: 'verificacao', requestId: string | null }
 
 const MODOS_ACESSO: AccessMode[] = ['recepcionista', 'administrador', 'logs']
 
@@ -106,6 +112,56 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  function requestIdErro(error: unknown) {
+    const fetchError = error as {
+      response?: { headers?: Headers }
+      data?: { requestId?: string }
+    }
+
+    return fetchError.response?.headers?.get?.('x-request-id')
+      || fetchError.data?.requestId
+      || null
+  }
+
+  function statusErro(error: unknown) {
+    const fetchError = error as {
+      status?: number
+      statusCode?: number
+      response?: { status?: number }
+    }
+
+    return fetchError.response?.status || fetchError.statusCode || fetchError.status || null
+  }
+
+  async function verificarBloqueioLogout(): Promise<Exclude<LogoutResult, { success: true }> | null> {
+    if (user.value?.role !== 'medico') return null
+
+    try {
+      const resultado = await verificarAtendimentoEmAndamento(
+        formatarDataISO(new Date())
+      )
+      if (!resultado.emAtendimento) return null
+
+      return {
+        success: false,
+        reason: 'atendimento',
+        pacienteNome: resultado.paciente?.nomeSocial || resultado.paciente?.nome || null,
+        data: resultado.data ?? null
+      }
+    } catch (error) {
+      // Sessão inválida (401/422), sem permissão (403) ou erro de configuração (400,
+      // ex.: médico sem CRM) não são falhas transitórias: o backend já registra o
+      // motivo no log e bloquear aqui impediria o logout indefinidamente.
+      if ([400, 401, 403, 422].includes(statusErro(error) ?? 0)) return null
+
+      return {
+        success: false,
+        reason: 'verificacao',
+        requestId: requestIdErro(error)
+      }
+    }
+  }
+
   async function login(credentials: Record<string, unknown>) {
     try {
       const response = await loginAuth(credentials)
@@ -138,7 +194,12 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function logout() {
+  async function logout(options?: { verificarAtendimento?: boolean }): Promise<LogoutResult> {
+    if (options?.verificarAtendimento !== false) {
+      const bloqueio = await verificarBloqueioLogout()
+      if (bloqueio) return bloqueio
+    }
+
     if (import.meta.client) useSse().disconnect()
     limparRascunhosClinicosLocais()
 
@@ -154,6 +215,7 @@ export const useAuthStore = defineStore('auth', () => {
     limparAccessMode()
     sessionChecked.value = true
     navigateTo('/login')
+    return { success: true }
   }
 
   async function fetchUser() {

@@ -86,7 +86,9 @@ export interface Agendamento {
   horario: string
   horarioAgendado?: string | null
   horarioEntrada?: string | null
-  prioridade: 'normal' | 'preferencial'
+  prioridade: 'normal' | 'prioridade'
+  prioridadeOrigem: 'agenda' | 'atendimento'
+  prioridadeSpdataId: number
   status: AgendamentoStatus
   descricao: string
   criadoEm: string
@@ -95,6 +97,8 @@ export interface Agendamento {
   procedimentoSpdata?: string | null
   tipoProcedimento?: TipoProcedimentoTuss
   tipoProcedimentoLabel?: string
+  preventivo?: boolean
+  retorno?: boolean
 }
 
 export interface AgendamentoComPaciente extends Agendamento {
@@ -145,7 +149,6 @@ export interface ProcedimentoCatalogo {
   id: number
   nome: string
   codigo_procedimento: number | null
-  codigo_tuss?: number | null
   tipo_ato_codigo: number | null
   tipo_ato_nome: string | null
   apelido_procedimento?: string | null
@@ -157,7 +160,6 @@ export interface ProcedimentoSelecionado {
   procedimento_id: number | null
   nome: string
   codigo_procedimento?: number | null
-  codigo_tuss?: number | null
   tipo_ato_codigo?: number | null
   tipo_ato_nome?: string | null
   exige_autorizacao?: number | null

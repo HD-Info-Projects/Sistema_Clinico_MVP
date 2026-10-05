@@ -25,19 +25,54 @@ const padroesAnamneseStore = usePadroesAnamneseStore()
 const padroesOrientacoesStore = usePadroesOrientacoesStore()
 const cronometro = useCronometroStore()
 const toast = useToast()
+const {
+  saidaLiberada,
+  destinoPendente,
+  liberarSaida,
+  bloquearSaida,
+  resetarSaida
+} = useSaidaAtendimento()
+const modalSairAberto = ref(false)
+
 onMounted(() => {
+  resetarSaida()
   padroesStore.fetchAll()
   padroesAnamneseStore.fetchAll()
   padroesOrientacoesStore.fetchAll()
   cronometro.start()
 })
 
-onBeforeRouteLeave(() => {
+onBeforeRouteLeave((to) => {
+  const podeSair = saidaLiberada.value || !agendamento.value || !auth.user
+
+  if (!podeSair) {
+    destinoPendente.value = to.fullPath
+    modalSairAberto.value = true
+    return false
+  }
+
   salvarDraftAgora()
   if (cronometro.isRunning) cronometro.pause()
 })
 
 const agendamento = computed(() => agendamentosStore.emAtendimento)
+
+async function pausarAtendimento() {
+  const destino = destinoPendente.value ?? '/dashboard'
+  modalSairAberto.value = false
+  liberarSaida()
+  await navigateTo(destino, { replace: true })
+}
+
+function solicitarCancelamentoPeloModalSaida() {
+  modalSairAberto.value = false
+  modalCancelarAberto.value = true
+}
+
+async function finalizarPeloModalSaida() {
+  await finalizarConsulta()
+  modalSairAberto.value = false
+}
 const route = useRoute()
 
 const modoEdicao = computed(() => {
@@ -844,12 +879,14 @@ async function cancelarAtendimento() {
   const agendamentoAtual = agendamento.value
 
   try {
+    liberarSaida()
     await agendamentosStore.atualizarStatus(agendamentoAtual.id, 'cancelado', undefined, agendamentoAtual.clinicaId)
     limparDraft()
     cronometro.stop()
     modalCancelarAberto.value = false
     await navigateTo('/dashboard', { replace: true })
   } catch {
+    bloquearSaida()
     console.error('Erro ao cancelar atendimento')
     toast.add({
       title: 'Erro ao cancelar atendimento',
@@ -870,6 +907,7 @@ async function finalizarConsulta() {
   const duracao = cronometro.elapsed
 
   try {
+    liberarSaida()
     await agendamentosStore.atualizarStatus(agendamentoAtual.id, 'atendido', {
       anamnese: anamneseTexto.value,
       diagnosticos: cidSelecionadoLista.value.map((cid, i) => ({
@@ -891,6 +929,7 @@ async function finalizarConsulta() {
     cronometro.stop()
     await navigateTo('/dashboard', { replace: true })
   } catch {
+    bloquearSaida()
     console.error('Erro ao finalizar consulta')
     toast.add({
       title: 'Erro ao finalizar consulta',
@@ -1568,6 +1607,16 @@ async function finalizarConsulta() {
       cor-confirma="error"
       @fechar="modalCancelarAberto = false"
       @confirmar="void cancelarAtendimento()"
+    />
+    <ModalSairAtendimento
+      :abrir="modalSairAberto"
+      :nome-paciente="agendamento?.paciente.nome"
+      :finalizando="finalizandoConsulta"
+      :cancelando="cancelandoConsulta"
+      @fechar="modalSairAberto = false; destinoPendente = null"
+      @pausar="void pausarAtendimento()"
+      @cancelar="solicitarCancelamentoPeloModalSaida()"
+      @finalizar="void finalizarPeloModalSaida()"
     />
   </div>
 </template>

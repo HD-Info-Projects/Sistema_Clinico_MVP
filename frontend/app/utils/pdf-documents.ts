@@ -9,7 +9,6 @@ type ExameSolicitacaoPdf = string | {
 type ProcedimentoSolicitacaoPdf = string | {
   nome: string
   codigo_procedimento?: string | number | null
-  codigo_tuss?: string | number | null
   tipo_ato_nome?: string | null
 }
 
@@ -90,19 +89,14 @@ function normalizarExameSolicitacao(exame: ExameSolicitacaoPdf) {
 
 function normalizarProcedimentoSolicitacao(procedimento: ProcedimentoSolicitacaoPdf) {
   if (typeof procedimento === 'string') {
-    return { nome: procedimento, codigo_procedimento: null, codigo_tuss: null, tipo_ato_nome: null }
+    return { nome: procedimento, codigo_procedimento: null, tipo_ato_nome: null }
   }
 
   return {
     nome: procedimento.nome,
     codigo_procedimento: procedimento.codigo_procedimento ?? null,
-    codigo_tuss: procedimento.codigo_tuss ?? null,
     tipo_ato_nome: procedimento.tipo_ato_nome ?? null
   }
-}
-
-function codigoProcedimentoExibicao(procedimento: { codigo_procedimento?: string | number | null, codigo_tuss?: string | number | null }) {
-  return procedimento.codigo_tuss ?? procedimento.codigo_procedimento ?? null
 }
 
 export async function buildSolicitacaoExames(params: {
@@ -515,8 +509,7 @@ export async function buildSolicitacaoProcedimento(params: {
     .filter(p => p.nome?.trim())
   const conteudoProcedimentos = procedimentos.length
     ? procedimentos.flatMap((p) => {
-        const codigoExibicao = codigoProcedimentoExibicao(p)
-        const codigo = codigoExibicao ? `${codigoExibicao} - ` : ''
+        const codigo = p.codigo_procedimento ? `${p.codigo_procedimento} — ` : ''
         return [
           { text: `• ${codigo}${p.nome}`, margin: [0, 0, 0, p.tipo_ato_nome ? 0 : 4] },
           ...(p.tipo_ato_nome

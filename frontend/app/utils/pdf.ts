@@ -3,5 +3,5 @@ export async function usePdfMake() {
   const pdfMake: any = (await import('pdfmake/build/pdfmake')).default
   const vfs = (await import('pdfmake/build/vfs_fonts')).default
   pdfMake.vfs = vfs
-  return pdfMake as { createPdf: (doc: Record<string, unknown>) => { download: (name: string) => void, open: () => void, getBlob: (cb: (blob: Blob) => void) => void } }
+  return pdfMake as { createPdf: (doc: Record<string, unknown>) => { download: (name: string) => void, open: (win?: Window | null) => void | Promise<void>, getBlob: (cb: (blob: Blob) => void) => void } }
 }

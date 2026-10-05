@@ -91,7 +91,7 @@ export function getSaudacao(d: Date = new Date()) {
   return 'Boa noite'
 }
 
-export function calcularIdade(dataNascimento: string | null | undefined, hoje: Date = new Date()): number | null {
+function obterDataNascimento(dataNascimento: string | null | undefined, hoje: Date): Date | null {
   if (!dataNascimento) return null
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(dataNascimento)
   if (!match) return null
@@ -108,17 +108,61 @@ export function calcularIdade(dataNascimento: string | null | undefined, hoje: D
     || nasc.getTime() > hoje.getTime()
   ) return null
 
+  return nasc
+}
+
+export function calcularIdade(dataNascimento: string | null | undefined, hoje: Date = new Date()): number | null {
+  const nasc = obterDataNascimento(dataNascimento, hoje)
+  if (!nasc) return null
+
   let idade = hoje.getFullYear() - nasc.getFullYear()
   const mes = hoje.getMonth() - nasc.getMonth()
   if (mes < 0 || (mes === 0 && hoje.getDate() < nasc.getDate())) idade -= 1
   return idade < 0 ? null : idade
 }
 
+export function calcularIdadeDetalhada(
+  dataNascimento: string | null | undefined,
+  hoje: Date = new Date()
+): { anos: number, meses: number, dias: number } | null {
+  const nasc = obterDataNascimento(dataNascimento, hoje)
+  if (!nasc) return null
+
+  const anos = calcularIdade(dataNascimento, hoje)
+  if (anos === null) return null
+
+  const aniversario = new Date(nasc.getFullYear() + anos, nasc.getMonth(), nasc.getDate())
+  let meses = Math.min(
+    (hoje.getFullYear() - aniversario.getFullYear()) * 12 + hoje.getMonth() - aniversario.getMonth(),
+    11
+  )
+
+  const inicioMes = new Date(
+    aniversario.getFullYear(),
+    aniversario.getMonth() + meses,
+    Math.min(aniversario.getDate(), new Date(aniversario.getFullYear(), aniversario.getMonth() + meses + 1, 0).getDate())
+  )
+
+  if (inicioMes.getTime() > hoje.getTime()) meses -= 1
+
+  const inicioPeriodo = new Date(
+    aniversario.getFullYear(),
+    aniversario.getMonth() + meses,
+    Math.min(aniversario.getDate(), new Date(aniversario.getFullYear(), aniversario.getMonth() + meses + 1, 0).getDate())
+  )
+  const inicioUtc = Date.UTC(inicioPeriodo.getFullYear(), inicioPeriodo.getMonth(), inicioPeriodo.getDate())
+  const hojeUtc = Date.UTC(hoje.getFullYear(), hoje.getMonth(), hoje.getDate())
+  const dias = Math.floor((hojeUtc - inicioUtc) / 86_400_000)
+
+  return { anos, meses, dias }
+}
+
 export function formatarIdade(
   dataNascimento: string | null | undefined,
   { semAnos = false, semDados = false }: { semAnos?: boolean, semDados?: boolean } = {}
 ): string {
-  const idade = calcularIdade(dataNascimento)
+  const idade = calcularIdadeDetalhada(dataNascimento)
   if (idade === null) return semDados ? 'Idade não informada' : ''
-  return semAnos ? String(idade) : `${idade} ${idade === 1 ? 'ano' : 'anos'}`
+  if (idade.anos <= 3) return `${idade.anos}a ${idade.meses}m ${idade.dias}d`
+  return semAnos ? String(idade.anos) : `${idade.anos} ${idade.anos === 1 ? 'ano' : 'anos'}`
 }

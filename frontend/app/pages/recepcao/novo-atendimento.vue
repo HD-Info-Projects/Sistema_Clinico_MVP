@@ -678,7 +678,7 @@ onBeforeUnmount(() => {
         size="lg"
         variant="pill"
         :unmount-on-hide="false"
-        :ui="{ list: 'bg-default/75 backdrop-blur border border-default', trigger: 'grow', content: 'pt-4' }"
+        :ui="{ list: 'bg-default/75 backdrop-blur border border-default max-w-7xl ', trigger: 'grow', content: 'pt-4 max-w-7xl ' }"
       >
         <template #paciente>
           <UForm
