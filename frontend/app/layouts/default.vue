@@ -25,7 +25,7 @@ function trocarUnidade() {
 }
 
 const navItems = computed(() => [
-  ...(auth.user?.role === 'medico'
+  ...(auth.isMedico
     ? [
         { label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: '/dashboard' },
         { label: 'Agenda', icon: 'i-lucide-calendar', to: '/agenda' },
@@ -34,7 +34,7 @@ const navItems = computed(() => [
         { label: 'Padrões', icon: 'i-lucide-file-text', to: '/padroes-solicitacoes' }
       ]
     : []),
-  ...(['admin', 'dpo', 'ti'].includes(auth.user?.role || '')
+  ...(auth.canAccessLgpd
     ? [{ label: 'Auditoria LGPD', icon: 'i-lucide-shield-check', to: '/lgpd/auditoria' }]
     : [])
 ])
@@ -192,13 +192,13 @@ function fecharModalLogout() {
               class="mt-1 shrink-0"
               :class="erroVerificacaoLogout ? 'text-error' : 'text-warning'"
             />
-            <h3 class="min-w-0 break-words text-xl font-black">
+            <h3 class="min-w-0 wrap-break-word text-xl font-black">
               {{ erroVerificacaoLogout ? 'Verificação indisponível' : 'Atendimento em andamento' }}
             </h3>
           </div>
           <p
             v-if="erroVerificacaoLogout"
-            class="break-words text-neutral-500 dark:text-neutral-400"
+            class="wrap-break-word text-neutral-500 dark:text-neutral-400"
           >
             Não foi possível verificar se há atendimento em andamento. Tente novamente antes de sair.
             <span v-if="logoutRequestId">
@@ -208,7 +208,7 @@ function fecharModalLogout() {
           </p>
           <p
             v-else
-            class="break-words text-neutral-500 dark:text-neutral-400"
+            class="wrap-break-word text-neutral-500 dark:text-neutral-400"
           >
             <template v-if="pacienteEmAtendimentoNome">
               Você possui um atendimento em andamento com

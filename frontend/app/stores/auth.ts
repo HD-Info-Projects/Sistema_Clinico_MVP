@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { verificarAtendimentoEmAndamento } from '~/features/agenda/services/agendaService'
 import { buscarSessaoAuth, loginAuth, logoutAuth } from '~/features/auth/services/authService'
 import type { AuthSessionResponse, AuthUser, Clinica } from '~/features/auth/types'
+import { ASSISTENTE_ROLES, LGPD_ROLES, MEDICO_ROLES, RECEPCAO_ROLES, roleIn } from '~/utils/roles'
 
 export type AccessMode = 'recepcionista' | 'administrador' | 'logs'
 
@@ -93,9 +94,11 @@ export const useAuthStore = defineStore('auth', () => {
     }
   })
 
-  const isMedico = computed(() => user.value?.role === 'medico')
-  const isRecepcao = computed(() => user.value?.role === 'recepcao')
+  const isMedico = computed(() => roleIn(user.value?.role, MEDICO_ROLES))
+  const isAssistente = computed(() => roleIn(user.value?.role, ASSISTENTE_ROLES))
+  const isRecepcao = computed(() => roleIn(user.value?.role, RECEPCAO_ROLES))
   const isAdmin = computed(() => user.value?.role === 'admin')
+  const canAccessLgpd = computed(() => roleIn(user.value?.role, LGPD_ROLES))
 
   function limparRascunhosClinicosLocais() {
     if (!import.meta.client) return
@@ -134,7 +137,9 @@ export const useAuthStore = defineStore('auth', () => {
     if (user.value?.role !== 'medico') return null
 
     try {
-      const resultado = await verificarAtendimentoEmAndamento()
+      const resultado = await verificarAtendimentoEmAndamento(
+        formatarDataISO(new Date())
+      )
       if (!resultado.emAtendimento) return null
 
       return {
@@ -165,14 +170,18 @@ export const useAuthStore = defineStore('auth', () => {
 
       if (response.user.role === 'admin') {
         navigateTo('/selecionar-acesso')
-      } else if (response.clinicas.length > 1 && !activeClinicaId.value) {
-        navigateTo('/selecionar-clinica')
-      } else if (['dpo', 'ti'].includes(response.user.role)) {
+      } else if (roleIn(response.user.role, LGPD_ROLES)) {
         navigateTo('/lgpd/auditoria')
-      } else if (response.user.role === 'recepcao') {
-        navigateTo('/recepcao')
-      } else {
+      } else if ((roleIn(response.user.role, RECEPCAO_ROLES) || roleIn(response.user.role, MEDICO_ROLES) || roleIn(response.user.role, ASSISTENTE_ROLES)) && response.clinicas.length > 1 && !activeClinicaId.value) {
+        navigateTo('/selecionar-clinica')
+      } else if (roleIn(response.user.role, ASSISTENTE_ROLES)) {
         navigateTo('/dashboard')
+      } else if (roleIn(response.user.role, RECEPCAO_ROLES)) {
+        navigateTo('/recepcao')
+      } else if (roleIn(response.user.role, MEDICO_ROLES)) {
+        navigateTo('/dashboard')
+      } else {
+        navigateTo('/acesso-negado')
       }
 
       return { success: true }
@@ -252,8 +261,10 @@ export const useAuthStore = defineStore('auth', () => {
     activeClinica,
     isLoggedIn,
     isMedico,
+    isAssistente,
     isRecepcao,
     isAdmin,
+    canAccessLgpd,
     accessMode,
     setAccessMode,
     limparAccessMode,

@@ -12,6 +12,7 @@ from src.modules.recepcao.service import (
     salvar_paciente_spdata,
 )
 from src.security.decorators import roles_required
+from src.security.roles import RECEPCAO_ROLES
 from src.security.unidades import unidade_id_request
 from src.services.auditoria_service import registrar_auditoria
 from src.settings.extensions import db
@@ -42,7 +43,7 @@ def _usuario_id():
 
 @recepcao_bp.route("/pacientes/buscar", methods=["GET"])
 @jwt_required()
-@roles_required("recepcao", "admin")
+@roles_required(*RECEPCAO_ROLES)
 def buscar_pacientes():
     try:
         pacientes = buscar_pacientes_spdata(
@@ -62,7 +63,7 @@ def buscar_pacientes():
 
 @recepcao_bp.route("/pacientes", methods=["POST"])
 @jwt_required()
-@roles_required("recepcao", "admin")
+@roles_required(*RECEPCAO_ROLES)
 def salvar_paciente():
     try:
         resultado = salvar_paciente_spdata(_json_body())
@@ -86,7 +87,7 @@ def salvar_paciente():
 
 @recepcao_bp.route("/atendimentos", methods=["POST"])
 @jwt_required()
-@roles_required("recepcao", "admin")
+@roles_required(*RECEPCAO_ROLES)
 def salvar_atendimento():
     try:
         usuario_id = _usuario_id()
@@ -115,7 +116,7 @@ def salvar_atendimento():
 
 @recepcao_bp.route("/novo-atendimento", methods=["POST"])
 @jwt_required()
-@roles_required("recepcao", "admin")
+@roles_required(*RECEPCAO_ROLES)
 def salvar_novo_atendimento():
     try:
         usuario_id = _usuario_id()
@@ -144,21 +145,21 @@ def salvar_novo_atendimento():
 
 @recepcao_bp.route("/convenios", methods=["GET"])
 @jwt_required()
-@roles_required("recepcao", "admin")
+@roles_required(*RECEPCAO_ROLES)
 def listar_convenios():
     return jsonify({"convenios": listar_convenios_recepcao(request.args.get("q"))}), 200
 
 
 @recepcao_bp.route("/procedimentos", methods=["GET"])
 @jwt_required()
-@roles_required("recepcao", "admin")
+@roles_required(*RECEPCAO_ROLES)
 def listar_procedimentos():
     return jsonify({"procedimentos": listar_procedimentos_recepcao(request.args.get("q"))}), 200
 
 
 @recepcao_bp.route("/medicos", methods=["GET"])
 @jwt_required()
-@roles_required("recepcao", "admin")
+@roles_required(*RECEPCAO_ROLES)
 def listar_medicos():
     return jsonify({"medicos": listar_medicos_recepcao(unidade_id_request())}), 200
 

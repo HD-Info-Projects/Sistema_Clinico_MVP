@@ -928,7 +928,7 @@ def criar_atendimento_firebird(cursor, tabela_colunas, payload, unidade, pacient
         "ATIVO": "T",
         "CARATER_ATEND": normalizar_int(payload.get("caraterAtendimento") or payload.get("caraterSolicitacao")),
         "ATENDIMENTO_RN_TISS": "T" if payload.get("recemNascido") else None,
-        "ATENDIMENTO_RETORNO": "T" if payload.get("ehRetorno") else None,
+        "ATENDIMENTO_RETORNO": "S" if payload.get("ehRetorno") else None,
     }
 
     valores_insert = filtrar_colunas_existentes(valores, tabela_colunas)

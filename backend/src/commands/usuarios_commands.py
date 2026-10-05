@@ -2,9 +2,12 @@ import click
 
 from flask import current_app
 from flask.cli import with_appcontext
+from sqlalchemy.orm import joinedload
 
+from src.models.medico_model import Medico
 from src.models.usuario_model import Usuario
 from src.security.passwords import is_hashed_password, validate_password_strength
+from src.security.roles import ROLE_ASSISTENTE, ROLE_MEDICO
 from src.modules.unidades.service import vincular_usuario_unidade
 from src.settings.extensions import db
 
@@ -33,7 +36,16 @@ def _iter_usuarios_senhas_legadas():
             yield usuario
 
 
-def _registrar_usuario_local(nome_completo, documento, email, senha, role, atualizar, unidade_ids=None):
+def _registrar_usuario_local(
+    nome_completo,
+    documento,
+    email,
+    senha,
+    role,
+    atualizar,
+    unidade_ids=None,
+    medico_assistente_id=None,
+):
     nome_completo = (nome_completo or "").strip()
     documento = (documento or "").strip()
     email = (email or "").strip().lower()
@@ -78,6 +90,10 @@ def _registrar_usuario_local(nome_completo, documento, email, senha, role, atual
             usuario.desbloquear()
             acao = "atualizado"
 
+        usuario.medico_assistente_id = (
+            medico_assistente_id if role == ROLE_ASSISTENTE else None
+        )
+
         db.session.flush()
         for indice, unidade_id in enumerate(unidade_ids or []):
             vincular_usuario_unidade(usuario.id, int(unidade_id), principal=indice == 0)
@@ -88,6 +104,28 @@ def _registrar_usuario_local(nome_completo, documento, email, senha, role, atual
     except Exception as exc:
         db.session.rollback()
         raise click.ClickException(f"Falha ao registrar usuário: {exc}") from exc
+
+
+def _validar_medico_assistente(medico_id, usuario_id=None):
+    medico = (
+        db.session.query(Medico)
+        .options(joinedload(Medico.usuario))
+        .filter(Medico.id == int(medico_id))
+        .first()
+    )
+
+    if not medico:
+        raise click.ClickException("Médico vinculado ao assistente não encontrado.")
+    if not medico.ativo:
+        raise click.ClickException("Médico vinculado ao assistente está inativo.")
+    if not medico.usuario or medico.usuario.role != ROLE_MEDICO:
+        raise click.ClickException("Assistente deve ser vinculado a um usuário médico cadastrado.")
+    if usuario_id is not None and medico.usuario_id == usuario_id:
+        raise click.ClickException("Assistente não pode ser vinculado ao próprio usuário.")
+    if not str(medico.crm_atendimento_spdata or medico.crm or "").strip():
+        raise click.ClickException("Médico vinculado não possui CRM configurado para filtrar agenda.")
+
+    return medico
 
 
 @click.command("registrar-recepcao")
@@ -131,6 +169,66 @@ def registrar_recepcao_command(nome_completo, documento, email, senha, atualizar
     click.echo(f"  nome: {usuario.nome_completo}")
     click.echo(f"  email: {usuario.email}")
     click.echo(f"  role: {usuario.role}")
+
+
+@click.command("registrar-assistente")
+@click.option("--nome-completo", prompt=True, help="Nome completo do assistente.")
+@click.option("--documento", prompt=True, help="CPF/CNPJ do assistente.")
+@click.option("--email", prompt=True, help="E-mail usado no login.")
+@click.option(
+    "--senha",
+    prompt=True,
+    hide_input=True,
+    confirmation_prompt=True,
+    help="Senha inicial do assistente.",
+)
+@click.option(
+    "--medico-id",
+    required=True,
+    type=int,
+    help="ID local da tabela medicos que o assistente vai auxiliar.",
+)
+@click.option(
+    "--atualizar",
+    is_flag=True,
+    help="Atualiza o usuário existente pelo e-mail, se ele já existir.",
+)
+@click.option(
+    "--unidade-id",
+    multiple=True,
+    type=int,
+    required=True,
+    help="ID local da unidade vinculada ao assistente. Pode ser repetido.",
+)
+@with_appcontext
+def registrar_assistente_command(nome_completo, documento, email, senha, medico_id, atualizar, unidade_id):
+    """Cria um usuário local com role assistente vinculado a um médico."""
+
+    medico = _validar_medico_assistente(medico_id)
+    email_normalizado = (email or "").strip().lower()
+    usuario_existente = db.session.query(Usuario).filter(Usuario.email == email_normalizado).first()
+    if usuario_existente:
+        _validar_medico_assistente(medico_id, usuario_id=usuario_existente.id)
+
+    usuario, acao = _registrar_usuario_local(
+        nome_completo,
+        documento,
+        email,
+        senha,
+        ROLE_ASSISTENTE,
+        atualizar,
+        unidade_ids=unidade_id,
+        medico_assistente_id=medico.id,
+    )
+
+    click.secho("Usuário assistente registrado com sucesso.", fg="green")
+    click.echo(f"  usuario_id: {usuario.id} ({acao})")
+    click.echo(f"  nome: {usuario.nome_completo}")
+    click.echo(f"  email: {usuario.email}")
+    click.echo(f"  role: {usuario.role}")
+    click.echo(f"  medico_id: {medico.id}")
+    click.echo(f"  medico: {medico.usuario.nome_completo if medico.usuario else ''}")
+    click.echo(f"  crm: {medico.crm_atendimento_spdata or medico.crm}")
 
 
 @click.command("usuarios-senhas-legadas")

@@ -8,6 +8,7 @@ from src.models.model_padroes_solicitacoes.modelo_documento_medico_model import 
 from src.services.auditoria_service import registrar_auditoria
 from src.services.padroes_medico_service import resolver_medico_alvo
 from src.security.decorators import roles_required
+from src.security.roles import MEDICO_ROLES
 from src.settings.extensions import db
 
 
@@ -68,7 +69,7 @@ def _auditar(acao, modelo_id, medico_id, detalhe):
 
 @padrao_medico_documento_bp.route("/criar", methods=["POST"])
 @jwt_required()
-@roles_required("medico", "admin")
+@roles_required(*MEDICO_ROLES)
 def criar_padrao_documento():
     try:
         medico_id, erro = resolver_medico_alvo()
@@ -95,7 +96,7 @@ def criar_padrao_documento():
 
 @padrao_medico_documento_bp.route("/lista", methods=["GET"])
 @jwt_required()
-@roles_required("medico", "admin")
+@roles_required(*MEDICO_ROLES)
 def listar_padroes_documentos():
     try:
         medico_id, erro = resolver_medico_alvo()
@@ -111,7 +112,7 @@ def listar_padroes_documentos():
 
 @padrao_medico_documento_bp.route("/<int:id>", methods=["GET"])
 @jwt_required()
-@roles_required("medico", "admin")
+@roles_required(*MEDICO_ROLES)
 def obter_padrao_documento(id):
     try:
         medico_id, erro = resolver_medico_alvo()
@@ -127,7 +128,7 @@ def obter_padrao_documento(id):
 
 @padrao_medico_documento_bp.route("/editar/<int:id>", methods=["PUT", "PATCH"])
 @jwt_required()
-@roles_required("medico", "admin")
+@roles_required(*MEDICO_ROLES)
 def editar_padrao_documento(id):
     try:
         medico_id, erro = resolver_medico_alvo()
@@ -153,7 +154,7 @@ def editar_padrao_documento(id):
 
 @padrao_medico_documento_bp.route("/deletar/<int:id>", methods=["DELETE"])
 @jwt_required()
-@roles_required("medico", "admin")
+@roles_required(*MEDICO_ROLES)
 def deletar_padrao_documento(id):
     try:
         medico_id, erro = resolver_medico_alvo()

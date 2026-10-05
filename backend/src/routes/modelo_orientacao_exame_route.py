@@ -6,6 +6,7 @@ from src.models.model_padroes_solicitacoes.modelo_orientacao_exame_model import 
 )
 from src.models.auditoria_model import AcaoAuditoria
 from src.security.decorators import roles_required
+from src.security.roles import MEDICO_ROLES
 from src.services.auditoria_service import registrar_auditoria
 from src.services.padroes_medico_service import resolver_medico_alvo
 from src.settings.extensions import db
@@ -41,7 +42,7 @@ def _auditar_modelo_orientacao(acao, modelo_id, medico_id, detalhe):
 
 @padrao_medico_orientacao_exame_bp.route("/criar", methods=["POST"])
 @jwt_required()
-@roles_required("medico", "admin")
+@roles_required(*MEDICO_ROLES)
 def create_padrao_medico_orientacao_exame():
     try:
         medico_id, erro = resolver_medico_alvo()
@@ -76,7 +77,7 @@ def create_padrao_medico_orientacao_exame():
 
 @padrao_medico_orientacao_exame_bp.route("/lista", methods=["GET"])
 @jwt_required()
-@roles_required("medico", "admin")
+@roles_required(*MEDICO_ROLES)
 def lista_padroes_medicos_orientacao_exame():
     try:
         medico_id, erro = resolver_medico_alvo()
@@ -101,7 +102,7 @@ def lista_padroes_medicos_orientacao_exame():
 
 @padrao_medico_orientacao_exame_bp.route("/<int:id>", methods=["GET"])
 @jwt_required()
-@roles_required("medico", "admin")
+@roles_required(*MEDICO_ROLES)
 def detalhes_padrao_medico_orientacao_exame(id: int):
     try:
         medico_id, erro = resolver_medico_alvo()
@@ -120,7 +121,7 @@ def detalhes_padrao_medico_orientacao_exame(id: int):
 
 @padrao_medico_orientacao_exame_bp.route("/editar/<int:id>", methods=["PUT", "PATCH"])
 @jwt_required()
-@roles_required("medico", "admin")
+@roles_required(*MEDICO_ROLES)
 def editar_padrao_medico_orientacao_exame(id: int):
     try:
         medico_id, erro = resolver_medico_alvo()
@@ -162,7 +163,7 @@ def editar_padrao_medico_orientacao_exame(id: int):
 
 @padrao_medico_orientacao_exame_bp.route("/deletar/<int:id>", methods=["DELETE"])
 @jwt_required()
-@roles_required("medico", "admin")
+@roles_required(*MEDICO_ROLES)
 def deletar_padrao_medico_orientacao_exame(id: int):
     try:
         medico_id, erro = resolver_medico_alvo()

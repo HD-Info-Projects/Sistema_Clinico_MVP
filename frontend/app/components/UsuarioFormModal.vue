@@ -2,6 +2,7 @@
 import type { Usuario, UsuarioForm, RoleUsuario, MedicoSpdata } from '~/types'
 import { useUnidadesStore } from '~/features/unidades/stores/unidadesStore'
 import { formatarCpfCnpj } from '~/utils/masks'
+import { ROLE_OPTIONS, roleExigeUnidade, roleLabel } from '~/utils/roles'
 
 const props = defineProps<{
   usuario?: Usuario | null
@@ -24,6 +25,7 @@ const form = ref<UsuarioForm>({
   role: props.role,
   ativo: true,
   unidade_ids: [],
+  medico_assistente_id: undefined,
   medico: props.role === 'medico' ? { ativo: true } : undefined
 })
 
@@ -40,18 +42,21 @@ const estadosBr = [
 
 const titulo = computed(() => {
   const acao = props.usuario ? 'Editar' : 'Novo'
-  const tipo: Record<RoleUsuario, string> = {
-    medico: 'Medico',
-    recepcao: 'Recepcionista',
-    admin: 'Administrador'
-  }
-  return `${acao} ${tipo[props.role]}`
+  return `${acao} ${roleLabel(roleAtual.value)}`
 })
 
 const roleAtual = computed(() => form.value.role || props.role)
-const exigeUnidade = computed(() => ['medico', 'recepcao'].includes(roleAtual.value))
+const exigeUnidade = computed(() => roleExigeUnidade(roleAtual.value))
 const unidadesAtivas = computed(() => unidadesStore.unidades.filter(unidade => unidade.ativa !== false))
 const unidadesSelecionadas = computed(() => form.value.unidade_ids ?? [])
+const bloqueiaVinculoMedico = computed(() => props.usuario?.role === 'medico')
+const medicosAssistenteOptions = computed(() => usuariosStore.medicosCadastrados
+  .filter(usuario => usuario.ativo !== false && usuario.medico?.ativo !== false && Boolean(usuario.medico?.crm || usuario.medico?.crm_atendimento_spdata))
+  .map(usuario => ({
+    label: `${usuario.nome_completo}${usuario.medico?.crm || usuario.medico?.crm_atendimento_spdata ? ` - CRM ${usuario.medico?.crm || usuario.medico?.crm_atendimento_spdata}` : ''}`,
+    value: usuario.medico?.id
+  }))
+  .filter((option): option is { label: string, value: number } => Number.isInteger(option.value)))
 
 const podeSalvar = computed(() => {
   const camposBase = Boolean(
@@ -62,16 +67,20 @@ const podeSalvar = computed(() => {
   const senhaValida = Boolean(props.usuario || (form.value.senha?.trim().length ?? 0) >= 8)
   const unidadesValidas = !exigeUnidade.value || unidadesSelecionadas.value.length > 0
   const medicoValido = roleAtual.value !== 'medico' || Boolean(form.value.medico?.spdata_id)
+  const assistenteValido = roleAtual.value !== 'assistente' || Boolean(form.value.medico_assistente_id)
 
-  return camposBase && senhaValida && unidadesValidas && medicoValido
+  return camposBase && senhaValida && unidadesValidas && medicoValido && assistenteValido
 })
 
 watch(open, (isOpen) => {
   if (isOpen) {
     mostrarSenha.value = false
     usuariosStore.limparMedicosSpdata()
-    if (props.role !== 'admin' && unidadesStore.unidades.length === 0) {
+    if (roleExigeUnidade(props.role) && unidadesStore.unidades.length === 0) {
       void unidadesStore.fetchAll()
+    }
+    if (props.role === 'assistente' && usuariosStore.medicosCadastrados.length === 0) {
+      void usuariosStore.fetchMedicosCadastrados()
     }
     form.value.role = props.role
     if (props.usuario) {
@@ -84,6 +93,7 @@ watch(open, (isOpen) => {
         role: props.usuario.role,
         ativo: props.usuario.ativo ?? true,
         unidade_ids: props.usuario.unidade_ids ?? props.usuario.unidades?.map(unidade => unidade.id) ?? [],
+        medico_assistente_id: props.usuario.medico_assistente_id ?? props.usuario.medico_assistente?.id ?? undefined,
         medico: props.usuario.role === 'medico'
           ? {
               spdata_id: props.usuario.medico?.spdata_id ?? null,
@@ -107,10 +117,23 @@ watch(open, (isOpen) => {
         role: props.role,
         ativo: true,
         unidade_ids: [],
+        medico_assistente_id: undefined,
         medico: props.role === 'medico' ? { ativo: true } : undefined
       }
       spdataBusca.value = ''
     }
+  }
+})
+
+watch(roleAtual, (role) => {
+  if (role === 'medico' && !form.value.medico) {
+    form.value.medico = { ativo: true }
+  }
+  if (role === 'assistente' && usuariosStore.medicosCadastrados.length === 0) {
+    void usuariosStore.fetchMedicosCadastrados()
+  }
+  if (roleExigeUnidade(role) && unidadesStore.unidades.length === 0) {
+    void unidadesStore.fetchAll()
   }
 })
 
@@ -158,6 +181,8 @@ async function salvar() {
     dados.cnpj_cpf = dados.cnpj_cpf.replace(/\D/g, '')
     if (!dados.senha?.trim()) delete dados.senha
     if (!exigeUnidade.value) delete dados.unidade_ids
+    if (dados.role !== 'medico') delete dados.medico
+    if (dados.role !== 'assistente') delete dados.medico_assistente_id
 
     if (props.usuario) {
       const res = await usuariosStore.atualizar(props.usuario.id, dados)
@@ -202,7 +227,7 @@ async function salvar() {
 
     <template #body>
       <div class="space-y-4">
-        <template v-if="role === 'medico'">
+        <template v-if="roleAtual === 'medico'">
           <USeparator label="Vínculo SPDATA" />
 
           <div class="space-y-3">
@@ -215,7 +240,7 @@ async function salvar() {
                   v-model="spdataBusca"
                   class="w-full"
                   placeholder="Buscar médico por nome no SPDATA"
-                  :disabled="Boolean(usuario)"
+                  :disabled="bloqueiaVinculoMedico"
                   @keydown.enter.prevent="buscarSpdata"
                 />
               </UFormField>
@@ -223,7 +248,7 @@ async function salvar() {
                 label="Buscar SPDATA"
                 class="w-full justify-center sm:w-auto"
                 :loading="buscandoSpdata"
-                :disabled="Boolean(usuario) || !spdataBusca.trim()"
+                :disabled="bloqueiaVinculoMedico || !spdataBusca.trim()"
                 @click="buscarSpdata"
               />
             </div>
@@ -241,7 +266,7 @@ async function salvar() {
             </div>
 
             <div
-              v-if="!usuario && usuariosStore.medicosSpdata.length"
+              v-if="!bloqueiaVinculoMedico && usuariosStore.medicosSpdata.length"
               class="space-y-2 max-h-56 overflow-auto rounded-md border border-default p-2"
             >
               <button
@@ -262,10 +287,46 @@ async function salvar() {
           </div>
         </template>
 
+        <template v-if="roleAtual === 'assistente'">
+          <USeparator label="Médico vinculado" />
+
+          <UFormField
+            label="Médico que o assistente vai auxiliar"
+            required
+          >
+            <USelect
+              v-model="form.medico_assistente_id"
+              :items="medicosAssistenteOptions"
+              value-key="value"
+              label-key="label"
+              class="w-full"
+              placeholder="Selecione um médico cadastrado"
+            />
+          </UFormField>
+
+          <UAlert
+            v-if="!medicosAssistenteOptions.length"
+            color="warning"
+            variant="soft"
+            title="Nenhum médico disponível"
+            description="Cadastre ou ative um usuário médico com CRM antes de cadastrar assistentes."
+          />
+        </template>
+
         <UFormField label="Nome Completo">
           <UInput
             v-model="form.nome_completo"
             placeholder="Nome completo"
+            class="w-full"
+          />
+        </UFormField>
+
+        <UFormField label="Perfil de acesso">
+          <USelect
+            v-model="form.role"
+            :items="ROLE_OPTIONS"
+            value-key="value"
+            label-key="label"
             class="w-full"
           />
         </UFormField>
@@ -355,7 +416,7 @@ async function salvar() {
           <UAlert
             v-else-if="unidadesAtivas.length === 0"
             title="Nenhuma unidade ativa cadastrada"
-            description="Cadastre uma unidade ativa antes de criar médicos ou recepcionistas."
+            description="Cadastre uma unidade ativa antes de criar usuários de atendimento."
             color="warning"
             variant="subtle"
             icon="i-lucide-building"
@@ -385,7 +446,7 @@ async function salvar() {
           </p>
         </template>
 
-        <template v-if="role === 'medico'">
+        <template v-if="roleAtual === 'medico'">
           <USeparator label="Dados Médicos" />
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">

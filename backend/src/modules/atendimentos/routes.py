@@ -6,6 +6,7 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from src.models.auditoria_model import AcaoAuditoria
 from src.modules.atendimentos.service import get_crm_medico_usuario, listar_agenda_medica
 from src.security.decorators import roles_required
+from src.security.roles import MEDICO_ROLES
 from src.security.unidades import unidade_atual_required
 from src.services.auditoria_service import registrar_auditoria
 
@@ -56,7 +57,7 @@ def _item_dashboard(item, crm_medico):
 
 @dashboard_bp.route("/pacientes", methods=["GET"])
 @jwt_required()
-@roles_required("medico")
+@roles_required(*MEDICO_ROLES)
 def dashboard_paciente_lista():
     try:
         usuario_id = int(get_jwt_identity())

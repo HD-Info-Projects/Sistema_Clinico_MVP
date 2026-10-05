@@ -2,6 +2,7 @@ from datetime import date, datetime, time
 from types import SimpleNamespace
 
 import pytest
+from flask import Flask
 
 from src.modules.agenda import check_in as check_in_module
 from src.modules.agenda.check_in import (
@@ -13,6 +14,7 @@ from src.modules.agenda.check_in import (
     tipo_procedimento_row,
 )
 from src.services import spdata_agenda_service
+from src.modules.agenda import prioridade_service
 from src.services.spdata_agenda_service import buscar_agenda_spdata
 
 
@@ -102,6 +104,165 @@ def test_item_check_in_expoe_tipo_procedimento():
     assert item["codigoProcedimentoSpdata"] == "40901300"
     assert item["tipoProcedimento"] == "ultrassonografia"
     assert item["tipoProcedimentoLabel"] == "24 - Ultrassonografia"
+
+
+@pytest.mark.parametrize(
+    ("row", "prioridade", "origem", "spdata_id"),
+    [
+        ({"ID_AGENDAMENTO": 10, "ID_ATENDIMENTO": 20}, True, "agenda", 10),
+        ({"ID_ATENDIMENTO": 20}, False, "atendimento", 20),
+    ],
+)
+def test_item_check_in_serializa_prioridade_e_origem(row, prioridade, origem, spdata_id):
+    item = item_para_frontend(
+        row,
+        {},
+        {},
+        {},
+        SimpleNamespace(id=1),
+        prioridade=prioridade,
+    )
+
+    assert item["prioridade"] is prioridade
+    assert item["prioridadeOrigem"] == origem
+    assert item["prioridadeSpdataId"] == spdata_id
+
+
+def test_item_check_in_prioridade_ausente_resolve_false():
+    item = item_para_frontend(
+        {"ID_AGENDAMENTO": 10},
+        {},
+        {},
+        {},
+        SimpleNamespace(id=1),
+    )
+
+    assert item["prioridade"] is False
+
+
+@pytest.mark.parametrize(
+    ("origem", "spdata_id"),
+    [("outra", 1), ("agenda", 0), ("atendimento", -1), ("agenda", "1"), ("agenda", True)],
+)
+def test_validacao_rejeita_referencia_de_prioridade_invalida(origem, spdata_id):
+    with pytest.raises(ValueError):
+        prioridade_service.validar_referencia_prioridade(origem, spdata_id)
+
+
+def _unwrap(fn):
+    while hasattr(fn, "__wrapped__"):
+        fn = fn.__wrapped__
+    return fn
+
+
+@pytest.mark.parametrize("prioridade", [True, False])
+def test_patch_prioridade_persiste_audita_e_invalida_cache(monkeypatch, prioridade):
+    app = Flask(__name__)
+    app.config["TESTING"] = True
+    registro = SimpleNamespace(
+        id=7,
+        origem="agenda",
+        spdata_id=123,
+        prioridade=prioridade,
+    )
+    chamadas = []
+
+    monkeypatch.setattr(check_in_module, "unidade_atual_required", lambda: SimpleNamespace(id=4))
+    monkeypatch.setattr(check_in_module, "get_jwt_identity", lambda: "9")
+    monkeypatch.setattr(
+        check_in_module,
+        "definir_prioridade_local",
+        lambda *args: chamadas.append(("persistencia", args)) or registro,
+    )
+    monkeypatch.setattr(
+        check_in_module,
+        "invalidar_cache_check_in",
+        lambda: chamadas.append(("cache", None)) or 4,
+    )
+    monkeypatch.setattr(
+        check_in_module,
+        "registrar_auditoria",
+        lambda *args, **kwargs: chamadas.append(("auditoria", (args, kwargs))),
+    )
+
+    with app.test_request_context(
+        "/check_in/prioridade",
+        method="PATCH",
+        json={
+            "prioridadeOrigem": "agenda",
+            "prioridadeSpdataId": 123,
+            "prioridade": prioridade,
+        },
+    ):
+        response, status = _unwrap(check_in_module.atualizar_prioridade_check_in)()
+
+    assert status == 200
+    assert response.get_json() == {
+        "prioridade": prioridade,
+        "prioridadeOrigem": "agenda",
+        "prioridadeSpdataId": 123,
+    }
+    assert chamadas[0] == ("persistencia", (4, "agenda", 123, prioridade))
+    assert [chamada[0] for chamada in chamadas] == ["persistencia", "cache", "auditoria"]
+
+
+@pytest.mark.parametrize("prioridade", ["true", 1, 0, None])
+def test_patch_prioridade_nao_coage_boolean(monkeypatch, prioridade):
+    app = Flask(__name__)
+    app.config["TESTING"] = True
+    monkeypatch.setattr(check_in_module.db.session, "rollback", lambda: None)
+
+    with app.test_request_context(
+        "/check_in/prioridade",
+        method="PATCH",
+        json={
+            "prioridadeOrigem": "agenda",
+            "prioridadeSpdataId": 123,
+            "prioridade": prioridade,
+        },
+    ):
+        response, status = _unwrap(check_in_module.atualizar_prioridade_check_in)()
+
+    assert status == 400
+    assert response.get_json()["error"] == "prioridade deve ser boolean"
+
+
+@pytest.mark.parametrize(
+    ("valor", "esperado"),
+    [
+        ("S", True),
+        ("T", True),
+        ("N", False),
+        (None, False),
+    ],
+)
+def test_item_check_in_expoe_retorno_do_atendimento(valor, esperado):
+    item = item_para_frontend(
+        {
+            "ID_ATENDIMENTO": 20,
+            "REGISTRO": "123",
+            "ATENDIMENTO_RETORNO": valor,
+            "RETORNO": "S",
+        },
+        {},
+        {},
+        {},
+        SimpleNamespace(id=1),
+    )
+
+    assert item["retorno"] is esperado
+
+
+def test_item_check_in_usa_retorno_da_agenda_antes_do_atendimento():
+    item = item_para_frontend(
+        {"ID_AGENDAMENTO": 10, "REGISTRO": "123", "RETORNO": "S"},
+        {},
+        {},
+        {},
+        SimpleNamespace(id=1),
+    )
+
+    assert item["retorno"] is True
 
 
 def test_calcular_idade_ignora_data_sentinela_spdata():

@@ -32,6 +32,7 @@ function mensagemErro(error: unknown, fallback: string) {
 
 export const useUsuariosStore = defineStore('usuarios', () => {
   const usuarios = ref<Usuario[]>([])
+  const medicosCadastrados = ref<Usuario[]>([])
   const medicosSpdata = ref<MedicoSpdata[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
@@ -48,6 +49,15 @@ export const useUsuariosStore = defineStore('usuarios', () => {
       usuarios.value = []
     } finally {
       loading.value = false
+    }
+  }
+
+  async function fetchMedicosCadastrados() {
+    try {
+      medicosCadastrados.value = await listarUsuarios('medico')
+    } catch (e) {
+      console.error(e)
+      medicosCadastrados.value = []
     }
   }
 
@@ -161,10 +171,12 @@ export const useUsuariosStore = defineStore('usuarios', () => {
 
   return {
     usuarios,
+    medicosCadastrados,
     medicosSpdata,
     loading,
     error,
     fetchAll,
+    fetchMedicosCadastrados,
     criar,
     atualizar,
     desbloquear,

@@ -17,8 +17,10 @@ from src.security.passwords import (
     validate_password_strength,
     verify_password,
 )
+from src.security.roles import ASSISTENTE_ROLES, COORD_RECEPCAO_ROLES, LGPD_ROLES, ROLES_EXIGEM_UNIDADE, ROLES_USUARIO
 from src.services.auditoria_service import registrar_auditoria
 from src.settings.extensions import db
+from src.utils.tuss import e_procedimento_exame
 
 
 def test_hash_password_nao_armazena_senha_em_texto_puro():
@@ -299,6 +301,94 @@ def test_roles_required_rejeita_usuario_inativo(monkeypatch):
         )
 
     assert response.status_code == 401
+
+
+def test_roles_matrix_inclui_novos_perfis_sem_ti():
+    assert ROLES_USUARIO == {
+        "medico",
+        "assistente",
+        "recepcao",
+        "coord_recepcao",
+        "dpo",
+        "admin",
+        "coord_financeiro",
+    }
+    assert "ti" not in ROLES_USUARIO
+    assert ROLES_EXIGEM_UNIDADE == {"medico", "assistente", "recepcao", "coord_recepcao"}
+    assert ASSISTENTE_ROLES == ("assistente", "admin")
+    assert LGPD_ROLES == ("dpo", "admin")
+
+
+def test_tuss_identifica_apenas_categorias_de_exames_assistente():
+    codigos_exames = [
+        "40100000",
+        "40200000",
+        "40300000",
+        "40500000",
+        "40600000",
+        "40700000",
+        "40800000",
+        "40900000",
+        "41000000",
+        "41100000",
+        "41300000",
+        "41400000",
+    ]
+    codigos_nao_exames = [
+        "10101012",
+        "20100000",
+        "30100000",
+        "40400000",
+        "41200000",
+        "41500000",
+        "",
+        None,
+    ]
+
+    assert all(e_procedimento_exame(codigo) for codigo in codigos_exames)
+    assert not any(e_procedimento_exame(codigo) for codigo in codigos_nao_exames)
+
+
+def test_roles_required_separa_recepcao_de_coord_recepcao(monkeypatch):
+    app = create_app()
+    app.config["TESTING"] = True
+    app.config["JWT_SECRET_KEY"] = app.config.get("JWT_SECRET_KEY") or "test-secret"
+
+    @app.get("/rota-coord-recepcao-teste")
+    @roles_required(*COORD_RECEPCAO_ROLES)
+    def rota_coord_recepcao_teste():
+        return {"ok": True}
+
+    tokens = {}
+    with app.app_context():
+        for role in ("recepcao", "coord_recepcao"):
+            tokens[role] = create_access_token(identity="123", additional_claims={"role": role})
+
+    role_atual = {"valor": "recepcao"}
+
+    monkeypatch.setattr(
+        db.session,
+        "get",
+        lambda _model, _id: SimpleNamespace(id=123, role=role_atual["valor"], ativo=True, bloqueado_em=None),
+    )
+    monkeypatch.setattr(
+        "src.security.decorators.registrar_auditoria",
+        lambda *args, **kwargs: None,
+    )
+
+    with app.test_client() as client:
+        response = client.get(
+            "/rota-coord-recepcao-teste",
+            headers={"Authorization": f"Bearer {tokens['recepcao']}"},
+        )
+        assert response.status_code == 403
+
+        role_atual["valor"] = "coord_recepcao"
+        response = client.get(
+            "/rota-coord-recepcao-teste",
+            headers={"Authorization": f"Bearer {tokens['coord_recepcao']}"},
+        )
+        assert response.status_code == 200
 
 
 def test_active_user_required_rejeita_usuario_bloqueado_sem_role(monkeypatch):

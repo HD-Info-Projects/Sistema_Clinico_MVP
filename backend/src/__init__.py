@@ -20,6 +20,7 @@ from src.commands.medicos_commands import registrar_medico_spdata_command
 from src.commands.usuarios_commands import (
     desbloquear_usuario_command,
     registrar_admin_command,
+    registrar_assistente_command,
     registrar_dpo_command,
     registrar_recepcao_command,
     resetar_senha_usuario_command,
@@ -145,6 +146,7 @@ def create_app():
     app.cli.add_command(importar_cids_spdata_command)
     app.cli.add_command(registrar_medico_spdata_command)
     app.cli.add_command(registrar_admin_command)
+    app.cli.add_command(registrar_assistente_command)
     app.cli.add_command(registrar_dpo_command)
     app.cli.add_command(registrar_recepcao_command)
     app.cli.add_command(usuarios_senhas_legadas_command)
@@ -177,6 +179,7 @@ def create_app():
     from src.models.model_mydsystem.med_spdata_agenda_model import MedSpdataAgenda
     from src.models.model_mydsystem.med_spdata_atendimentos_model import MedSpdataAtendimento
     from src.models.model_mydsystem.med_atendimentos_model import MedAtendimentos
+    from src.models.model_mydsystem.med_atendimento_prioridade_model import MedAtendimentoPrioridade
     from src.models.model_mydsystem.med_spdata_convenios_model import MedSpdataConvenio
     from src.models.model_mydsystem.med_spdata_especialidades_model import MedSpdataEspecialidade
     from src.models.model_mydsystem.med_spdata_cids_model import MedSpdataCid

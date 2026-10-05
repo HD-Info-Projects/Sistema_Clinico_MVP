@@ -11,8 +11,14 @@ from src.models.medico_model import Medico
 from src.models.model_mydsystem.med_atendimentos_model import MedAtendimentos
 from src.models.model_mydsystem.med_spdata_convenios_model import MedSpdataConvenio
 from src.security.decorators import roles_required
+from src.security.roles import RECEPCAO_ROLES
 from src.security.unidades import unidade_atual_required
 from src.services.auditoria_service import registrar_auditoria
+from src.modules.agenda.prioridade_service import (
+    buscar_prioridades_locais,
+    definir_prioridade_local,
+    referencia_prioridade,
+)
 from src.shared.performance_monitoring import iniciar_probe
 from src.shared.response_cache import (
     apagar_cache_por_padrao,
@@ -43,8 +49,8 @@ STATUS_VALIDOS = {
     "faltou",
 }
 
-CACHE_PREFIX_CHECK_IN_BASE = "check_in:base:v1"
-CACHE_PREFIX_CHECK_IN_RESPONSE = "check_in:response:v1"
+CACHE_PREFIX_CHECK_IN_BASE = "check_in:base:v2"
+CACHE_PREFIX_CHECK_IN_RESPONSE = "check_in:response:v3"
 
 STATUS_LOCAL_ALIASES = {
     "EM_ATENDIMENTO": "em-atendimento",
@@ -386,6 +392,7 @@ def buscar_atendimentos_firebird(data_ref, unidade):
             a.DATA_HORA_ENTRADA AS DATA_HORA_ENTRADA,
             a.DATA_HORA_ENTRADA AS DATA_HORA_AGENDAMENTO,
             a.DATA_HORA_ALTA_MEDICA AS DATA_HORA_ALTA_MEDICA,
+            a.ATENDIMENTO_RETORNO AS ATENDIMENTO_RETORNO,
             a.OBS_ATENDIMENTO AS OBS,
             a.ID_TBCONVEN AS ID_CONVENIO_SPDATA,
             COALESCE(convenio.NOME, CAST(a.ID_TBCONVEN AS VARCHAR(50))) AS CONVENIO,
@@ -642,7 +649,23 @@ def especialidade_para_frontend(row, especialidades_por_medico):
     return normalizar_especialidade(row.get("ESPECIALIDADE"))
 
 
-def item_para_frontend(row, status_local, convenios_por_codigo, especialidades_por_medico, unidade):
+def atendimento_retorno_para_frontend(row):
+    valor = (
+        row.get("ATENDIMENTO_RETORNO")
+        if row.get("ID_ATENDIMENTO") is not None
+        else row.get("RETORNO")
+    )
+    return normalizar_texto(valor).upper() in {"S", "T"}
+
+
+def item_para_frontend(
+    row,
+    status_local,
+    convenios_por_codigo,
+    especialidades_por_medico,
+    unidade,
+    prioridade=False,
+):
     registro = normalizar_texto(row.get("REGISTRO"))
     id_convenio_spdata = normalizar_int(row.get("ID_CONVENIO_SPDATA") or row.get("CONVENIO"))
     codigo_procedimento = codigo_procedimento_row(row) or None
@@ -665,6 +688,10 @@ def item_para_frontend(row, status_local, convenios_por_codigo, especialidades_p
     )
     horario_entrada = horario_para_frontend(row.get("HORA_ENTRADA"))
     horario = horario_entrada or horario_agendado
+    prioridade_origem, prioridade_spdata_id = referencia_prioridade(
+        row.get("ID_AGENDAMENTO"),
+        row.get("ID_ATENDIMENTO"),
+    )
 
     return {
         "id": row.get("ID_AGENDAMENTO") or registro,
@@ -692,7 +719,7 @@ def item_para_frontend(row, status_local, convenios_por_codigo, especialidades_p
         "medicoKey": crm_atendimento_key or crm_key or normalizar_texto(row.get("MEDICO")),
         "especialidade": especialidade_para_frontend(row, especialidades_por_medico),
         "unidade": normalizar_texto(row.get("UNIDADE")),
-        "retorno": normalizar_texto(row.get("RETORNO")),
+        "retorno": atendimento_retorno_para_frontend(row),
         "tipoAgenda": normalizar_texto(row.get("TIPO_AGENDA")),
         "codigoProcedimentoSpdata": codigo_procedimento,
         "tipoProcedimento": tipo_procedimento,
@@ -706,6 +733,9 @@ def item_para_frontend(row, status_local, convenios_por_codigo, especialidades_p
         "atendidoSpdata": normalizar_texto(row.get("ATENDIDO")),
         "status": status,
         "statusOrigem": "medsystem" if local else "spdata",
+        "prioridade": bool(prioridade),
+        "prioridadeOrigem": prioridade_origem,
+        "prioridadeSpdataId": prioridade_spdata_id,
     }
 
 
@@ -750,7 +780,7 @@ def calcular_medicos(rows, especialidades_por_medico):
 
 @check_in_bp.route("/", methods=["GET"])
 @jwt_required()
-@roles_required("recepcao", "admin")
+@roles_required(*RECEPCAO_ROLES)
 def home_check_in():
     probe = None
     try:
@@ -826,9 +856,24 @@ def home_check_in():
             )
         with probe.etapa("mysql_especialidades"):
             especialidades_por_medico = buscar_especialidades_medicos_locais(rows_dia)
+        with probe.etapa("mysql_prioridades"):
+            referencias_prioridade = [
+                referencia_prioridade(row.get("ID_AGENDAMENTO"), row.get("ID_ATENDIMENTO"))
+                for row in rows_filtradas
+            ]
+            prioridades = buscar_prioridades_locais(unidade.id, referencias_prioridade)
         with probe.etapa("serialize_items"):
             items_com_status = [
-                item_para_frontend(row, status_local, convenios_por_codigo, especialidades_por_medico, unidade)
+                item_para_frontend(
+                    row,
+                    status_local,
+                    convenios_por_codigo,
+                    especialidades_por_medico,
+                    unidade,
+                    prioridades.get(referencia_prioridade(
+                        row.get("ID_AGENDAMENTO"), row.get("ID_ATENDIMENTO")
+                    ), False),
+                )
                 for row in rows_filtradas
             ]
 
@@ -886,9 +931,61 @@ def home_check_in():
         return jsonify({"error": "Erro interno ao listar check-in"}), 500
 
 
-@check_in_bp.route("/sincronizar", methods=["POST"])
+@check_in_bp.route("/prioridade", methods=["PATCH"])
 @jwt_required()
 @roles_required("recepcao", "admin")
+def atualizar_prioridade_check_in():
+    try:
+        body = request.get_json(silent=True)
+        if not isinstance(body, dict):
+            raise ValueError("Body JSON inválido")
+
+        prioridade = body.get("prioridade")
+        if not isinstance(prioridade, bool):
+            raise ValueError("prioridade deve ser boolean")
+
+        unidade = unidade_atual_required()
+        origem = body.get("prioridadeOrigem")
+        spdata_id = body.get("prioridadeSpdataId")
+        registro = definir_prioridade_local(
+            unidade.id,
+            origem,
+            spdata_id,
+            prioridade,
+        )
+        caches_apagados = invalidar_cache_check_in()
+        registrar_auditoria(
+            AcaoAuditoria.ALTEROU_PRIORIDADE_ATENDIMENTO,
+            entidade="atendimento_prioridade",
+            entidade_id=registro.id,
+            usuario_id=int(get_jwt_identity()),
+            descricao=(
+                "Prioridade de atendimento atualizada. "
+                f"unidade_id={unidade.id} origem={origem} spdata_id={spdata_id} "
+                f"prioridade={prioridade} caches_apagados={caches_apagados}"
+            ),
+        )
+        return jsonify({
+            "prioridade": bool(registro.prioridade),
+            "prioridadeOrigem": registro.origem,
+            "prioridadeSpdataId": registro.spdata_id,
+        }), 200
+
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400
+    except PermissionError as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 403
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("Erro ao atualizar prioridade do check-in")
+        return jsonify({"error": "Erro interno ao atualizar prioridade do check-in"}), 500
+
+
+@check_in_bp.route("/sincronizar", methods=["POST"])
+@jwt_required()
+@roles_required(*RECEPCAO_ROLES)
 def sincronizar_check_in():
     try:
         body = request.get_json(silent=True) or {}

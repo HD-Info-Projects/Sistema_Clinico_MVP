@@ -128,7 +128,7 @@ function goToToday() {
 
 function loadAgendamentos() {
   const dataStr = formatarDataISO(selectedDate.value)
-  agendamentosStore.fetchAgendamentos(
+  agendamentosStore.init(
     auth.activeClinicaId ?? undefined,
     dataStr,
     auth.user?.id

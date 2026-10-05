@@ -1,7 +1,26 @@
 import type { H3Event } from 'h3'
 import { flaskFetch } from '../../utils/flask'
 
+export type AtualizarPrioridadeCheckInPayload = {
+  prioridadeOrigem: 'agenda' | 'atendimento'
+  prioridadeSpdataId: number
+  prioridade: boolean
+}
+
 export function listarAgenda(event: H3Event, query: Record<string, unknown>) {
+  const params = new URLSearchParams()
+
+  for (const key of ['data', 'dataIni', 'dataFim', 'search', 'status', 'tipo', 'contexto']) {
+    const value = query[key]
+    if (value !== undefined && value !== null && String(value).trim()) {
+      params.set(key, String(value))
+    }
+  }
+
+  return flaskFetch(event, `/agenda-medica/${params.toString() ? `?${params.toString()}` : ''}`)
+}
+
+export function listarAgendaExames(event: H3Event, query: Record<string, unknown>) {
   const params = new URLSearchParams()
 
   for (const key of ['data', 'dataIni', 'dataFim', 'search', 'status', 'tipo']) {
@@ -11,7 +30,7 @@ export function listarAgenda(event: H3Event, query: Record<string, unknown>) {
     }
   }
 
-  return flaskFetch(event, `/agenda-medica/${params.toString() ? `?${params.toString()}` : ''}`)
+  return flaskFetch(event, `/agenda-medica/exames${params.toString() ? `?${params.toString()}` : ''}`)
 }
 
 export function verificarAtendimentoEmAndamento(event: H3Event, query: Record<string, unknown>) {
@@ -50,6 +69,13 @@ export function atualizarStatusAgenda(event: H3Event, id: number, body: unknown)
   })
 }
 
+export function atualizarStatusExame(event: H3Event, id: number, body: unknown) {
+  return flaskFetch<AtualizarStatusResultado>(event, `/agenda-medica/exames/${id}/status`, {
+    method: 'PATCH',
+    body
+  })
+}
+
 export function listarCheckIn(event: H3Event, query: Record<string, unknown>) {
   const params = new URLSearchParams()
 
@@ -62,6 +88,13 @@ export function listarCheckIn(event: H3Event, query: Record<string, unknown>) {
 
   const qs = params.toString()
   return flaskFetch(event, `/check_in/${qs ? `?${qs}` : ''}`)
+}
+
+export function atualizarPrioridadeCheckIn(event: H3Event, body: AtualizarPrioridadeCheckInPayload) {
+  return flaskFetch(event, '/check_in/prioridade', {
+    method: 'PATCH',
+    body
+  })
 }
 
 export function sincronizarCheckIn(event: H3Event, body: unknown) {

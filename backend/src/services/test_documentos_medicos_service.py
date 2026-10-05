@@ -9,7 +9,7 @@ from src.services.documentos_medicos_service import (
 from src.models.documento_medico_model import TIPO_ATESTADO
 
 
-def test_descricao_procedimentos_prefere_codigo_tuss():
+def test_descricao_procedimentos_usa_codigo_procedimento():
     descricao = descricao_procedimentos([
         {
             "nome": "Acuidade Visual",
@@ -18,10 +18,10 @@ def test_descricao_procedimentos_prefere_codigo_tuss():
         }
     ])
 
-    assert descricao == "41301307 - Acuidade Visual"
+    assert descricao == "1307 - Acuidade Visual"
 
 
-def test_normalizar_procedimentos_preserva_codigo_tuss_sem_catalogo():
+def test_normalizar_procedimentos_ignora_codigo_tuss_sem_catalogo():
     procedimentos = normalizar_procedimentos_documento([
         {
             "nome": "Teste do Olhinho | teste do reflexo vermelho",
@@ -30,7 +30,8 @@ def test_normalizar_procedimentos_preserva_codigo_tuss_sem_catalogo():
         }
     ])
 
-    assert procedimentos[0]["codigo_tuss"] == 41301471
+    assert procedimentos[0]["codigo_procedimento"] == 1471
+    assert "codigo_tuss" not in procedimentos[0]
 
 
 def test_cids_atendimento_para_documento_prioriza_principal_e_limita_quatro_codigos():

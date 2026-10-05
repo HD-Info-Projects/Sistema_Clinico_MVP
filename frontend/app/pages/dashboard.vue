@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { AgendamentoComPaciente, AgendamentoStatus } from '~/features/atendimentos/types'
+import { corTipoProcedimento, rotuloTipoProcedimento } from '~/utils/tuss'
 
 const openNav = inject<() => void>('openNav', () => {})
 const auth = useAuthStore()
@@ -7,6 +8,7 @@ const agendamentosStore = useAtendimentosStore()
 const chamadosStore = useChamadosStore()
 const toast = useToast()
 const { sala, precisaSelecionar, definirSala } = useSalaAtendimento()
+const isAssistenteDashboard = computed(() => auth.user?.role === 'assistente')
 
 const showSalaModal = ref(false)
 const inputSala = ref('')
@@ -26,7 +28,11 @@ function confirmarSala() {
 
 onMounted(() => {
   const hoje = formatarDataISO(new Date())
-  agendamentosStore.init(auth.activeClinicaId ?? undefined, hoje, auth.user?.id)
+  if (isAssistenteDashboard.value) {
+    agendamentosStore.initExames(auth.activeClinicaId ?? undefined, hoje)
+  } else {
+    agendamentosStore.init(auth.activeClinicaId ?? undefined, hoje, auth.user?.id, 'dashboard')
+  }
   chamadosStore.init({ clinicaId: auth.activeClinicaId, data: hoje })
   if (precisaSelecionar.value) {
     showSalaModal.value = true
@@ -34,12 +40,13 @@ onMounted(() => {
 })
 
 const userName = computed(() => auth.user?.nome || 'Usuário')
+const saudacaoUsuario = computed(() => isAssistenteDashboard.value ? userName.value : `Dr. ${userName.value}`)
 
 const { agora, dataFormatada } = useRelogio(60000)
 
 function corPrioridade(prioridade: string) {
   switch (prioridade) {
-    case 'preferencial': return 'warning'
+    case 'prioridade': return 'error'
     default: return 'neutral'
   }
 }
@@ -64,6 +71,23 @@ function rotuloStatus(status: string) {
     case 'faltou': return 'Faltou'
     default: return status
   }
+}
+
+function corTipo(tipo: string | null | undefined) {
+  return corTipoProcedimento(tipo)
+}
+
+function rotuloTipo(ag: AgendamentoComPaciente) {
+  return rotuloTipoProcedimento(ag.tipoProcedimento, ag.tipoProcedimentoLabel)
+}
+
+function rotuloCodigoProcedimento(codigo: string | null | undefined) {
+  if (!codigo) return ''
+  return /^\d+$/.test(codigo) ? `TUSS ${codigo}` : `Cód. SPDATA ${codigo}`
+}
+
+function idadePaciente(dataNascimento: string | null | undefined) {
+  return formatarIdade(dataNascimento, { semDados: true })
 }
 
 const callingState = ref<{ pacienteId: number, secondsLeft: number } | null>(null)
@@ -92,7 +116,7 @@ function rotuloChamada(pacienteId: number) {
   return 'Chamar'
 }
 
-const temPacienteEmAtendimento = computed(() => !!agendamentosStore.emAtendimento)
+const temPacienteEmAtendimento = computed(() => !isAssistenteDashboard.value && !!agendamentosStore.emAtendimento)
 
 function nomePacienteChamada(ag: AgendamentoComPaciente) {
   return ag.paciente.nomeSocial || ag.paciente.nome
@@ -162,7 +186,11 @@ async function chamarPaciente(ag: AgendamentoComPaciente) {
 
 async function faltouAgendamento(ag: AgendamentoComPaciente) {
   try {
-    await agendamentosStore.atualizarStatus(ag.id, 'faltou', undefined, ag.clinicaId)
+    if (isAssistenteDashboard.value) {
+      await agendamentosStore.atualizarStatusExame(ag.agendaId ?? ag.id, 'faltou', ag.clinicaId)
+    } else {
+      await agendamentosStore.atualizarStatus(ag.id, 'faltou', undefined, ag.clinicaId)
+    }
   } catch {
     console.error('Erro ao marcar falta')
   }
@@ -170,8 +198,12 @@ async function faltouAgendamento(ag: AgendamentoComPaciente) {
 
 async function atenderAgendamento(ag: AgendamentoComPaciente) {
   try {
-    await agendamentosStore.atualizarStatus(ag.id, 'em-atendimento', undefined, ag.clinicaId)
-    await navigateTo('/atendimento-medico')
+    if (isAssistenteDashboard.value) {
+      await agendamentosStore.atualizarStatusExame(ag.agendaId ?? ag.id, 'atendido', ag.clinicaId)
+    } else {
+      await agendamentosStore.atualizarStatus(ag.id, 'em-atendimento', undefined, ag.clinicaId)
+      await navigateTo('/atendimento-medico')
+    }
   } catch {
     console.error('Erro ao iniciar atendimento')
   }
@@ -229,11 +261,15 @@ const agendamentosDeHoje = computed(() =>
   agendamentosStore.ordenados.filter(a => !a.data || a.data.slice(0, 10) === hojeISO)
 )
 
-const pacientesNaFila = computed(() =>
-  agendamentosDeHoje.value.filter(
+const pacientesNaFila = computed(() => {
+  if (isAssistenteDashboard.value) {
+    return agendamentosDeHoje.value.filter(a => !isTerminal(a.status))
+  }
+
+  return agendamentosDeHoje.value.filter(
     a => a.status === 'em-espera' || a.status === 'em-atendimento'
   )
-)
+})
 
 const pacientesFinalizados = computed(() =>
   agendamentosDeHoje.value.filter(
@@ -264,7 +300,7 @@ const temPacientesDashboard = computed(() => totalPacientesDashboard.value > 0)
 function statusLabel(status: AgendamentoStatus) {
   switch (status) {
     case 'em-atendimento': return 'Em Atend.'
-    case 'atendido': return 'Finalizado'
+    case 'atendido': return isAssistenteDashboard.value ? 'Atendido' : 'Finalizado'
     default: return 'Atender'
   }
 }
@@ -286,6 +322,7 @@ function atendimentoVariant(status: AgendamentoStatus) {
 }
 
 function atendimentoDisabled(status: AgendamentoStatus) {
+  if (isAssistenteDashboard.value) return isTerminal(status)
   return status !== 'em-espera'
 }
 
@@ -313,10 +350,14 @@ function acaoBotaoAtendimento(ag: AgendamentoComPaciente) {
 }
 
 const tempoMedioEspera = computed(() => {
-  const lista = filaHoje.value
+  const lista = isAssistenteDashboard.value ? pacientesNaFila.value : filaHoje.value
   const tempos = lista.map(a => calcularMinutosDesde(a.horario, agora.value))
   return tempos.length ? Math.round(tempos.reduce((a, b) => a + b, 0) / tempos.length) : 0
 })
+
+const totalPendentesCard = computed(() =>
+  isAssistenteDashboard.value ? pacientesNaFila.value.length : filaHoje.value.length
+)
 </script>
 
 <template>
@@ -382,7 +423,7 @@ const tempoMedioEspera = computed(() => {
     <div class="min-h-screen min-w-0 space-y-6 bg-muted p-3 sm:space-y-8 sm:p-6">
       <div class="min-w-0">
         <p class="wrap-break-word text-2xl font-semibold text-foreground sm:text-3xl">
-          {{ getSaudacao(agora) }}, Dr. {{ userName }}
+          {{ getSaudacao(agora) }}, {{ saudacaoUsuario }}
         </p>
         <p class="text-base text-muted mt-1">
           {{ dataFormatada }}. Veja o resumo do dia.
@@ -396,8 +437,8 @@ const tempoMedioEspera = computed(() => {
           class="h-full"
           :loading="carregandoInicial"
           :total="totalPacientesDashboard"
-          :fila="filaHoje.length"
-          :em-atendimento="emAtendimentoHoje ? 1 : 0"
+          :fila="isAssistenteDashboard ? pacientesNaFila.length : filaHoje.length"
+          :em-atendimento="isAssistenteDashboard ? 0 : (emAtendimentoHoje ? 1 : 0)"
           :atendidos="totalAtendidosHoje"
           :faltas="totalFaltasHoje"
         />
@@ -420,11 +461,11 @@ const tempoMedioEspera = computed(() => {
               <div class="flex items-center gap-2">
                 <div class="size-3 bg-azu-500 rounded-full" />
                 <p class="text-center text-lg font-medium sm:text-xl">
-                  Em espera:
+                  {{ isAssistenteDashboard ? 'Pendentes:' : 'Em espera:' }}
                 </p>
               </div>
               <p class="text-3xl font-bold ">
-                {{ filaHoje.length }} Pessoa<span v-if="filaHoje.length !== 1">s</span>
+                {{ totalPendentesCard }} Pessoa<span v-if="totalPendentesCard !== 1">s</span>
               </p>
             </div>
           </UPageCard>
@@ -530,7 +571,7 @@ const tempoMedioEspera = computed(() => {
             class="border-b border-muted rounded-none"
             :ui="{ container: 'px-4 sm:p-1 pb-3 sm:px-4' }"
           >
-            <div class="grid min-w-0 grid-cols-3 gap-x-4 gap-y-3 md:grid-cols-[max-content_1fr_2fr_1fr_1fr_1fr_2fr]">
+            <div class="grid min-w-0 grid-cols-3 gap-x-4 gap-y-3 md:grid-cols-[max-content_1fr_2fr_1fr_1fr_1.5fr_1fr_2fr]">
               <div class="hidden w-min pr-3 md:block">
                 <p class="text-sm text-muted font-bold">
                   Horário
@@ -561,9 +602,18 @@ const tempoMedioEspera = computed(() => {
                         color="quaternary"
                         variant="subtle"
                       />
+                      <UBadge
+                        v-if="paciente.retorno"
+                        label="Retorno"
+                        color="secondary"
+                        variant="subtle"
+                      />
                     </div>
                     <p class="wrap-break-word text-xs text-muted">
                       {{ paciente.paciente.convenio }}
+                    </p>
+                    <p class="wrap-break-word text-xs text-muted">
+                      {{ idadePaciente(paciente.paciente.dataNascimento) }}
                     </p>
                   </div>
                 </div>
@@ -598,6 +648,32 @@ const tempoMedioEspera = computed(() => {
                   :color="corStatus(paciente.status)"
                   variant="subtle"
                 />
+              </div>
+
+              <div class="text-left col-span-3 md:col-span-1">
+                <p class="text-sm text-muted font-bold">
+                  Tipo / TUSS
+                </p>
+                <UTooltip :text="rotuloTipo(paciente as AgendamentoComPaciente)">
+                  <UBadge
+                    :label="rotuloTipo(paciente as AgendamentoComPaciente)"
+                    :color="corTipo(paciente.tipoProcedimento)"
+                    variant="subtle"
+                    class="max-w-40 break-all cursor-default"
+                  />
+                </UTooltip>
+                <p
+                  v-if="paciente.codigoProcedimentoSpdata"
+                  class="mt-1 text-xs text-muted"
+                >
+                  {{ rotuloCodigoProcedimento(paciente.codigoProcedimentoSpdata) }}
+                </p>
+                <p
+                  v-if="paciente.procedimentoSpdata"
+                  class="mt-1 line-clamp-2 text-xs text-muted"
+                >
+                  {{ paciente.procedimentoSpdata }}
+                </p>
               </div>
 
               <div class="text-left col-span-3 md:col-span-1">
@@ -668,7 +744,7 @@ const tempoMedioEspera = computed(() => {
             class="border-b border-muted rounded-none"
             :ui="{ container: 'px-4 sm:p-1 pb-3 sm:px-4' }"
           >
-            <div class="grid min-w-0 grid-cols-3 gap-x-4 gap-y-3 md:grid-cols-[max-content_1fr_2fr_1fr_1fr_2fr]">
+            <div class="grid min-w-0 grid-cols-3 gap-x-4 gap-y-3 md:grid-cols-[max-content_1fr_2fr_1fr_1fr_1.5fr_2fr]">
               <div class="hidden w-min pr-3 md:block">
                 <p class="text-sm text-muted font-bold">
                   Horário
@@ -696,6 +772,12 @@ const tempoMedioEspera = computed(() => {
                       <UBadge
                         v-if="paciente.preventivo"
                         label="+ Preventivo"
+                        color="quaternary"
+                        variant="subtle"
+                      />
+                      <UBadge
+                        v-if="paciente.retorno"
+                        label="Retorno"
                         color="quaternary"
                         variant="subtle"
                       />
@@ -738,13 +820,42 @@ const tempoMedioEspera = computed(() => {
                 />
               </div>
 
-              <div class="text-left col-span-3 sm:col-span-2 md:col-span-1">
+              <div class="text-left col-span-3 md:col-span-1">
+                <p class="text-sm text-muted font-bold">
+                  Tipo / TUSS
+                </p>
+                <UTooltip :text="rotuloTipo(paciente as AgendamentoComPaciente)">
+                  <UBadge
+                    :label="rotuloTipo(paciente as AgendamentoComPaciente)"
+                    :color="corTipo(paciente.tipoProcedimento)"
+                    variant="subtle"
+                    class="max-w-40 break-all cursor-default"
+                  />
+                </UTooltip>
+                <p
+                  v-if="paciente.codigoProcedimentoSpdata"
+                  class="mt-1 text-xs text-muted"
+                >
+                  {{ rotuloCodigoProcedimento(paciente.codigoProcedimentoSpdata) }}
+                </p>
+                <p
+                  v-if="paciente.procedimentoSpdata"
+                  class="mt-1 line-clamp-2 text-xs text-muted"
+                >
+                  {{ paciente.procedimentoSpdata }}
+                </p>
+              </div>
+
+              <div
+                v-if="!isAssistenteDashboard"
+                class="text-left col-span-3 sm:col-span-2 md:col-span-1"
+              >
                 <p class="text-sm text-muted font-bold">
                   Ações
                 </p>
                 <div class="grid grid-cols-1 gap-2 sm:flex sm:gap-1">
                   <UButton
-                    v-if="paciente.status === 'atendido'"
+                    v-if="!isAssistenteDashboard && paciente.status === 'atendido'"
                     icon="i-lucide-pencil"
                     label="Editar atendimento"
                     class="min-w-20 justify-center"
@@ -754,7 +865,7 @@ const tempoMedioEspera = computed(() => {
                     @click="editarAtendimento(paciente as AgendamentoComPaciente)"
                   />
                   <UButton
-                    v-else-if="paciente.status === 'faltou'"
+                    v-else-if="!isAssistenteDashboard && paciente.status === 'faltou'"
                     icon="i-lucide-undo-2"
                     label="Desfazer falta"
                     class="min-w-20 justify-center"
@@ -792,7 +903,7 @@ const tempoMedioEspera = computed(() => {
             Informe o número do consultório:
           </p>
           <UForm class="flex flex-col gap-3">
-            <UFormItem
+            <UFormField
               label="Número do consultório"
               :error="!salaValida ? 'Informe um número de consultório válido' : ''"
             >
@@ -804,7 +915,7 @@ const tempoMedioEspera = computed(() => {
                 class="w-full"
                 size="lg"
               />
-            </UFormItem>
+            </UFormField>
             <div class="flex justify-end gap-2">
               <UButton
                 type="submit"

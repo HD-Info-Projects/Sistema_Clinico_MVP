@@ -111,6 +111,65 @@ def test_listar_agenda_marca_auditoria_dedup_apos_sucesso(monkeypatch):
     assert auditorias == [True]
 
 
+@pytest.mark.parametrize(
+    ("query", "somente_visiveis_medico"),
+    [
+        ("data=2026-09-29", False),
+        ("data=2026-09-29&contexto=dashboard", True),
+    ],
+)
+def test_listar_agenda_aplica_visibilidade_tuss_apenas_no_dashboard(
+    monkeypatch,
+    query,
+    somente_visiveis_medico,
+):
+    app = _app()
+    chamadas = []
+
+    monkeypatch.setattr(agenda_routes, "get_jwt_identity", lambda: "10")
+    monkeypatch.setattr(agenda_routes, "unidade_id_request", lambda: 2)
+    monkeypatch.setattr(agenda_routes, "iniciar_probe", lambda *_args, **_kwargs: ProbeFake())
+    monkeypatch.setattr(agenda_routes, "obter_cache_json", lambda _key: None)
+    monkeypatch.setattr(agenda_routes, "salvar_cache_json", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(
+        agenda_routes,
+        "_registrar_auditoria_visualizacao_agenda",
+        lambda *_args, **_kwargs: None,
+    )
+
+    def listar(*_args, **kwargs):
+        chamadas.append(kwargs)
+        return []
+
+    monkeypatch.setattr(agenda_routes, "listar_agenda_medica", listar)
+
+    with app.test_request_context(f"/agenda-medica/?{query}"):
+        _response, status = _unwrap(agenda_routes.listar_agenda)()
+
+    assert status == 200
+    assert chamadas[0]["somente_visiveis_medico"] is somente_visiveis_medico
+
+
+def test_marcadores_da_agenda_nao_aplicam_filtro_tuss(monkeypatch):
+    app = _app()
+    chamadas = []
+
+    monkeypatch.setattr(agenda_routes, "get_jwt_identity", lambda: "10")
+    monkeypatch.setattr(agenda_routes, "unidade_id_request", lambda: 2)
+
+    def listar(*_args, **kwargs):
+        chamadas.append(kwargs)
+        return []
+
+    monkeypatch.setattr(agenda_routes, "listar_marcadores_agenda_medica", listar)
+
+    with app.test_request_context("/agenda-medica/marcadores?data=2026-09-29"):
+        _response, status = _unwrap(agenda_routes.listar_marcadores_agenda)()
+
+    assert status == 200
+    assert chamadas[0].get("somente_visiveis_medico", False) is False
+
+
 def test_auditoria_remove_marca_dedup_se_registro_falhar(monkeypatch):
     app = _app()
     remocoes = []

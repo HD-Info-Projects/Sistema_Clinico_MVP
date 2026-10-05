@@ -8,6 +8,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import selectinload
 
 from src.security.decorators import roles_required
+from src.security.roles import MEDICO_ROLES
 from src.models.auditoria_model import AcaoAuditoria
 from src.models.db.handler_fb_db import ConnectionDBFireBird
 from src.models.db.handler_redis_db import ConnectionDBRedis
@@ -932,7 +933,7 @@ def _historico_spdata(paciente_id, usuario_id, limit=10, offset=0):
 
 @prontuario_bp.route("/doenca-cid", methods=["GET"])
 @jwt_required()
-@roles_required("medico")
+@roles_required(*MEDICO_ROLES)
 def doenca_cid():
     try:
         q = (request.args.get("q") or "").strip()
@@ -1008,7 +1009,7 @@ def doenca_cid():
 
 @prontuario_bp.route("/historico-local/<int:paciente_id>")
 @jwt_required()
-@roles_required("medico")
+@roles_required(*MEDICO_ROLES)
 def historico_paciente_local(paciente_id):
     # Busca no banco LOCAL os atendimentos finalizados deste paciente,
     # incluindo dados completos de anamnese, CIDs, medicamentos e exames.
@@ -1127,7 +1128,7 @@ def historico_paciente_local(paciente_id):
 
 @prontuario_bp.route("/historico-paciente/<int:id>")
 @jwt_required()
-@roles_required("medico")
+@roles_required(*MEDICO_ROLES)
 def historico_paciente(id:int):
     try:
         usuario_id = int(get_jwt_identity())
@@ -1157,7 +1158,7 @@ def historico_paciente(id:int):
 
 @prontuario_bp.route("/historico-spdata/<int:id>")
 @jwt_required()
-@roles_required("medico")
+@roles_required(*MEDICO_ROLES)
 def historico_paciente_spdata(id:int):
     try:
         usuario_id = int(get_jwt_identity())

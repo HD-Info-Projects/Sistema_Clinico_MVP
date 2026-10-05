@@ -7,6 +7,7 @@ from src.modules.exames.service import (
     listar_exames_catalogo,
 )
 from src.security.decorators import roles_required
+from src.security.roles import MEDICO_ROLES
 
 
 exames_bp = Blueprint("exames", __name__, url_prefix="/exames")
@@ -14,7 +15,7 @@ exames_bp = Blueprint("exames", __name__, url_prefix="/exames")
 
 @exames_bp.route("", methods=["GET"])
 @jwt_required()
-@roles_required("medico")
+@roles_required(*MEDICO_ROLES)
 def listar_exames():
     return jsonify({
         "exames": [
@@ -26,7 +27,7 @@ def listar_exames():
 
 @exames_bp.route("/buscar", methods=["GET"])
 @jwt_required()
-@roles_required("medico")
+@roles_required(*MEDICO_ROLES)
 def buscar_exames():
     return jsonify({
         "exames": [

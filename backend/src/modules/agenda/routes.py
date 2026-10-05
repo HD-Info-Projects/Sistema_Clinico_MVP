@@ -7,6 +7,7 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from src.models.auditoria_model import AcaoAuditoria
 from src.models.model_mydsystem.med_spdata_agenda_model import MedSpdataAgenda
 from src.security.decorators import roles_required
+from src.security.roles import ASSISTENTE_ROLES, COORD_RECEPCAO_ROLES, MEDICO_ROLES
 from src.security.unidades import unidade_atual_required, unidade_id_request
 from src.services.auditoria_service import registrar_auditoria
 from src.shared.performance_monitoring import iniciar_probe
@@ -21,8 +22,10 @@ from src.shared.response_cache import (
 )
 from src.services.no_show_service import listar_no_show, registrar_motivo_no_show
 from src.services.spdata_atendimentos_service import (
+    atualizar_status_exame,
     atualizar_status_agenda,
     buscar_atendimento_em_andamento_local,
+    listar_agenda_exames,
     listar_agenda_medica,
     listar_marcadores_agenda_medica,
 )
@@ -43,7 +46,7 @@ def _bool_param(valor):
     return str(valor or "").strip().lower() in {"1", "true", "sim", "s", "yes", "on"}
 
 
-AGENDA_MEDICA_CACHE_PREFIX = "agenda_medica:response:v2"
+AGENDA_MEDICA_CACHE_PREFIX = "agenda_medica:response:v3"
 AUDITORIA_VISUALIZACAO_AGENDA_JANELA_SEGUNDOS = 15 * 60
 AUDITORIA_VISUALIZACAO_AGENDA_DEDUP_PREFIX = "auditoria:dedup:visualizou_agenda:v1"
 ORIGEM_REQUISICAO_HEADER = "X-Origem-Requisicao"
@@ -175,7 +178,7 @@ def _registrar_auditoria_visualizacao_agenda(
 
 @agenda_medica_bp.route("/", methods=["GET"])
 @jwt_required()
-@roles_required("medico")
+@roles_required(*MEDICO_ROLES)
 def listar_agenda():
     try:
         usuario_id = int(get_jwt_identity())
@@ -183,6 +186,12 @@ def listar_agenda():
         search = (request.args.get("search") or request.args.get("q") or "").strip() or None
         status = request.args.get("status")
         tipo = request.args.get("tipo")
+        contexto = (
+            "dashboard"
+            if (request.args.get("contexto") or "").strip().lower() == "dashboard"
+            else "agenda"
+        )
+        somente_visiveis_medico = contexto == "dashboard"
         unidade_id = unidade_id_request()
         force_refresh = _bool_param(request.args.get("refresh") or request.args.get("sincronizar"))
         tem_filtro_data = any(request.args.get(nome) for nome in ("data", "dataIni", "dataFim"))
@@ -212,6 +221,7 @@ def listar_agenda():
             status=status,
             search=search,
             tipo=tipo,
+            contexto=contexto,
         )
         if not force_refresh:
             with probe.etapa("cache_response_get"):
@@ -225,7 +235,7 @@ def listar_agenda():
                     status,
                     search,
                     tipo,
-                    f"Listagem de agenda médica em cache. data_ini={data_ini} data_fim={data_fim} status={status or ''} visibilidade_medica=true",
+                    f"Listagem de agenda médica em cache. data_ini={data_ini} data_fim={data_fim} status={status or ''} contexto={contexto}",
                 )
                 probe.valor("cache_response_hit", True)
                 probe.finalizar(source="response_cache", items_count=len(cached))
@@ -244,7 +254,7 @@ def listar_agenda():
                 search=search,
                 tipo=tipo,
                 unidade_id=unidade_id,
-                somente_visiveis_medico=True,
+                somente_visiveis_medico=somente_visiveis_medico,
             )
         salvar_cache_json(cache_key, resultado, ttl=cache_ttl())
         _registrar_auditoria_visualizacao_agenda(
@@ -255,7 +265,7 @@ def listar_agenda():
             status,
             search,
             tipo,
-            f"Listagem de agenda médica. data_ini={data_ini} data_fim={data_fim} status={status or ''} visibilidade_medica=true",
+            f"Listagem de agenda médica. data_ini={data_ini} data_fim={data_fim} status={status or ''} contexto={contexto}",
         )
         probe.finalizar(source="service", items_count=len(resultado))
         response = jsonify(resultado)
@@ -272,9 +282,56 @@ def listar_agenda():
         return jsonify({"error": "Erro interno ao listar agenda médica"}), 500
 
 
+@agenda_medica_bp.route("/exames", methods=["GET"])
+@jwt_required()
+@roles_required(*ASSISTENTE_ROLES)
+def listar_agenda_exames_assistente():
+    try:
+        usuario_id = int(get_jwt_identity())
+        data = request.args.get("data")
+        search = (request.args.get("search") or request.args.get("q") or "").strip() or None
+        status = request.args.get("status")
+        tipo = request.args.get("tipo")
+        unidade_id = unidade_id_request()
+        tem_filtro_data = any(request.args.get(nome) for nome in ("data", "dataIni", "dataFim"))
+
+        if search and not tem_filtro_data:
+            data_ini = None
+            data_fim = None
+        else:
+            data_ini = _parse_data(request.args.get("dataIni") or data)
+            data_fim = _parse_data(request.args.get("dataFim") or data, data_ini)
+
+        resultado = listar_agenda_exames(
+            usuario_id,
+            data_ini,
+            data_fim,
+            status=status,
+            search=search,
+            tipo=tipo,
+            unidade_id=unidade_id,
+        )
+        registrar_auditoria(
+            AcaoAuditoria.VISUALIZOU_AGENDA,
+            entidade="agenda_assistente",
+            usuario_id=usuario_id,
+            descricao=f"Listagem da agenda do assistente. data_ini={data_ini} data_fim={data_fim} status={status or ''}",
+        )
+        return jsonify(resultado), 200
+
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except PermissionError as e:
+        return jsonify({"error": str(e)}), 403
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("Erro ao listar agenda do assistente")
+        return jsonify({"error": "Erro interno ao listar agenda do assistente"}), 500
+
+
 @agenda_medica_bp.route("/marcadores", methods=["GET"])
 @jwt_required()
-@roles_required("medico")
+@roles_required(*MEDICO_ROLES)
 def listar_marcadores_agenda():
     try:
         usuario_id = int(get_jwt_identity())
@@ -290,7 +347,6 @@ def listar_marcadores_agenda():
             data_fim,
             unidade_id=unidade_id_request(),
             sincronizar=sincronizar,
-            somente_visiveis_medico=True,
         )
         return jsonify(resultado), 200
 
@@ -349,7 +405,7 @@ def atendimento_em_andamento():
 
 @agenda_medica_bp.route("/<int:med_spdata_atendimento_id>/status", methods=["PATCH"])
 @jwt_required()
-@roles_required("medico")
+@roles_required(*MEDICO_ROLES)
 def atualizar_status(med_spdata_atendimento_id):
     try:
         usuario_id = int(get_jwt_identity())
@@ -395,6 +451,50 @@ def atualizar_status(med_spdata_atendimento_id):
         return jsonify({"error": "Erro interno ao atualizar agenda médica"}), 500
 
 
+@agenda_medica_bp.route("/exames/<int:agenda_id>/status", methods=["PATCH"])
+@jwt_required()
+@roles_required(*ASSISTENTE_ROLES)
+def atualizar_status_exame_assistente(agenda_id):
+    try:
+        usuario_id = int(get_jwt_identity())
+        body = request.get_json() or {}
+        status = body.get("status")
+
+        resultado = atualizar_status_exame(
+            agenda_id,
+            status,
+            usuario_id=usuario_id,
+            unidade_id=unidade_id_request(),
+        )
+        _invalidar_cache_recepcao()
+        status_final = resultado.get("status") or status
+        acao = AcaoAuditoria.ALTEROU_STATUS_AGENDA
+        if status_final == "atendido":
+            acao = AcaoAuditoria.FINALIZOU_ATENDIMENTO
+
+        registrar_auditoria(
+            acao,
+            entidade="agenda_assistente",
+            entidade_id=agenda_id,
+            usuario_id=usuario_id,
+            descricao=f"Status de agenda atualizado pelo assistente. status={status_final}",
+        )
+
+        return jsonify(resultado), 200
+
+    except LookupError as e:
+        return jsonify({"error": str(e)}), 404
+    except PermissionError as e:
+        return jsonify({"error": str(e)}), 403
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("Erro ao atualizar status da agenda pelo assistente")
+        return jsonify({"error": "Erro interno ao atualizar agenda"}), 500
+
+
 no_show_bp = Blueprint("no_show", __name__, url_prefix="/no_show")
 
 
@@ -414,7 +514,7 @@ def _parse_int_ns(nome, default, minimo=1, maximo=None):
 
 @no_show_bp.route("/", methods=["GET"])
 @jwt_required()
-@roles_required("recepcao", "admin")
+@roles_required(*COORD_RECEPCAO_ROLES)
 def index():
     try:
         hoje = date.today()
@@ -502,7 +602,7 @@ def index():
 
 @no_show_bp.route("/<int:agenda_id>/motivo", methods=["PATCH"])
 @jwt_required()
-@roles_required("recepcao", "admin")
+@roles_required(*COORD_RECEPCAO_ROLES)
 def atualizar_motivo(agenda_id):
     try:
         body = request.get_json() or {}

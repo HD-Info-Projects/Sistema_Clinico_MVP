@@ -1,3 +1,7 @@
+import type { RoleUsuario } from '~/utils/roles'
+
+export type { RoleUsuario } from '~/utils/roles'
+
 export interface MedicamentoUso {
   nome: string
   dosagem: string
@@ -78,6 +82,7 @@ export type TipoProcedimentoTuss
 
 export interface Agendamento {
   id: number
+  agendaId?: number | null
   spdataAtendimentoId?: number | null
   spdataAgendaId?: number | null
   medsystemAtendimentoId?: number | null
@@ -89,7 +94,9 @@ export interface Agendamento {
   horario: string
   horarioAgendado?: string | null
   horarioEntrada?: string | null
-  prioridade: 'normal' | 'preferencial'
+  prioridade: 'normal' | 'prioridade'
+  prioridadeOrigem: 'agenda' | 'atendimento'
+  prioridadeSpdataId: number
   status: AgendamentoStatus
   descricao: string
   criadoEm: string
@@ -99,6 +106,7 @@ export interface Agendamento {
   tipoProcedimento?: TipoProcedimentoTuss
   tipoProcedimentoLabel?: string
   preventivo?: boolean
+  retorno?: boolean
 }
 
 export interface AgendamentoComPaciente extends Agendamento {
@@ -124,7 +132,7 @@ export interface AuthUser {
   id: number
   nome: string
   email: string
-  role: 'medico' | 'recepcao' | 'admin' | 'dpo' | 'ti'
+  role: RoleUsuario
   especialidades?: string[]
   crm?: string
   clinicaIds: number[]
@@ -149,7 +157,6 @@ export interface ProcedimentoCatalogo {
   id: number
   nome: string
   codigo_procedimento: number | null
-  codigo_tuss?: number | null
   tipo_ato_codigo: number | null
   tipo_ato_nome: string | null
   apelido_procedimento?: string | null
@@ -161,7 +168,6 @@ export interface ProcedimentoSelecionado {
   procedimento_id: number | null
   nome: string
   codigo_procedimento?: number | null
-  codigo_tuss?: number | null
   tipo_ato_codigo?: number | null
   tipo_ato_nome?: string | null
   exige_autorizacao?: number | null
@@ -414,7 +420,7 @@ export interface Usuario {
   cnpj_cpf: string
   username?: string | null
   email?: string | null
-  role: 'medico' | 'recepcao' | 'admin'
+  role: RoleUsuario
   ativo?: boolean
   bloqueado?: boolean
   bloqueado_em?: string | null
@@ -422,6 +428,8 @@ export interface Usuario {
   created_at: string
   updated_at: string
   medico?: Medico
+  medico_assistente_id?: number | null
+  medico_assistente?: MedicoAssistente | null
   unidades?: Clinica[]
   unidade_ids?: number[]
 }
@@ -438,15 +446,20 @@ export interface Medico {
   ativo: boolean
 }
 
+export interface MedicoAssistente extends Medico {
+  nome?: string | null
+}
+
 export interface UsuarioForm {
   nome_completo: string
   cnpj_cpf: string
   username: string
   email?: string
   senha?: string
-  role: 'medico' | 'recepcao' | 'admin'
+  role: RoleUsuario
   ativo?: boolean
   unidade_ids?: number[]
+  medico_assistente_id?: number
   medico?: {
     spdata_id?: number | null
     crm?: string
@@ -457,8 +470,6 @@ export interface UsuarioForm {
     ativo?: boolean
   }
 }
-
-export type RoleUsuario = 'medico' | 'recepcao' | 'admin'
 
 export interface MedicoSpdata {
   spdata_id: number

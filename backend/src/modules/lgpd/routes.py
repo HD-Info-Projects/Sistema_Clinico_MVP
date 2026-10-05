@@ -6,6 +6,7 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from src.models.auditoria_model import AcaoAuditoria
 from src.modules.lgpd.service import listar_auditorias, listar_retencao_exames, parse_data, registrar_auditoria
 from src.security.decorators import roles_required
+from src.security.roles import COORD_RECEPCAO_ROLES, LGPD_ROLES
 from src.security.unidades import unidade_atual_required
 from src.shared.performance_monitoring import iniciar_probe
 from src.shared.response_cache import cache_ttl, chave_cache, obter_cache_json, salvar_cache_json
@@ -21,14 +22,14 @@ def _bool_param(valor):
 
 @auditoria_bp.route("/", methods=["GET"])
 @jwt_required()
-@roles_required("admin", "dpo", "ti")
+@roles_required(*LGPD_ROLES)
 def listar_eventos_auditoria():
     return jsonify(listar_auditorias(request.args)), 200
 
 
 @retencao_exames_bp.route("/", methods=["GET"])
 @jwt_required()
-@roles_required("recepcao", "admin")
+@roles_required(*COORD_RECEPCAO_ROLES)
 def listar_retencao():
     try:
         hoje = date.today()

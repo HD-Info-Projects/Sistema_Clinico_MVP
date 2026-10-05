@@ -8,6 +8,7 @@ from src.services import spdata_atendimentos_service as service
 from src.services.spdata_atendimentos_service import (
     agenda_para_frontend,
     agenda_spdata_para_frontend,
+    atendimento_retorno,
     chave_preventivo,
     consulta_tem_preventivo,
     filtrar_agenda_frontend,
@@ -49,6 +50,42 @@ def test_agenda_para_frontend_expoe_nome_social_sem_substituir_nome_civil():
     assert item["paciente"]["nomeSocial"] == "MARIA NOME SOCIAL"
     assert item["paciente"]["dataNascimento"] is None
     assert item["preventivo"] is False
+    assert item["retorno"] is False
+    assert item["prioridade"] == "normal"
+
+
+def test_serializadores_agenda_expoem_prioridade_textual():
+    spdata = SimpleNamespace(
+        id=10,
+        spdata_atendimento_id=1001,
+        cod_atendimento="A1001",
+        id_paciente_spdata=55,
+        id_medico_spdata=7,
+        unidade_id=1,
+        id_convenio_spdata=None,
+        data_atendimento=date(2026, 8, 5),
+        hora_entrada=time(9, 30),
+        data_hora_entrada=datetime(2026, 8, 5, 9, 30),
+        obs_atendimento=None,
+        paciente="PACIENTE",
+        paciente_nome_social=None,
+        sexo=None,
+        data_nascimento=None,
+        celular=None,
+        email=None,
+        cpf=None,
+        endereco=None,
+        dados_spdata={},
+    )
+
+    assert agenda_para_frontend(spdata, prioridade=True)["prioridade"] == "prioridade"
+    assert agenda_para_frontend(spdata, prioridade=False)["prioridade"] == "normal"
+    assert agenda_para_frontend(spdata)["prioridadeOrigem"] == "atendimento"
+    assert agenda_para_frontend(spdata)["prioridadeSpdataId"] == 1001
+
+    spdata.dados_spdata = {"spdata_agenda_id": 2002}
+    assert agenda_para_frontend(spdata)["prioridadeOrigem"] == "agenda"
+    assert agenda_para_frontend(spdata)["prioridadeSpdataId"] == 2002
 
 
 def test_agenda_spdata_para_frontend_expoe_nome_social_sem_substituir_nome_civil():
@@ -91,6 +128,14 @@ def test_agenda_spdata_para_frontend_expoe_nome_social_sem_substituir_nome_civil
     assert item["horario"] == "10:26"
     assert item["horarioAgendado"] == "10:00"
     assert item["horarioEntrada"] == "10:26"
+    assert item["prioridade"] == "normal"
+    assert item["prioridadeOrigem"] == "agenda"
+    assert item["prioridadeSpdataId"] == 2002
+    assert agenda_spdata_para_frontend(
+        agenda,
+        spdata_ref,
+        prioridade=True,
+    )["prioridade"] == "prioridade"
 
 
 def test_agenda_spdata_placeholder_mantem_horario_agendado():
@@ -129,6 +174,57 @@ def test_agenda_spdata_placeholder_mantem_horario_agendado():
     assert item["horarioAgendado"] == "10:00"
     assert item["horarioEntrada"] is None
     assert item["paciente"]["sexo"] is None
+
+
+@pytest.mark.parametrize(
+    ("valor", "esperado"),
+    [
+        ("S", True),
+        ("s", True),
+        ("T", True),
+        ("N", False),
+        (None, False),
+    ],
+)
+def test_atendimento_retorno_normaliza_valor_spdata(valor, esperado):
+    spdata = SimpleNamespace(dados_spdata={"ATENDIMENTO_RETORNO": valor})
+
+    assert atendimento_retorno(spdata) is esperado
+
+
+def test_agenda_spdata_para_frontend_expoe_badge_retorno():
+    agenda = SimpleNamespace(
+        id=3,
+        spdata_agenda_id=2002,
+        registro="R2002",
+        id_paciente_spdata=66,
+        unidade_id=1,
+        id_convenio_spdata=None,
+        convenio=None,
+        data_agenda=date(2026, 8, 5),
+        hora_agenda=time(10, 0),
+        obs=None,
+        paciente="PACIENTE",
+        paciente_nome_social=None,
+        data_nascimento=None,
+        celular=None,
+        telefone=None,
+        email=None,
+        cpf=None,
+        atendido_spdata="S",
+    )
+    spdata_ref = SimpleNamespace(
+        id=11,
+        spdata_atendimento_id=2002,
+        id_medico_spdata=8,
+        unidade_id=1,
+        hora_entrada=time(10, 26),
+        dados_spdata={"ATENDIMENTO_RETORNO": "S"},
+    )
+
+    item = agenda_spdata_para_frontend(agenda, spdata_ref)
+
+    assert item["retorno"] is True
 
 
 @pytest.mark.parametrize(

@@ -6,6 +6,7 @@ from src.modules.procedimentos.service import (
     procedimento_para_dict,
 )
 from src.security.decorators import roles_required
+from src.security.roles import MEDICO_ROLES
 
 
 procedimentos_bp = Blueprint("procedimentos", __name__, url_prefix="/procedimentos")
@@ -13,7 +14,7 @@ procedimentos_bp = Blueprint("procedimentos", __name__, url_prefix="/procediment
 
 @procedimentos_bp.route("/buscar", methods=["GET"])
 @jwt_required()
-@roles_required("medico")
+@roles_required(*MEDICO_ROLES)
 def buscar_procedimentos():
     procedimentos = buscar_procedimentos_catalogo(request.args.get("q"))
 

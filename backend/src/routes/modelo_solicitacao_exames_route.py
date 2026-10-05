@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 from src.security.decorators import roles_required
+from src.security.roles import MEDICO_ROLES
 
 from src.settings.extensions import db
 from src.models.auditoria_model import AcaoAuditoria
@@ -84,7 +85,7 @@ def _auditar_modelo_exame(acao, modelo_id, medico_id, detalhe):
 
 @padrao_medico_exame_bp.route("/criar", methods=["POST"])
 @jwt_required()
-@roles_required("medico", "admin")
+@roles_required(*MEDICO_ROLES)
 def create_padrao_medico_exame():
     try:
         medico_id, erro = resolver_medico_alvo()
@@ -120,7 +121,7 @@ def create_padrao_medico_exame():
     "/add_exame/<int:id_padrao_medico_exame>", methods=["POST"]
 )
 @jwt_required()
-@roles_required("medico", "admin")
+@roles_required(*MEDICO_ROLES)
 def add_exame_padrao_medico_exame(id_padrao_medico_exame):
     try:
         medico_id, erro = resolver_medico_alvo()
@@ -162,7 +163,7 @@ def add_exame_padrao_medico_exame(id_padrao_medico_exame):
 
 @padrao_medico_exame_bp.route("/lista", methods=["GET"])
 @jwt_required()
-@roles_required("medico", "admin")
+@roles_required(*MEDICO_ROLES)
 def lista_padroes_medicos_exame():
     try:
         medico_id, erro = resolver_medico_alvo()
@@ -182,7 +183,7 @@ def lista_padroes_medicos_exame():
 
 @padrao_medico_exame_bp.route("/<int:id>", methods=["GET"])
 @jwt_required()
-@roles_required("medico", "admin")
+@roles_required(*MEDICO_ROLES)
 def detalhes_padrao_medico_exame(id):
     try:
         medico_id, erro = resolver_medico_alvo()
@@ -201,7 +202,7 @@ def detalhes_padrao_medico_exame(id):
 
 @padrao_medico_exame_bp.route("/editar/<int:id>", methods=["PUT", "PATCH"])
 @jwt_required()
-@roles_required("medico", "admin")
+@roles_required(*MEDICO_ROLES)
 def editar_padrao_medico_exame(id):
     try:
         medico_id, erro = resolver_medico_alvo()
@@ -236,7 +237,7 @@ def editar_padrao_medico_exame(id):
 
 @padrao_medico_exame_bp.route("/editar_exame/<int:id>", methods=["PUT", "PATCH"])
 @jwt_required()
-@roles_required("medico", "admin")
+@roles_required(*MEDICO_ROLES)
 def editar_exame_padrao_medico_exame(id):
     try:
         medico_id, erro = resolver_medico_alvo()
@@ -287,7 +288,7 @@ def editar_exame_padrao_medico_exame(id):
 
 @padrao_medico_exame_bp.route("/deletar/<int:id>", methods=["DELETE"])
 @jwt_required()
-@roles_required("medico", "admin")
+@roles_required(*MEDICO_ROLES)
 def deletar_padrao_medico_exame(id):
     try:
         medico_id, erro = resolver_medico_alvo()
@@ -316,7 +317,7 @@ def deletar_padrao_medico_exame(id):
 
 @padrao_medico_exame_bp.route("/deletar_exame/<int:id>", methods=["DELETE"])
 @jwt_required()
-@roles_required("medico", "admin")
+@roles_required(*MEDICO_ROLES)
 def deletar_exame_padrao_medico_exame(id):
     try:
         medico_id, erro = resolver_medico_alvo()
