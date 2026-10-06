@@ -5,6 +5,7 @@ import type { CidResultado } from '~/features/clinico/types'
 import { buscarExamesCatalogo } from '~/features/exames/services/examesService'
 import type { ExameCatalogo, ExameSelecionado } from '~/features/exames/types'
 import type {
+  AgendamentoComPaciente,
   DocumentoMedico,
   DocumentoPersonalizado,
   DocumentoMedicoTipo,
@@ -17,6 +18,11 @@ import { usePdfMake } from '~/utils/pdf'
 import { buildSolicitacaoExames, buildReceita, buildReceitaEspecialDupla } from '~/utils/pdf-documents'
 import { gerarHtmlGuiaTiss, imprimirGuiaTiss } from '~/utils/guia-tiss'
 
+definePageMeta({
+  layout: 'atendimento',
+  middleware: 'atendimento-ativo'
+})
+
 const openNav = inject<() => void>('openNav', () => {})
 const auth = useAuthStore()
 const agendamentosStore = useAgendamentosStore()
@@ -28,8 +34,8 @@ const toast = useToast()
 const {
   saidaLiberada,
   destinoPendente,
+  encerramentoEmAndamento,
   liberarSaida,
-  bloquearSaida,
   resetarSaida
 } = useSaidaAtendimento()
 const modalSairAberto = ref(false)
@@ -43,6 +49,7 @@ onMounted(() => {
 })
 
 onBeforeRouteLeave((to) => {
+  if (encerramentoEmAndamento.value && !saidaLiberada.value) return false
   const podeSair = saidaLiberada.value || !agendamento.value || !auth.user
 
   if (!podeSair) {
@@ -55,9 +62,23 @@ onBeforeRouteLeave((to) => {
   if (cronometro.isRunning) cronometro.pause()
 })
 
-const agendamento = computed(() => agendamentosStore.emAtendimento)
+const agendamento = shallowRef(agendamentosStore.emAtendimento)
+
+watch(
+  () => agendamentosStore.emAtendimento,
+  (atendimentoAtual) => {
+    if (!agendamento.value && atendimentoAtual) {
+      agendamento.value = atendimentoAtual
+      return
+    }
+    if (atendimentoAtual?.id === agendamento.value?.id) {
+      agendamento.value = atendimentoAtual
+    }
+  }
+)
 
 async function pausarAtendimento() {
+  if (encerramentoEmAndamento.value) return
   const destino = destinoPendente.value ?? '/dashboard'
   modalSairAberto.value = false
   liberarSaida()
@@ -857,12 +878,12 @@ function restaurarDraft() {
   }
 }
 
-function limparDraft() {
-  if (!import.meta.client || !draftKey.value) return
+function limparDraft(key = draftKey.value) {
+  if (!import.meta.client || !key) return
 
   draftDesativado = true
-  draftStorage().removeItem(draftKey.value)
-  localStorage.removeItem(draftKey.value)
+  draftStorage().removeItem(key)
+  localStorage.removeItem(key)
   draftSalvoEm.value = null
   draftRestaurado.value = false
 }
@@ -1034,43 +1055,141 @@ function validarCidPersonalizado() {
 const cancelandoConsulta = ref(false)
 const modalCancelarAberto = ref(false)
 
-async function cancelarAtendimento() {
-  if (!agendamento.value || cancelandoConsulta.value) return
+function atendimentoPermiteMutacao() {
+  if (agendamento.value?.id === agendamentosStore.emAtendimento?.id && agendamento.value) return true
+  toast.add({
+    title: 'Atendimento não confirmado',
+    description: 'O rascunho foi preservado. Retome o atendimento pelo dashboard antes de tentar novamente.',
+    color: 'warning',
+    icon: 'i-lucide-triangle-alert'
+  })
+  return false
+}
 
-  cancelandoConsulta.value = true
-  const agendamentoAtual = agendamento.value
+async function reconciliarFalhaEncerramento(
+  agendamentoAtual: AgendamentoComPaciente
+) {
+  const usuarioId = auth.user?.id
+  const clinicaId = auth.activeClinicaId
+  const resultado = usuarioId && clinicaId
+    ? await agendamentosStore.verificarAtendimentoAtual(`${usuarioId}:${clinicaId}`, true)
+    : { status: 'error' as const }
 
-  try {
-    liberarSaida()
-    await agendamentosStore.atualizarStatus(agendamentoAtual.id, 'cancelado', undefined, agendamentoAtual.clinicaId)
-    limparDraft()
+  if (
+    resultado.status === 'present'
+    && resultado.resumo.id === agendamentoAtual.id
+    && agendamentosStore.emAtendimento?.id === agendamentoAtual.id
+  ) return false
+
+  if (resultado.status === 'absent') {
+    draftDesativado = true
     cronometro.stop()
     modalCancelarAberto.value = false
-    await navigateTo('/dashboard', { replace: true })
-  } catch {
-    bloquearSaida()
-    console.error('Erro ao cancelar atendimento')
+    liberarSaida()
     toast.add({
-      title: 'Erro ao cancelar atendimento',
-      description: 'Não foi possível devolver o paciente à fila. Tente novamente.',
-      color: 'error',
-      icon: 'i-lucide-alert-circle'
+      title: 'Atendimento já encerrado',
+      description: 'Não há atendimento ativo, mas o resultado da operação não pôde ser confirmado. O rascunho foi preservado.',
+      color: 'warning',
+      icon: 'i-lucide-circle-check'
     })
+    await navigateTo('/dashboard', { replace: true })
+    return true
+  }
+
+  const atendimentoLocal = agendamentosStore.emAtendimento
+  const atendimentoMudou = resultado.status === 'present'
+    ? resultado.resumo.id !== agendamentoAtual.id
+    : resultado.status === 'cancelled'
+      && atendimentoLocal
+      && atendimentoLocal.id !== agendamentoAtual.id
+
+  if (atendimentoMudou) {
+    draftDesativado = true
+    cronometro.stop()
+    modalCancelarAberto.value = false
+    liberarSaida()
+    toast.add({
+      title: 'O atendimento ativo foi alterado',
+      description: 'O rascunho deste paciente foi preservado. Abra o atendimento atual pelo dashboard.',
+      color: 'warning',
+      icon: 'i-lucide-triangle-alert'
+    })
+    await navigateTo('/dashboard', { replace: true })
+    return true
+  }
+
+  if (atendimentoLocal?.id === agendamentoAtual.id) return false
+
+  draftDesativado = true
+  cronometro.stop()
+  modalCancelarAberto.value = false
+  liberarSaida()
+  toast.add({
+    title: 'Não foi possível confirmar o atendimento',
+    description: 'O rascunho foi preservado. Tente novamente pelo dashboard.',
+    color: 'error',
+    icon: 'i-lucide-wifi-off'
+  })
+  await navigateTo('/dashboard', { replace: true })
+  return true
+}
+
+async function cancelarAtendimento() {
+  if (!agendamento.value || encerramentoEmAndamento.value) return
+  if (!atendimentoPermiteMutacao()) return
+
+  salvarDraftAgora()
+  encerramentoEmAndamento.value = 'cancelar'
+  cancelandoConsulta.value = true
+  const agendamentoAtual = agendamento.value
+  const draftKeyAtual = draftKey.value
+
+  try {
+    await agendamentosStore.atualizarStatus(agendamentoAtual.id, 'cancelado', undefined, agendamentoAtual.clinicaId)
+  } catch {
+    console.error('Erro ao cancelar atendimento')
+    try {
+      const saiuDaTela = await reconciliarFalhaEncerramento(agendamentoAtual)
+      if (!saiuDaTela) {
+        toast.add({
+          title: 'Erro ao cancelar atendimento',
+          description: 'Não foi possível devolver o paciente à fila. Tente novamente.',
+          color: 'error',
+          icon: 'i-lucide-alert-circle'
+        })
+      }
+    } finally {
+      encerramentoEmAndamento.value = null
+      cancelandoConsulta.value = false
+    }
+    return
+  }
+
+  try {
+    limparDraft(draftKeyAtual)
+    cronometro.stop()
+    modalCancelarAberto.value = false
+    liberarSaida()
+    await navigateTo('/dashboard', { replace: true })
   } finally {
+    encerramentoEmAndamento.value = null
     cancelandoConsulta.value = false
   }
 }
 
 async function finalizarConsulta() {
-  if (!agendamento.value || finalizandoConsulta.value) return
+  if (!agendamento.value || encerramentoEmAndamento.value) return
+  if (!atendimentoPermiteMutacao()) return
   if (!validarCidPersonalizado()) return
 
+  salvarDraftAgora()
+  encerramentoEmAndamento.value = 'finalizar'
   finalizandoConsulta.value = true
   const agendamentoAtual = agendamento.value
   const duracao = cronometro.elapsed
+  const draftKeyAtual = draftKey.value
 
   try {
-    liberarSaida()
     await agendamentosStore.atualizarStatus(agendamentoAtual.id, 'atendido', {
       anamnese: anamneseTexto.value,
       diagnosticos: cidSelecionadoLista.value.map((cid, i) => ({
@@ -1096,19 +1215,32 @@ async function finalizarConsulta() {
       })),
       duracao
     }, agendamentoAtual.clinicaId)
-    limparDraft()
-    cronometro.stop()
-    await navigateTo('/dashboard', { replace: true })
   } catch {
-    bloquearSaida()
     console.error('Erro ao finalizar consulta')
-    toast.add({
-      title: 'Erro ao finalizar consulta',
-      description: 'Não foi possível salvar os dados do atendimento. Tente novamente.',
-      color: 'error',
-      icon: 'i-lucide-alert-circle'
-    })
+    try {
+      const saiuDaTela = await reconciliarFalhaEncerramento(agendamentoAtual)
+      if (!saiuDaTela) {
+        toast.add({
+          title: 'Erro ao finalizar consulta',
+          description: 'Não foi possível salvar os dados do atendimento. Tente novamente.',
+          color: 'error',
+          icon: 'i-lucide-alert-circle'
+        })
+      }
+    } finally {
+      encerramentoEmAndamento.value = null
+      finalizandoConsulta.value = false
+    }
+    return
+  }
+
+  try {
+    limparDraft(draftKeyAtual)
+    cronometro.stop()
+    liberarSaida()
+    await navigateTo('/dashboard', { replace: true })
   } finally {
+    encerramentoEmAndamento.value = null
     finalizandoConsulta.value = false
   }
 }
@@ -1774,7 +1906,7 @@ async function finalizarConsulta() {
               size="xl"
               class="w-full p-3 text-lg font-bold sm:w-auto"
               :loading="cancelandoConsulta"
-              :disabled="cancelandoConsulta"
+              :disabled="cancelandoConsulta || finalizandoConsulta"
               @click="void (modalCancelarAberto = true)"
             />
             <UButton
@@ -1784,7 +1916,7 @@ async function finalizarConsulta() {
               size="xl"
               class="w-full p-3 text-lg font-bold sm:w-auto"
               :loading="finalizandoConsulta"
-              :disabled="finalizandoConsulta"
+              :disabled="finalizandoConsulta || cancelandoConsulta"
               @click="void finalizarConsulta()"
             />
           </UCard>

@@ -9,18 +9,7 @@ onMounted(() => {
   void auth.fetchUser()
 })
 
-const layoutName = computed(() => {
-  const path = route.path
-  if (path === '/login' || path === '/selecionar-clinica' || path === '/selecionar-acesso') return 'auth'
-  if (path.startsWith('/painel-chamada')) return 'tv'
-  if (path === '/atendimento-medico') return 'atendimento'
-  if (path.startsWith('/recepcao')) return 'recepcao'
-  if (path.startsWith('/admin')) return 'admin'
-  return 'default'
-})
-
-const hasLayout = computed(() => route.path !== '/acesso-negado')
-const hasMainTarget = computed(() => !['tv', 'atendimento'].includes(layoutName.value))
+const hasMainTarget = computed(() => route.meta.layout !== 'tv' && route.meta.layout !== 'atendimento')
 
 useHead({
   meta: [
@@ -54,15 +43,8 @@ useSeoMeta({
     >
       Pular para o conteúdo principal
     </a>
-    <NuxtLayout
-      v-if="hasLayout"
-      :name="layoutName"
-    >
-      <NuxtPage :key="$route.fullPath" />
+    <NuxtLayout>
+      <NuxtPage />
     </NuxtLayout>
-    <NuxtPage
-      v-else
-      :key="$route.fullPath"
-    />
   </UApp>
 </template>

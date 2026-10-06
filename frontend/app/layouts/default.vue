@@ -1,5 +1,7 @@
 <script setup lang="ts">
 const auth = useAuthStore()
+const agendamentosStore = useAgendamentosStore()
+const toast = useToast()
 
 const open = ref(true)
 const isDesktop = useMediaQuery('(min-width: 1024px)')
@@ -19,6 +21,48 @@ provide('openNav', () => {
 const unidadeAtivaLabel = computed(() => auth.activeClinica?.nome || 'Sem unidade')
 const podeTrocarUnidade = computed(() => auth.clinicas.length > 1)
 const isAssistentePerfil = computed(() => auth.user?.role === 'assistente')
+const chaveAtendimentoAtual = computed(() => (
+  auth.user?.id && auth.activeClinicaId
+    ? `${auth.user.id}:${auth.activeClinicaId}`
+    : null
+))
+const atendimentoMenuDesabilitado = computed(() => (
+  agendamentosStore.atendimentoAtualStatus === 'unknown'
+  || agendamentosStore.atendimentoAtualStatus === 'loading'
+  || agendamentosStore.atendimentoAtualStatus === 'absent'
+))
+
+async function abrirAtendimentoAtual() {
+  const chave = chaveAtendimentoAtual.value
+  if (!chave) return
+
+  const resultado = await agendamentosStore.garantirAtendimentoAtual({
+    chave,
+    clinicaId: auth.activeClinicaId ?? undefined,
+    medicoId: auth.user?.id
+  })
+  if (resultado.status === 'absent') {
+    toast.add({
+      title: 'Atendimento não disponível',
+      description: 'Não há atendimento médico em andamento nesta unidade.',
+      color: 'warning',
+      icon: 'i-lucide-triangle-alert'
+    })
+    return
+  }
+  if (resultado.status === 'cancelled') return
+  if (resultado.status !== 'present') {
+    toast.add({
+      title: 'Não foi possível verificar o atendimento',
+      description: 'Verifique sua conexão e tente novamente.',
+      color: 'error',
+      icon: 'i-lucide-wifi-off'
+    })
+    return
+  }
+
+  await navigateTo('/atendimento-medico')
+}
 
 function trocarUnidade() {
   if (!isDesktop.value) open.value = false
@@ -35,7 +79,12 @@ const navItems = computed(() => [
     ? [
         { label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: '/dashboard' },
         { label: 'Agenda', icon: 'i-lucide-calendar', to: '/agenda' },
-        { label: 'Atendimento Médico', icon: 'i-lucide-stethoscope', to: '/atendimento-medico' },
+        {
+          label: 'Atendimento Médico',
+          icon: 'i-lucide-stethoscope',
+          disabled: atendimentoMenuDesabilitado.value,
+          onSelect: () => void abrirAtendimentoAtual()
+        },
         { label: 'Meus Pacientes', icon: 'i-lucide-users', to: '/pacientes' },
         { label: 'Padrões', icon: 'i-lucide-file-text', to: '/padroes-solicitacoes' }
       ]
@@ -50,7 +99,6 @@ function trocarAcesso() {
   navigateTo('/selecionar-acesso')
 }
 
-const agendamentosStore = useAgendamentosStore()
 const verificandoLogout = ref(false)
 const modalLogoutBloqueadoAberto = ref(false)
 const pacienteEmAtendimentoNome = ref<string | null>(null)
@@ -93,16 +141,43 @@ async function tentarSair() {
 
 async function irParaAtendimento() {
   modalLogoutBloqueadoAberto.value = false
-  const dataAtendimento = dataAtendimentoEmAndamento.value || formatarDataISO(new Date())
-  if (!agendamentosStore.emAtendimento) {
-    await agendamentosStore.fetchAgendamentos(
-      auth.activeClinicaId ?? undefined,
-      dataAtendimento,
-      auth.user?.id
-    )
-  }
-  await navigateTo('/atendimento-medico')
+  const chave = chaveAtendimentoAtual.value
+  if (!chave) return
+
+  await abrirAtendimentoAtual()
 }
+
+function revalidarAtendimentoAtual(force = false) {
+  const chave = chaveAtendimentoAtual.value
+  if (!chave || !auth.isMedico) return
+  void agendamentosStore.verificarAtendimentoAtual(chave, force)
+}
+
+function revalidarAtendimentoAoFocar() {
+  revalidarAtendimentoAtual(true)
+}
+
+watch(
+  [() => auth.user?.id, () => auth.activeClinicaId, () => auth.isMedico],
+  ([usuarioId, clinicaId, medico]) => {
+    if (!import.meta.client) return
+    if (!usuarioId || !clinicaId || !medico) {
+      agendamentosStore.invalidarAtendimentoAtual()
+      return
+    }
+
+    revalidarAtendimentoAtual()
+  },
+  { immediate: true }
+)
+
+onMounted(() => {
+  window.addEventListener('focus', revalidarAtendimentoAoFocar)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('focus', revalidarAtendimentoAoFocar)
+})
 
 function fecharModalLogout() {
   modalLogoutBloqueadoAberto.value = false

@@ -5,6 +5,8 @@ import {
   atualizarStatusAgendamento,
   listarAgendamentosExames,
   listarAgendamentos,
+  verificarAtendimentoEmAndamento,
+  type AtendimentoEmAndamentoResponse,
   type ConsultaStatusPayload,
   type AtualizarStatusAgendamentoResponse
 } from '../services/agendaService'
@@ -30,6 +32,13 @@ type AtendimentoPrioridadeEvent = {
 }
 
 type AgendaContexto = 'dashboard'
+type AtendimentoAtualStatus = 'unknown' | 'loading' | 'present' | 'absent' | 'error'
+type AtendimentoAtualResultado = (
+  | { status: 'present', resumo: AtendimentoEmAndamentoResponse }
+  | { status: 'absent' }
+  | { status: 'error' }
+  | { status: 'cancelled' }
+)
 
 export const useAgendamentosStore = defineStore('agendamentos', () => {
   const agendamentos = ref<AgendamentoComPaciente[]>([])
@@ -39,9 +48,16 @@ export const useAgendamentosStore = defineStore('agendamentos', () => {
   const clinicaCarregada = ref<number | null>(null)
   const medicoCarregado = ref<number | null>(null)
   const contextoCarregado = ref<AgendaContexto | null>(null)
+  const atendimentoAtualStatus = ref<AtendimentoAtualStatus>('unknown')
+  const atendimentoAtualResumo = ref<AtendimentoEmAndamentoResponse | null>(null)
   let sse: ReturnType<typeof useSse> | null = null
   let sseHandlersRegistrados = false
   let fetchRequestId = 0
+  let mutacoesStatusPendentes = 0
+  let atendimentoAtualRequestId = 0
+  let atendimentoAtualChave: string | null = null
+  let atendimentoAtualVerificadoEm = 0
+  let verificacaoAtendimentoAtual: Promise<AtendimentoAtualResultado> | null = null
   let filtrosAtuais: {
     clinicaId?: number
     data?: string
@@ -127,6 +143,201 @@ export const useAgendamentosStore = defineStore('agendamentos', () => {
     }
   }
 
+  function resumoAtendimento(item: AgendamentoComPaciente): AtendimentoEmAndamentoResponse {
+    return {
+      emAtendimento: true,
+      data: item.data,
+      unidadeId: item.clinicaId,
+      id: item.id,
+      medsystemAtendimentoId: item.medsystemAtendimentoId ?? undefined,
+      paciente: {
+        id: item.paciente.id,
+        nome: item.paciente.nome,
+        nomeSocial: item.paciente.nomeSocial
+      }
+    }
+  }
+
+  function marcarAtendimentoAtual(
+    item: AgendamentoComPaciente | null,
+    chaveEsperada = atendimentoAtualChave
+  ) {
+    if (chaveEsperada !== atendimentoAtualChave) return false
+    if (
+      item
+      && atendimentoAtualChave
+      && !atendimentoAtualChave.endsWith(`:${item.clinicaId}`)
+    ) return false
+
+    atendimentoAtualRequestId++
+    verificacaoAtendimentoAtual = null
+    atendimentoAtualResumo.value = item ? resumoAtendimento(item) : null
+    atendimentoAtualStatus.value = item ? 'present' : 'absent'
+    atendimentoAtualVerificadoEm = Date.now()
+    return true
+  }
+
+  function invalidarAtendimentoAtual() {
+    fetchRequestId++
+    atendimentoAtualRequestId++
+    atendimentoAtualChave = null
+    verificacaoAtendimentoAtual = null
+    atendimentoAtualResumo.value = null
+    atendimentoAtualStatus.value = 'unknown'
+    atendimentoAtualVerificadoEm = 0
+  }
+
+  async function verificarAtendimentoAtual(chave: string, force = false) {
+    if (mutacoesStatusPendentes) return { status: 'cancelled' as const }
+    if (atendimentoAtualChave === chave && verificacaoAtendimentoAtual) {
+      return verificacaoAtendimentoAtual
+    }
+
+    if (!force && atendimentoAtualChave === chave) {
+      if (
+        Date.now() - atendimentoAtualVerificadoEm < 5_000
+        && (atendimentoAtualStatus.value === 'present' || atendimentoAtualStatus.value === 'absent')
+      ) {
+        return atendimentoAtualResumo.value
+          ? { status: 'present' as const, resumo: atendimentoAtualResumo.value }
+          : { status: 'absent' as const }
+      }
+    }
+
+    const requestId = ++atendimentoAtualRequestId
+    atendimentoAtualChave = chave
+    atendimentoAtualStatus.value = 'loading'
+
+    const verificacao = verificarAtendimentoEmAndamento()
+      .then((resultado) => {
+        if (requestId !== atendimentoAtualRequestId || atendimentoAtualChave !== chave) {
+          return { status: 'cancelled' as const }
+        }
+
+        atendimentoAtualResumo.value = resultado.emAtendimento ? resultado : null
+        atendimentoAtualStatus.value = resultado.emAtendimento ? 'present' : 'absent'
+        atendimentoAtualVerificadoEm = Date.now()
+        const local = emAtendimento.value
+        if (local && (!resultado.emAtendimento || (resultado.id && resultado.id !== local.id))) {
+          agendamentos.value = agendamentos.value.filter(item => item.id !== local.id)
+        }
+        return resultado.emAtendimento
+          ? { status: 'present' as const, resumo: resultado }
+          : { status: 'absent' as const }
+      })
+      .catch(() => {
+        if (requestId !== atendimentoAtualRequestId || atendimentoAtualChave !== chave) {
+          return { status: 'cancelled' as const }
+        }
+        atendimentoAtualStatus.value = 'error'
+        return { status: 'error' as const }
+      })
+      .finally(() => {
+        if (requestId === atendimentoAtualRequestId) verificacaoAtendimentoAtual = null
+      })
+
+    verificacaoAtendimentoAtual = verificacao
+    return verificacao
+  }
+
+  async function garantirAtendimentoAtual(params: {
+    chave: string
+    clinicaId?: number
+    medicoId?: number
+    force?: boolean
+  }) {
+    const chaveEsperada = params.chave
+    let resumo = atendimentoAtualResumo.value
+    const local = emAtendimento.value
+    const verificacaoRecente = Date.now() - atendimentoAtualVerificadoEm < 5_000
+
+    if (
+      atendimentoAtualChave === params.chave
+      && atendimentoAtualStatus.value === 'present'
+      && verificacaoRecente
+      && !params.force
+      && local
+      && (!resumo?.id || resumo.id === local.id)
+    ) {
+      return { status: 'present' as const, resumo: resumo ?? resumoAtendimento(local) }
+    }
+
+    if (
+      params.force
+      || atendimentoAtualChave !== params.chave
+      || atendimentoAtualStatus.value !== 'present'
+      || !verificacaoRecente
+    ) {
+      const resultado = await verificarAtendimentoAtual(params.chave, params.force)
+      if (resultado.status === 'cancelled') {
+        const atendimentoAtual = emAtendimento.value
+        const resumoAtual = atendimentoAtualResumo.value
+        if (
+          atendimentoAtualChave === params.chave
+          && atendimentoAtualStatus.value === 'present'
+          && atendimentoAtual
+          && (!resumoAtual?.id || resumoAtual.id === atendimentoAtual.id)
+        ) {
+          return {
+            status: 'present' as const,
+            resumo: resumoAtual ?? resumoAtendimento(atendimentoAtual)
+          }
+        }
+      }
+      if (resultado.status !== 'present') return resultado
+      resumo = resultado.resumo
+    }
+
+    if (atendimentoAtualChave !== chaveEsperada) return { status: 'cancelled' as const }
+    if (!resumo?.emAtendimento) return { status: 'absent' as const }
+    if (!resumo.data) return { status: 'error' as const }
+    if (resumo.unidadeId && params.clinicaId && resumo.unidadeId !== params.clinicaId) {
+      atendimentoAtualStatus.value = 'error'
+      return { status: 'error' as const }
+    }
+
+    const confirmadoLocal = emAtendimento.value
+    if (confirmadoLocal && resumo.id === confirmadoLocal.id && confirmadoLocal.clinicaId === params.clinicaId) {
+      return { status: 'present' as const, resumo }
+    }
+
+    const carregamento = await fetchAgendamentos(
+      resumo.unidadeId ?? params.clinicaId,
+      resumo.data,
+      params.medicoId,
+      'dashboard'
+    )
+
+    if (atendimentoAtualChave !== chaveEsperada) return { status: 'cancelled' as const }
+    if (carregamento === 'cancelled') {
+      const atendimentoAtual = emAtendimento.value
+      if (
+        atendimentoAtualStatus.value === 'present'
+        && atendimentoAtualResumo.value?.id === resumo.id
+        && atendimentoAtual
+        && (!resumo.id || resumo.id === atendimentoAtual.id)
+      ) {
+        return { status: 'present' as const, resumo: resumoAtendimento(atendimentoAtual) }
+      }
+      return { status: 'cancelled' as const }
+    }
+    if (carregamento === 'error') {
+      atendimentoAtualStatus.value = 'error'
+      return { status: 'error' as const }
+    }
+
+    const atendimento = emAtendimento.value
+    if (!atendimento || (resumo.id && atendimento.id !== resumo.id)) {
+      atendimentoAtualStatus.value = 'error'
+      return { status: 'error' as const }
+    }
+
+    if (!marcarAtendimentoAtual(atendimento, chaveEsperada)) {
+      return { status: 'cancelled' as const }
+    }
+    return { status: 'present' as const, resumo: resumoAtendimento(atendimento) }
+  }
+
   function registrarSseHandlers() {
     if (sseHandlersRegistrados) return
 
@@ -134,26 +345,64 @@ export const useAgendamentosStore = defineStore('agendamentos', () => {
 
     sse.on('connected', (data: unknown) => {
       if (!(data as { reconnected?: boolean })?.reconnected) return
-      void fetchAgendamentos(filtrosAtuais.clinicaId, filtrosAtuais.data, filtrosAtuais.medicoId, filtrosAtuais.contexto)
+      const chave = atendimentoAtualChave
+      void fetchAgendamentos(
+        filtrosAtuais.clinicaId,
+        filtrosAtuais.data,
+        filtrosAtuais.medicoId,
+        filtrosAtuais.contexto
+      ).then(() => {
+        if (chave && chave === atendimentoAtualChave) {
+          void verificarAtendimentoAtual(chave, true)
+        }
+      })
     })
 
     sse.on('agenda:snapshot', (data: unknown) => {
+      if (mutacoesStatusPendentes) return
       const payload = data as AgendaSnapshotEvent
 
       if (payload.data && filtrosAtuais.data && payload.data !== filtrosAtuais.data) return
       if (payload.contexto !== filtrosAtuais.contexto) return
       if (!Array.isArray(payload.items)) return
 
-      agendamentos.value = payload.items.map(item => ({ ...item, horario: normalizarHorario(item.horario) }))
+      // A snapshot may have been prepared before the successful PATCH. Keep
+      // the active record until the dedicated endpoint confirms its state.
+      const ativo = emAtendimento.value
+      const items = payload.items.map(item => ({ ...item, horario: normalizarHorario(item.horario) }))
+      if (ativo && atendimentoAtualResumo.value?.id === ativo.id) {
+        const index = items.findIndex(item => item.id === ativo.id)
+        if (index === -1) items.push(ativo)
+        else items[index] = ativo
+      }
+      agendamentos.value = items
       marcarContextoCarregado(filtrosAtuais.clinicaId, payload.data ?? filtrosAtuais.data, filtrosAtuais.medicoId, filtrosAtuais.contexto)
       loading.value = false
+      if (atendimentoAtualChave) {
+        void verificarAtendimentoAtual(atendimentoAtualChave, true)
+      }
     })
 
     sse.on('agendamento:status', (data: unknown) => {
       const evento = data as AgendamentoStatusEvent | AgendamentoComPaciente
       if (!evento?.id || !evento.status) return
 
+      const eraAtendimentoAtual = emAtendimento.value?.id === evento.id
       aplicarStatusAgendamento(evento)
+      if (evento.status === 'em-atendimento') {
+        const atendimento = isAgendamentoComPaciente(evento)
+          ? evento
+          : agendamentos.value.find(item => item.id === evento.id) ?? null
+        if (atendimento) {
+          marcarAtendimentoAtual(atendimento)
+        } else if (atendimentoAtualChave) {
+          void verificarAtendimentoAtual(atendimentoAtualChave, true)
+        } else {
+          invalidarAtendimentoAtual()
+        }
+      } else if (eraAtendimentoAtual) {
+        marcarAtendimentoAtual(null)
+      }
     })
 
     sse.on('atendimento:prioridade', (data: unknown) => {
@@ -174,6 +423,7 @@ export const useAgendamentosStore = defineStore('agendamentos', () => {
   }
 
   async function fetchAgendamentos(clinicaId?: number, data?: string, medicoId?: number, contexto?: AgendaContexto) {
+    if (mutacoesStatusPendentes) return 'cancelled'
     const requestId = ++fetchRequestId
     if (!contextoAtualEh(clinicaId, data, medicoId, contexto)) {
       agendamentos.value = []
@@ -185,16 +435,16 @@ export const useAgendamentosStore = defineStore('agendamentos', () => {
 
     try {
       const raw = await listarAgendamentos({ clinicaId, data, medicoId, contexto })
-      if (requestId !== fetchRequestId) return
+      if (requestId !== fetchRequestId) return 'cancelled'
 
       if (raw.every(a => 'paciente' in a)) {
         agendamentos.value = (raw as AgendamentoComPaciente[]).map(item => ({ ...item, horario: normalizarHorario(item.horario) }))
         marcarContextoCarregado(clinicaId, data, medicoId, contexto)
-        return
+        return 'success'
       }
 
       const allPacientes = await $fetch<Paciente[]>('/api/pacientes')
-      if (requestId !== fetchRequestId) return
+      if (requestId !== fetchRequestId) return 'cancelled'
       const pacienteMap = new Map(allPacientes.map(p => [p.id, p]))
 
       agendamentos.value = (raw as Agendamento[])
@@ -205,12 +455,11 @@ export const useAgendamentosStore = defineStore('agendamentos', () => {
           paciente: pacienteMap.get(a.pacienteId)!
         }))
       marcarContextoCarregado(clinicaId, data, medicoId, contexto)
+      return 'success'
     } catch {
-      if (requestId === fetchRequestId) {
-        agendamentos.value = []
-        limparContextoCarregado()
-      }
+      if (requestId !== fetchRequestId) return 'cancelled'
       console.error('Erro ao carregar agendamentos')
+      return 'error'
     } finally {
       if (requestId === fetchRequestId) loading.value = false
     }
@@ -245,18 +494,40 @@ export const useAgendamentosStore = defineStore('agendamentos', () => {
   }
 
   async function atualizarStatus(id: number, status: AgendamentoStatus, consulta?: ConsultaStatusPayload, clinicaId?: number) {
+    mutacoesStatusPendentes++
+    fetchRequestId++
+    atendimentoAtualRequestId++
+    verificacaoAtendimentoAtual = null
     try {
+      const chaveAtendimentoMutacao = atendimentoAtualChave
+      const eraAtendimentoAtual = emAtendimento.value?.id === id
       const clinicaIdEfetiva = clinicaId
         ?? agendamentos.value.find(a => a.id === id)?.clinicaId
         ?? filtrosAtuais.clinicaId
 
       const atualizado = await atualizarStatusAgendamento(id, status, consulta, clinicaIdEfetiva)
+      fetchRequestId++
       const completo = atualizado as AtualizarStatusAgendamentoResponse
+      if (atendimentoAtualChave !== chaveAtendimentoMutacao) return atualizado
+      if (clinicaCarregada.value && clinicaIdEfetiva && clinicaCarregada.value !== clinicaIdEfetiva) {
+        return atualizado
+      }
       aplicarStatusAgendamento(isAgendamentoComPaciente(completo) ? completo : { id, status })
+      if (status === 'em-atendimento') {
+        const atendimento = isAgendamentoComPaciente(completo)
+          ? completo
+          : agendamentos.value.find(item => item.id === id) ?? null
+        marcarAtendimentoAtual(atendimento, chaveAtendimentoMutacao)
+      } else if (eraAtendimentoAtual) {
+        marcarAtendimentoAtual(null, chaveAtendimentoMutacao)
+      }
       return atualizado
     } catch (error) {
       console.error('Erro ao atualizar status do agendamento')
       throw error
+    } finally {
+      mutacoesStatusPendentes--
+      if (!mutacoesStatusPendentes) loading.value = false
     }
   }
 
@@ -281,6 +552,8 @@ export const useAgendamentosStore = defineStore('agendamentos', () => {
     dataCarregada,
     clinicaCarregada,
     medicoCarregado,
+    atendimentoAtualStatus,
+    atendimentoAtualResumo,
     emAtendimento,
     fila,
     ordenados,
@@ -291,6 +564,9 @@ export const useAgendamentosStore = defineStore('agendamentos', () => {
     initExames,
     fetchAgendamentos,
     fetchAgendamentosExames,
+    verificarAtendimentoAtual,
+    garantirAtendimentoAtual,
+    invalidarAtendimentoAtual,
     atualizarStatusExame,
     atualizarStatus
   }

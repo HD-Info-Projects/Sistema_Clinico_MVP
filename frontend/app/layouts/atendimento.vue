@@ -32,6 +32,10 @@ provide('openNav', () => {
 })
 
 const agendamentosStore = useAgendamentosStore()
+const agendamento = shallowRef(agendamentosStore.emAtendimento)
+const hidratado = ref(false)
+const cronometro = useCronometroStore()
+const { encerramentoEmAndamento, liberarSaida } = useSaidaAtendimento()
 
 const expandedContent = ref<Record<string, boolean>>({})
 
@@ -40,19 +44,45 @@ function toggleContent(id: string) {
 }
 
 onMounted(() => {
-  if (!agendamentosStore.emAtendimento) {
-    navigateTo('/dashboard', { replace: true })
-    return
-  }
-  void fetchHistorico()
+  hidratado.value = true
+  if (agendamento.value) void fetchHistorico()
 })
 
-const agendamento = computed(() => agendamentosStore.emAtendimento)
-
 watch(
-  () => agendamentosStore.emAtendimento,
-  (atendimento, anterior) => {
-    if (anterior && !atendimento) {
+  [
+    () => agendamentosStore.emAtendimento,
+    encerramentoEmAndamento,
+    () => agendamentosStore.atendimentoAtualStatus,
+    () => agendamentosStore.atendimentoAtualResumo?.id
+  ],
+  ([atendimento, encerramento, status, idConfirmado]) => {
+    if (
+      agendamento.value && !encerramento && status === 'present'
+      && idConfirmado && idConfirmado !== agendamento.value.id
+    ) {
+      cronometro.stop()
+      liberarSaida()
+      void navigateTo('/dashboard', { replace: true })
+      return
+    }
+    if (atendimento) {
+      if (agendamento.value && atendimento.id !== agendamento.value.id) {
+        if (!encerramento) {
+          cronometro.stop()
+          liberarSaida()
+          void navigateTo('/dashboard', { replace: true })
+        }
+        return
+      }
+      const deveCarregarHistorico = hidratado.value && !agendamento.value
+      agendamento.value = atendimento
+      if (deveCarregarHistorico) void fetchHistorico()
+      return
+    }
+
+    if (agendamento.value && !encerramento && status === 'absent') {
+      cronometro.stop()
+      liberarSaida()
       void navigateTo('/dashboard', { replace: true })
     }
   }
@@ -696,7 +726,7 @@ function voltarDashboard() {
 
 <template>
   <div
-    v-if="agendamento"
+    v-if="hidratado && agendamento"
     class="flex h-dvh min-h-0 overflow-hidden"
   >
     <USidebar
@@ -964,7 +994,7 @@ function voltarDashboard() {
     </main>
   </div>
   <div
-    v-else-if="agendamentosStore.loading"
+    v-else
     class="flex h-dvh items-center justify-center bg-muted"
     role="status"
   >
@@ -986,30 +1016,6 @@ function voltarDashboard() {
           <USkeleton class="h-10 w-28 rounded-lg" />
           <USkeleton class="h-10 w-28 rounded-lg" />
         </div>
-      </div>
-    </UCard>
-  </div>
-  <div
-    v-else
-    class="flex h-dvh items-center justify-center bg-muted"
-  >
-    <UCard>
-      <div class="flex flex-col items-center py-12 gap-4">
-        <div class="text-muted">
-          <div class="i-lucide-stethoscope text-6xl mx-auto" />
-        </div>
-        <p class="text-xl font-medium">
-          Nenhum paciente em atendimento
-        </p>
-        <p class="text-sm text-muted">
-          Selecione um paciente no Dashboard e clique em "Atender" para iniciar
-          o atendimento.
-        </p>
-        <UButton
-          label="Ir para o Dashboard"
-          color="primary"
-          @click="voltarDashboard"
-        />
       </div>
     </UCard>
   </div>

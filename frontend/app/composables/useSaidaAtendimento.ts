@@ -9,6 +9,10 @@
 export function useSaidaAtendimento() {
   const saidaLiberada = useState<boolean>('atendimento:saida-liberada', () => false)
   const destinoPendente = useState<string | null>('atendimento:destino-pendente', () => null)
+  const encerramentoEmAndamento = useState<'finalizar' | 'cancelar' | null>(
+    'atendimento:encerramento-em-andamento',
+    () => null
+  )
 
   function liberarSaida() {
     saidaLiberada.value = true
@@ -21,11 +25,13 @@ export function useSaidaAtendimento() {
   function resetarSaida() {
     saidaLiberada.value = false
     destinoPendente.value = null
+    encerramentoEmAndamento.value = null
   }
 
   return {
     saidaLiberada,
     destinoPendente,
+    encerramentoEmAndamento,
     liberarSaida,
     bloquearSaida,
     resetarSaida
