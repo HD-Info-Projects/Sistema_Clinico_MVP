@@ -10,6 +10,8 @@ VPS - Acesso.md
 !/docs/politica-retencao-descarte-backup.md
 !/docs/politica-retencao-descarte-backup.pdf
 !/docs/plano-implementacao-lgpd-seguranca.md
+!/docs/implementações-docs/
+!/docs/implementações-docs/**
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
