@@ -103,7 +103,7 @@ def test_item_check_in_expoe_tipo_procedimento():
 
     assert item["codigoProcedimentoSpdata"] == "40901300"
     assert item["tipoProcedimento"] == "ultrassonografia"
-    assert item["tipoProcedimentoLabel"] == "24 - Ultrassonografia"
+    assert item["tipoProcedimentoLabel"] == "Ultrassonografia"
 
 
 @pytest.mark.parametrize(

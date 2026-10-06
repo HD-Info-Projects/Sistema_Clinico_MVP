@@ -70,7 +70,7 @@ def test_retencao_casa_realizacao_por_nome_quando_solicitacao_nao_tem_exame_id()
     assert item["codigoExame"] == "APUR"
     assert item["tipoExame"] == "ultrassonografia"
     assert item["tipoExameCodigo"] == "24"
-    assert item["tipoExameLabel"] == "24 - Ultrassonografia"
+    assert item["tipoExameLabel"] == "Ultrassonografia"
     assert item["especialidade"] == "Radiologia"
     assert item["dataRealizacao"] == "2026-07-20"
     assert item["pendencia"] == ""
@@ -123,7 +123,7 @@ def test_retencao_classifica_tipo_exame_pelo_ato_local():
 
     assert item["tipoExame"] == "patologia-clinica"
     assert item["tipoExameCodigo"] == "15"
-    assert item["tipoExameLabel"] == "15 - Patologia Clínica"
+    assert item["tipoExameLabel"] == "Patologia Clínica"
     assert item["especialidade"] == "Cardiologia"
 
 
@@ -172,5 +172,5 @@ def test_retencao_classifica_tipo_exame_por_nome_antes_do_ato():
 
     assert item["tipoExame"] == "ressonancia-magnetica"
     assert item["tipoExameCodigo"] == "26"
-    assert item["tipoExameLabel"] == "26 - Ressonância Magnética"
+    assert item["tipoExameLabel"] == "Ressonância Magnética"
     assert item["especialidade"] == "Especialidade não informada"

@@ -44,6 +44,14 @@ const filtroConvenioActive = ref('Todos')
 const filtroStatusActive = ref('Todos')
 const filtroTipoExameActive = ref('')
 
+const FILTRO_EXAMES_LABORATORIAIS = 'exames-laboratoriais'
+const TIPOS_EXAMES_LABORATORIAIS = new Set([
+  'anatomia-patologica',
+  'hemoterapia',
+  'patologia-clinica',
+  'genetica'
+])
+
 const filtroPeriodoInicioActive = computed(() => `${filtroAnoActive.value}-${MES_PARA_NUMERO[filtroMesInicioActive.value]}`)
 const filtroPeriodoFimActive = computed(() => `${filtroAnoActive.value}-${MES_PARA_NUMERO[filtroMesFimActive.value]}`)
 
@@ -126,10 +134,10 @@ const conveniosDisponiveis = computed(() => {
 const tiposExameDisponiveis = computed(() => {
   const tipos = new Map<string, string>()
   for (const exame of examesRetencao.value) {
-    const valor = opcaoFiltro(exame.tipoExame)
-    if (!valor) continue
+    if (!opcaoFiltro(exame.tipoExame)) continue
 
-    tipos.set(valor, opcaoFiltro(exame.tipoExameLabel) || rotuloTipoProcedimento(valor))
+    const valor = tipoExameFiltro(exame)
+    tipos.set(valor, rotuloTipoExameFiltro(exame))
   }
 
   const itens = Array.from(tipos, ([value, label]) => ({ value, label }))
@@ -153,7 +161,7 @@ const dadosFiltrados = computed(() => {
     if (filtroEspecialidadeActive.value !== 'Todos' && e.especialidade !== filtroEspecialidadeActive.value) return false
     if (filtroConvenioActive.value !== 'Todos' && e.convenio !== filtroConvenioActive.value) return false
     if (filtroStatusActive.value !== 'Todos' && e.status !== STATUS_VALUE_MAP[filtroStatusActive.value]) return false
-    if (filtroTipoExameActive.value && tipoExame(e) !== filtroTipoExameActive.value) return false
+    if (filtroTipoExameActive.value && tipoExameFiltro(e) !== filtroTipoExameActive.value) return false
     if (e.dataSolicitacao.substring(0, 7) < filtroPeriodoInicioActive.value) return false
     if (e.dataSolicitacao.substring(0, 7) > filtroPeriodoFimActive.value) return false
     return true
@@ -215,6 +223,17 @@ function rotuloStatus(status: string) {
 
 function tipoExame(item: ExameRetencao) {
   return opcaoFiltro(item.tipoExame) || 'nao-informado'
+}
+
+function tipoExameFiltro(item: ExameRetencao) {
+  const tipo = tipoExame(item)
+  return TIPOS_EXAMES_LABORATORIAIS.has(tipo) ? FILTRO_EXAMES_LABORATORIAIS : tipo
+}
+
+function rotuloTipoExameFiltro(item: ExameRetencao) {
+  return tipoExameFiltro(item) === FILTRO_EXAMES_LABORATORIAIS
+    ? 'Exames Laboratoriais'
+    : rotuloTipoExame(item)
 }
 
 function rotuloTipoExame(item: ExameRetencao) {
