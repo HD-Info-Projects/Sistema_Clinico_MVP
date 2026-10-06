@@ -29,7 +29,7 @@ function trocarUnidade() {
 const navItems = computed(() => [
   { label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: '/recepcao' },
   { label: 'Agenda', icon: 'i-lucide-calendar', to: '/recepcao/agenda' },
-  { label: 'Novo atendimento', icon: 'i-lucide-user-plus', to: '/recepcao/novo-atendimento' },
+  { label: 'Cadastro de Atendimento', icon: 'i-lucide-user-plus', to: '/recepcao/novo-atendimento' },
   ...(roleIn(auth.user?.role, COORD_RECEPCAO_ROLES)
     ? [
         { label: 'No-show', icon: 'i-lucide-user-x', to: '/recepcao/noshow' },

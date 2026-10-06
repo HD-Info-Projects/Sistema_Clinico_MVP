@@ -659,7 +659,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div>
-    <UHeader title="Novo atendimento">
+    <UHeader title="Cadastro de Atendimento">
       <template #right>
         <div class="flex items-center gap-2">
           <UBadge

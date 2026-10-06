@@ -10,8 +10,8 @@ if (!auth.user && import.meta.client) {
 const opcoes: { modo: AccessMode, titulo: string, descricao: string, icone: string }[] = [
   {
     modo: 'recepcionista',
-    titulo: 'Entrar na Recepcao',
-    descricao: 'Fila de atendimento, agenda, no-show e conversao de exames.',
+    titulo: 'Entrar na Recep',
+    descricao: 'Dashboard, agenda, cadastro de atendimento, no-show e conversao de exames.',
     icone: 'i-lucide-concierge-bell'
   },
   {

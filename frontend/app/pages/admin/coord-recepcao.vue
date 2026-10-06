@@ -5,7 +5,7 @@ definePageMeta({ layout: 'admin' })
 <template>
   <UsuarioListagem
     role="coord_recepcao"
-    titulo="Coordenadores de Recepcao"
+    titulo="Coord. Recep"
     placeholder-busca="Buscar por nome ou email..."
   />
 </template>

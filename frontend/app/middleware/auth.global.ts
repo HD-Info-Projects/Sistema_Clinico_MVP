@@ -78,8 +78,8 @@ export default defineNuxtRouteMiddleware(async (to) => {
     || to.path.startsWith('/recepcao/retencao-exames')
   const canAccessRecepcao = roleIn(auth.user?.role, RECEPCAO_ROLES)
   const canAccessCoordRecepcao = roleIn(auth.user?.role, COORD_RECEPCAO_ROLES)
-  const isDashboardRoute = to.path.startsWith('/dashboard')
-  const isAssistenteRoute = to.path.startsWith('/dashboard')
+  const isDashboardRoute = to.path === '/dashboard'
+  const isAssistenteRoute = to.path === '/dashboard'
   const isMedicoRoute = isDashboardRoute
     || to.path.startsWith('/agenda')
     || to.path.startsWith('/atendimento')

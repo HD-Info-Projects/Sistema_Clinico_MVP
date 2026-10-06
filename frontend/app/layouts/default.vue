@@ -18,6 +18,7 @@ provide('openNav', () => {
 
 const unidadeAtivaLabel = computed(() => auth.activeClinica?.nome || 'Sem unidade')
 const podeTrocarUnidade = computed(() => auth.clinicas.length > 1)
+const isAssistentePerfil = computed(() => auth.user?.role === 'assistente')
 
 function trocarUnidade() {
   if (!isDesktop.value) open.value = false
@@ -25,6 +26,11 @@ function trocarUnidade() {
 }
 
 const navItems = computed(() => [
+  ...(isAssistentePerfil.value
+    ? [
+        { label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: '/dashboard' }
+      ]
+    : []),
   ...(auth.isMedico
     ? [
         { label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: '/dashboard' },

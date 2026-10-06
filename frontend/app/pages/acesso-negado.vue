@@ -8,6 +8,7 @@ const destinoPrincipal = computed(() => {
   if (auth.isAdmin) return '/selecionar-acesso'
   if (auth.canAccessLgpd) return '/lgpd/auditoria'
   if (auth.isRecepcao) return '/recepcao'
+  if (auth.isAssistente) return '/dashboard'
   if (auth.isMedico) return '/dashboard'
   return '/login'
 })

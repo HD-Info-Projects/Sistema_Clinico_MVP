@@ -153,7 +153,7 @@ function onSaved() {
         </CardInformativo>
 
         <CardInformativo
-          titulo="Recepcionistas"
+          titulo="Recep"
           :valor="totalRecepcao"
           cor="success"
           icone="i-lucide-user-check"
@@ -169,7 +169,7 @@ function onSaved() {
         </CardInformativo>
 
         <CardInformativo
-          titulo="Coord. Recepcao"
+          titulo="Coord. Recep"
           :valor="totalCoordRecepcao"
           cor="warning"
           icone="i-lucide-clipboard-list"

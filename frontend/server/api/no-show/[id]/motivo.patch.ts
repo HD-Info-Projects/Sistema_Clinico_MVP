@@ -1,6 +1,8 @@
 import { registrarMotivoNoShow } from '../../../features/agenda/service'
+import { SERVER_COORD_RECEPCAO_ROLES } from '../../../utils/roles'
 
 export default defineEventHandler(async (event) => {
+  await requireRole(event, SERVER_COORD_RECEPCAO_ROLES)
   const id = Number(getRouterParam(event, 'id'))
   if (!Number.isInteger(id) || id <= 0) {
     throw createError({ statusCode: 400, statusMessage: 'No-show inválido' })

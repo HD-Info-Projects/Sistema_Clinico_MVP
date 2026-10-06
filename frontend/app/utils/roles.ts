@@ -19,10 +19,10 @@ export const FINANCEIRO_ROLES: RoleUsuario[] = ['coord_financeiro', 'admin']
 export const UNIDADE_REQUIRED_ROLES: RoleUsuario[] = ['medico', 'assistente', 'recepcao', 'coord_recepcao']
 
 export const ROLE_OPTIONS: { label: string, value: RoleUsuario }[] = [
-  { label: 'Medico', value: 'medico' },
+  { label: 'Médico', value: 'medico' },
   { label: 'Assistente', value: 'assistente' },
-  { label: 'Recepcao', value: 'recepcao' },
-  { label: 'Coord. Recepcao', value: 'coord_recepcao' },
+  { label: 'Recep', value: 'recepcao' },
+  { label: 'Coord. Recep', value: 'coord_recepcao' },
   { label: 'DPO', value: 'dpo' },
   { label: 'Administrador', value: 'admin' },
   { label: 'Coord. Financeiro', value: 'coord_financeiro' }

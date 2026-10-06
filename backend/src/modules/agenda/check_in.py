@@ -933,7 +933,7 @@ def home_check_in():
 
 @check_in_bp.route("/prioridade", methods=["PATCH"])
 @jwt_required()
-@roles_required("recepcao", "admin")
+@roles_required(*RECEPCAO_ROLES)
 def atualizar_prioridade_check_in():
     try:
         body = request.get_json(silent=True)
