@@ -5,7 +5,7 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 
 from src.models.auditoria_model import AcaoAuditoria
 from src.modules.lgpd.service import listar_auditorias, listar_retencao_exames, parse_data, registrar_auditoria
-from src.security.decorators import roles_required
+from src.security.decorators import active_user_required, roles_required
 from src.security.roles import COORD_RECEPCAO_ROLES, LGPD_ROLES
 from src.security.unidades import unidade_atual_required
 from src.shared.performance_monitoring import iniciar_probe
@@ -14,6 +14,15 @@ from src.settings.extensions import db
 
 auditoria_bp = Blueprint("auditoria", __name__, url_prefix="/auditorias")
 retencao_exames_bp = Blueprint("retencao_exames", __name__, url_prefix="/retencao-exames")
+
+EVENTOS_FRONTEND_PERMITIDOS = {
+    AcaoAuditoria.ENTROU_MODULO.value,
+    AcaoAuditoria.SAIU_MODULO.value,
+    AcaoAuditoria.TROCOU_ACESSO.value,
+    AcaoAuditoria.MUDOU_UNIDADE.value,
+    AcaoAuditoria.ABRIU_PACIENTE.value,
+    AcaoAuditoria.CANCELOU_ACAO.value,
+}
 
 
 def _bool_param(valor):
@@ -25,6 +34,38 @@ def _bool_param(valor):
 @roles_required(*LGPD_ROLES)
 def listar_eventos_auditoria():
     return jsonify(listar_auditorias(request.args)), 200
+
+
+@auditoria_bp.route("/eventos", methods=["POST"])
+@jwt_required()
+@active_user_required()
+def registrar_evento_auditoria():
+    data = request.get_json(silent=True) or {}
+    if not isinstance(data, dict):
+        return jsonify({"error": "Payload inválido"}), 400
+
+    acao = str(data.get("acao") or "").strip().upper()
+    if acao not in EVENTOS_FRONTEND_PERMITIDOS:
+        return jsonify({"error": "Evento de auditoria inválido"}), 400
+
+    entidade = str(data.get("entidade") or "modulo").strip().lower()[:100]
+    descricao = str(data.get("descricao") or "").strip()[:1000] or None
+    entidade_id = data.get("entidade_id") or data.get("entidadeId")
+    try:
+        entidade_id = int(entidade_id) if entidade_id not in (None, "") else None
+    except (TypeError, ValueError):
+        entidade_id = None
+
+    evento = registrar_auditoria(
+        acao,
+        entidade=entidade,
+        entidade_id=entidade_id,
+        usuario_id=int(get_jwt_identity()),
+        descricao=descricao,
+    )
+    if evento is None:
+        return jsonify({"error": "Falha ao registrar auditoria"}), 500
+    return jsonify({"ok": True}), 201
 
 
 @retencao_exames_bp.route("/", methods=["GET"])
@@ -99,4 +140,10 @@ def listar_retencao():
         return jsonify({"error": "Erro interno ao listar retenção de exames"}), 500
 
 
-__all__ = ["auditoria_bp", "listar_eventos_auditoria", "listar_retencao", "retencao_exames_bp"]
+__all__ = [
+    "auditoria_bp",
+    "listar_eventos_auditoria",
+    "listar_retencao",
+    "registrar_evento_auditoria",
+    "retencao_exames_bp",
+]

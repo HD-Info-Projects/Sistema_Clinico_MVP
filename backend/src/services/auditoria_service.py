@@ -1,4 +1,6 @@
 import re
+from datetime import datetime, timezone
+from ipaddress import ip_address
 
 from flask import current_app, has_request_context, request
 from flask_jwt_extended import get_jwt_identity
@@ -14,15 +16,50 @@ SENSITIVE_KEY_RE = re.compile(
 )
 
 
+def _agora_utc_sem_timezone():
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def _normalizar_ip(valor):
+    if not valor:
+        return None
+
+    texto = str(valor).strip()
+    if not texto:
+        return None
+
+    if texto.startswith("::ffff:"):
+        texto = texto.removeprefix("::ffff:")
+
+    try:
+        ip_address(texto)
+        return texto
+    except ValueError:
+        return None
+
+
 def _request_ip():
     if not has_request_context():
         return None
 
+    candidatos = []
+    for header in ("X-Client-Public-IP", "CF-Connecting-IP", "X-Real-IP"):
+        valor = request.headers.get(header)
+        if valor:
+            candidatos.append(valor)
+
     forwarded_for = request.headers.get("X-Forwarded-For")
     if forwarded_for:
-        return forwarded_for.split(",", 1)[0].strip()
+        candidatos.extend(item.strip() for item in forwarded_for.split(","))
 
-    return request.remote_addr
+    candidatos.append(request.remote_addr)
+
+    for candidato in candidatos:
+        ip = _normalizar_ip(candidato)
+        if ip:
+            return ip
+
+    return None
 
 
 def _request_user_agent():
@@ -82,6 +119,7 @@ def registrar_auditoria(
             descricao=_normalizar_descricao(descricao),
             ip=_request_ip(),
             user_agent=_request_user_agent(),
+            created_at=_agora_utc_sem_timezone(),
         )
         db.session.add(evento)
 

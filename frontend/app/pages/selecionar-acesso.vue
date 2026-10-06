@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { paginaInicialPorModo, type AccessMode } from '~/stores/auth'
+import { registrarEventoAuditoria } from '~/utils/auditoria-eventos'
 
 const auth = useAuthStore()
 
@@ -30,6 +31,11 @@ const opcoes: { modo: AccessMode, titulo: string, descricao: string, icone: stri
 
 function selecionar(modo: AccessMode) {
   auth.setAccessMode(modo)
+  registrarEventoAuditoria({
+    acao: 'TROCOU_ACESSO',
+    entidade: 'acesso',
+    descricao: `Troca de acesso para ${modo}.`
+  })
 
   if (modo === 'recepcionista' && auth.clinicas.length !== 1) {
     navigateTo('/selecionar-clinica')

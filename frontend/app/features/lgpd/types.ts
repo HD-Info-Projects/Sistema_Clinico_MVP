@@ -13,9 +13,14 @@ export type AuditoriaEvento = {
   entidade: string | null
   entidade_id: number | null
   descricao: string | null
+  descricao_direta?: string | null
   ip: string | null
+  ip_origem?: string | null
   user_agent: string | null
   created_at: string | null
+  created_at_utc?: string | null
+  acao_label?: string | null
+  entidade_label?: string | null
   usuario: AuditoriaUsuario | null
 }
 

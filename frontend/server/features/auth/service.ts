@@ -1,4 +1,5 @@
 import type { H3Event } from 'h3'
+import { forwardedClientHeaders } from '../../utils/client-ip'
 import { fetchErrorStatus } from '../../utils/proxy-error'
 import { getRequestId, logUpstreamFailure, REQUEST_ID_HEADER } from '../../utils/request-id'
 import { setPrivateNoStore } from '../../utils/response'
@@ -13,7 +14,7 @@ export async function loginAuth(event: H3Event, body: { username?: string, passw
   try {
     res = await $fetch(`${config.flaskBaseUrl}/login/auth`, {
       method: 'POST',
-      headers: { [REQUEST_ID_HEADER]: requestId },
+      headers: { ...forwardedClientHeaders(event), [REQUEST_ID_HEADER]: requestId },
       body: { username, senha: password }
     })
   } catch (error: unknown) {
@@ -44,6 +45,7 @@ export async function loginAuth(event: H3Event, body: { username?: string, passw
   try {
     const rawUser = await $fetch(`${config.flaskBaseUrl}/login/me`, {
       headers: {
+        ...forwardedClientHeaders(event),
         Authorization: `Bearer ${res.access_token}`,
         [REQUEST_ID_HEADER]: requestId
       }
@@ -79,6 +81,7 @@ export async function logoutAuth(event: H3Event) {
       method: 'POST',
       timeout: 15000,
       headers: {
+        ...forwardedClientHeaders(event),
         Authorization: `Bearer ${token}`,
         [REQUEST_ID_HEADER]: requestId
       }

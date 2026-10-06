@@ -25,6 +25,7 @@ import {
   buildSolicitacaoProcedimento
 } from '~/utils/pdf-documents'
 import { gerarHtmlGuiaInternacao, gerarHtmlGuiaOpme, gerarHtmlGuiaTiss, imprimirGuiaInternacao, imprimirGuiaOpme, imprimirGuiaTiss } from '~/utils/guia-tiss'
+import { registrarEventoAuditoria } from '~/utils/auditoria-eventos'
 
 const openNav = inject<() => void>('openNav', () => {})
 const auth = useAuthStore()
@@ -164,6 +165,12 @@ function formatarDataPtBR(dataISO: string) {
 function abrirHistorico(ag: AgendamentoComPaciente) {
   agendamentoSelecionado.value = ag
   showHistoricoSlideover.value = true
+  registrarEventoAuditoria({
+    acao: 'ABRIU_PACIENTE',
+    entidade: 'paciente',
+    entidade_id: ag.paciente.id,
+    descricao: `Abertura do historico do paciente. atendimento_id=${ag.id}`
+  })
 }
 
 function setDropdownAcoesAberto(agendamentoId: number, aberto: boolean) {

@@ -1,5 +1,7 @@
-from datetime import datetime, time, timedelta
+from datetime import datetime, time, timedelta, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from flask import current_app
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
@@ -16,6 +18,18 @@ def parse_data(valor, default=None):
     return datetime.fromisoformat(str(valor)[:10]).date()
 
 
+def _timezone_auditoria():
+    try:
+        return ZoneInfo(current_app.config.get("AUDITORIA_TIMEZONE", "America/Sao_Paulo"))
+    except ZoneInfoNotFoundError:
+        return ZoneInfo("America/Sao_Paulo")
+
+
+def _data_local_para_utc_sem_timezone(data, horario):
+    local = datetime.combine(data, horario).replace(tzinfo=_timezone_auditoria())
+    return local.astimezone(timezone.utc).replace(tzinfo=None)
+
+
 def listar_auditorias(params):
     data_ini = parse_data(params.get("dataIni"))
     data_fim = parse_data(params.get("dataFim"))
@@ -27,9 +41,9 @@ def listar_auditorias(params):
 
     filtros = []
     if data_ini:
-        filtros.append(Auditoria.created_at >= datetime.combine(data_ini, time.min))
+        filtros.append(Auditoria.created_at >= _data_local_para_utc_sem_timezone(data_ini, time.min))
     if data_fim:
-        filtros.append(Auditoria.created_at < datetime.combine(data_fim + timedelta(days=1), time.min))
+        filtros.append(Auditoria.created_at < _data_local_para_utc_sem_timezone(data_fim + timedelta(days=1), time.min))
     if acao:
         filtros.append(Auditoria.acao == acao)
     if entidade:

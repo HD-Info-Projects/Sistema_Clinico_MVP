@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { H3Event } from 'h3'
+import { forwardedClientHeaders } from './client-ip'
 import { getRequestId, logUpstreamFailure, REQUEST_ID_HEADER } from './request-id'
 import { setPrivateNoStore } from './response'
 
@@ -24,6 +25,7 @@ export async function flaskFetch<T>(event: H3Event, path: string, opts?: any): P
       ...fetchOpts,
       headers: {
         ...fetchOpts.headers,
+        ...forwardedClientHeaders(event),
         [REQUEST_ID_HEADER]: requestId,
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(activeClinicaId ? { 'X-Unidade-Id': String(activeClinicaId) } : {})

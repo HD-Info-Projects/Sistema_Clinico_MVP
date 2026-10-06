@@ -22,11 +22,20 @@ const acoesCriticas = new Set([
   'VISUALIZOU_DOCUMENTOS_MEDICOS'
 ])
 
+const origemColor: Record<string, 'success' | 'warning' | 'neutral' | 'error'> = {
+  'Natus': 'success',
+  'Externo / nao cadastrado': 'warning',
+  'Rede privada/local': 'neutral',
+  'Nao identificado': 'error',
+  'IP invalido': 'error'
+}
+
 function formatarData(valor: string | null) {
   if (!valor) return '-'
   return new Intl.DateTimeFormat('pt-BR', {
     dateStyle: 'short',
-    timeStyle: 'medium'
+    timeStyle: 'medium',
+    timeZone: 'America/Sao_Paulo'
   }).format(new Date(valor))
 }
 
@@ -37,8 +46,20 @@ function usuarioLabel(evento: AuditoriaEvento) {
 }
 
 function entidadeLabel(evento: AuditoriaEvento) {
-  const nome = evento.entidade || '-'
+  const nome = evento.entidade_label || evento.entidade || '-'
   return evento.entidade_id ? `${nome} #${evento.entidade_id}` : nome
+}
+
+function eventoLabel(evento: AuditoriaEvento) {
+  return evento.acao_label || evento.acao
+}
+
+function descricaoEvento(evento: AuditoriaEvento) {
+  return evento.descricao_direta || evento.descricao || '-'
+}
+
+function origemIp(evento: AuditoriaEvento) {
+  return evento.ip_origem || 'Nao identificado'
 }
 
 async function carregarAuditoria(novoOffset = 0) {
@@ -148,7 +169,7 @@ onMounted(() => {
         <UFormField label="Entidade">
           <UInput
             v-model="entidade"
-            placeholder="paciente"
+            placeholder="paciente, modulo, unidade..."
             class="w-full"
           />
         </UFormField>
@@ -203,7 +224,7 @@ onMounted(() => {
       >
         <table class="min-w-[64rem] divide-y divide-slate-200 text-sm dark:divide-slate-700">
           <caption class="sr-only">
-            Eventos de auditoria LGPD, com data, ação, usuário, entidade, IP e descrição.
+            Eventos de auditoria LGPD, com data, evento, usuário, entidade, IP, origem e descrição.
           </caption>
           <thead class="bg-slate-100 text-left text-slate-700 dark:bg-slate-800 dark:text-slate-200">
             <tr>
@@ -217,7 +238,7 @@ onMounted(() => {
                 scope="col"
                 class="px-4 py-3 font-medium"
               >
-                Ação
+                Evento
               </th>
               <th
                 scope="col"
@@ -236,6 +257,12 @@ onMounted(() => {
                 class="px-4 py-3 font-medium"
               >
                 IP
+              </th>
+              <th
+                scope="col"
+                class="px-4 py-3 font-medium"
+              >
+                Origem
               </th>
               <th
                 scope="col"
@@ -268,13 +295,16 @@ onMounted(() => {
                   <USkeleton class="h-4 w-24 max-w-full" />
                 </td>
                 <td class="px-4 py-3">
+                  <USkeleton class="h-5 w-28 max-w-full rounded-full" />
+                </td>
+                <td class="px-4 py-3">
                   <USkeleton class="h-4 w-64 max-w-full" />
                 </td>
               </tr>
             </template>
             <tr v-else-if="!eventos.length">
               <td
-                colspan="6"
+                colspan="7"
                 class="px-4 py-8 text-center text-slate-600 dark:text-slate-400"
               >
                 Nenhum evento encontrado.
@@ -287,11 +317,11 @@ onMounted(() => {
                 class="hover:bg-slate-50 dark:hover:bg-slate-800/70"
               >
                 <td class="whitespace-nowrap px-4 py-3 text-slate-700 dark:text-slate-300">
-                  {{ formatarData(evento.created_at) }}
+                  {{ formatarData(evento.created_at_utc || evento.created_at) }}
                 </td>
                 <td class="whitespace-nowrap px-4 py-3">
                   <UBadge
-                    :label="evento.acao"
+                    :label="eventoLabel(evento)"
                     :color="acoesCriticas.has(evento.acao) ? 'warning' : 'neutral'"
                     variant="soft"
                   />
@@ -305,8 +335,15 @@ onMounted(() => {
                 <td class="px-4 py-3 text-slate-700 dark:text-slate-300">
                   {{ evento.ip || '-' }}
                 </td>
+                <td class="whitespace-nowrap px-4 py-3">
+                  <UBadge
+                    :label="origemIp(evento)"
+                    :color="origemColor[origemIp(evento)] || 'neutral'"
+                    variant="soft"
+                  />
+                </td>
                 <td class="max-w-xl px-4 py-3 text-slate-600 dark:text-slate-300">
-                  {{ evento.descricao || '-' }}
+                  {{ descricaoEvento(evento) }}
                 </td>
               </tr>
             </template>
