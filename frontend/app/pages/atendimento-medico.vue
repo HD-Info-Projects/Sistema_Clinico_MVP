@@ -1844,7 +1844,7 @@ async function finalizarConsulta() {
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <UButton
                 icon="i-lucide-file-check"
-                label="Atestado de Comparecimento"
+                label="Declaração de Comparecimento"
                 color="primary"
                 class="w-full p-3 text-lg font-bold"
                 @click="void (showComparecimentoModal = true)"

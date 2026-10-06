@@ -107,7 +107,7 @@ async function gerarPdf() {
     <template #header>
       <div class="flex items-center justify-between">
         <h2 class="text-lg font-semibold">
-          Gerar Atestado de Comparecimento
+          Gerar Declaração de Comparecimento
         </h2>
         <UButton
           icon="i-lucide-x"

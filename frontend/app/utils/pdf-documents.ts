@@ -395,7 +395,7 @@ export async function buildAtestadoComparecimento(params: {
     pageMargins: [60, 40, 60, 60] as [number, number, number, number],
     content: [
       ...(await hospitalHeader()),
-      documentTitle('ATESTADO DE COMPARECIMENTO'),
+      documentTitle('DECLARAÇÃO DE COMPARECIMENTO'),
       { text: `${outroNome ? 'NOME' : 'PACIENTE'}: ${params.paciente.toUpperCase()}`, bold: true, decoration: 'underline', margin: [0, 0, 0, 5] },
       { text: '\n' },
       { text: `Atesto, para os devidos fins, que ${outroNome ? '' : 'o(a) paciente '}${params.paciente} compareceu a esta unidade de sa\u00FAde no dia ${params.data} \u00E0s ${params.horario}, para ${outroNome ? 'acompanhamento' : 'atendimento'} m\u00E9dico.`, margin: [0, 0, 0, 10] },

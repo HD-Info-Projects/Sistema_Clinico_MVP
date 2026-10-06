@@ -594,7 +594,7 @@ function dropdownItems(ag: AgendamentoComPaciente) {
   return [
     [
       ...documentosMedicos,
-      { label: 'Atestado de Comparecimento', icon: 'i-lucide-calendar-check', onSelect: () => executarAcaoDropdown(() => gerarAtestadoComparecimento(ag)) },
+      { label: 'Declaração de Comparecimento', icon: 'i-lucide-calendar-check', onSelect: () => executarAcaoDropdown(() => gerarAtestadoComparecimento(ag)) },
       ...(docs.exames ? [{ label: 'Solicitação de Exames', icon: 'i-lucide-flask-conical', onSelect: () => executarAcaoDropdown(() => gerarSolicitacaoExames(ag)) }] : []),
       ...(docs.receita ? [{ label: 'Receita Médica', icon: 'i-lucide-pill', onSelect: () => executarAcaoDropdown(() => gerarReceita(ag)) }] : [])
     ]
