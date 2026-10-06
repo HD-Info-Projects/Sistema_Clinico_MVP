@@ -652,7 +652,7 @@ const totalPendentesCard = computed(() =>
 
               <div class="text-left col-span-3 md:col-span-1">
                 <p class="text-sm text-muted font-bold">
-                  Tipo / TUSS
+                  Tipo Aten.
                 </p>
                 <UTooltip :text="rotuloTipo(paciente as AgendamentoComPaciente)">
                   <UBadge
@@ -662,18 +662,18 @@ const totalPendentesCard = computed(() =>
                     class="max-w-40 break-all cursor-default"
                   />
                 </UTooltip>
-                <p
+                <!-- <p
                   v-if="paciente.codigoProcedimentoSpdata"
                   class="mt-1 text-xs text-muted"
                 >
                   {{ rotuloCodigoProcedimento(paciente.codigoProcedimentoSpdata) }}
-                </p>
-                <p
+                </p> -->
+                <!-- <p
                   v-if="paciente.procedimentoSpdata"
                   class="mt-1 line-clamp-2 text-xs text-muted"
                 >
                   {{ paciente.procedimentoSpdata }}
-                </p>
+                </p> -->
               </div>
 
               <div class="text-left col-span-3 md:col-span-1">
