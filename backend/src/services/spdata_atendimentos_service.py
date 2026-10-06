@@ -1889,6 +1889,42 @@ def normalizar_diagnosticos_consulta(consulta):
     return diagnosticos
 
 
+def normalizar_cid_personalizado(valor):
+    if not valor or not isinstance(valor, dict):
+        return None
+
+    codigo = normalizar_texto(
+        valor.get("cid") or valor.get("codigo"),
+        20,
+    )
+    if not codigo:
+        return None
+
+    descricao = normalizar_texto(
+        valor.get("descricao") or valor.get("nome"),
+        255,
+    )
+    return {
+        "codigo": codigo.upper(),
+        "descricao": descricao,
+    }
+
+
+def aplicar_cid_personalizado(atendimento, consulta):
+    if "cid_personalizado" not in consulta:
+        return
+
+    cid_personalizado = normalizar_cid_personalizado(
+        consulta.get("cid_personalizado")
+    )
+    atendimento.cid_personalizado = (
+        cid_personalizado["codigo"] if cid_personalizado else None
+    )
+    atendimento.cid_personalizado_descricao = (
+        cid_personalizado["descricao"] if cid_personalizado else None
+    )
+
+
 def salvar_conteudo_clinico(spdata, atendimento_medsystem, usuario_id, consulta, unidade=None):
     if not consulta:
         return
@@ -1933,6 +1969,8 @@ def salvar_conteudo_clinico(spdata, atendimento_medsystem, usuario_id, consulta,
     else:
         atendimento.hora_fim = hora_fim
         atendimento.status = "finalizado"
+
+    aplicar_cid_personalizado(atendimento, consulta)
 
     anamnese_texto = normalizar_texto(consulta.get("anamnese"))
     if anamnese_texto:

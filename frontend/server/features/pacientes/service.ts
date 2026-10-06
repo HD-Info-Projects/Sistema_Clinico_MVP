@@ -139,6 +139,7 @@ export async function buscarHistoricoLocal(event: H3Event, id: string, query: Re
   if (query.nome) params.set('nome', String(query.nome))
   if (query.spdataAtendimentoId) params.set('spdataAtendimentoId', String(query.spdataAtendimentoId))
   if (query.data) params.set('data', String(query.data))
+  if (query.incluirDadosGuia) params.set('incluirDadosGuia', String(query.incluirDadosGuia))
 
   const qs = params.toString()
   try {

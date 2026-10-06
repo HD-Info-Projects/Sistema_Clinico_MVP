@@ -28,6 +28,7 @@ export type AgendamentoComFiltro = {
 export type ConsultaStatusPayload = {
   anamnese?: string
   diagnosticos?: { cid: string, descricao?: string, principal: boolean }[]
+  cid_personalizado?: { cid: string, descricao?: string } | null
   medicamentos?: string
   exames?: ExameConsultaPayload[]
   duracao?: number

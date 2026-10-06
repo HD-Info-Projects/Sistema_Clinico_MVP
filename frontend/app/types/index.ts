@@ -277,6 +277,8 @@ export interface HistoricoLocalRecord {
   anamnese: string | null
   cid_principal: string | null
   cid_principal_descricao: string | null
+  cid_personalizado?: string | null
+  cid_personalizado_descricao?: string | null
   cids_secundarios: { codigo: string, descricao: string | null }[]
   medicamentos: string[]
   exames: (HistoricoExame | string)[]

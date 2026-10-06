@@ -241,7 +241,8 @@ async function obterHistoricoLocal(ag: AgendamentoComPaciente): Promise<Historic
       cpf: ag.paciente.cpf || undefined,
       nome: ag.paciente.nome || undefined,
       spdataAtendimentoId: ag.spdataAtendimentoId || undefined,
-      data: ag.data
+      data: ag.data,
+      incluirDadosGuia: true
     })
     historicoLocalPorAgendamento.value = {
       ...historicoLocalPorAgendamento.value,
@@ -272,6 +273,21 @@ function cidsDoRegistro(registro: HistoricoLocalRecord | null) {
   ]
     .filter((cid): cid is string => Boolean(cid))
     .slice(0, 4)
+}
+
+function cidDaGuia(registro: HistoricoLocalRecord | null) {
+  if (!registro) return ''
+
+  if (registro.cid_personalizado) {
+    return registro.cid_personalizado_descricao
+      ? `${registro.cid_personalizado} - ${registro.cid_personalizado_descricao}`
+      : registro.cid_personalizado
+  }
+
+  if (!registro.cid_principal) return ''
+  return registro.cid_principal_descricao
+    ? `${registro.cid_principal} - ${registro.cid_principal_descricao}`
+    : registro.cid_principal
 }
 
 function registroTemExames(registro: HistoricoLocalRecord | null) {
@@ -501,7 +517,8 @@ async function gerarSolicitacaoExames(ag: AgendamentoComPaciente) {
       exames,
       medico: auth.user?.nome,
       crm: auth.user?.crm,
-      especialidade: auth.user?.especialidades?.join(', ')
+      especialidade: auth.user?.especialidades?.join(', '),
+      cidPrincipal: cidDaGuia(registro)
     }
     const html = await gerarHtmlGuiaTiss(params)
     imprimirGuiaTiss(html)

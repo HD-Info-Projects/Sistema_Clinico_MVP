@@ -43,6 +43,7 @@ export type FiltrosHistoricoLocal = {
   nome?: string
   spdataAtendimentoId?: number | string
   data?: string
+  incluirDadosGuia?: boolean
 }
 
 export type FiltrosHistoricoExterno = {

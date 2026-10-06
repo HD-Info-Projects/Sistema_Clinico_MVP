@@ -90,7 +90,10 @@ async function carregarConsultaExistente() {
     const registros = await $fetch<HistoricoLocalRecord[]>(
       `/api/historico-local/${ag.paciente.id}`,
       {
-        query: { spdataAtendimentoId: ag.spdataAtendimentoId ?? undefined }
+        query: {
+          spdataAtendimentoId: ag.spdataAtendimentoId ?? undefined,
+          incluirDadosGuia: true
+        }
       }
     )
     const registro = registros?.[0]
@@ -109,6 +112,17 @@ async function carregarConsultaExistente() {
       if (s?.codigo) cids.push({ cid: s.codigo, nome: s.descricao ?? '' })
     }
     cidSelecionadoLista.value = cids
+
+    if (registro.cid_personalizado) {
+      usarCidPersonalizado.value = true
+      cidPersonalizadoSelecionado.value = {
+        cid: registro.cid_personalizado,
+        nome: registro.cid_personalizado_descricao ?? ''
+      }
+    } else {
+      usarCidPersonalizado.value = false
+      cidPersonalizadoSelecionado.value = null
+    }
 
     receitaTexto.value = (registro.medicamentos ?? []).join('\n')
 
@@ -201,7 +215,7 @@ const tabItems = [
 ]
 
 type AtendimentoDraft = {
-  version: 5
+  version: 6
   savedAt: string
   agendamentoId: number
   pacienteId: number | null
@@ -218,6 +232,9 @@ type AtendimentoDraft = {
   exameSelecionado: ExameCatalogo | null
   buscaTermoExame: string
   caraterAtendimento: boolean
+  usarCidPersonalizado: boolean
+  cidPersonalizadoSelecionado: CidResultado | null
+  searchCidPersonalizado: string
 }
 
 type AtendimentoDraftSalvo = Partial<Omit<AtendimentoDraft, 'version'>> & {
@@ -336,12 +353,24 @@ function removerCid(index: number) {
 }
 
 function adicionarCid(item: CidResultado) {
-  const jaExiste = cidSelecionadoLista.value.some(c => c.cid === item.cid)
-  if (jaExiste) return
-  cidSelecionadoLista.value.push(item)
+  const codigo = item.cid.trim().toUpperCase()
+  const jaExiste = cidSelecionadoLista.value.some(
+    cid => cid.cid.trim().toUpperCase() === codigo
+  )
+
+  if (!jaExiste) {
+    cidSelecionadoLista.value.push({ ...item, cid: codigo })
+  }
+
   searchCid.value = ''
   resultadosCid.value = []
 }
+
+watch(cidTempSelecionado, (item) => {
+  if (!item) return
+  adicionarCid(item)
+  cidTempSelecionado.value = null
+})
 
 const anamneseTexto = ref('')
 const padraoAnamneseSelected = ref<{ label: string, value: PadraoAnamnese }>()
@@ -382,12 +411,105 @@ const carregandoExames = ref(false)
 const erroBuscaExames = ref('')
 const exameTemplateSelected = ref<{ label: string, value: PadraoExame }>()
 const caraterAtendimento = ref(false)
+const usarCidPersonalizado = ref(false)
+const cidPersonalizadoSelecionado = ref<CidResultado | null>(null)
+const searchCidPersonalizado = ref('')
+const resultadosCidPersonalizado = ref<CidResultado[]>([])
+const isLoadingCidPersonalizado = ref(false)
+const erroBuscaCidPersonalizado = ref('')
+let buscaCidPersonalizadoTimeout: ReturnType<typeof setTimeout> | null = null
+let cidPersonalizadoController: AbortController | null = null
+let cidPersonalizadoRequestId = 0
+
+function limparBuscaCidPersonalizado() {
+  cidPersonalizadoRequestId++
+  cidPersonalizadoController?.abort()
+  resultadosCidPersonalizado.value = []
+  erroBuscaCidPersonalizado.value = ''
+  isLoadingCidPersonalizado.value = false
+}
+
+async function buscarCidPersonalizado(q: string) {
+  const termo = q.trim()
+
+  if (!podeBuscarCid(termo)) {
+    limparBuscaCidPersonalizado()
+    return
+  }
+
+  const requestId = ++cidPersonalizadoRequestId
+  cidPersonalizadoController?.abort()
+  cidPersonalizadoController = new AbortController()
+  isLoadingCidPersonalizado.value = true
+  erroBuscaCidPersonalizado.value = ''
+
+  try {
+    const data = await buscarCidService(
+      { q: termo, limit: 20 },
+      cidPersonalizadoController.signal
+    )
+
+    if (requestId !== cidPersonalizadoRequestId) return
+    if (searchCidPersonalizado.value.trim() !== termo) return
+    resultadosCidPersonalizado.value = data
+  } catch (error) {
+    const name = error instanceof Error ? error.name : ''
+    if (name === 'AbortError' || requestId !== cidPersonalizadoRequestId) return
+
+    resultadosCidPersonalizado.value = []
+    erroBuscaCidPersonalizado.value = mensagemErroFetch(
+      error,
+      'Não foi possível buscar CID no momento.'
+    )
+  } finally {
+    if (requestId === cidPersonalizadoRequestId) {
+      isLoadingCidPersonalizado.value = false
+    }
+  }
+}
+
+watch(searchCidPersonalizado, (valor) => {
+  if (buscaCidPersonalizadoTimeout) clearTimeout(buscaCidPersonalizadoTimeout)
+
+  if (!podeBuscarCid(valor)) {
+    limparBuscaCidPersonalizado()
+    return
+  }
+
+  buscaCidPersonalizadoTimeout = setTimeout(() => {
+    buscarCidPersonalizado(valor)
+  }, 300)
+})
+
+watch(cidPersonalizadoSelecionado, (cid) => {
+  if (!cid) return
+  searchCidPersonalizado.value = ''
+  limparBuscaCidPersonalizado()
+})
+
+watch(usarCidPersonalizado, (ativo) => {
+  if (ativo) return
+  cidPersonalizadoSelecionado.value = null
+  searchCidPersonalizado.value = ''
+  limparBuscaCidPersonalizado()
+})
+
+function formatarCid(cid: CidResultado) {
+  return cid.nome ? `${cid.cid} - ${cid.nome}` : cid.cid
+}
 
 const cidPrincipal = computed(() => {
   if (cidSelecionadoLista.value.length === 0) return ''
   const idx = cidPrincipalIndex.value
   const cid = cidSelecionadoLista.value[idx]
-  return cid ? `${cid.cid} - ${cid.nome}` : ''
+  return cid ? formatarCid(cid) : ''
+})
+
+const cidParaGuia = computed(() => {
+  if (usarCidPersonalizado.value && cidPersonalizadoSelecionado.value) {
+    return formatarCid(cidPersonalizadoSelecionado.value)
+  }
+  return cidPrincipal.value
 })
 
 let buscaExameTimeout: ReturnType<typeof setTimeout> | null = null
@@ -612,7 +734,7 @@ function montarDraft(): AtendimentoDraft | null {
   if (!ag) return null
 
   return {
-    version: 5,
+    version: 6,
     savedAt: new Date().toISOString(),
     agendamentoId: ag.id,
     pacienteId: ag.paciente.id ?? null,
@@ -628,7 +750,10 @@ function montarDraft(): AtendimentoDraft | null {
     examesSelecionados: [...examesSelecionados.value],
     exameSelecionado: exameSelecionado.value,
     buscaTermoExame: buscaTermoExame.value,
-    caraterAtendimento: caraterAtendimento.value
+    caraterAtendimento: caraterAtendimento.value,
+    usarCidPersonalizado: usarCidPersonalizado.value,
+    cidPersonalizadoSelecionado: cidPersonalizadoSelecionado.value,
+    searchCidPersonalizado: searchCidPersonalizado.value
   }
 }
 
@@ -644,6 +769,9 @@ function draftTemConteudo(draft: AtendimentoDraft) {
     || draft.examesSelecionados.length
     || Boolean(draft.exameSelecionado)
     || draft.buscaTermoExame.trim()
+    || draft.usarCidPersonalizado
+    || Boolean(draft.cidPersonalizadoSelecionado)
+    || draft.searchCidPersonalizado.trim()
   )
 }
 
@@ -713,6 +841,11 @@ function restaurarDraft() {
     exameSelecionado.value = null
     buscaTermoExame.value = draft.buscaTermoExame || ''
     caraterAtendimento.value = draft.caraterAtendimento ?? false
+    usarCidPersonalizado.value = draft.usarCidPersonalizado ?? false
+    cidPersonalizadoSelecionado.value = draft.cidPersonalizadoSelecionado ?? null
+    searchCidPersonalizado.value = cidPersonalizadoSelecionado.value
+      ? ''
+      : draft.searchCidPersonalizado || ''
     draftSalvoEm.value = draft.savedAt
     draftRestaurado.value = true
   } catch {
@@ -747,7 +880,10 @@ watch(
     examesSelecionados,
     exameSelecionado,
     buscaTermoExame,
-    caraterAtendimento
+    caraterAtendimento,
+    usarCidPersonalizado,
+    cidPersonalizadoSelecionado,
+    searchCidPersonalizado
   ],
   () => {
     salvarDraftComDebounce()
@@ -791,6 +927,12 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('beforeunload', salvarDraftAgora)
+  cidController?.abort()
+  cidPersonalizadoController?.abort()
+  examesController?.abort()
+  if (buscaTimeout) clearTimeout(buscaTimeout)
+  if (buscaCidPersonalizadoTimeout) clearTimeout(buscaCidPersonalizadoTimeout)
+  if (buscaExameTimeout) clearTimeout(buscaExameTimeout)
 
   if (draftTimer) {
     clearTimeout(draftTimer)
@@ -830,6 +972,7 @@ async function gerarReceitaEspecialPdf() {
 
 async function gerarSolicitacaoExames() {
   if (!examesSelecionados.value.length) return
+  if (!validarCidPersonalizado()) return
 
   const convenio = (agendamento.value?.paciente.convenio ?? '').toLowerCase()
 
@@ -845,7 +988,7 @@ async function gerarSolicitacaoExames() {
       medico: auth.user?.nome,
       crm: auth.user?.crm,
       especialidade: auth.user?.especialidades?.join(', '),
-      cidPrincipal: cidPrincipal.value,
+      cidPrincipal: cidParaGuia.value,
       caraterAtendimento: caraterAtendimento.value
     }
     const html = await gerarHtmlGuiaTiss(params)
@@ -867,6 +1010,25 @@ async function gerarSolicitacaoExames() {
     especialidade: auth.user?.especialidades?.join(', ')
   })
   pdfMake.createPdf(doc).open()
+}
+
+function validarCidPersonalizado() {
+  if (
+    !examesSelecionados.value.length
+    || !usarCidPersonalizado.value
+    || cidPersonalizadoSelecionado.value
+  ) {
+    return true
+  }
+
+  tabAtiva.value = '1'
+  toast.add({
+    title: 'Selecione o CID personalizado',
+    description: 'Escolha um CID do catálogo antes de gerar a guia ou finalizar a consulta.',
+    color: 'warning',
+    icon: 'i-lucide-triangle-alert'
+  })
+  return false
 }
 
 const cancelandoConsulta = ref(false)
@@ -901,6 +1063,7 @@ async function cancelarAtendimento() {
 
 async function finalizarConsulta() {
   if (!agendamento.value || finalizandoConsulta.value) return
+  if (!validarCidPersonalizado()) return
 
   finalizandoConsulta.value = true
   const agendamentoAtual = agendamento.value
@@ -915,6 +1078,14 @@ async function finalizarConsulta() {
         descricao: cid.nome,
         principal: i === 0
       })),
+      cid_personalizado: examesSelecionados.value.length
+        && usarCidPersonalizado.value
+        && cidPersonalizadoSelecionado.value
+        ? {
+            cid: cidPersonalizadoSelecionado.value.cid,
+            descricao: cidPersonalizadoSelecionado.value.nome
+          }
+        : null,
       medicamentos: receitaTexto.value,
       exames: examesSelecionados.value.map(e => ({
         nome: e.nome,
@@ -1083,7 +1254,7 @@ async function finalizarConsulta() {
               </div>
             </template>
 
-            <div class="flex flex-col gap-2 sm:flex-row">
+            <div class="flex flex-col gap-2">
               <UInputMenu
                 v-model="cidTempSelecionado"
                 v-model:search-term="searchCid"
@@ -1133,15 +1304,6 @@ async function finalizarConsulta() {
                   </p>
                 </template>
               </UInputMenu>
-              <UButton
-                icon="i-lucide-plus"
-                color="primary"
-                class="w-full sm:w-auto"
-                :disabled="!cidTempSelecionado"
-                @click="adicionarCid(cidTempSelecionado!); cidTempSelecionado = null"
-              >
-                <span class="sm:hidden"> Adicionar</span>
-              </UButton>
             </div>
 
             <div
@@ -1298,7 +1460,7 @@ async function finalizarConsulta() {
             class="flex min-w-0 grow flex-col"
           >
             <template #title>
-              <div class="flex min-w-0 gap-2 flex-row items-center justify-between">
+              <div class="flex min-w-0 gap-2 flex-col md:flex-row items-center justify-between">
                 <div class="flex min-w-0 items-center gap-2">
                   <UIcon
                     name="i-lucide-flask-conical"
@@ -1308,16 +1470,99 @@ async function finalizarConsulta() {
                     Pedido de Exames
                   </p>
                 </div>
-                <div class="flex shrink-0 items-center gap-2">
-                  <span class="text-sm text-muted">
-                    {{ caraterAtendimento ? 'U - Urgência' : 'E - Eletiva' }}
-                  </span>
-                  <USwitch v-model="caraterAtendimento" />
+                <div class="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
+                  <div class="flex shrink-0 items-center gap-2">
+                    <span class="text-sm text-muted">
+                      {{ caraterAtendimento ? 'U - Urgência' : 'E - Eletiva' }}
+                    </span>
+                    <USwitch v-model="caraterAtendimento" />
+                  </div>
+                  <div class="flex shrink-0 items-center gap-2">
+                    <span class="text-sm text-muted">
+                      CID Personalizado
+                    </span>
+                    <USwitch v-model="usarCidPersonalizado" />
+                  </div>
                 </div>
               </div>
             </template>
 
             <div class="flex min-w-0 grow flex-col gap-4 p-4">
+              <UFormField
+                v-if="usarCidPersonalizado"
+                label="CID personalizado da guia"
+                required
+                class="w-full"
+              >
+                <div
+                  v-if="cidPersonalizadoSelecionado"
+                  class="flex min-w-0 flex-col gap-2 rounded-lg border border-muted p-3 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <span class="min-w-0 wrap-break-word text-sm">
+                    <span class="font-mono font-semibold text-primary">{{ cidPersonalizadoSelecionado.cid }}</span>
+                    — {{ cidPersonalizadoSelecionado.nome }}
+                  </span>
+                  <UButton
+                    icon="i-lucide-refresh-cw"
+                    label="Trocar CID"
+                    color="neutral"
+                    variant="soft"
+                    size="sm"
+                    class="w-full shrink-0 sm:w-auto"
+                    @click="void(cidPersonalizadoSelecionado = null)"
+                  />
+                </div>
+                <UInputMenu
+                  v-else
+                  v-model="cidPersonalizadoSelecionado"
+                  v-model:search-term="searchCidPersonalizado"
+                  :items="resultadosCidPersonalizado"
+                  :loading="isLoadingCidPersonalizado"
+                  label-key="nome"
+                  placeholder="Buscar CID por código ou nome..."
+                  icon="i-lucide-search"
+                  clear
+                  ignore-filter
+                  class="w-full"
+                >
+                  <template #item-label="{ item }">
+                    <span class="font-mono text-xs font-semibold text-primary min-w-10">{{ item.cid }}</span>
+                    <span class="text-muted"> — </span>
+                    <span class="truncate">{{ item.nome }}</span>
+                  </template>
+                  <template #empty>
+                    <div
+                      v-if="isLoadingCidPersonalizado"
+                      role="status"
+                      aria-label="Carregando resultados de CID"
+                      class="space-y-2 px-3 py-3"
+                    >
+                      <USkeleton class="h-4 w-20" />
+                      <USkeleton class="h-4 w-full" />
+                      <USkeleton class="h-4 w-3/4" />
+                    </div>
+                    <p
+                      v-else-if="erroBuscaCidPersonalizado"
+                      class="px-3 py-4 text-sm text-error text-center"
+                    >
+                      {{ erroBuscaCidPersonalizado }}
+                    </p>
+                    <p
+                      v-else-if="searchCidPersonalizado && searchCidPersonalizado.trim().length < minimoCaracteresCid(searchCidPersonalizado)"
+                      class="px-3 py-4 text-sm text-muted text-center"
+                    >
+                      Digite pelo menos {{ minimoCaracteresCid(searchCidPersonalizado) }} caracteres
+                    </p>
+                    <p
+                      v-else-if="searchCidPersonalizado && podeBuscarCid(searchCidPersonalizado)"
+                      class="px-3 py-4 text-sm text-muted text-center"
+                    >
+                      Nenhum CID encontrado
+                    </p>
+                  </template>
+                </UInputMenu>
+              </UFormField>
+
               <div class="shrink-0 flex flex-col gap-2 sm:flex-row">
                 <UInputMenu
                   v-model="exameTemplateSelected"

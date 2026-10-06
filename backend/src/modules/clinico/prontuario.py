@@ -1031,6 +1031,9 @@ def historico_paciente_local(paciente_id):
         cpf = referencia["cpf"]
         nome = referencia["nome"]
         data = request.args.get("data")
+        incluir_dados_guia = str(
+            request.args.get("incluirDadosGuia", "")
+        ).lower() in {"1", "true", "sim"}
         data_ref = None
 
         if data:
@@ -1054,6 +1057,10 @@ def historico_paciente_local(paciente_id):
             Atendimento.status == "finalizado",
             or_(*identificadores),
         ]
+        if spdata_atendimento_id:
+            filtros.append(
+                Atendimento.spdata_atendimento_id == spdata_atendimento_id
+            )
         if data_ref:
             inicio = datetime.combine(data_ref, time.min)
             fim = datetime.combine(data_ref + timedelta(days=1), time.min)
@@ -1088,7 +1095,7 @@ def historico_paciente_local(paciente_id):
                 if evol.medico:
                     medico_nome = evol.medico.nome_completo
 
-            result.append({
+            registro = {
                 "spdata_atendimento_id": a.spdata_atendimento_id,
                 "data_consulta": a.data_atendimento.isoformat() if a.data_atendimento else None,
                 "medico_nome": medico_nome,
@@ -1107,7 +1114,13 @@ def historico_paciente_local(paciente_id):
                     _solicitacao_exame_to_dict(s)
                     for s in a.solicitacoes_exames
                 ],
-            })
+            }
+            if incluir_dados_guia:
+                registro.update({
+                    "cid_personalizado": a.cid_personalizado,
+                    "cid_personalizado_descricao": a.cid_personalizado_descricao,
+                })
+            result.append(registro)
 
         registrar_auditoria(
             AcaoAuditoria.VISUALIZOU_PRONTUARIO,

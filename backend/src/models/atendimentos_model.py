@@ -45,6 +45,8 @@ class Atendimento(db.Model):
     
     status = Column(String(50), default=StatusAtendimento.AGENDADO.value)
     sync_status = Column(String(50), default=SyncStatusAtendimento.PENDENTE_SINCRONIZACAO.value)
+    cid_personalizado = Column(String(20), nullable=True)
+    cid_personalizado_descricao = Column(String(255), nullable=True)
     
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
