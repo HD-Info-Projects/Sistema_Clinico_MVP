@@ -38,6 +38,7 @@ export type AtualizarStatusAgendamentoResponse = AgendamentoComPaciente | Agenda
 
 export type AtendimentoEmAndamentoResponse = {
   emAtendimento: boolean
+  emEdicao?: boolean
   data?: string
   unidadeId?: number
   id?: number

@@ -24,6 +24,7 @@ export default defineEventHandler(async (event) => {
       data: {
         id: Number(result.id) || id,
         status: result.status || body.status,
+        emEdicao: result.emEdicao ?? false,
         pacienteId: Number(result.pacienteId) || undefined
       }
     }, clinicaId)

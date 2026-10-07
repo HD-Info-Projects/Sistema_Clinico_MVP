@@ -4,6 +4,8 @@ const props = defineProps<{
   nomePaciente?: string | null
   finalizando?: boolean
   cancelando?: boolean
+  emEdicao?: boolean
+  finalizacaoBloqueada?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -35,7 +37,7 @@ const ocupado = computed(() => !!props.finalizando || !!props.cancelando)
               class="mt-1 shrink-0 text-warning"
             />
             <h3 class="min-w-0 wrap-break-word text-xl font-black">
-              Atendimento em andamento
+              {{ emEdicao ? 'Edição de atendimento concluído' : 'Atendimento em andamento' }}
             </h3>
           </div>
           <UButton
@@ -50,19 +52,19 @@ const ocupado = computed(() => !!props.finalizando || !!props.cancelando)
         </div>
         <p class="wrap-break-word text-neutral-500 dark:text-neutral-400">
           <template v-if="nomePaciente">
-            Você está atendendo <span class="font-semibold text-highlighted">{{ nomePaciente }}</span>.
+            {{ emEdicao ? 'Você está editando o atendimento de' : 'Você está atendendo' }} <span class="font-semibold text-highlighted">{{ nomePaciente }}</span>.
           </template>
           <template v-else>
-            Há um atendimento em andamento.
+            {{ emEdicao ? 'Há uma edição em andamento.' : 'Há um atendimento em andamento.' }}
           </template>
           O que deseja fazer antes de sair desta tela?
         </p>
         <p class="wrap-break-word text-sm text-neutral-500 dark:text-neutral-400">
-          Ao pausar, o atendimento continua em andamento e você poderá retomá-lo pelo dashboard.
+          {{ emEdicao ? 'Ao pausar, a edição continua em andamento e você poderá retomá-la pelo dashboard.' : 'Ao pausar, o atendimento continua em andamento e você poderá retomá-lo pelo dashboard.' }}
         </p>
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <UButton
-            label="Pausar atendimento"
+            :label="emEdicao ? 'Pausar edição' : 'Pausar atendimento'"
             icon="i-lucide-pause"
             color="neutral"
             variant="soft"
@@ -73,7 +75,7 @@ const ocupado = computed(() => !!props.finalizando || !!props.cancelando)
             @click="emit('pausar')"
           />
           <UButton
-            label="Cancelar atendimento"
+            :label="emEdicao ? 'Cancelar edição' : 'Cancelar atendimento'"
             icon="i-lucide-x-circle"
             color="error"
             variant="soft"
@@ -85,7 +87,7 @@ const ocupado = computed(() => !!props.finalizando || !!props.cancelando)
             @click="emit('cancelar')"
           />
           <UButton
-            label="Finalizar atendimento"
+            :label="emEdicao ? 'Finalizar edição' : 'Finalizar atendimento'"
             icon="i-lucide-check-circle"
             color="success"
             variant="solid"
@@ -93,7 +95,7 @@ const ocupado = computed(() => !!props.finalizando || !!props.cancelando)
             size="lg"
             class="font-bold rounded-xl"
             :loading="finalizando"
-            :disabled="ocupado"
+            :disabled="ocupado || finalizacaoBloqueada"
             @click="emit('finalizar')"
           />
         </div>

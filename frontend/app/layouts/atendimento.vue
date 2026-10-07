@@ -932,7 +932,12 @@ function voltarDashboard() {
                             class="text-xs text-muted mt-0.5"
                           >
                             <strong>{{ exame.nome }}:</strong>
-                            {{ exame.orientacao }}
+                            <!-- eslint-disable vue/no-v-html -->
+                            <div
+                              class="wrap-break-word whitespace-pre-line **:max-w-full [&_p]:my-0"
+                              v-html="sanitizeHtml(exame.orientacao)"
+                            />
+                            <!-- eslint-enable vue/no-v-html -->
                           </div>
                         </template>
                       </div>

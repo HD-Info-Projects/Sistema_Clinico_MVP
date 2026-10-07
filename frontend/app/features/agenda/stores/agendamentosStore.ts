@@ -22,6 +22,7 @@ type AgendaSnapshotEvent = {
 type AgendamentoStatusEvent = {
   id: number
   status: AgendamentoStatus
+  emEdicao?: boolean
   pacienteId?: number
 }
 
@@ -139,13 +140,15 @@ export const useAgendamentosStore = defineStore('agendamentos', () => {
 
     agendamentos.value[index] = {
       ...agendamentos.value[index]!,
-      status: evento.status
+      status: evento.status,
+      emEdicao: evento.emEdicao ?? agendamentos.value[index]!.emEdicao
     }
   }
 
   function resumoAtendimento(item: AgendamentoComPaciente): AtendimentoEmAndamentoResponse {
     return {
       emAtendimento: true,
+      emEdicao: item.emEdicao,
       data: item.data,
       unidadeId: item.clinicaId,
       id: item.id,
@@ -218,6 +221,9 @@ export const useAgendamentosStore = defineStore('agendamentos', () => {
         atendimentoAtualStatus.value = resultado.emAtendimento ? 'present' : 'absent'
         atendimentoAtualVerificadoEm = Date.now()
         const local = emAtendimento.value
+        if (local && resultado.emAtendimento && resultado.id === local.id && resultado.emEdicao !== undefined) {
+          aplicarStatusAgendamento({ id: local.id, status: local.status, emEdicao: resultado.emEdicao })
+        }
         if (local && (!resultado.emAtendimento || (resultado.id && resultado.id !== local.id))) {
           agendamentos.value = agendamentos.value.filter(item => item.id !== local.id)
         }
