@@ -3,6 +3,7 @@ import { verificarAtendimentoEmAndamento } from '~/features/agenda/services/agen
 import { buscarSessaoAuth, loginAuth, logoutAuth } from '~/features/auth/services/authService'
 import type { AuthSessionResponse, AuthUser, Clinica } from '~/features/auth/types'
 import { ASSISTENTE_ROLES, LGPD_ROLES, MEDICO_ROLES, RECEPCAO_ROLES, roleIn } from '~/utils/roles'
+import { registrarEventoAuditoria } from '~/utils/auditoria-eventos'
 
 export type AccessMode = 'recepcionista' | 'administrador' | 'logs'
 
@@ -247,6 +248,13 @@ export const useAuthStore = defineStore('auth', () => {
       if (!activeId || !clinicaExisteNaLista(activeId)) return false
 
       selecionarClinicaAtiva(activeId)
+      const unidade = clinicas.value.find(c => c.id === activeId)
+      registrarEventoAuditoria({
+        acao: 'MUDOU_UNIDADE',
+        entidade: 'unidade',
+        entidade_id: activeId,
+        descricao: `Mudanca de unidade ativa para ${unidade?.nome || `#${activeId}`}.`
+      })
       return true
     } catch {
       return false

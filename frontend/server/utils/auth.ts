@@ -1,6 +1,7 @@
 import type { H3Event } from 'h3'
 import { createError, deleteCookie, getCookie, setCookie } from 'h3'
 import type { ServerClinica } from './clinicas'
+import { forwardedClientHeaders } from './client-ip'
 import { clearActiveClinicaIdCookie, clinicasFromBackend, resolveActiveClinicaIdCookie, setActiveClinicaIdCookie } from './clinicas'
 import { fetchErrorStatus } from './proxy-error'
 import { getRequestId, logUpstreamFailure, REQUEST_ID_HEADER } from './request-id'
@@ -106,6 +107,7 @@ export async function getAuthenticatedUser(event: H3Event) {
   try {
     return await $fetch<BackendAuthUser>(`${config.flaskBaseUrl}/login/me`, {
       headers: {
+        ...forwardedClientHeaders(event),
         Authorization: `Bearer ${token}`,
         [REQUEST_ID_HEADER]: requestId
       }

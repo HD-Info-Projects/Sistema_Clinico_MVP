@@ -66,6 +66,12 @@ class Config:
     INTERNAL_REQUEST_SECRET = os.getenv('INTERNAL_REQUEST_SECRET', '')
     PASSWORD_MIN_LENGTH = int(os.getenv('PASSWORD_MIN_LENGTH', 6))
     JWT_BLOCKLIST_STORAGE_URI = os.getenv('JWT_BLOCKLIST_STORAGE_URI') or RATELIMIT_STORAGE_URI
+    AUDITORIA_TIMEZONE = os.getenv('AUDITORIA_TIMEZONE', 'America/Sao_Paulo')
+    NATUS_FIXED_IPS = [
+        ip.strip()
+        for ip in os.getenv('NATUS_FIXED_IPS', '').split(',')
+        if ip.strip()
+    ]
 
     LGPD_RETENTION_LOGS_INTEGRACAO_DAYS = int(
         os.getenv('LGPD_RETENTION_LOGS_INTEGRACAO_DAYS', 180)

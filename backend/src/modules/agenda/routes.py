@@ -430,6 +430,8 @@ def atualizar_status(med_spdata_atendimento_id):
             acao = AcaoAuditoria.INICIOU_ATENDIMENTO
         elif status_final == "atendido":
             acao = AcaoAuditoria.FINALIZOU_ATENDIMENTO
+        elif status_final == "cancelado":
+            acao = AcaoAuditoria.CANCELOU_ACAO
 
         registrar_auditoria(
             acao,

@@ -838,7 +838,52 @@ function voltarDashboard() {
         </div>
         <USeparator />
         <div class="w-full px-2">
+          <div
+            v-if="isLoadingHistorico"
+            role="status"
+            aria-live="polite"
+            aria-label="Carregando histórico do paciente"
+            class="space-y-4 py-3"
+          >
+            <div class="flex items-center justify-center gap-2 text-xs text-muted">
+              <UIcon
+                name="i-lucide-loader-circle"
+                class="size-4 animate-spin"
+              />
+              <span>Carregando histórico...</span>
+            </div>
+            <div
+              v-for="linha in 3"
+              :key="linha"
+              class="flex gap-3"
+            >
+              <USkeleton class="size-6 shrink-0 rounded-full" />
+              <div class="min-w-0 flex-1 space-y-2">
+                <USkeleton class="h-4 w-36 max-w-full" />
+                <USkeleton class="h-3 w-full max-w-full" />
+                <USkeleton class="h-3 w-3/4 max-w-full" />
+              </div>
+            </div>
+          </div>
+
+          <div
+            v-else-if="historicoItemsVisiveis.length === 0"
+            class="flex flex-col items-center gap-2 py-8 text-center"
+          >
+            <UIcon
+              name="i-lucide-folder-open"
+              class="size-7 text-muted"
+            />
+            <p class="text-sm font-medium text-highlighted">
+              Nenhum histórico encontrado.
+            </p>
+            <p class="max-w-56 text-xs text-muted">
+              A busca foi concluída e não há registros para este paciente.
+            </p>
+          </div>
+
           <UTimeline
+            v-else
             :items="historicoItemsVisiveis"
             color="primary"
             :default-value="historicoItemsVisiveis.length"
