@@ -31,7 +31,7 @@ const filtroMedico = ref('Todos')
 const filtroEspecialidade = ref('Todos')
 const filtroConvenio = ref('Todos')
 const filtroStatus = ref('Todos')
-const filtroTipoExame = ref('')
+const filtroTipoExame = ref<string[]>([])
 const filtroExame = ref('')
 const filtroPaciente = ref('')
 
@@ -42,7 +42,7 @@ const filtroMedicoActive = ref('Todos')
 const filtroEspecialidadeActive = ref('Todos')
 const filtroConvenioActive = ref('Todos')
 const filtroStatusActive = ref('Todos')
-const filtroTipoExameActive = ref('')
+const filtroTipoExameActive = ref<string[]>([])
 
 const FILTRO_EXAMES_LABORATORIAIS = 'exames-laboratoriais'
 const TIPOS_EXAMES_LABORATORIAIS = new Set([
@@ -103,7 +103,7 @@ function aplicarFiltros() {
   filtroEspecialidadeActive.value = filtroEspecialidade.value
   filtroConvenioActive.value = filtroConvenio.value
   filtroStatusActive.value = filtroStatus.value
-  filtroTipoExameActive.value = filtroTipoExame.value
+  filtroTipoExameActive.value = [...filtroTipoExame.value]
   page.value = 1
   carregarRetencao()
 }
@@ -142,7 +142,7 @@ const tiposExameDisponiveis = computed(() => {
 
   const itens = Array.from(tipos, ([value, label]) => ({ value, label }))
     .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'))
-  return [{ label: 'Todos', value: '' }, ...itens]
+  return itens
 })
 
 const STATUS_VALUE_MAP: Record<string, string> = {
@@ -156,12 +156,14 @@ const statusDisponiveis = ['Todos', 'Pendente', 'Realizado', 'Não Convertido']
 const STATUS_EM_ABERTO = new Set<ExameRetencao['status']>(['pendente'])
 
 const dadosFiltrados = computed(() => {
+  const tiposSelecionados = new Set(filtroTipoExameActive.value)
+
   return examesRetencao.value.filter((e) => {
     if (filtroMedicoActive.value !== 'Todos' && e.medico !== filtroMedicoActive.value) return false
     if (filtroEspecialidadeActive.value !== 'Todos' && e.especialidade !== filtroEspecialidadeActive.value) return false
     if (filtroConvenioActive.value !== 'Todos' && e.convenio !== filtroConvenioActive.value) return false
     if (filtroStatusActive.value !== 'Todos' && e.status !== STATUS_VALUE_MAP[filtroStatusActive.value]) return false
-    if (filtroTipoExameActive.value && tipoExameFiltro(e) !== filtroTipoExameActive.value) return false
+    if (tiposSelecionados.size && !tiposSelecionados.has(tipoExameFiltro(e))) return false
     if (e.dataSolicitacao.substring(0, 7) < filtroPeriodoInicioActive.value) return false
     if (e.dataSolicitacao.substring(0, 7) > filtroPeriodoFimActive.value) return false
     return true
@@ -244,10 +246,10 @@ function corTipoExame(item: ExameRetencao) {
   return corTipoProcedimento(tipoExame(item))
 }
 
-function selecionarTipoExame(tipo: string | null) {
-  const valor = tipo ?? ''
-  filtroTipoExame.value = valor
-  filtroTipoExameActive.value = valor
+function selecionarTiposExame(tipos: string[] | string | null) {
+  const valores = Array.isArray(tipos) ? tipos : tipos ? [tipos] : []
+  filtroTipoExame.value = valores
+  filtroTipoExameActive.value = [...valores]
   page.value = 1
 }
 
@@ -278,6 +280,7 @@ const colunasExportacao: ColunaExport<ExameRetencao>[] = [
   { key: 'tipoExame', header: 'Tipo de Exame', value: e => rotuloTipoExame(e) },
   { key: 'codigoTuss', header: 'Código TUSS', value: e => e.codigoTuss },
   { key: 'dataSolicitacao', header: 'Data Solicitação', value: e => formatarData(e.dataSolicitacao) },
+  { key: 'dataRealizacao', header: 'Data da Realização', value: e => formatarData(e.dataRealizacao) },
   { key: 'diasEmAberto', header: 'Dias em Aberto', value: e => e.diasEmAberto },
   { key: 'status', header: 'Status', value: e => rotuloStatus(e.status) },
   { key: 'valorEstimado', header: 'Valor Estimado', value: e => e.valorEstimado },
@@ -455,6 +458,20 @@ const rankingExames = computed(() => {
     .slice(0, 10)
 })
 
+const rankingTiposExame = computed(() => {
+  const totais = new Map<string, number>()
+
+  for (const exame of dadosFiltrados.value) {
+    const label = rotuloTipoExameFiltro(exame) || 'Tipo não informado'
+    totais.set(label, (totais.get(label) || 0) + 1)
+  }
+
+  return [...totais.entries()]
+    .map(([tipo, total]) => ({ tipo, total }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 10)
+})
+
 const rankingOportunidade = computed(() => {
   const totais = new Map<string, number>()
 
@@ -506,6 +523,9 @@ const rankingEspecialidade = computed(() => {
 
 const chartExamesLabels = computed(() => rankingExames.value.map(e => e.exame))
 const chartExamesDados = computed(() => rankingExames.value.map(e => e.total))
+
+const chartTiposExameLabels = computed(() => rankingTiposExame.value.map(e => e.tipo))
+const chartTiposExameDados = computed(() => rankingTiposExame.value.map(e => e.total))
 
 const chartOportunidadeLabels = computed(() => rankingOportunidade.value.map(o => o.convenio))
 const chartOportunidadeDados = computed(() => rankingOportunidade.value.map(o => o.valor))
@@ -656,19 +676,21 @@ watch(() => auth.activeClinicaId, () => {
               />
             </UFormField>
             <UFormField
-              label="Tipo de Exame"
+              label="Tipo de Exames"
               class="w-full"
             >
-              <UInputMenu
+              <USelectMenu
                 v-model="filtroTipoExame"
                 :items="tiposExameDisponiveis"
                 value-key="value"
                 label-key="label"
-                placeholder="Tipo de exame"
+                multiple
+                placeholder="Todos os tipos"
+                :search-input="{ placeholder: 'Buscar tipo...' }"
                 clear
                 size="sm"
                 class="w-full"
-                @update:model-value="selecionarTipoExame"
+                @update:model-value="selecionarTiposExame"
               />
             </UFormField>
             <UButton
@@ -789,7 +811,7 @@ watch(() => auth.activeClinicaId, () => {
         <UCard>
           <template #title>
             <p class="text-lg font-medium">
-              Tipos de Exames
+              Exames mais Solicitados
             </p>
           </template>
           <EsqueletoGrafico
@@ -808,6 +830,23 @@ watch(() => auth.activeClinicaId, () => {
         <UCard>
           <template #title>
             <p class="text-lg font-medium">
+              Tipo de exames mais solicitados
+            </p>
+          </template>
+          <EsqueletoGrafico
+            v-if="loading"
+            tipo="barras"
+          />
+          <ChartExamesMaisSolicitados
+            v-else
+            :labels="chartTiposExameLabels"
+            :dados="chartTiposExameDados"
+            aria-label="Gráfico dos tipos de exames mais solicitados"
+          />
+        </UCard>
+        <!-- <UCard>
+          <template #title>
+            <p class="text-lg font-medium">
               Oportunidade Financeira por Convênio
             </p>
           </template>
@@ -820,7 +859,7 @@ watch(() => auth.activeClinicaId, () => {
             :labels="chartOportunidadeLabels"
             :dados="chartOportunidadeDados"
           />
-        </UCard>
+        </UCard> -->
         <UCard>
           <template #title>
             <p class="text-lg font-medium">
@@ -961,7 +1000,7 @@ watch(() => auth.activeClinicaId, () => {
             class="border-b border-muted rounded-none"
             :ui="{ container: 'px-4 sm:p-1 pb-3 sm:px-4' }"
           >
-            <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1.3fr)_minmax(6.5rem,0.7fr)_minmax(0,1.5fr)_4rem_7rem_7rem] xl:items-center">
+            <div class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1.3fr)_minmax(6.5rem,0.7fr)_minmax(6.5rem,0.7fr)_minmax(0,1.5fr)_4rem_7rem_7rem] xl:items-center">
               <div class="min-w-0 sm:col-span-2 lg:col-span-2 xl:col-span-1">
                 <p class="text-sm text-muted font-bold">
                   Paciente
@@ -1003,6 +1042,15 @@ watch(() => auth.activeClinicaId, () => {
                 </p>
                 <p class="text-sm">
                   {{ formatarData(item.dataSolicitacao) }}
+                </p>
+              </div>
+
+              <div class="min-w-0">
+                <p class="text-sm text-muted font-bold">
+                  Data Realiz.
+                </p>
+                <p class="text-sm">
+                  {{ formatarData(item.dataRealizacao) }}
                 </p>
               </div>
 
@@ -1192,6 +1240,14 @@ watch(() => auth.activeClinicaId, () => {
               </div>
               <div>
                 <p class="text-muted">
+                  Data da Realização
+                </p>
+                <p class="font-medium">
+                  {{ pacienteSelecionado ? formatarData(pacienteSelecionado.dataRealizacao) : '' }}
+                </p>
+              </div>
+              <div>
+                <p class="text-muted">
                   Dias em Aberto
                 </p>
                 <p class="font-medium">
@@ -1219,7 +1275,7 @@ watch(() => auth.activeClinicaId, () => {
               </p>
             </template>
             <div class="max-w-full overflow-x-auto">
-              <table class="min-w-[36rem] w-full text-sm">
+              <table class="min-w-[44rem] w-full text-sm">
                 <thead>
                   <tr class="border-b border-neutral-200 dark:border-neutral-800">
                     <th class="text-left py-2 font-medium text-muted">
@@ -1230,6 +1286,9 @@ watch(() => auth.activeClinicaId, () => {
                     </th>
                     <th class="text-right py-2 font-medium text-muted">
                       Valor Est.
+                    </th>
+                    <th class="text-left py-2 font-medium text-muted">
+                      Data Realiz.
                     </th>
                     <th class="text-left py-2 font-medium text-muted">
                       Status
@@ -1250,6 +1309,9 @@ watch(() => auth.activeClinicaId, () => {
                     </td>
                     <td class="py-2 text-right">
                       {{ formatarMoeda(exame.valorEstimado) }}
+                    </td>
+                    <td class="py-2">
+                      {{ formatarData(exame.dataRealizacao) }}
                     </td>
                     <td class="py-2">
                       <UBadge

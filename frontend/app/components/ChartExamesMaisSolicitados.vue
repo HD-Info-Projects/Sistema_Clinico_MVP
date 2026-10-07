@@ -5,10 +5,13 @@ import type { ChartOptions, TooltipItem } from 'chart.js'
 
 ChartJS.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip, Legend)
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   labels: string[]
   dados: number[]
-}>()
+  ariaLabel?: string
+}>(), {
+  ariaLabel: 'Gráfico dos exames mais solicitados'
+})
 
 const barColor = ref<string>('#0ea5e9')
 
@@ -62,7 +65,7 @@ const options: ChartOptions<'bar'> = {
         :options="options"
         class="h-full w-full"
         role="img"
-        aria-label="Gráfico dos exames mais solicitados"
+        :aria-label="props.ariaLabel"
       />
     </div>
     <template #fallback>
