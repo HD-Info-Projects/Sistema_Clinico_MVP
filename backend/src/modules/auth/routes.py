@@ -79,18 +79,18 @@ def login():
         if not token:
             registrar_auditoria(
                 AcaoAuditoria.LOGIN_FALHA,
-                entidade="usuarios",
-                descricao=f"Falha de login para usuario={str(username).strip().lower()[:30]}",
+                entidade="login",
+                descricao=f"Login negado. usuario={str(username).strip().lower()[:30]}",
             )
             return jsonify({"error": "Credenciais inválidas"}), 401
 
         decoded_token = decode_token(token)
         registrar_auditoria(
             AcaoAuditoria.LOGIN_SUCESSO,
-            entidade="usuarios",
+            entidade="login",
             entidade_id=int(decoded_token["sub"]),
             usuario_id=int(decoded_token["sub"]),
-            descricao="Login realizado com sucesso",
+            descricao="Login realizado com sucesso.",
         )
 
         return jsonify(access_token=token), 200
@@ -156,10 +156,10 @@ def logout():
     revoke_jti(claims.get("jti"), claims.get("exp"))
     registrar_auditoria(
         AcaoAuditoria.LOGOUT,
-        entidade="usuarios",
+        entidade="logout",
         entidade_id=usuario_id,
         usuario_id=usuario_id,
-        descricao="Logout realizado",
+        descricao="Logoff realizado.",
     )
     return jsonify({"ok": True}), 200
 
