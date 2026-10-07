@@ -261,8 +261,6 @@ async function fetchHistorico() {
         if (!isHistoricoAtual(requestId, cacheKey)) return
         localHistorico.value = local
         remontarHistoricoItems()
-        if (historicoItemsVisiveis.value.length > 0)
-          isLoadingHistorico.value = false
       })
       .catch(() => {
         if (isHistoricoAtual(requestId, cacheKey))
@@ -756,8 +754,17 @@ function montarDiagnosticos(item: HistoricoLocalRecord): string {
         <div
           v-if="isLoadingHistorico"
           role="status"
+          aria-live="polite"
+          aria-label="Carregando histórico do paciente"
           class="space-y-4"
         >
+          <div class="flex items-center justify-center gap-2 text-sm text-muted">
+            <UIcon
+              name="i-lucide-loader-circle"
+              class="size-4 animate-spin"
+            />
+            <span>Carregando histórico...</span>
+          </div>
           <div
             v-for="linha in 3"
             :key="linha"
@@ -780,8 +787,11 @@ function montarDiagnosticos(item: HistoricoLocalRecord): string {
             name="i-lucide-folder-open"
             class="size-8 text-muted"
           />
-          <p class="text-sm text-muted">
-            Nenhum registro encontrado.
+          <p class="text-sm font-medium text-highlighted">
+            Nenhum histórico encontrado.
+          </p>
+          <p class="max-w-72 text-xs text-muted">
+            A busca foi concluída e não há registros para este paciente.
           </p>
         </div>
 
