@@ -59,6 +59,7 @@ export type ExameRetencao = {
   tipoExameLabel?: string
   codigoTuss: string
   dataSolicitacao: string
+  dataRealizacao?: string | null
   diasEmAberto: number
   status: 'pendente' | 'realizado' | 'nao-convertido'
   valorEstimado: number
