@@ -242,47 +242,39 @@ docker compose restart frontend
 
 ## Backup do MySQL
 
-Os backups devem ser compactados e criptografados com `age`. A VPS guarda apenas o destinatario publico; a identidade privada deve permanecer fora do servidor, sob custodia institucional.
-
-Instale o `age` no host da VPS:
-
-```bash
-apt update
-apt install -y age
-```
+O modo operacional atual gera backup compactado sem criptografia. O arquivo `.sql.gz` contem dados sensiveis e deve ficar em diretorio restrito, ser transferido para fora da VPS assim que possivel e ser removido da VPS quando nao for mais necessario.
 
 Configure no `.env`:
 
 ```env
 BACKUP_DIR=/var/backups/sistema-clinico-mvp/mysql
 BACKUP_RETENTION_DAYS=30
-BACKUP_AGE_RECIPIENT=age1SUBSTITUA_PELO_DESTINATARIO_PUBLICO
 ```
 
 Prepare o diretorio e gere um backup manual para validacao:
 
 ```bash
 install -d -m 0700 /var/backups/sistema-clinico-mvp/mysql
-./scripts/backup_mysql_encrypted.sh
+./scripts/backup_mysql_plain.sh
 ```
 
-O script gera `.sql.gz.age` e `.sha256`, nunca persiste o SQL em claro e remove backups com mais de `BACKUP_RETENTION_DAYS` somente depois de publicar um novo backup valido.
+O script gera um arquivo de backup `.sql.gz` e um arquivo `.sha256` de verificacao. O SQL nao compactado nao e persistido em disco. Backups com mais de `BACKUP_RETENTION_DAYS` sao removidos somente depois de publicar e validar um novo backup.
 
-Agende o backup diario depois do teste manual:
+Agende o dump de 6 em 6 horas depois do teste manual:
 
 ```cron
-15 2 * * * cd /opt/sistema-clinico-mvp && /usr/bin/env bash -c 'set -o pipefail; ./scripts/backup_mysql_encrypted.sh 2>&1 | /usr/bin/logger -t sistema-clinico-backup'
+0 */6 * * * cd /opt/sistema-clinico-mvp && /usr/bin/env bash -c 'set -o pipefail; COMPOSE_ENV_FILE=/opt/sistema-clinico-mvp/.env ./scripts/backup_mysql_plain.sh 2>&1 | /usr/bin/logger -t sistema-clinico-backup'
 ```
 
-Para restaurar, copie o backup e o checksum para um ambiente isolado e disponibilize temporariamente a identidade privada fora da VPS de producao:
+Se as variaveis de backup ficarem em arquivo operacional protegido, use:
 
-```bash
-AGE_IDENTITY_FILE=/secure/keys/medsystem-backup.agekey \
-  ./scripts/restore_mysql_encrypted.sh \
-  /secure/restore-input/sistema_clinico_mysql_YYYYMMDDTHHMMSSZ.sql.gz.age
+```cron
+0 */6 * * * cd /opt/sistema-clinico-mvp && /usr/bin/env bash -c 'set -o pipefail; ENV_FILE=/etc/sistema-clinico-mvp/backup.env COMPOSE_ENV_FILE=/opt/sistema-clinico-mvp/.env ./scripts/backup_mysql_plain.sh 2>&1 | /usr/bin/logger -t sistema-clinico-backup'
 ```
 
-O restore exige digitar `RESTAURAR:NOME_DO_BANCO` conforme o destino exibido. Backup e restore compartilham um lock para impedir execucao concorrente no mesmo projeto. Teste a restauracao trimestralmente em ambiente isolado. Nunca mantenha `AGE_IDENTITY_FILE` ou a chave privada na VPS de producao.
+O envio do backup para um ambiente fora da VPS via VPN ainda precisa ser definido. Perguntar ao primo a melhor forma de transferencia usando o material local em `docs/VPN_Server_vps_hdinfo`, sem versionar nem expor `.ovpn`, `.p12` ou senha. Confirmar pelo menos: destino acessivel pela VPN, usuario, caminho remoto, protocolo (`rsync` ou `scp`), retencao no destino e forma de monitorar falhas.
+
+Quando o destino externo estiver definido, preferir um script separado para a transferencia do arquivo `.sql.gz` e do `.sha256`, mantendo o dump local independente para facilitar diagnostico.
 
 ## Retencao e descarte LGPD
 
