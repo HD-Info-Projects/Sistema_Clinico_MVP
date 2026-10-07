@@ -60,6 +60,7 @@ export type AtualizarStatusResultado = {
   id?: number
   status?: string
   pacienteId?: number
+  emEdicao?: boolean
 }
 
 export function atualizarStatusAgenda(event: H3Event, id: number, body: unknown) {

@@ -308,6 +308,7 @@ def buscar_atendimento_em_andamento_local(usuario_id, unidade_id=None, data_ref=
     return {
         **payload_base,
         "emAtendimento": True,
+        "emEdicao": bool(atendimento.em_edicao),
         "data": atendimento.data_agenda.isoformat() if atendimento.data_agenda else payload_base["data"],
         "id": spdata.id,
         "medsystemAtendimentoId": atendimento.id,
@@ -1068,6 +1069,7 @@ def agenda_para_frontend(
         "prioridadeSpdataId": prioridade_spdata_id,
         "status": status,
         "descricao": spdata.obs_atendimento or "",
+        "emEdicao": bool(atendimento.em_edicao) if atendimento else False,
         "criadoEm": spdata.data_hora_entrada.isoformat() if spdata.data_hora_entrada else None,
         "codigoProcedimentoSpdata": codigo_procedimento,
         "procedimentoSpdata": getattr(spdata, "procedimento_spdata", None),
@@ -1149,6 +1151,7 @@ def agenda_spdata_para_frontend(
         "medsystemAtendimentoId": atendimento.id if atendimento else None,
         "pacienteId": paciente_id,
         "medicoId": spdata_ref.id_medico_spdata or 0,
+        "emEdicao": bool(atendimento.em_edicao) if atendimento else False,
         "clinicaId": unidade_id,
         "data": data_iso(agenda.data_agenda),
         "horario": horario_entrada or horario_agendado,
@@ -1925,7 +1928,7 @@ def aplicar_cid_personalizado(atendimento, consulta):
     )
 
 
-def salvar_conteudo_clinico(spdata, atendimento_medsystem, usuario_id, consulta, unidade=None):
+def salvar_conteudo_clinico(spdata, atendimento_medsystem, usuario_id, consulta, unidade=None, em_edicao=False):
     if not consulta:
         return
 
@@ -1967,13 +1970,15 @@ def salvar_conteudo_clinico(spdata, atendimento_medsystem, usuario_id, consulta,
         db.session.flush()
         atendimento.status = "finalizado"
     else:
-        atendimento.hora_fim = hora_fim
+        if not em_edicao:
+            atendimento.hora_fim = hora_fim
         atendimento.status = "finalizado"
 
     aplicar_cid_personalizado(atendimento, consulta)
 
     anamnese_texto = normalizar_texto(consulta.get("anamnese"))
-    if anamnese_texto:
+    if anamnese_texto or (em_edicao and "anamnese" in consulta):
+        anamnese_texto = anamnese_texto or ""
         if atendimento.anamnese:
             atendimento.anamnese.observacoes = anamnese_texto
         else:
@@ -2116,12 +2121,16 @@ def _aplicar_status_spdata(spdata, status, usuario_id, consulta, unidade):
     else:
         atendimento.unidade_id = unidade.id
 
+    em_edicao = bool(atendimento.em_edicao)
+    if em_edicao and status not in {"em-atendimento", "atendido", "cancelado"}:
+        raise ValueError("Uma edição de atendimento concluído deve ser finalizada ou cancelada.")
     if status == "em-atendimento":
         atendimento.marcar_em_atendimento()
     elif status == "atendido":
         atendimento.marcar_atendido()
-        salvar_conteudo_clinico(spdata, atendimento, usuario_id, consulta, unidade=unidade)
-        marcar_preventivos_atendidos(spdata, unidade)
+        salvar_conteudo_clinico(spdata, atendimento, usuario_id, consulta, unidade=unidade, em_edicao=em_edicao)
+        if not em_edicao:
+            marcar_preventivos_atendidos(spdata, unidade)
     elif status == "faltou":
         atendimento.marcar_faltou()
     elif status == "cancelado":
@@ -2129,8 +2138,11 @@ def _aplicar_status_spdata(spdata, status, usuario_id, consulta, unidade):
             raise ValueError(
                 "Apenas atendimentos em andamento podem ser cancelados e devolvidos à fila."
             )
-        db.session.delete(atendimento)
-        atendimento = None
+        if em_edicao:
+            atendimento.marcar_atendido()
+        else:
+            db.session.delete(atendimento)
+            atendimento = None
     elif status == "em-espera":
         if normalizar_status(atendimento.status) != "faltou":
             raise ValueError(
@@ -2151,13 +2163,16 @@ def _aplicar_status_spdata(spdata, status, usuario_id, consulta, unidade):
         if agenda:
             referencia_prioridade = (ORIGEM_AGENDA, spdata_agenda_id)
             prioridades = buscar_prioridades_locais(unidade.id, [referencia_prioridade])
-            return agenda_spdata_para_frontend(
+            resultado = agenda_spdata_para_frontend(
                 agenda,
                 spdata,
                 atendimento,
                 convenios_por_codigo,
                 prioridade=prioridades.get(referencia_prioridade, False),
             )
+            if em_edicao or (atendimento and atendimento.em_edicao):
+                resultado["operacaoEdicao"] = status
+            return resultado
 
     referencia_prioridade = (
         (ORIGEM_AGENDA, spdata_agenda_id)
@@ -2165,13 +2180,16 @@ def _aplicar_status_spdata(spdata, status, usuario_id, consulta, unidade):
         else (ORIGEM_ATENDIMENTO, spdata.spdata_atendimento_id)
     )
     prioridades = buscar_prioridades_locais(unidade.id, [referencia_prioridade])
-    return agenda_para_frontend(
+    resultado = agenda_para_frontend(
         spdata,
         atendimento,
         convenios_por_codigo,
         prioridade=prioridades.get(referencia_prioridade, False),
         prioridade_referencia=referencia_prioridade,
     )
+    if em_edicao or (atendimento and atendimento.em_edicao):
+        resultado["operacaoEdicao"] = status
+    return resultado
 
 
 def atualizar_status_agenda(med_spdata_atendimento_id, status, usuario_id=None, consulta=None, unidade_id=None):

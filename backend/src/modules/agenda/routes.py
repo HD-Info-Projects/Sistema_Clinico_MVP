@@ -423,7 +423,10 @@ def atualizar_status(med_spdata_atendimento_id):
         _invalidar_cache_recepcao(usuario_id_medico=usuario_id)
         status_final = resultado.get("status") or status
         acao = AcaoAuditoria.ALTEROU_STATUS_AGENDA
-        if status_final == "em-atendimento":
+        operacao_edicao = resultado.get("operacaoEdicao")
+        if operacao_edicao:
+            acao = AcaoAuditoria.ALTEROU_STATUS_AGENDA
+        elif status_final == "em-atendimento":
             acao = AcaoAuditoria.INICIOU_ATENDIMENTO
         elif status_final == "atendido":
             acao = AcaoAuditoria.FINALIZOU_ATENDIMENTO
@@ -435,7 +438,8 @@ def atualizar_status(med_spdata_atendimento_id):
             entidade="agenda_medica",
             entidade_id=med_spdata_atendimento_id,
             usuario_id=usuario_id,
-            descricao=f"Status de atendimento atualizado. status={status_final}",
+            descricao=(f"Edição de atendimento: operacao={operacao_edicao}. status={status_final}"
+                       if operacao_edicao else f"Status de atendimento atualizado. status={status_final}"),
         )
 
         return jsonify(resultado), 200

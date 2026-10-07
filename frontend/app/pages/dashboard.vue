@@ -61,7 +61,8 @@ function corStatus(status: string) {
   }
 }
 
-function rotuloStatus(status: string) {
+function rotuloStatus(status: string, emEdicao = false) {
+  if (emEdicao) return 'Em edição'
   switch (status) {
     case 'agendado': return 'Agendado'
     case 'em-espera': return 'Em espera'
@@ -283,7 +284,8 @@ const carregandoInicial = computed(() => agendamentosStore.loading && !temDadosD
 
 const temPacientesDashboard = computed(() => totalPacientesDashboard.value > 0)
 
-function statusLabel(status: AgendamentoStatus) {
+function statusLabel(status: AgendamentoStatus, emEdicao = false) {
+  if (emEdicao) return 'Retomar edição'
   switch (status) {
     case 'em-atendimento': return 'Em Atend.'
     case 'atendido': return isAssistenteDashboard.value ? 'Atendido' : 'Finalizado'
@@ -630,7 +632,7 @@ const totalPendentesCard = computed(() =>
                   Status
                 </p>
                 <UBadge
-                  :label="rotuloStatus(paciente.status)"
+                  :label="rotuloStatus(paciente.status, paciente.emEdicao)"
                   :color="corStatus(paciente.status)"
                   variant="subtle"
                 />
@@ -649,13 +651,13 @@ const totalPendentesCard = computed(() =>
                     :color="isTerminal(paciente.status) ? 'neutral' : 'primary'"
                     :variant="isTerminal(paciente.status) ? 'soft' : 'solid'"
                     :loading="isChamadaBloqueada(paciente.paciente.id)"
-                    :disabled="bloqueadoPorOutroAtendimento(paciente.status) || isTerminal(paciente.status) || isChamadaBloqueada(paciente.paciente.id)"
+                    :disabled="paciente.emEdicao || bloqueadoPorOutroAtendimento(paciente.status) || isTerminal(paciente.status) || isChamadaBloqueada(paciente.paciente.id)"
                     @click="chamarPaciente(paciente as AgendamentoComPaciente)"
                   />
 
                   <UButton
                     :icon="paciente.status === 'atendido' ? 'i-lucide-check-circle' : 'i-lucide-user-check'"
-                    :label="statusLabel(paciente.status)"
+                    :label="statusLabel(paciente.status, paciente.emEdicao)"
                     size="sm"
                     class="min-w-25 justify-center"
                     :color="statusColor(paciente.status)"
@@ -738,7 +740,7 @@ const totalPendentesCard = computed(() =>
                       <UBadge
                         v-if="paciente.retorno"
                         label="Retorno"
-                        color="quaternary"
+                        color="secondary"
                         variant="subtle"
                       />
                     </div>

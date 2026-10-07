@@ -98,6 +98,7 @@ export interface Agendamento {
   prioridadeOrigem: 'agenda' | 'atendimento'
   prioridadeSpdataId: number
   status: AgendamentoStatus
+  emEdicao?: boolean
   descricao: string
   criadoEm: string
   duracao?: number

@@ -38,10 +38,11 @@ const {
   liberarSaida,
   resetarSaida
 } = useSaidaAtendimento()
+// A entrada precisa bloquear a saída antes dos watchers imediatos de carregamento.
+resetarSaida()
 const modalSairAberto = ref(false)
 
 onMounted(() => {
-  resetarSaida()
   padroesStore.fetchAll()
   padroesAnamneseStore.fetchAll()
   padroesOrientacoesStore.fetchAll()
@@ -94,31 +95,34 @@ async function finalizarPeloModalSaida() {
   await finalizarConsulta()
   modalSairAberto.value = false
 }
-const route = useRoute()
+const modoEdicao = computed(() => !!agendamento.value?.emEdicao)
+const carregandoEdicao = ref(modoEdicao.value)
+const falhaCargaEdicao = ref(false)
+const edicaoCarregada = ref(false)
+const finalizacaoBloqueada = computed(() => modoEdicao.value && (
+  !edicaoCarregada.value || carregandoEdicao.value || falhaCargaEdicao.value
+))
 
-const modoEdicao = computed(() => {
-  const id = Number(route.query.id)
-  return Number.isInteger(id) && id > 0 ? id : null
-})
-
-async function carregarConsultaExistente() {
+async function carregarConsultaExistente(signal: AbortSignal) {
   const ag = agendamento.value
-  const edicaoId = modoEdicao.value
-  if (!ag || !edicaoId || ag.id !== edicaoId) return
-  if (!import.meta.client) return
+  if (!ag || !modoEdicao.value || !import.meta.client) return false
 
   try {
+    const atendimentoId = ag.spdataAtendimentoId
+    if (!atendimentoId) throw new Error('Identificador do atendimento concluído ausente')
     const registros = await $fetch<HistoricoLocalRecord[]>(
       `/api/historico-local/${ag.paciente.id}`,
       {
         query: {
-          spdataAtendimentoId: ag.spdataAtendimentoId ?? undefined,
+          spdataAtendimentoId: atendimentoId,
           incluirDadosGuia: true
-        }
+        },
+        signal
       }
     )
-    const registro = registros?.[0]
-    if (!registro) return
+    if (signal.aborted || agendamento.value?.id !== ag.id || !modoEdicao.value) return false
+    const registro = registros.find(item => item.spdata_atendimento_id === atendimentoId)
+    if (!registro) throw new Error('Consulta concluída não encontrada')
 
     anamneseTexto.value = registro.anamnese ?? ''
 
@@ -133,6 +137,7 @@ async function carregarConsultaExistente() {
       if (s?.codigo) cids.push({ cid: s.codigo, nome: s.descricao ?? '' })
     }
     cidSelecionadoLista.value = cids
+    cidPrincipalIndex.value = 0
 
     if (registro.cid_personalizado) {
       usarCidPersonalizado.value = true
@@ -150,8 +155,16 @@ async function carregarConsultaExistente() {
     examesSelecionados.value = (registro.exames ?? [])
       .map(e => normalizarExameSelecionado(e))
       .filter((e): e is ExameSelecionado => e !== null)
+    return true
   } catch {
+    if (signal.aborted) return false
     console.error('Erro ao carregar consulta para edição')
+    toast.add({
+      title: 'Erro ao carregar atendimento para edição',
+      description: 'Atualize a página para tentar novamente. Você também pode cancelar a edição sem alterar o atendimento concluído.',
+      color: 'error'
+    })
+    return false
   }
 }
 const documentosMedicos = shallowRef<Partial<Record<DocumentoMedicoTipo, DocumentoMedico>>>({})
@@ -734,7 +747,7 @@ const draftKey = computed(() => {
   const ag = agendamento.value
   if (!ag) return null
 
-  return `${DRAFT_STORAGE_PREFIX}${ag.id}:${ag.paciente.id}`
+  return `${DRAFT_STORAGE_PREFIX}${modoEdicao.value ? 'edicao:' : ''}${ag.id}:${ag.paciente.id}`
 })
 
 function draftStorage() {
@@ -802,7 +815,7 @@ function salvarDraftAgora() {
   const draft = montarDraft()
   if (!draft) return
 
-  if (!draftTemConteudo(draft)) {
+  if (!modoEdicao.value && !draftTemConteudo(draft)) {
     draftStorage().removeItem(draftKey.value)
     localStorage.removeItem(draftKey.value)
     draftSalvoEm.value = null
@@ -816,7 +829,7 @@ function salvarDraftAgora() {
 }
 
 function salvarDraftComDebounce() {
-  if (restaurandoDraft) return
+  if (restaurandoDraft || draftDesativado) return
   if (draftTimer) clearTimeout(draftTimer)
 
   draftTimer = setTimeout(() => {
@@ -914,29 +927,34 @@ watch(
 
 watch(
   draftKey,
-  (key) => {
-    if (!key) return
-
+  async (key, _anterior, onCleanup) => {
+    if (!key || !import.meta.client || encerramentoEmAndamento.value || saidaLiberada.value) return
+    let cancelado = false
+    const controller = new AbortController()
+    onCleanup(() => {
+      cancelado = true
+      controller.abort()
+    })
+    draftDesativado = true
+    edicaoCarregada.value = false
+    falhaCargaEdicao.value = false
     if (modoEdicao.value) {
-      draftDesativado = true
-      draftStorage().removeItem(key)
-      localStorage.removeItem(key)
-      draftSalvoEm.value = null
-      draftRestaurado.value = false
-      return
+      carregandoEdicao.value = true
+      const carregou = await carregarConsultaExistente(controller.signal)
+      if (cancelado) return
+      falhaCargaEdicao.value = !carregou
+      if (!carregou) {
+        carregandoEdicao.value = false
+        return
+      }
     }
-
-    draftDesativado = false
+    if (cancelado) return
     restaurarDraft()
-  },
-  { immediate: true }
-)
-
-watch(
-  () => [modoEdicao.value, agendamento.value?.id] as const,
-  ([edicaoId, agendamentoId]) => {
-    if (edicaoId && edicaoId === agendamentoId && import.meta.client) {
-      void carregarConsultaExistente()
+    await nextTick()
+    if (!cancelado) {
+      draftDesativado = false
+      edicaoCarregada.value = modoEdicao.value
+      carregandoEdicao.value = false
     }
   },
   { immediate: true }
@@ -1152,8 +1170,8 @@ async function cancelarAtendimento() {
       const saiuDaTela = await reconciliarFalhaEncerramento(agendamentoAtual)
       if (!saiuDaTela) {
         toast.add({
-          title: 'Erro ao cancelar atendimento',
-          description: 'Não foi possível devolver o paciente à fila. Tente novamente.',
+          title: modoEdicao.value ? 'Erro ao cancelar edição' : 'Erro ao cancelar atendimento',
+          description: modoEdicao.value ? 'Não foi possível cancelar a edição. Tente novamente.' : 'Não foi possível devolver o paciente à fila. Tente novamente.',
           color: 'error',
           icon: 'i-lucide-alert-circle'
         })
@@ -1179,6 +1197,10 @@ async function cancelarAtendimento() {
 
 async function finalizarConsulta() {
   if (!agendamento.value || encerramentoEmAndamento.value) return
+  if (finalizacaoBloqueada.value) {
+    toast.add({ title: 'Os dados da edição ainda não foram carregados', description: 'Aguarde o carregamento ou atualize a página para tentar novamente.', color: 'warning' })
+    return
+  }
   if (!atendimentoPermiteMutacao()) return
   if (!validarCidPersonalizado()) return
 
@@ -1213,7 +1235,7 @@ async function finalizarConsulta() {
         codigo_alfanumerico: e.codigo_alfanumerico ?? null,
         orientacao: e.orientacao ?? null
       })),
-      duracao
+      ...(modoEdicao.value ? {} : { duracao })
     }, agendamentoAtual.clinicaId)
   } catch {
     console.error('Erro ao finalizar consulta')
@@ -1221,7 +1243,7 @@ async function finalizarConsulta() {
       const saiuDaTela = await reconciliarFalhaEncerramento(agendamentoAtual)
       if (!saiuDaTela) {
         toast.add({
-          title: 'Erro ao finalizar consulta',
+          title: modoEdicao.value ? 'Erro ao finalizar edição' : 'Erro ao finalizar consulta',
           description: 'Não foi possível salvar os dados do atendimento. Tente novamente.',
           color: 'error',
           icon: 'i-lucide-alert-circle'
@@ -1265,6 +1287,13 @@ async function finalizarConsulta() {
       <template #right>
         <div class="flex items-center gap-2">
           <UBadge
+            v-if="modoEdicao"
+            label="Edição de atendimento concluído"
+            color="warning"
+            variant="soft"
+            class="hidden sm:inline-flex"
+          />
+          <UBadge
             v-if="draftSalvoEm"
             :color="draftRestaurado ? 'success' : 'neutral'"
             variant="soft"
@@ -1297,7 +1326,7 @@ async function finalizarConsulta() {
             color="neutral"
             variant="subtle"
           >
-            <p>Tempo: {{ cronometro.formatted }}</p>
+            <p>{{ modoEdicao ? 'Tempo de edição' : 'Tempo' }}: {{ cronometro.formatted }}</p>
             <UButton
               :key="cronometro.isRunning ? 'pause' : 'play'"
               :icon="cronometro.isRunning ? 'i-lucide-pause' : 'i-lucide-play'"
@@ -1312,7 +1341,31 @@ async function finalizarConsulta() {
       </template>
     </UHeader>
 
+    <UAlert
+      v-if="carregandoEdicao"
+      title="Carregando atendimento para edição..."
+      icon="i-lucide-loader-circle"
+      color="neutral"
+      class="m-4"
+    />
+    <UAlert
+      v-else-if="falhaCargaEdicao"
+      title="Não foi possível carregar o atendimento"
+      description="Atualize a página para tentar novamente ou cancele a edição. Os dados do atendimento concluído serão preservados."
+      color="error"
+      class="m-4"
+    >
+      <template #actions>
+        <UButton
+          label="Cancelar edição"
+          color="error"
+          variant="soft"
+          @click="modalCancelarAberto = true"
+        />
+      </template>
+    </UAlert>
     <UTabs
+      v-else
       v-model="tabAtiva"
       :items="tabItems"
       color="primary"
@@ -1901,7 +1954,7 @@ async function finalizarConsulta() {
           >
             <UButton
               icon="i-lucide-x-circle"
-              label="Cancelar atendimento"
+              :label="modoEdicao ? 'Cancelar edição' : 'Cancelar atendimento'"
               color="error"
               size="xl"
               class="w-full p-3 text-lg font-bold sm:w-auto"
@@ -1911,12 +1964,12 @@ async function finalizarConsulta() {
             />
             <UButton
               icon="i-lucide-check-circle"
-              label="Finalizar Consulta"
+              :label="modoEdicao ? 'Finalizar edição' : 'Finalizar Consulta'"
               color="success"
               size="xl"
               class="w-full p-3 text-lg font-bold sm:w-auto"
               :loading="finalizandoConsulta"
-              :disabled="finalizandoConsulta || cancelandoConsulta"
+              :disabled="finalizandoConsulta || cancelandoConsulta || finalizacaoBloqueada"
               @click="void finalizarConsulta()"
             />
           </UCard>
@@ -1978,9 +2031,9 @@ async function finalizarConsulta() {
     />
     <ModalConfirmacao
       :abrir="modalCancelarAberto"
-      titulo="Cancelar atendimento?"
-      descricao="O paciente será devolvido à fila de espera e o atendimento atual será descartado. Tem certeza?"
-      texto-confirma="Cancelar Atendimento"
+      :titulo="modoEdicao ? 'Cancelar edição?' : 'Cancelar atendimento?'"
+      :descricao="modoEdicao ? 'As alterações não finalizadas serão descartadas. O atendimento continuará concluído e os documentos já salvos serão mantidos. Tem certeza?' : 'O paciente será devolvido à fila de espera e o atendimento atual será descartado. Tem certeza?'"
+      :texto-confirma="modoEdicao ? 'Cancelar edição' : 'Cancelar Atendimento'"
       cor-confirma="error"
       @fechar="modalCancelarAberto = false"
       @confirmar="void cancelarAtendimento()"
@@ -1990,6 +2043,8 @@ async function finalizarConsulta() {
       :nome-paciente="agendamento?.paciente.nome"
       :finalizando="finalizandoConsulta"
       :cancelando="cancelandoConsulta"
+      :em-edicao="modoEdicao"
+      :finalizacao-bloqueada="finalizacaoBloqueada"
       @fechar="modalSairAberto = false; destinoPendente = null"
       @pausar="void pausarAtendimento()"
       @cancelar="solicitarCancelamentoPeloModalSaida()"

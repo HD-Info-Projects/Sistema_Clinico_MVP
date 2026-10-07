@@ -90,6 +90,47 @@ test('first navigation after Atender uses the successful PATCH without a second 
   assert.equal(verificacoes(), before)
 })
 
+test('editing context survives a reload without the editing query parameter', async () => {
+  const edicao = { ...paciente, status: 'em-atendimento', emEdicao: true }
+  const { store, navigate } = fixture({
+    listarAgendamentos: async () => [edicao],
+    verificarAtendimentoEmAndamento: async () => ({
+      emAtendimento: true, emEdicao: true, id: edicao.id, data: edicao.data, unidadeId: 7
+    })
+  })
+  assert.equal((await navigate()).length, 0)
+  assert.equal(store.emAtendimento.emEdicao, true)
+  assert.equal(store.atendimentoAtualResumo.emEdicao, true)
+})
+
+test('cancelling editing applies the confirmed attended status and releases the active slot', async () => {
+  const { store } = fixture({
+    atualizarStatusAgendamento: async (id, status) => ({
+      ...paciente, id, status: status === 'cancelado' ? 'atendido' : status, emEdicao: status === 'em-atendimento'
+    })
+  })
+  await store.init(7, paciente.data, 10, 'dashboard')
+  await store.atualizarStatus(paciente.id, 'em-atendimento', undefined, 7)
+  assert.equal(store.emAtendimento.emEdicao, true)
+  await store.atualizarStatus(paciente.id, 'cancelado', undefined, 7)
+  assert.equal(store.emAtendimento, null)
+  assert.equal(store.agendamentos[0].status, 'atendido')
+  assert.equal(store.agendamentos[0].emEdicao, false)
+  assert.equal(store.fila.length, 0)
+})
+
+test('authoritative active-appointment verification updates editing context in existing details', async () => {
+  const { store } = fixture({
+    listarAgendamentos: async () => [{ ...paciente, status: 'em-atendimento', emEdicao: false }],
+    verificarAtendimentoEmAndamento: async () => ({
+      emAtendimento: true, emEdicao: true, id: paciente.id, data: paciente.data, unidadeId: 7
+    })
+  })
+  await store.init(7, paciente.data, 10, 'dashboard')
+  await store.garantirAtendimentoAtual({ ...params, force: true })
+  assert.equal(store.emAtendimento.emEdicao, true)
+})
+
 test('a fetch begun before the PATCH cannot overwrite the started appointment', async () => {
   const oldFetch = deferred()
   const { store } = fixture({ listarAgendamentos: () => oldFetch.promise })

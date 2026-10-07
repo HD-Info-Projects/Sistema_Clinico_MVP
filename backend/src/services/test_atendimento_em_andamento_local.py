@@ -36,7 +36,7 @@ def test_buscar_atendimento_em_andamento_local_retorna_false_quando_nao_encontra
 
 
 def test_buscar_atendimento_em_andamento_local_retorna_paciente_quando_encontra(monkeypatch):
-    atendimento = SimpleNamespace(id=99, data_agenda=date(2026, 9, 28))
+    atendimento = SimpleNamespace(id=99, data_agenda=date(2026, 9, 28), em_edicao=True)
     spdata = SimpleNamespace(
         id=123,
         id_paciente_spdata=456,
@@ -51,6 +51,7 @@ def test_buscar_atendimento_em_andamento_local_retorna_paciente_quando_encontra(
     resultado = service.buscar_atendimento_em_andamento_local(10, unidade_id=7, data_ref=date(2026, 9, 29))
 
     assert resultado["emAtendimento"] is True
+    assert resultado["emEdicao"] is True
     assert resultado["data"] == "2026-09-28"
     assert resultado["id"] == 123
     assert resultado["medsystemAtendimentoId"] == 99

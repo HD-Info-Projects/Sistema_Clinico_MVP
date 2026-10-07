@@ -50,6 +50,7 @@ class MedAtendimentos(db.Model):
 
     started_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     finished_at = db.Column(db.DateTime, nullable=True)
+    em_edicao = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
     faltou_at = db.Column(db.DateTime, nullable=True)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -99,17 +100,23 @@ class MedAtendimentos(db.Model):
         self.status = status.value if hasattr(status, "value") else status
         self.started_at = started_at or datetime.utcnow()
         self.finished_at = finished_at
+        self.em_edicao = False
         self.faltou_at = faltou_at
 
     def marcar_em_atendimento(self):
+        if self.status in {StatusAtendimentoMedSystem.ATENDIDO.value, "atendido"}:
+            self.em_edicao = True
         self.status = StatusAtendimentoMedSystem.EM_ATENDIMENTO.value
         self.started_at = self.started_at or datetime.utcnow()
-        self.finished_at = None
+        if not self.em_edicao:
+            self.finished_at = None
         self.faltou_at = None
 
     def marcar_atendido(self):
         self.status = StatusAtendimentoMedSystem.ATENDIDO.value
-        self.finished_at = datetime.utcnow()
+        if not self.em_edicao:
+            self.finished_at = datetime.utcnow()
+        self.em_edicao = False
 
     def marcar_faltou(self):
         self.status = StatusAtendimentoMedSystem.FALTOU.value
@@ -120,6 +127,7 @@ class MedAtendimentos(db.Model):
 
         return {
             "id": self.id,
+            "em_edicao": bool(self.em_edicao),
             "med_spdata_atendimento_id": self.med_spdata_atendimento_id,
             "spdata_atendimento_id": self.spdata_atendimento_id,
             "unidade_id": self.unidade_id,
