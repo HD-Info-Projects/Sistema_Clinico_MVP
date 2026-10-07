@@ -830,6 +830,22 @@ watch(() => auth.activeClinicaId, () => {
         <UCard>
           <template #title>
             <p class="text-lg font-medium">
+              Conversão por Especialidade
+            </p>
+          </template>
+          <EsqueletoGrafico
+            v-if="loading"
+            tipo="donut-lista"
+          />
+          <ChartEspecialidade
+            v-else
+            :labels="chartEspecialidadeLabels"
+            :dados="chartEspecialidadeDados"
+          />
+        </UCard>
+        <UCard>
+          <template #title>
+            <p class="text-lg font-medium">
               Tipo de exames mais solicitados
             </p>
           </template>
@@ -860,22 +876,6 @@ watch(() => auth.activeClinicaId, () => {
             :dados="chartOportunidadeDados"
           />
         </UCard> -->
-        <UCard>
-          <template #title>
-            <p class="text-lg font-medium">
-              Conversão por Especialidade
-            </p>
-          </template>
-          <EsqueletoGrafico
-            v-if="loading"
-            tipo="donut-lista"
-          />
-          <ChartEspecialidade
-            v-else
-            :labels="chartEspecialidadeLabels"
-            :dados="chartEspecialidadeDados"
-          />
-        </UCard>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-5 gap-4 items-stretch">
