@@ -740,7 +740,7 @@ const totalPendentesCard = computed(() =>
                       <UBadge
                         v-if="paciente.retorno"
                         label="Retorno"
-                        color="quaternary"
+                        color="secondary"
                         variant="subtle"
                       />
                     </div>
