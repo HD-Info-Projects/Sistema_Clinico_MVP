@@ -45,6 +45,10 @@ function usuarioLabel(evento: AuditoriaEvento) {
   return 'Não identificado'
 }
 
+function pacienteLabel(evento: AuditoriaEvento) {
+  return evento.paciente?.label || '-'
+}
+
 function entidadeLabel(evento: AuditoriaEvento) {
   const nome = evento.entidade_label || evento.entidade || '-'
   return evento.entidade_id ? `${nome} #${evento.entidade_id}` : nome
@@ -222,9 +226,9 @@ onMounted(() => {
         aria-label="Eventos de auditoria"
         tabindex="0"
       >
-        <table class="min-w-[64rem] divide-y divide-slate-200 text-sm dark:divide-slate-700">
+        <table class="min-w-[72rem] divide-y divide-slate-200 text-sm dark:divide-slate-700">
           <caption class="sr-only">
-            Eventos de auditoria LGPD, com data, evento, usuário, entidade, IP, origem e descrição.
+            Eventos de auditoria LGPD, com data, evento, usuário, paciente, entidade, IP, origem e descrição.
           </caption>
           <thead class="bg-slate-100 text-left text-slate-700 dark:bg-slate-800 dark:text-slate-200">
             <tr>
@@ -245,6 +249,12 @@ onMounted(() => {
                 class="px-4 py-3 font-medium"
               >
                 Usuário
+              </th>
+              <th
+                scope="col"
+                class="px-4 py-3 font-medium"
+              >
+                Paciente
               </th>
               <th
                 scope="col"
@@ -289,6 +299,9 @@ onMounted(() => {
                   <USkeleton class="h-4 w-28 max-w-full" />
                 </td>
                 <td class="px-4 py-3">
+                  <USkeleton class="h-4 w-32 max-w-full" />
+                </td>
+                <td class="px-4 py-3">
                   <USkeleton class="h-4 w-24 max-w-full" />
                 </td>
                 <td class="px-4 py-3">
@@ -304,7 +317,7 @@ onMounted(() => {
             </template>
             <tr v-else-if="!eventos.length">
               <td
-                colspan="7"
+                colspan="8"
                 class="px-4 py-8 text-center text-slate-600 dark:text-slate-400"
               >
                 Nenhum evento encontrado.
@@ -328,6 +341,9 @@ onMounted(() => {
                 </td>
                 <td class="px-4 py-3 text-slate-700 dark:text-slate-300">
                   {{ usuarioLabel(evento) }}
+                </td>
+                <td class="px-4 py-3 text-slate-700 dark:text-slate-300">
+                  {{ pacienteLabel(evento) }}
                 </td>
                 <td class="px-4 py-3 text-slate-700 dark:text-slate-300">
                   {{ entidadeLabel(evento) }}

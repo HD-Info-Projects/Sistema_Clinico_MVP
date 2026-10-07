@@ -5,6 +5,13 @@ export type AuditoriaUsuario = {
   role: string
 }
 
+export type AuditoriaPaciente = {
+  id: number | null
+  nome: string | null
+  nome_social: string | null
+  label: string
+}
+
 export type AuditoriaEvento = {
   id: number
   usuario_id: number | null
@@ -22,6 +29,7 @@ export type AuditoriaEvento = {
   acao_label?: string | null
   entidade_label?: string | null
   usuario: AuditoriaUsuario | null
+  paciente: AuditoriaPaciente | null
 }
 
 export type AuditoriaResponse = {
