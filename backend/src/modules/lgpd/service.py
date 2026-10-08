@@ -18,9 +18,24 @@ from src.settings.extensions import db
 
 
 PACIENTE_ID_DESCRICAO_RE = re.compile(r"(?:^|[;\s])paciente_id=(\d+)")
+STATUS_DESCRICAO_RE = re.compile(r"(?:^|[;\s])status=([^;\s]+)")
 ENTIDADES_PACIENTE_DIRETAS = {"paciente", "paciente_spdata"}
 ENTIDADES_ATENDIMENTO_SPDATA = {"agenda_medica", "med_spdata_atendimentos"}
 ENTIDADES_AGENDA_SPDATA = {"agenda_assistente"}
+DESCRICOES_INTERACAO_PACIENTE = {
+    "INICIOU_ATENDIMENTO": "Médico iniciou o atendimento do paciente.",
+    "FINALIZOU_ATENDIMENTO": "Médico finalizou o atendimento do paciente.",
+    "ABRIU_PACIENTE": "Médico abriu os dados do paciente.",
+    "VISUALIZOU_PRONTUARIO": "Médico visualizou o histórico local do paciente.",
+    "VISUALIZOU_HISTORICO_BIODATA": "Médico consultou o histórico BioData do paciente.",
+    "VISUALIZOU_HISTORICO_SPDATA": "Médico consultou o histórico SPDATA do paciente.",
+    "VISUALIZOU_EXAMES_PACS": "Médico visualizou exames PACS do paciente.",
+    "VISUALIZOU_LAUDO_EXAME": "Médico abriu laudo de exame do paciente.",
+    "VISUALIZOU_IMAGEM_EXAME": "Médico abriu imagem de exame do paciente.",
+    "VISUALIZOU_DOCUMENTOS_MEDICOS": "Médico visualizou documentos médicos do paciente.",
+    "SALVOU_DOCUMENTO_MEDICO": "Médico salvou documento médico do paciente.",
+    "EDITOU_EVOLUCAO": "Médico editou a evolução clínica do paciente.",
+}
 
 
 def parse_data(valor, default=None):
@@ -102,6 +117,13 @@ def _paciente_de_atendimento_local(atendimento):
 def _paciente_id_descricao(descricao):
     match = PACIENTE_ID_DESCRICAO_RE.search(str(descricao or ""))
     return _normalizar_int(match.group(1)) if match else None
+
+
+def _status_descricao(descricao):
+    match = STATUS_DESCRICAO_RE.search(str(descricao or ""))
+    if not match:
+        return None
+    return match.group(1).replace("-", " ")
 
 
 def _paciente_id_direto_evento(evento):
@@ -223,6 +245,19 @@ def _mapear_pacientes_auditoria(eventos):
     return pacientes_por_evento
 
 
+def _descricao_interacao_paciente(evento, paciente):
+    if not paciente:
+        return None
+
+    acao = evento.acao.value if hasattr(evento.acao, "value") else str(evento.acao or "")
+    if acao == "ALTEROU_STATUS_AGENDA":
+        status = _status_descricao(evento.descricao)
+        if status:
+            return f"Médico atualizou o status do atendimento para {status}."
+        return "Médico atualizou o status do atendimento do paciente."
+    return DESCRICOES_INTERACAO_PACIENTE.get(acao)
+
+
 def listar_auditorias(params):
     data_ini = parse_data(params.get("dataIni"))
     data_fim = parse_data(params.get("dataFim"))
@@ -267,7 +302,11 @@ def listar_auditorias(params):
     items = []
     for evento in eventos_pagina:
         item = evento.to_dict()
-        item["paciente"] = pacientes_por_evento.get(evento.id)
+        paciente = pacientes_por_evento.get(evento.id)
+        item["paciente"] = paciente
+        descricao_interacao = _descricao_interacao_paciente(evento, paciente)
+        if descricao_interacao:
+            item["descricao_direta"] = descricao_interacao
         items.append(item)
 
     return {
