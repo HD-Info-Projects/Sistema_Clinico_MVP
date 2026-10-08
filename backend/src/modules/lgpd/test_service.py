@@ -70,6 +70,7 @@ def test_listar_auditorias_enriquece_paciente_do_atendimento_medico(app):
         "nome_social": "Nome Social",
         "label": "Nome Social",
     }
+    assert evento["descricao_direta"] == "Médico iniciou o atendimento do paciente."
     assert set(evento["paciente"].keys()) == {"id", "nome", "nome_social", "label"}
     assert resultado["items"][1]["paciente"] is None
 
@@ -96,3 +97,83 @@ def test_listar_auditorias_enriquece_abertura_direta_de_paciente(app):
 
     assert resultado["items"][0]["paciente"]["id"] == 987
     assert resultado["items"][0]["paciente"]["label"] == "Paciente Direto"
+    assert resultado["items"][0]["descricao_direta"] == "Médico abriu os dados do paciente."
+
+
+@pytest.mark.parametrize(
+    ("acao", "descricao", "esperado"),
+    [
+        (
+            AcaoAuditoria.FINALIZOU_ATENDIMENTO.value,
+            "Status de atendimento atualizado. status=atendido",
+            "Médico finalizou o atendimento do paciente.",
+        ),
+        (
+            AcaoAuditoria.ALTEROU_STATUS_AGENDA.value,
+            "Status de atendimento atualizado. status=em-atendimento",
+            "Médico atualizou o status do atendimento para em atendimento.",
+        ),
+        (
+            AcaoAuditoria.VISUALIZOU_PRONTUARIO.value,
+            "Acesso ao histórico local do paciente. total=2",
+            "Médico visualizou o histórico local do paciente.",
+        ),
+        (
+            AcaoAuditoria.VISUALIZOU_HISTORICO_BIODATA.value,
+            "Acesso ao histórico BioData do paciente. limit=10 offset=0",
+            "Médico consultou o histórico BioData do paciente.",
+        ),
+        (
+            AcaoAuditoria.VISUALIZOU_HISTORICO_SPDATA.value,
+            "Acesso ao histórico SPDATA do paciente. limit=10 offset=0",
+            "Médico consultou o histórico SPDATA do paciente.",
+        ),
+        (
+            AcaoAuditoria.VISUALIZOU_EXAMES_PACS.value,
+            "paciente_id=456; total=3",
+            "Médico visualizou exames PACS do paciente.",
+        ),
+        (
+            AcaoAuditoria.VISUALIZOU_LAUDO_EXAME.value,
+            "paciente_id=456; silanexa_id=10",
+            "Médico abriu laudo de exame do paciente.",
+        ),
+        (
+            AcaoAuditoria.VISUALIZOU_IMAGEM_EXAME.value,
+            "paciente_id=456; silanexa_id=10",
+            "Médico abriu imagem de exame do paciente.",
+        ),
+        (
+            AcaoAuditoria.VISUALIZOU_DOCUMENTOS_MEDICOS.value,
+            "Listagem de documentos médicos do atendimento",
+            "Médico visualizou documentos médicos do paciente.",
+        ),
+        (
+            AcaoAuditoria.SALVOU_DOCUMENTO_MEDICO.value,
+            "Documento médico salvo. tipo=ATESTADO",
+            "Médico salvou documento médico do paciente.",
+        ),
+    ],
+)
+def test_listar_auditorias_descreve_interacao_medico_paciente(
+    app,
+    acao,
+    descricao,
+    esperado,
+):
+    with app.app_context():
+        db.session.add(_spdata_atendimento())
+        db.session.add(Auditoria(
+            acao=acao,
+            entidade="paciente",
+            entidade_id=456,
+            descricao=descricao,
+            created_at=datetime(2026, 10, 7, 12, 0, 0),
+        ))
+        db.session.commit()
+
+        with app.test_request_context("/auditorias/?limit=10"):
+            resultado = listar_auditorias(request.args)
+
+    assert resultado["items"][0]["descricao_direta"] == esperado
+    assert resultado["items"][0]["descricao"] == descricao
