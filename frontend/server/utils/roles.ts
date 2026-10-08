@@ -5,6 +5,7 @@ export const SERVER_ROLES_USUARIO = [
   'coord_recepcao',
   'dpo',
   'admin',
+  'financeiro',
   'coord_financeiro'
 ] as const
 

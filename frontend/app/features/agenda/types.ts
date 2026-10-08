@@ -28,6 +28,10 @@ export interface AtendimentoRecepcao {
   idade: number | null
   status: AtendimentoStatusRecepcao
   retorno: boolean
+  temAgendamento: boolean
+  temCheckIn: boolean
+  encaixe: boolean
+  tipoEntrada: 'agendado' | 'encaixe'
   prioridade: boolean
   prioridadeOrigem: 'agenda' | 'atendimento'
   prioridadeSpdataId: number
@@ -48,6 +52,7 @@ export interface MedicoDia {
 
 export interface ResumoRecepcao {
   agendados: number
+  encaixes: number
   emEspera: number
   emAtendimento: number
   atendidos: number

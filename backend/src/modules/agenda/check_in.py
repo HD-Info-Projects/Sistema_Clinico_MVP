@@ -50,7 +50,7 @@ STATUS_VALIDOS = {
 }
 
 CACHE_PREFIX_CHECK_IN_BASE = "check_in:base:v2"
-CACHE_PREFIX_CHECK_IN_RESPONSE = "check_in:response:v3"
+CACHE_PREFIX_CHECK_IN_RESPONSE = "check_in:response:v4"
 
 STATUS_LOCAL_ALIASES = {
     "EM_ATENDIMENTO": "em-atendimento",
@@ -194,6 +194,7 @@ def status_repacagd(valor):
 def status_para_resumo():
     return {
         "agendados": 0,
+        "encaixes": 0,
         "emEspera": 0,
         "emAtendimento": 0,
         "atendidos": 0,
@@ -543,6 +544,14 @@ def filtrar_rows_por_tipo(rows, tipo=None):
     return [row for row in rows if tipo_procedimento_row(row) == tipo]
 
 
+def filtrar_items_por_entrada(items, entrada=None):
+    entrada = normalizar_texto(entrada)
+    if not entrada:
+        return items
+
+    return [item for item in items if item.get("tipoEntrada") == entrada]
+
+
 def buscar_status_local(registros, unidade=None):
     registros = [normalizar_texto(registro) for registro in registros if normalizar_texto(registro)]
     if not registros:
@@ -670,6 +679,12 @@ def item_para_frontend(
     id_convenio_spdata = normalizar_int(row.get("ID_CONVENIO_SPDATA") or row.get("CONVENIO"))
     codigo_procedimento = codigo_procedimento_row(row) or None
     tipo_procedimento = tipo_procedimento_row(row)
+    tem_agendamento = row.get("ID_AGENDAMENTO") is not None
+    tem_check_in = (
+        row.get("ID_ATENDIMENTO") is not None
+        or normalizar_texto(row.get("TEM_ATENDIMENTO")).upper() == "S"
+    )
+    encaixe = tem_check_in and not tem_agendamento
     local = status_local.get(registro)
     if local:
         status = local["status"]
@@ -731,6 +746,10 @@ def item_para_frontend(
         "idade": calcular_idade(row.get("DATA_NASCIMENTO")),
         "dataHoraAgendamento": row.get("DATA_HORA_AGENDAMENTO"),
         "atendidoSpdata": normalizar_texto(row.get("ATENDIDO")),
+        "temAgendamento": tem_agendamento,
+        "temCheckIn": tem_check_in,
+        "encaixe": encaixe,
+        "tipoEntrada": "encaixe" if encaixe else "agendado",
         "status": status,
         "statusOrigem": "medsystem" if local else "spdata",
         "prioridade": bool(prioridade),
@@ -744,6 +763,8 @@ def calcular_resumo(items):
     for item in items:
         key = RESUMO_KEYS.get(item["status"], "desconhecidos")
         resumo[key] += 1
+        if item.get("encaixe") is True:
+            resumo["encaixes"] += 1
     return resumo
 
 
@@ -789,6 +810,7 @@ def home_check_in():
         page = parse_int_param("page", 1)
         page_size = parse_int_param("pageSize", 20, maximo=MAX_PAGE_SIZE)
         status_filtro = normalizar_texto(request.args.get("status"))
+        entrada_filtro = normalizar_texto(request.args.get("entrada"))
         tipo_filtro = normalizar_texto(request.args.get("tipo"))
         medico = request.args.get("medico")
         q = request.args.get("q")
@@ -805,6 +827,8 @@ def home_check_in():
 
         if status_filtro and status_filtro not in STATUS_VALIDOS:
             return jsonify({"error": "Status inválido"}), 400
+        if entrada_filtro and entrada_filtro not in {"agendado", "encaixe"}:
+            return jsonify({"error": "Entrada inválida"}), 400
         if tipo_filtro and tipo_filtro not in TIPOS_PROCEDIMENTO_VALIDOS:
             return jsonify({"error": "Tipo inválido"}), 400
 
@@ -815,6 +839,7 @@ def home_check_in():
             page=page,
             page_size=page_size,
             status=status_filtro,
+            entrada=entrada_filtro,
             tipo=tipo_filtro,
             medico=medico,
             q=q,
@@ -883,6 +908,8 @@ def home_check_in():
             items_filtrados = [item for item in items_com_status if item["status"] == status_filtro]
         else:
             items_filtrados = items_com_status
+
+        items_filtrados = filtrar_items_por_entrada(items_filtrados, entrada_filtro)
 
         total = len(items_filtrados)
         start = (page - 1) * page_size

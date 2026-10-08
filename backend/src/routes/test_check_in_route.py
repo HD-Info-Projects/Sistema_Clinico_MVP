@@ -8,6 +8,8 @@ from src.modules.agenda import check_in as check_in_module
 from src.modules.agenda.check_in import (
     buscar_agendamentos_firebird,
     calcular_idade,
+    calcular_resumo,
+    filtrar_items_por_entrada,
     filtrar_rows_por_tipo,
     item_para_frontend,
     mesclar_agenda_atendimentos,
@@ -138,6 +140,76 @@ def test_item_check_in_prioridade_ausente_resolve_false():
     )
 
     assert item["prioridade"] is False
+
+
+@pytest.mark.parametrize(
+    ("row", "esperado_encaixe", "tipo_entrada", "tem_agendamento", "tem_check_in"),
+    [
+        (
+            {"ID_AGENDAMENTO": 10, "ID_ATENDIMENTO": 20, "REGISTRO": "123"},
+            False,
+            "agendado",
+            True,
+            True,
+        ),
+        (
+            {"ID_ATENDIMENTO": 20, "REGISTRO": "123", "TEM_ATENDIMENTO": "S"},
+            True,
+            "encaixe",
+            False,
+            True,
+        ),
+        (
+            {"ID_AGENDAMENTO": 10, "REGISTRO": "123", "ATENDIDO": "N"},
+            False,
+            "agendado",
+            True,
+            False,
+        ),
+    ],
+)
+def test_item_check_in_classifica_encaixe_por_agenda_e_checkin(
+    row,
+    esperado_encaixe,
+    tipo_entrada,
+    tem_agendamento,
+    tem_check_in,
+):
+    item = item_para_frontend(
+        row,
+        {},
+        {},
+        {},
+        SimpleNamespace(id=1),
+    )
+
+    assert item["encaixe"] is esperado_encaixe
+    assert item["tipoEntrada"] == tipo_entrada
+    assert item["temAgendamento"] is tem_agendamento
+    assert item["temCheckIn"] is tem_check_in
+
+
+def test_calcular_resumo_conta_encaixes_sem_mudar_status():
+    resumo = calcular_resumo([
+        {"status": "agendado", "encaixe": False},
+        {"status": "em-espera", "encaixe": True},
+        {"status": "em-espera", "encaixe": False},
+    ])
+
+    assert resumo["agendados"] == 1
+    assert resumo["emEspera"] == 2
+    assert resumo["encaixes"] == 1
+
+
+def test_filtra_items_por_entrada():
+    items = [
+        {"id": 1, "tipoEntrada": "agendado"},
+        {"id": 2, "tipoEntrada": "encaixe"},
+    ]
+
+    assert filtrar_items_por_entrada(items, None) == items
+    assert filtrar_items_por_entrada(items, "encaixe") == [items[1]]
+    assert filtrar_items_por_entrada(items, "agendado") == [items[0]]
 
 
 @pytest.mark.parametrize(

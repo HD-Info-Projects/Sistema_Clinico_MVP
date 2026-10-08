@@ -17,7 +17,14 @@ from src.security.passwords import (
     validate_password_strength,
     verify_password,
 )
-from src.security.roles import ASSISTENTE_ROLES, COORD_RECEPCAO_ROLES, LGPD_ROLES, ROLES_EXIGEM_UNIDADE, ROLES_USUARIO
+from src.security.roles import (
+    ASSISTENTE_ROLES,
+    COORD_RECEPCAO_ROLES,
+    FINANCEIRO_ROLES,
+    LGPD_ROLES,
+    ROLES_EXIGEM_UNIDADE,
+    ROLES_USUARIO,
+)
 from src.services.auditoria_service import registrar_auditoria
 from src.settings.extensions import db
 from src.utils.tuss import e_procedimento_exame
@@ -311,12 +318,14 @@ def test_roles_matrix_inclui_novos_perfis_sem_ti():
         "coord_recepcao",
         "dpo",
         "admin",
+        "financeiro",
         "coord_financeiro",
     }
     assert "ti" not in ROLES_USUARIO
     assert ROLES_EXIGEM_UNIDADE == {"medico", "assistente", "recepcao", "coord_recepcao"}
     assert ASSISTENTE_ROLES == ("assistente", "admin")
     assert LGPD_ROLES == ("dpo", "admin")
+    assert FINANCEIRO_ROLES == ("financeiro", "coord_financeiro", "admin")
 
 
 def test_tuss_identifica_apenas_categorias_de_exames_assistente():

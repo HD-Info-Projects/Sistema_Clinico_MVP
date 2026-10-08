@@ -80,7 +80,7 @@ export function atualizarStatusExame(event: H3Event, id: number, body: unknown) 
 export function listarCheckIn(event: H3Event, query: Record<string, unknown>) {
   const params = new URLSearchParams()
 
-  for (const key of ['page', 'pageSize', 'status', 'medico', 'q', 'data', 'unidadeId', 'tipo', 'refresh', 'sincronizar']) {
+  for (const key of ['page', 'pageSize', 'status', 'entrada', 'medico', 'q', 'data', 'unidadeId', 'tipo', 'refresh', 'sincronizar']) {
     const value = query[key]
     if (value !== undefined && value !== null && String(value).trim()) {
       params.set(key, String(value))

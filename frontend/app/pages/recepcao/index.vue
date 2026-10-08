@@ -20,6 +20,7 @@ const loading = ref(true)
 const errorMsg = ref('')
 const busca = ref('')
 const selectedStatus = ref<AtendimentoStatusRecepcao | ''>('')
+const selectedEntrada = ref<'agendado' | 'encaixe' | ''>('')
 const selectedTipo = ref<TipoProcedimentoTuss | ''>('')
 const selectedMedico = ref<string | null>(null)
 const selectedEspecialidade = ref<string | undefined>('Todas as especialidades')
@@ -40,6 +41,7 @@ function respostaVazia(): CheckInResponse {
     medicos: [],
     resumo: {
       agendados: 0,
+      encaixes: 0,
       emEspera: 0,
       emAtendimento: 0,
       atendidos: 0,
@@ -59,6 +61,12 @@ const filtrosStatus: { label: string, value: AtendimentoStatusRecepcao | '' }[] 
   { label: 'Em atendimento', value: 'em-atendimento' },
   { label: 'Atendidos', value: 'atendido' },
   { label: 'Faltosos', value: 'faltou' }
+]
+
+const filtrosEntrada: { label: string, value: 'agendado' | 'encaixe' | '' }[] = [
+  { label: 'Todos', value: '' },
+  { label: 'Agendados', value: 'agendado' },
+  { label: 'Encaixes', value: 'encaixe' }
 ]
 
 const filtrosTipo = TUSS_PROCEDIMENTO_FILTROS
@@ -95,6 +103,8 @@ const tituloTabela = computed(() => {
   if (selectedMedicoNome.value) partes.push(selectedMedicoNome.value)
   const status = filtrosStatus.find(s => s.value === selectedStatus.value)
   if (status?.value) partes.push(status.label)
+  const entrada = filtrosEntrada.find(e => e.value === selectedEntrada.value)
+  if (entrada?.value) partes.push(entrada.label)
   const tipo = filtrosTipo.find(t => t.value === selectedTipo.value)
   if (tipo?.value) partes.push(tipo.label)
   return partes.join(' - ')
@@ -126,6 +136,14 @@ function rotuloStatus(s: string) {
     case 'faltou': return 'Faltou'
     default: return 'Desconhecido'
   }
+}
+
+function corEntrada(entrada: string) {
+  return entrada === 'encaixe' ? 'warning' : 'neutral'
+}
+
+function rotuloEntrada(entrada: string) {
+  return entrada === 'encaixe' ? 'Encaixe' : 'Agendado'
 }
 
 function corTipo(tipo: string) {
@@ -167,6 +185,7 @@ function filtrosConsulta(unidadeId: number) {
     unidadeId: String(unidadeId)
   }
   if (selectedStatus.value) params.status = selectedStatus.value
+  if (selectedEntrada.value) params.entrada = selectedEntrada.value
   if (selectedTipo.value) params.tipo = selectedTipo.value
   if (selectedMedico.value) params.medico = selectedMedico.value
   if (busca.value.trim()) params.q = busca.value.trim()
@@ -297,7 +316,8 @@ const colunasExportacao: ColunaExport<AtendimentoRecepcao>[] = [
   { key: 'medico', header: 'Médico', value: a => textoInformado(a.medico) },
   { key: 'especialidade', header: 'Especialidade', value: a => textoInformado(a.especialidade) },
   { key: 'tipo', header: 'Tipo de Atend.', value: a => rotuloTipo(a) },
-  { key: 'status', header: 'Status', value: a => rotuloStatus(a.status) }
+  { key: 'status', header: 'Status', value: a => rotuloStatus(a.status) },
+  { key: 'entrada', header: 'Entrada', value: a => rotuloEntrada(a.tipoEntrada) }
 ]
 
 function resumoExportacao() {
@@ -308,7 +328,8 @@ function resumoExportacao() {
     `Em espera: ${r.emEspera}`,
     `Em atendimento: ${r.emAtendimento}`,
     `Atendidos: ${r.atendidos}`,
-    `Faltas: ${r.faltas}`
+    `Faltas: ${r.faltas}`,
+    `Encaixes: ${r.encaixes}`
   ]
 }
 
@@ -385,6 +406,11 @@ function selecionarStatus(status: AtendimentoStatusRecepcao | '') {
   resetPageAndFetch()
 }
 
+function selecionarEntrada(entrada: 'agendado' | 'encaixe' | '') {
+  selectedEntrada.value = entrada
+  resetPageAndFetch()
+}
+
 function selecionarTipo(tipo: TipoProcedimentoTuss | '' | null | undefined) {
   selectedTipo.value = tipo ?? ''
   resetPageAndFetch()
@@ -397,6 +423,7 @@ watch(page, () => {
 watch(() => auth.activeClinicaId, () => {
   selectedMedico.value = null
   selectedEspecialidade.value = 'Todas as especialidades'
+  selectedEntrada.value = ''
   selectedTipo.value = ''
   resetPageAndFetch()
   sse.connect({ clinicaId: auth.activeClinicaId })
@@ -459,7 +486,7 @@ onUnmounted(() => {
             {{ getSaudacao(agora) }}, {{ userName }}
           </p>
           <p class="text-base text-muted mt-1">
-            {{ formatarData(dados.data) }}. Veja o resumo dos agendamentos da recepção.
+            {{ formatarData(dados.data) }}. Veja o resumo dos agendamentos, check-ins e encaixes da recepção.
           </p>
         </div>
         <div class="w-full shrink-0 space-y-2 lg:w-56">
@@ -607,9 +634,16 @@ onUnmounted(() => {
           <div class="flex flex-col gap-4">
             <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between ">
               <div class="min-w-0 text-left lg:text-center">
-                <p class="wrap-break-word text-lg font-medium">
-                  {{ tituloTabela }}
-                </p>
+                <div class="flex flex-wrap items-center gap-2 lg:justify-center">
+                  <p class="wrap-break-word text-lg font-medium">
+                    {{ tituloTabela }}
+                  </p>
+                  <UBadge
+                    :label="`${dados.resumo.encaixes} encaixe${dados.resumo.encaixes !== 1 ? 's' : ''}`"
+                    color="warning"
+                    variant="soft"
+                  />
+                </div>
                 <p class="text-sm text-muted">
                   {{ dados.total }} registro{{ dados.total !== 1 ? 's' : '' }} encontrado{{ dados.total !== 1 ? 's' : '' }}
                 </p>
@@ -668,6 +702,20 @@ onUnmounted(() => {
                 class="flex-1 sm:flex-none "
                 :ui="{ base: 'justify-center' }"
                 @click="selecionarStatus(status.value)"
+              />
+            </div>
+
+            <div class="flex flex-wrap gap-2">
+              <UButton
+                v-for="entrada in filtrosEntrada"
+                :key="entrada.value || 'entrada-todos'"
+                :label="entrada.label"
+                :color="entrada.value ? corEntrada(entrada.value) : 'neutral'"
+                :variant="selectedEntrada === entrada.value ? 'solid' : 'soft'"
+                size="sm"
+                class="flex-1 sm:flex-none"
+                :ui="{ base: 'justify-center' }"
+                @click="selecionarEntrada(entrada.value)"
               />
             </div>
 
@@ -755,6 +803,12 @@ onUnmounted(() => {
                         v-if="item.retorno"
                         label="Retorno"
                         color="secondary"
+                        variant="subtle"
+                      />
+                      <UBadge
+                        v-if="item.encaixe"
+                        label="Encaixe"
+                        color="warning"
                         variant="subtle"
                       />
                     </div>
