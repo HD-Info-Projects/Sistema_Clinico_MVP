@@ -139,7 +139,7 @@ function rotuloStatus(s: string) {
 }
 
 function corEntrada(entrada: string) {
-  return entrada === 'encaixe' ? 'warning' : 'neutral'
+  return entrada === 'encaixe' ? 'quinary' : 'neutral'
 }
 
 function rotuloEntrada(entrada: string) {
@@ -808,7 +808,7 @@ onUnmounted(() => {
                       <UBadge
                         v-if="item.encaixe"
                         label="Encaixe"
-                        color="warning"
+                        color="quinary"
                         variant="subtle"
                       />
                     </div>
