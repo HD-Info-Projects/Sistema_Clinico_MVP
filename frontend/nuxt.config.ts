@@ -39,7 +39,8 @@ export default defineNuxtConfig({
   },
 
   routeRules: {
-    '/': { prerender: true },
+    // The entry route depends on the request's session cookie.
+    '/': { prerender: false },
     // Authentication/attendance guards run on the client. Avoid hydrating a
     // redirected dashboard over the server's centered attendance skeleton.
     '/atendimento-medico': { ssr: false }

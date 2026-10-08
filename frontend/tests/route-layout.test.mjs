@@ -20,6 +20,8 @@ for (const [path, expected] of [
   ['/painel-chamada/7', 'tv'],
   ['/atendimento-medico', 'atendimento'],
   ['/recepcao/novo-atendimento', 'recepcao'],
+  ['/financeiro/pagamentos', 'financeiro'],
+  ['/financeiro/conciliacao-cartoes', 'financeiro'],
   ['/admin/medicos', 'admin'],
   ['/dashboard', 'default'],
   ['/agenda', 'default'],
@@ -48,4 +50,10 @@ test('explicit page layout and disabled layouts are preserved', () => {
   to.meta.layout = 'auth'
   selectLayout(to)
   assert.equal(to.meta.layout, 'auth')
+})
+
+test('patient page keeps its explicit layout so it can supply the sidebar slot', () => {
+  const to = { path: '/financeiro/pacientes/1', meta: { layout: false } }
+  selectLayout(to)
+  assert.equal(to.meta.layout, false)
 })

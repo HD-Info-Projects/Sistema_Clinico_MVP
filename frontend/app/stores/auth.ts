@@ -2,17 +2,17 @@ import { defineStore } from 'pinia'
 import { verificarAtendimentoEmAndamento } from '~/features/agenda/services/agendaService'
 import { buscarSessaoAuth, loginAuth, logoutAuth } from '~/features/auth/services/authService'
 import type { AuthSessionResponse, AuthUser, Clinica } from '~/features/auth/types'
-import { ASSISTENTE_ROLES, LGPD_ROLES, MEDICO_ROLES, RECEPCAO_ROLES, roleIn } from '~/utils/roles'
+import { ASSISTENTE_ROLES, FINANCEIRO_ROLES, LGPD_ROLES, MEDICO_ROLES, RECEPCAO_ROLES, roleIn } from '~/utils/roles'
 import { registrarEventoAuditoria } from '~/utils/auditoria-eventos'
 
-export type AccessMode = 'recepcionista' | 'administrador' | 'logs'
+export type AccessMode = 'recepcionista' | 'administrador' | 'logs' | 'financeiro'
 
 export type LogoutResult
   = | { success: true }
     | { success: false, reason: 'atendimento', pacienteNome: string | null, data: string | null }
     | { success: false, reason: 'verificacao', requestId: string | null }
 
-const MODOS_ACESSO: AccessMode[] = ['recepcionista', 'administrador', 'logs']
+const MODOS_ACESSO: AccessMode[] = ['recepcionista', 'administrador', 'logs', 'financeiro']
 
 function modoValido(valor: unknown): AccessMode | null {
   return MODOS_ACESSO.includes(valor as AccessMode) ? (valor as AccessMode) : null
@@ -23,6 +23,7 @@ export function paginaInicialPorModo(modo: AccessMode | null) {
     case 'recepcionista': return '/recepcao'
     case 'administrador': return '/admin'
     case 'logs': return '/lgpd/auditoria'
+    case 'financeiro': return '/financeiro/pagamentos'
     default: return '/selecionar-acesso'
   }
 }
@@ -100,6 +101,7 @@ export const useAuthStore = defineStore('auth', () => {
   const isRecepcao = computed(() => roleIn(user.value?.role, RECEPCAO_ROLES))
   const isAdmin = computed(() => user.value?.role === 'admin')
   const canAccessLgpd = computed(() => roleIn(user.value?.role, LGPD_ROLES))
+  const canAccessFinanceiro = computed(() => roleIn(user.value?.role, FINANCEIRO_ROLES))
 
   function limparRascunhosClinicosLocais() {
     if (!import.meta.client) return
@@ -173,6 +175,8 @@ export const useAuthStore = defineStore('auth', () => {
         navigateTo('/selecionar-acesso')
       } else if (roleIn(response.user.role, LGPD_ROLES)) {
         navigateTo('/lgpd/auditoria')
+      } else if (roleIn(response.user.role, FINANCEIRO_ROLES)) {
+        navigateTo('/financeiro/pagamentos')
       } else if ((roleIn(response.user.role, RECEPCAO_ROLES) || roleIn(response.user.role, MEDICO_ROLES) || roleIn(response.user.role, ASSISTENTE_ROLES)) && response.clinicas.length > 1 && !activeClinicaId.value) {
         navigateTo('/selecionar-clinica')
       } else if (roleIn(response.user.role, ASSISTENTE_ROLES)) {
@@ -273,6 +277,7 @@ export const useAuthStore = defineStore('auth', () => {
     isRecepcao,
     isAdmin,
     canAccessLgpd,
+    canAccessFinanceiro,
     accessMode,
     setAccessMode,
     limparAccessMode,

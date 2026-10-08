@@ -1,5 +1,5 @@
 import { useAuthStore, paginaInicialPorModo } from '~/stores/auth'
-import { ASSISTENTE_ROLES, COORD_RECEPCAO_ROLES, LGPD_ROLES, MEDICO_ROLES, RECEPCAO_ROLES, roleIn } from '~/utils/roles'
+import { ASSISTENTE_ROLES, COORD_RECEPCAO_ROLES, FINANCEIRO_ROLES, LGPD_ROLES, MEDICO_ROLES, RECEPCAO_ROLES, roleIn } from '~/utils/roles'
 
 export default defineNuxtRouteMiddleware(async (to) => {
   const auth = useAuthStore()
@@ -8,6 +8,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
     const role = auth.user?.role
     if (auth.isAdmin) return paginaInicialPorModo(auth.accessMode)
     if (roleIn(role, LGPD_ROLES)) return '/lgpd/auditoria'
+    if (roleIn(role, FINANCEIRO_ROLES)) return '/financeiro/pagamentos'
     if (roleIn(role, ASSISTENTE_ROLES)) return '/dashboard'
     if (roleIn(role, RECEPCAO_ROLES)) return '/recepcao'
     if (roleIn(role, MEDICO_ROLES)) return '/dashboard'
@@ -49,7 +50,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   // Seleção de unidade — admins podem acessar sempre; médico/recepção apenas com múltiplas clínicas
   if (to.path === '/selecionar-clinica') {
     if (auth.isAdmin) return
-    if (auth.clinicas.length > 1 && (auth.isMedico || auth.isAssistente || auth.isRecepcao)) return
+    if (auth.clinicas.length > 1 && (auth.isMedico || auth.isAssistente || auth.isRecepcao || auth.canAccessFinanceiro)) return
     return navigateTo(destinoPrincipal())
   }
 
@@ -67,6 +68,11 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   // Role-based routing - proteger rotas por role
   const isAdminRoute = to.path.startsWith('/admin')
+  const isFinanceiroRoute = to.path === '/financeiro' || to.path.startsWith('/financeiro/')
+  const canAccessFinanceiro = roleIn(auth.user?.role, FINANCEIRO_ROLES)
+  if (isFinanceiroRoute && !canAccessFinanceiro) {
+    return navigateTo('/acesso-negado')
+  }
   const isLgpdRoute = to.path.startsWith('/lgpd')
   const canAccessLgpd = roleIn(auth.user?.role, LGPD_ROLES)
   if (isLgpdRoute && !canAccessLgpd) {
@@ -90,6 +96,10 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   // Guardas por modo de acesso do admin
   if (auth.isAdmin) {
+    if (auth.accessMode === 'financeiro') {
+      if (!isFinanceiroRoute) return navigateTo('/financeiro/pagamentos')
+      return
+    }
     if (auth.accessMode === 'recepcionista') {
       if (!isRecepcaoRoute) return navigateTo('/recepcao')
       if (!auth.activeClinicaId) return navigateTo('/selecionar-clinica')
@@ -100,13 +110,18 @@ export default defineNuxtRouteMiddleware(async (to) => {
       return
     }
     // Modo administrador: painel admin + telas LGPD liberadas para admin.
-    if (!isAdminRoute && !isLgpdRoute) return navigateTo('/admin')
+    if (!isAdminRoute && !isLgpdRoute && !isFinanceiroRoute) return navigateTo('/admin')
     return
   }
 
   // Não-admin não pode acessar rotas /admin
   if (isAdminRoute) {
     return navigateTo(destinoPrincipal())
+  }
+
+  if (canAccessFinanceiro) {
+    if (!isFinanceiroRoute) return navigateTo('/financeiro/pagamentos')
+    return
   }
 
   if (canAccessLgpd && !isLgpdRoute) {

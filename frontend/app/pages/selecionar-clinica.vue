@@ -25,6 +25,8 @@ async function selecionar(id: number) {
     navigateTo(paginaInicialPorModo(auth.accessMode))
   } else if (auth.isRecepcao) {
     navigateTo('/recepcao')
+  } else if (auth.canAccessFinanceiro) {
+    navigateTo('/financeiro/pagamentos')
   } else {
     navigateTo('/dashboard')
   }

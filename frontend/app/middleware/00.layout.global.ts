@@ -9,6 +9,7 @@ export default defineNuxtRouteMiddleware((to) => {
   else if (path.startsWith('/painel-chamada')) to.meta.layout = 'tv'
   else if (path === '/atendimento-medico') to.meta.layout = 'atendimento'
   else if (path.startsWith('/recepcao')) to.meta.layout = 'recepcao'
+  else if (path === '/financeiro' || path.startsWith('/financeiro/')) to.meta.layout = 'financeiro'
   else if (path.startsWith('/admin')) to.meta.layout = 'admin'
   else to.meta.layout = 'default'
 })

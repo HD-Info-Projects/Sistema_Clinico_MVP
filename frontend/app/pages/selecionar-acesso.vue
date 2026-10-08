@@ -22,6 +22,12 @@ const opcoes: { modo: AccessMode, titulo: string, descricao: string, icone: stri
     icone: 'i-lucide-settings'
   },
   {
+    modo: 'financeiro',
+    titulo: 'Entrar no Financeiro',
+    descricao: 'Gerenciamento de pagamentos, pacientes e conciliação de cartões de crédito.',
+    icone: 'i-lucide-wallet'
+  },
+  {
     modo: 'logs',
     titulo: 'Logs de Auditoria',
     descricao: 'Consulta aos registros de auditoria LGPD.',
