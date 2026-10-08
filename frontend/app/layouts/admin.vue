@@ -24,6 +24,7 @@ const navItems = [
   { label: 'Recep', icon: 'i-lucide-user-plus', to: '/admin/recepcao' },
   { label: 'Coord. Recep', icon: 'i-lucide-clipboard-list', to: '/admin/coord-recepcao' },
   { label: 'DPO', icon: 'i-lucide-shield-check', to: '/admin/dpo' },
+  { label: 'Financeiro', icon: 'i-lucide-wallet', to: '/admin/financeiro' },
   { label: 'Coord. Financeiro', icon: 'i-lucide-wallet-cards', to: '/admin/coord-financeiro' },
   { label: 'Administradores', icon: 'i-lucide-shield', to: '/admin/admins' },
   { label: 'Unidades', icon: 'i-lucide-building', to: '/admin/unidades' }

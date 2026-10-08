@@ -21,6 +21,7 @@ const totalAssistentes = computed(() => usuariosStore.porRole('assistente').filt
 const totalRecepcao = computed(() => usuariosStore.porRole('recepcao').filter(u => u.ativo !== false).length)
 const totalCoordRecepcao = computed(() => usuariosStore.porRole('coord_recepcao').filter(u => u.ativo !== false).length)
 const totalDpo = computed(() => usuariosStore.porRole('dpo').filter(u => u.ativo !== false).length)
+const totalFinanceiro = computed(() => usuariosStore.porRole('financeiro').filter(u => u.ativo !== false).length)
 const totalCoordFinanceiro = computed(() => usuariosStore.porRole('coord_financeiro').filter(u => u.ativo !== false).length)
 const totalAdmins = computed(() => usuariosStore.porRole('admin').filter(u => u.ativo !== false).length)
 const totalUnidades = computed(() => unidadesStore.unidades.filter(u => u.ativa).length)
@@ -196,6 +197,22 @@ function onSaved() {
               color="primary"
               class="mt-3"
               to="/admin/dpo"
+            />
+          </div>
+        </CardInformativo>
+
+        <CardInformativo
+          titulo="Financeiro"
+          :valor="totalFinanceiro"
+          cor="tertiary"
+          icone="i-lucide-wallet"
+        >
+          <div class="flex justify-end">
+            <UButton
+              label="Gerenciar"
+              color="primary"
+              class="mt-3"
+              to="/admin/financeiro"
             />
           </div>
         </CardInformativo>
