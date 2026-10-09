@@ -65,8 +65,8 @@ const filtrosStatus: { label: string, value: AtendimentoStatusRecepcao | '' }[] 
 
 const filtrosEntrada: { label: string, value: 'agendado' | 'encaixe' | '' }[] = [
   { label: 'Todos', value: '' },
-  { label: 'Agendados', value: 'agendado' },
-  { label: 'Encaixes', value: 'encaixe' }
+  { label: 'Agendados', value: 'agendado' }
+  // { label: 'Encaixes', value: 'encaixe' }
 ]
 
 const filtrosTipo = TUSS_PROCEDIMENTO_FILTROS
@@ -142,9 +142,9 @@ function corEntrada(entrada: string) {
   return entrada === 'encaixe' ? 'quinary' : 'neutral'
 }
 
-function rotuloEntrada(entrada: string) {
-  return entrada === 'encaixe' ? 'Encaixe' : 'Agendado'
-}
+// function rotuloEntrada(entrada: string) {
+//   return entrada === 'encaixe' ? 'Encaixe' : 'Agendado'
+// }
 
 function corTipo(tipo: string) {
   return corTipoProcedimento(tipo)
@@ -316,8 +316,8 @@ const colunasExportacao: ColunaExport<AtendimentoRecepcao>[] = [
   { key: 'medico', header: 'Médico', value: a => textoInformado(a.medico) },
   { key: 'especialidade', header: 'Especialidade', value: a => textoInformado(a.especialidade) },
   { key: 'tipo', header: 'Tipo de Atend.', value: a => rotuloTipo(a) },
-  { key: 'status', header: 'Status', value: a => rotuloStatus(a.status) },
-  { key: 'entrada', header: 'Entrada', value: a => rotuloEntrada(a.tipoEntrada) }
+  { key: 'status', header: 'Status', value: a => rotuloStatus(a.status) }
+  // { key: 'entrada', header: 'Entrada', value: a => rotuloEntrada(a.tipoEntrada) }
 ]
 
 function resumoExportacao() {
@@ -328,8 +328,8 @@ function resumoExportacao() {
     `Em espera: ${r.emEspera}`,
     `Em atendimento: ${r.emAtendimento}`,
     `Atendidos: ${r.atendidos}`,
-    `Faltas: ${r.faltas}`,
-    `Encaixes: ${r.encaixes}`
+    `Faltas: ${r.faltas}`
+    // `Encaixes: ${r.encaixes}`
   ]
 }
 
@@ -639,8 +639,9 @@ onUnmounted(() => {
                     {{ tituloTabela }}
                   </p>
                   <UBadge
+                    v-if="false"
                     :label="`${dados.resumo.encaixes} encaixe${dados.resumo.encaixes !== 1 ? 's' : ''}`"
-                    color="warning"
+                    color="quinary"
                     variant="soft"
                   />
                 </div>
@@ -805,8 +806,11 @@ onUnmounted(() => {
                         color="secondary"
                         variant="subtle"
                       />
+
+                      <!-- v-if="item.encaixe" -->
+
                       <UBadge
-                        v-if="item.encaixe"
+                        v-if="false"
                         label="Encaixe"
                         color="quinary"
                         variant="subtle"
