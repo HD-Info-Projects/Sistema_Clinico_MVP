@@ -37,8 +37,9 @@
       page-break-inside: avoid;
     }
 
-    .guia-container:not(:last-child) {
-      page-break-after: always;
+    .guia-container + .guia-container {
+      page-break-before: always;
+      break-before: page;
     }
 
     .header {
@@ -246,8 +247,8 @@
 
       html,
       body {
-        width: 297mm;
-        height: 210mm;
+        width: auto;
+        height: auto;
       }
 
       .guia-container {

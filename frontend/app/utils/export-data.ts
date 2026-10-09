@@ -1,6 +1,13 @@
 import { getLogoBase64 } from '~/utils/pdf-assets'
 import { usePdfMake } from '~/utils/pdf'
 
+// Medidas do PDF em pontos. Margens: esquerda, superior, direita, inferior.
+const LARGURA_A4_PAISAGEM = 841.89
+const MARGENS_PDF: [number, number, number, number] = [20, 20, 20, 40]
+const LARGURA_UTIL_PDF = LARGURA_A4_PAISAGEM - MARGENS_PDF[0] - MARGENS_PDF[2]
+const PADDING_HORIZONTAL_TABELA = 2
+const PADDING_VERTICAL_TABELA = 1.5
+
 export interface ColunaExport<T> {
   key: string
   header: string
@@ -94,11 +101,8 @@ export async function exportToExcel<T>(rows: T[], columns: ColunaExport<T>[], fi
 }
 
 function largurasColunas<T>(columns: ColunaExport<T>[], rows: T[]): number[] {
-  const LARGURA_PAGINA = 802
-  const INFLACAO_RENDER = 8
-  const OFFSETS_POR_COLUNA = 3.5
-  const MARGEM_SEGURANCA = 3
-  const larguraConteudo = LARGURA_PAGINA - columns.length * (INFLACAO_RENDER + OFFSETS_POR_COLUNA) - MARGEM_SEGURANCA
+  // pdfmake soma o padding às larguras das células; este layout não tem bordas verticais.
+  const larguraConteudo = LARGURA_UTIL_PDF - columns.length * PADDING_HORIZONTAL_TABELA * 2
   const pesos = columns.map((c) => {
     let maxLen = c.header.length
     let maxToken = 0
@@ -115,7 +119,7 @@ function largurasColunas<T>(columns: ColunaExport<T>[], rows: T[]): number[] {
     return Math.max(Math.min(maxLen, 30), maxToken + 2, 6)
   })
   const somaPesos = pesos.reduce((a, b) => a + b, 0)
-  return pesos.map(p => Math.floor((p / somaPesos) * larguraConteudo * 100) / 100)
+  return pesos.map(p => (p / somaPesos) * larguraConteudo)
 }
 
 const layoutTabelaCompacto = {
@@ -124,7 +128,10 @@ const layoutTabelaCompacto = {
   vLineWidth: () => 0,
   hLineColor: (i: number, node: { table: { headerRows: number } }) =>
     (i === 0 || i === node.table.headerRows ? '#AAAAAA' : '#DDDDDD'),
-  padding: () => [2, 1.5, 2, 1.5] as [number, number, number, number]
+  paddingLeft: () => PADDING_HORIZONTAL_TABELA,
+  paddingRight: () => PADDING_HORIZONTAL_TABELA,
+  paddingTop: () => PADDING_VERTICAL_TABELA,
+  paddingBottom: () => PADDING_VERTICAL_TABELA
 }
 
 export async function exportTableToPDF<T>(opcoes: OpcoesPdfExport<T>) {
@@ -142,7 +149,7 @@ export async function exportTableToPDF<T>(opcoes: OpcoesPdfExport<T>) {
     info: { title: filename.endsWith('.pdf') ? filename.slice(0, -4) : filename },
     pageSize: 'A4',
     pageOrientation: 'landscape',
-    pageMargins: [20, 20, 20, 40],
+    pageMargins: MARGENS_PDF,
     content: [
       {
         columns: [
@@ -158,7 +165,7 @@ export async function exportTableToPDF<T>(opcoes: OpcoesPdfExport<T>) {
         ],
         margin: [0, 0, 0, 4]
       },
-      { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 802, y2: 0, lineWidth: 1, lineColor: '#E0E0E0' }], margin: [0, 0, 0, 6] },
+      { canvas: [{ type: 'line', x1: 0, y1: 0, x2: LARGURA_UTIL_PDF, y2: 0, lineWidth: 1, lineColor: '#E0E0E0' }], margin: [0, 0, 0, 6] },
       ...(subtitle ? [{ text: subtitle, fontSize: 8, color: '#555555', margin: [0, 0, 0, 3] }] : []),
       ...(summary?.length ? [{ text: summary.join('  •  '), fontSize: 8, color: '#555555', margin: [0, 0, 0, 6] }] : []),
       {
@@ -177,7 +184,7 @@ export async function exportTableToPDF<T>(opcoes: OpcoesPdfExport<T>) {
         { text: `Gerado em ${new Date().toLocaleString('pt-BR')}`, fontSize: 7, color: '#999999' },
         { text: `Página ${currentPage} de ${pageCount}`, fontSize: 7, alignment: 'right' as const, color: '#999999' }
       ],
-      margin: [20, 10, 20, 0]
+      margin: [MARGENS_PDF[0], 10, MARGENS_PDF[2], 0]
     }),
     styles: {
       tableHeader: { bold: true, fontSize: 6.5, color: '#333333', fillColor: '#F0F0F0' }

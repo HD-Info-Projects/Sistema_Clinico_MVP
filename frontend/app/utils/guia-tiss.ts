@@ -13,28 +13,33 @@ let convenioLogoIndex: Record<string, string> | null = null
 let convenioLogoIndexLoaded = false
 
 const TISS_PRINT_CSS = `
+        /* O padding da página preserva os 5mm após cada quebra de impressão.
+           As orientações rotacionadas continuam usando a folha inteira. */
         @page {
             size: A4 landscape;
             margin: 0;
         }
-        .guia-container {
-            width: 287mm !important;
-            max-width: none !important;
-            min-height: 200mm;
-            margin: 5mm auto !important;
+        .guia-pagina {
+            width: 297mm;
+            padding: 5mm;
             page-break-inside: avoid;
             break-inside: avoid;
         }
-        .guia-container:not(:last-child) {
-            page-break-after: always;
-            break-after: page;
+        .guia-pagina + .guia-pagina {
+            page-break-before: always;
+            break-before: page;
+        }
+        .guia-pagina .guia-container {
+            width: 100% !important;
+            max-width: none !important;
+            margin: 0 !important;
         }
         @media print {
             html, body {
-                width: 297mm !important;
-                min-width: 297mm !important;
+                width: auto !important;
+                min-width: 0 !important;
                 height: auto !important;
-                min-height: 210mm !important;
+                min-height: 0 !important;
                 margin: 0 !important;
                 padding: 0 !important;
             }
@@ -46,15 +51,9 @@ const TISS_PRINT_CSS = `
             padding: 0;
             background-color: #fff;
             page-break-before: always;
-            page-break-after: always;
             break-before: page;
-            break-after: page;
             position: relative;
             overflow: hidden;
-        }
-        .orientacao-exame-container:last-child {
-            page-break-after: auto;
-            break-after: auto;
         }
         .orientacao-exame-page {
             box-sizing: border-box;
@@ -170,7 +169,7 @@ export async function gerarHtmlGuiaTiss(params: {
       exameRowHtml(startNum + batch.length + i + 1, { nome: '' })
     ).join('')
 
-    return bodyContent
+    const guia = bodyContent
       .replaceAll('{{CONVENIO}}', escapeHtml(params.convenio))
       .replaceAll('{{CONVENIO_LOGO}}', convenioLogo)
       .replaceAll('{{PACIENTE}}', escapeHtml(params.paciente))
@@ -183,6 +182,8 @@ export async function gerarHtmlGuiaTiss(params: {
       .replaceAll('{{CARATER_ATENDIMENTO}}', params.caraterAtendimento ? 'U' : 'E')
       .replaceAll('{{CID_PRINCIPAL}}', escapeHtml(params.cidPrincipal ?? ''))
       .replaceAll('{{EXAMES_ROWS}}', examesRows + blankRows)
+
+    return `<section class="guia-pagina">${guia}</section>`
   })
 
   return beforeBody + '\n' + [...pages, ...orientacoesPages].join('\n') + '\n' + afterBody
