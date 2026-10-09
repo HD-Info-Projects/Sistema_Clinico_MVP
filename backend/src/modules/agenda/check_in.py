@@ -413,7 +413,7 @@ def buscar_atendimentos_firebird(data_ref, unidade):
 
             CAST(NULL AS INTEGER) AS ID_AGENDAMENTO,
             CAST(NULL AS INTEGER) AS GRV_ATE,
-            CAST(NULL AS VARCHAR(30)) AS FONE,
+            paciente.FONE AS FONE,
             COALESCE(esp_atendimento.NOME, esp_princ.NOME) AS ESPECIALIDADE,
             CAST(NULL AS VARCHAR(50)) AS RETORNO,
             CAST(NULL AS VARCHAR(50)) AS TIPO_AGENDA,
