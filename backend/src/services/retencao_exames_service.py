@@ -16,7 +16,7 @@ from src.settings.extensions import db
 from src.utils.normalizar import normalizar_cpf
 
 
-PRAZO_NAO_CONVERTIDO = timedelta(days=90)
+PRAZO_NAO_CONVERTIDO = timedelta(days=30)
 
 TIPOS_EXAME_RETENCAO = {
     "anatomia-patologica": ("8", "Anatomia Patológica"),
