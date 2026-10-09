@@ -176,7 +176,7 @@ export const useAuthStore = defineStore('auth', () => {
       } else if (roleIn(response.user.role, LGPD_ROLES)) {
         navigateTo('/lgpd/auditoria')
       } else if (roleIn(response.user.role, FINANCEIRO_ROLES)) {
-        navigateTo('/financeiro/pagamentos')
+        navigateTo(activeClinicaId.value ? '/financeiro/pagamentos' : '/selecionar-clinica')
       } else if ((roleIn(response.user.role, RECEPCAO_ROLES) || roleIn(response.user.role, MEDICO_ROLES) || roleIn(response.user.role, ASSISTENTE_ROLES)) && response.clinicas.length > 1 && !activeClinicaId.value) {
         navigateTo('/selecionar-clinica')
       } else if (roleIn(response.user.role, ASSISTENTE_ROLES)) {

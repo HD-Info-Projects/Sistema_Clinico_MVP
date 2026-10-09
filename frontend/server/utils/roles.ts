@@ -17,4 +17,4 @@ export const SERVER_RECEPCAO_ROLES: ServerRoleUsuario[] = ['recepcao', 'coord_re
 export const SERVER_COORD_RECEPCAO_ROLES: ServerRoleUsuario[] = ['coord_recepcao', 'admin']
 export const SERVER_LGPD_ROLES: ServerRoleUsuario[] = ['dpo', 'admin']
 export const SERVER_CHAMADAS_ROLES: ServerRoleUsuario[] = ['medico', 'assistente', 'recepcao', 'coord_recepcao', 'admin']
-export const SERVER_UNIDADE_REQUIRED_ROLES: ServerRoleUsuario[] = ['medico', 'assistente', 'recepcao', 'coord_recepcao']
+export const SERVER_UNIDADE_REQUIRED_ROLES: ServerRoleUsuario[] = ['medico', 'assistente', 'recepcao', 'coord_recepcao', 'financeiro', 'coord_financeiro']

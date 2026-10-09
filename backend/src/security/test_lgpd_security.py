@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 import time
+import pytest
 
 from src import create_app
 from src.controllers.login_controller import LoginController
@@ -8,6 +9,7 @@ from flask_jwt_extended import create_access_token
 from src.modules.atendimentos.routes import _item_dashboard
 from src.modules.auth.routes import _deduct_failed_login
 from src.modules.auth.service import AccountLockedError
+from src.modules.usuarios.routes import _validar_unidades_role
 from src.models.usuario_model import Usuario
 from src.security.decorators import active_user_required, roles_required
 from src.security.jwt_blocklist import is_jti_revoked, revoke_jti
@@ -322,10 +324,20 @@ def test_roles_matrix_inclui_novos_perfis_sem_ti():
         "coord_financeiro",
     }
     assert "ti" not in ROLES_USUARIO
-    assert ROLES_EXIGEM_UNIDADE == {"medico", "assistente", "recepcao", "coord_recepcao"}
+    assert ROLES_EXIGEM_UNIDADE == {
+        "medico", "assistente", "recepcao", "coord_recepcao", "financeiro", "coord_financeiro"
+    }
     assert ASSISTENTE_ROLES == ("assistente", "admin")
     assert LGPD_ROLES == ("dpo", "admin")
     assert FINANCEIRO_ROLES == ("financeiro", "coord_financeiro", "admin")
+
+
+@pytest.mark.parametrize("role", ["financeiro", "coord_financeiro"])
+def test_perfis_financeiros_exigem_vinculo_de_unidade_no_cadastro(role):
+    for unidade_ids in (None, []):
+        with pytest.raises(ValueError, match="Selecione ao menos uma unidade"):
+            _validar_unidades_role(role, unidade_ids)
+    _validar_unidades_role(role, [1])
 
 
 def test_tuss_identifica_apenas_categorias_de_exames_assistente():

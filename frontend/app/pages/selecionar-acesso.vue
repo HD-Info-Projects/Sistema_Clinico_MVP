@@ -43,7 +43,7 @@ function selecionar(modo: AccessMode) {
     descricao: `Troca de acesso para ${modo}.`
   })
 
-  if (modo === 'recepcionista' && auth.clinicas.length !== 1) {
+  if ((modo === 'recepcionista' || modo === 'financeiro') && (auth.clinicas.length !== 1 || !auth.activeClinicaId)) {
     navigateTo('/selecionar-clinica')
     return
   }

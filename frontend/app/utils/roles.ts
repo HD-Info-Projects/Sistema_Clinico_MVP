@@ -17,7 +17,7 @@ export const LGPD_ROLES: RoleUsuario[] = ['dpo', 'admin']
 export const MEDICO_ROLES: RoleUsuario[] = ['medico']
 export const ASSISTENTE_ROLES: RoleUsuario[] = ['assistente', 'admin']
 export const FINANCEIRO_ROLES: RoleUsuario[] = ['financeiro', 'coord_financeiro', 'admin']
-export const UNIDADE_REQUIRED_ROLES: RoleUsuario[] = ['medico', 'assistente', 'recepcao', 'coord_recepcao']
+export const UNIDADE_REQUIRED_ROLES: RoleUsuario[] = ['medico', 'assistente', 'recepcao', 'coord_recepcao', 'financeiro', 'coord_financeiro']
 
 export const ROLE_OPTIONS: { label: string, value: RoleUsuario }[] = [
   { label: 'Médico', value: 'medico' },

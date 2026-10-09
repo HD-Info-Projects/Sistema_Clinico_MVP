@@ -9,6 +9,9 @@ const subtitulo = computed(() => {
   if (auth.isAdmin && auth.accessMode === 'recepcionista') {
     return 'Escolha a unidade na qual deseja atender como recepcionista.'
   }
+  if (auth.canAccessFinanceiro && (!auth.isAdmin || auth.accessMode === 'financeiro')) {
+    return 'Escolha a unidade na qual deseja acessar o financeiro.'
+  }
   return 'Você tem acesso a mais de uma clínica. Escolha qual deseja acessar.'
 })
 
@@ -42,6 +45,13 @@ async function selecionar(id: number) {
       {{ subtitulo }}
     </p>
 
+    <UAlert
+      v-if="auth.clinicas.length === 0"
+      title="Nenhuma unidade disponível"
+      description="Solicite ao administrador o vínculo com uma unidade ativa para continuar."
+      color="warning"
+      icon="i-lucide-building-2"
+    />
     <div class="flex flex-col gap-3">
       <UCard
         v-for="c in auth.clinicas"
