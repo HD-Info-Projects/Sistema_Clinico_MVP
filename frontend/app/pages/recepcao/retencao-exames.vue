@@ -329,6 +329,19 @@ async function exportarRetencaoPDF() {
       rows: dadosFiltrados.value,
       columns: colunasExportacao,
       filename: `retencao-exames_${periodoExportacao()}`,
+      // Medidas em pontos, específicas do PDF de conversão de exames.
+      pageMargins: [12, 16, 12, 32],
+      columnWidths: {
+        convenio: 42,
+        especialidade: 44,
+        diasEmAberto: 24,
+        cpf: 48,
+        prontuario: 34,
+        telefone: 46,
+        crm: 48,
+        codigoTuss: 38,
+        status: 48
+      },
       janela
     })
     if (resultado === 'baixado') toast.add({ title: 'Pop-up bloqueado: o PDF foi baixado', color: 'info' })
@@ -472,21 +485,6 @@ const rankingTiposExame = computed(() => {
     .slice(0, 10)
 })
 
-const rankingOportunidade = computed(() => {
-  const totais = new Map<string, number>()
-
-  for (const exame of dadosFiltrados.value) {
-    if (!STATUS_EM_ABERTO.has(exame.status)) continue
-    const label = exame.convenio || 'Convênio não informado'
-    totais.set(label, (totais.get(label) || 0) + exame.valorEstimado)
-  }
-
-  return [...totais.entries()]
-    .map(([convenio, valor]) => ({ convenio, valor }))
-    .sort((a, b) => b.valor - a.valor)
-    .slice(0, 10)
-})
-
 const rankingConversao = computed(() => {
   const totais = new Map<string, { medico: string, solicitados: number, realizados: number }>()
 
@@ -526,9 +524,6 @@ const chartExamesDados = computed(() => rankingExames.value.map(e => e.total))
 
 const chartTiposExameLabels = computed(() => rankingTiposExame.value.map(e => e.tipo))
 const chartTiposExameDados = computed(() => rankingTiposExame.value.map(e => e.total))
-
-const chartOportunidadeLabels = computed(() => rankingOportunidade.value.map(o => o.convenio))
-const chartOportunidadeDados = computed(() => rankingOportunidade.value.map(o => o.valor))
 
 const chartConversaoMedicos = computed(() => rankingConversao.value.map(m => m.medico))
 const chartConversaoTaxas = computed(() => rankingConversao.value.map(m => m.taxa))
@@ -897,7 +892,7 @@ watch(() => auth.activeClinicaId, () => {
               />
             </UBadge>
             <div class="min-w-0 flex-1">
-              <p class="break-words text-sm font-bold">
+              <p class="wrap-break-word text-sm font-bold">
                 Tendência de Solicitações
               </p>
               <p class="text-xs text-muted">
@@ -1137,7 +1132,7 @@ watch(() => auth.activeClinicaId, () => {
             size="md"
           />
           <div class="min-w-0">
-            <p class="break-words font-semibold text-lg">
+            <p class="wrap-break-word font-semibold text-lg">
               {{ pacienteSelecionado?.paciente }}
             </p>
             <p class="break-all text-sm text-muted">
@@ -1160,7 +1155,7 @@ watch(() => auth.activeClinicaId, () => {
                 <p class="text-muted">
                   Nome
                 </p>
-                <p class="break-words font-medium">
+                <p class="wrap-break-word font-medium">
                   {{ pacienteSelecionado?.paciente }}
                 </p>
               </div>
@@ -1275,7 +1270,7 @@ watch(() => auth.activeClinicaId, () => {
               </p>
             </template>
             <div class="max-w-full overflow-x-auto">
-              <table class="min-w-[44rem] w-full text-sm">
+              <table class="min-w-176 w-full text-sm">
                 <thead>
                   <tr class="border-b border-neutral-200 dark:border-neutral-800">
                     <th class="text-left py-2 font-medium text-muted">

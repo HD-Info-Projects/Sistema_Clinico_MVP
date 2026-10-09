@@ -4,7 +4,6 @@ import { usePdfMake } from '~/utils/pdf'
 // Medidas do PDF em pontos. Margens: esquerda, superior, direita, inferior.
 const LARGURA_A4_PAISAGEM = 841.89
 const MARGENS_PDF: [number, number, number, number] = [20, 20, 20, 40]
-const LARGURA_UTIL_PDF = LARGURA_A4_PAISAGEM - MARGENS_PDF[0] - MARGENS_PDF[2]
 const PADDING_HORIZONTAL_TABELA = 2
 const PADDING_VERTICAL_TABELA = 1.5
 
@@ -21,6 +20,10 @@ export interface OpcoesPdfExport<T> {
   rows: T[]
   columns: ColunaExport<T>[]
   filename: string
+  /** Margens em pontos: esquerda, superior, direita, inferior. */
+  pageMargins?: [number, number, number, number]
+  /** Larguras de conteúdo em pontos, por key; as demais colunas dividem o espaço restante. */
+  columnWidths?: Record<string, number>
   /**
    * Aba aberta com abrirJanelaPdf() no clique do usuário.
    * undefined: abre nova aba agora; null/fechada: baixa o PDF (pop-up bloqueado).
@@ -100,10 +103,12 @@ export async function exportToExcel<T>(rows: T[], columns: ColunaExport<T>[], fi
   )
 }
 
-function largurasColunas<T>(columns: ColunaExport<T>[], rows: T[]): number[] {
+function largurasColunas<T>(columns: ColunaExport<T>[], rows: T[], larguraUtil: number, columnWidths: Record<string, number> = {}): number[] {
   // pdfmake soma o padding às larguras das células; este layout não tem bordas verticais.
-  const larguraConteudo = LARGURA_UTIL_PDF - columns.length * PADDING_HORIZONTAL_TABELA * 2
+  const larguraConteudo = larguraUtil - columns.length * PADDING_HORIZONTAL_TABELA * 2
+  const larguraFixa = columns.reduce((total, c) => total + (columnWidths[c.key] ?? 0), 0)
   const pesos = columns.map((c) => {
+    if (columnWidths[c.key] !== undefined) return 0
     let maxLen = c.header.length
     let maxToken = 0
     const considerar = (texto: string) => {
@@ -119,7 +124,7 @@ function largurasColunas<T>(columns: ColunaExport<T>[], rows: T[]): number[] {
     return Math.max(Math.min(maxLen, 30), maxToken + 2, 6)
   })
   const somaPesos = pesos.reduce((a, b) => a + b, 0)
-  return pesos.map(p => (p / somaPesos) * larguraConteudo)
+  return pesos.map((p, i) => columnWidths[columns[i]!.key] ?? (p / somaPesos) * (larguraConteudo - larguraFixa))
 }
 
 const layoutTabelaCompacto = {
@@ -138,18 +143,20 @@ export async function exportTableToPDF<T>(opcoes: OpcoesPdfExport<T>) {
   const pdfMake = await usePdfMake()
   const logo = await getLogoBase64()
   const { title, subtitle, summary, rows, columns, filename } = opcoes
+  const margens = opcoes.pageMargins ?? MARGENS_PDF
+  const larguraUtil = LARGURA_A4_PAISAGEM - margens[0] - margens[2]
 
   const corpo = [
     columns.map(c => ({ text: c.header, style: 'tableHeader' })),
     ...rows.map(row => columns.map(c => ({ text: textoCelula(c.value(row)) })))
   ]
-  const larguras = largurasColunas(columns, rows)
+  const larguras = largurasColunas(columns, rows, larguraUtil, opcoes.columnWidths)
 
   const doc = {
     info: { title: filename.endsWith('.pdf') ? filename.slice(0, -4) : filename },
     pageSize: 'A4',
     pageOrientation: 'landscape',
-    pageMargins: MARGENS_PDF,
+    pageMargins: margens,
     content: [
       {
         columns: [
@@ -165,7 +172,7 @@ export async function exportTableToPDF<T>(opcoes: OpcoesPdfExport<T>) {
         ],
         margin: [0, 0, 0, 4]
       },
-      { canvas: [{ type: 'line', x1: 0, y1: 0, x2: LARGURA_UTIL_PDF, y2: 0, lineWidth: 1, lineColor: '#E0E0E0' }], margin: [0, 0, 0, 6] },
+      { canvas: [{ type: 'line', x1: 0, y1: 0, x2: larguraUtil, y2: 0, lineWidth: 1, lineColor: '#E0E0E0' }], margin: [0, 0, 0, 6] },
       ...(subtitle ? [{ text: subtitle, fontSize: 8, color: '#555555', margin: [0, 0, 0, 3] }] : []),
       ...(summary?.length ? [{ text: summary.join('  •  '), fontSize: 8, color: '#555555', margin: [0, 0, 0, 6] }] : []),
       {
@@ -184,7 +191,7 @@ export async function exportTableToPDF<T>(opcoes: OpcoesPdfExport<T>) {
         { text: `Gerado em ${new Date().toLocaleString('pt-BR')}`, fontSize: 7, color: '#999999' },
         { text: `Página ${currentPage} de ${pageCount}`, fontSize: 7, alignment: 'right' as const, color: '#999999' }
       ],
-      margin: [MARGENS_PDF[0], 10, MARGENS_PDF[2], 0]
+      margin: [margens[0], 10, margens[2], 0]
     }),
     styles: {
       tableHeader: { bold: true, fontSize: 6.5, color: '#333333', fillColor: '#F0F0F0' }
